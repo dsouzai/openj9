@@ -1347,6 +1347,10 @@ onLoadInternal(
 #endif
       }
 
+   jitConfig->pseudoTOC = j9mem_allocate_memory(sizeof(TR_PauseTimeControl), J9MEM_CATEGORY_JIT);
+   ((TR_PauseTimeControl *)jitConfig->pseudoTOC)->_numInvokes = 1;
+   ((TR_PauseTimeControl *)jitConfig->pseudoTOC)->_secondsToWait = 0;
+
    if (!fe->isAOT_DEPRECATED_DO_NOT_USE())
       {
       J9VMThread *currentVMThread = javaVM->internalVMFunctions->currentVMThread(javaVM);

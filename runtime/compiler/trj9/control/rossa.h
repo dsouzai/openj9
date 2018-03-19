@@ -78,6 +78,12 @@ typedef enum {
    compilationMaxError /* must be the last one */
 } TR_CompilationErrorCode;
 
+typedef struct TR_PauseTimeControl
+   {
+   uint32_t _numInvokes;
+   uint32_t _secondsToWait;
+   } TR_PauseTimeControl;
+
 #ifdef __cplusplus
 extern "C" {
 #endif

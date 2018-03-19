@@ -6423,6 +6423,20 @@ static int32_t J9THREAD_PROC samplerThreadProc(void * entryarg)
          persistentInfo->updateElapsedTime(samplingPeriod);
          crtTime += samplingPeriod;
 
+         if (crtTime - oldSyncTime >= 1000) // every second
+            {
+            static bool activatedPause = false;
+            if (!activatedPause &&
+                TR::Options::_pauseTimeControlActivateAfter > 0 &&
+                crtTime >= 1000*TR::Options::_pauseTimeControlActivateAfter)
+               {
+               fprintf(stderr, "######## Activating Pause In Helper ########\n");
+               ((TR_PauseTimeControl *)jitConfig->pseudoTOC)->_numInvokes = TR::Options::_pauseTimeControlNumInvokes;
+               ((TR_PauseTimeControl *)jitConfig->pseudoTOC)->_secondsToWait = TR::Options::_pauseTimeControlSecondsToWait;
+               activatedPause = true;
+               }
+            }
+
          // periodic chores
          // FIXME: make a constant/macro for the period, and make it 100
          if (crtTime - oldSyncTime >= 100) // every 100 ms

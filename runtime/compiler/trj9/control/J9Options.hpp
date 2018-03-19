@@ -170,6 +170,10 @@ class OMR_EXTENSIBLE Options : public OMR::OptionsConnector
    static int32_t _seriousCompFailureThreshold; // above this threshold we generate a trace point in the Snap file
    static bool _useCPUsToDetermineMaxNumberOfCompThreadsToActivate;
 
+   static int32_t _pauseTimeControlActivateAfter;
+   static int32_t _pauseTimeControlNumInvokes;
+   static int32_t _pauseTimeControlSecondsToWait;
+
    static int32_t _numCodeCachesToCreateAtStartup;
    static int32_t getNumCodeCachesToCreateAtStartup() { return _numCodeCachesToCreateAtStartup; }
 

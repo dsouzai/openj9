@@ -1002,9 +1002,28 @@ old_slow_jitLookupInterfaceMethod(J9VMThread *currentThread)
 	return J9_JITHELPER_ACTION_THROW;
 }
 
+typedef struct PauseTimeControl
+   {
+   uint32_t _numInvokes;
+   uint32_t _secondsToWait;
+   } PauseTimeControl;
+
 void* J9FASTCALL
 old_fast_jitLookupInterfaceMethod(J9VMThread *currentThread)
 {
+   J9JavaVM *vm = currentThread->javaVM;
+   PauseTimeControl *pauseTime = (PauseTimeControl *)vm->jitConfig->pseudoTOC;
+
+   static uint64_t invokeCount = 0;
+   uint32_t numInvokes = pauseTime->_numInvokes;
+   uint32_t secondsToWait = pauseTime->_secondsToWait;
+
+   invokeCount++;
+   if (secondsToWait > 0 && (invokeCount % numInvokes) == 0) {
+           fprintf(stderr, "\n######## J9VMThread=%p Invoke %d, waiting for %d seconds ########\n", currentThread, invokeCount, secondsToWait);
+           sleep(secondsToWait);
+   }
+
 	void *slowPath = (void*)old_slow_jitLookupInterfaceMethod;
 	OLD_JIT_HELPER_PROLOGUE(3);
 	DECLARE_JIT_CLASS_PARM(receiverClass, 1);

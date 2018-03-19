@@ -110,6 +110,10 @@ int32_t J9::Options::_activeThreadsThreshold = 0; // -1 means 'determine dynamic
 int32_t J9::Options::_samplingThreadExpirationTime = -1;
 int32_t J9::Options::_compilationExpirationTime = -1;
 
+int32_t J9::Options::_pauseTimeControlActivateAfter = -1;
+int32_t J9::Options::_pauseTimeControlNumInvokes = 1;
+int32_t J9::Options::_pauseTimeControlSecondsToWait = 0;
+
 int32_t J9::Options::_minSamplingPeriod = 10; // ms
 int32_t J9::Options::_compilationBudget = 0;  // ms; 0 means disabled
 
@@ -880,6 +884,12 @@ TR::OptionTable OMR::Options::_feOptions[] = {
         TR::Options::setStaticNumeric, (intptrj_t)&TR::Options::_numDLTBufferMatchesToEagerlyIssueCompReq, 0, "F%d", NOT_IN_SUBSET},
    {"numInterpCompReqToExitIdleMode=", "M<nnn>\tNumber of first time comp. req. that takes the JIT out of idle mode",
         TR::Options::setStaticNumeric, (intptrj_t)&TR::Options::_numFirstTimeCompilationsToExitIdleMode, 0, "F%d", NOT_IN_SUBSET },
+   {"pauseTimeControlActivateAfter=",    "R<nnn>\tInterpreter profiling will be on all the time",
+        TR::Options::setStaticNumeric, (intptrj_t)&TR::Options::_pauseTimeControlActivateAfter, 0, " %d", NOT_IN_SUBSET},
+   {"pauseTimeControlNumInvokes=",    "R<nnn>\tInterpreter profiling will be on all the time",
+        TR::Options::setStaticNumeric, (intptrj_t)&TR::Options::_pauseTimeControlNumInvokes, 0, " %d", NOT_IN_SUBSET},
+   {"pauseTimeControlSecondsToWait=",    "R<nnn>\tInterpreter profiling will be on all the time",
+        TR::Options::setStaticNumeric, (intptrj_t)&TR::Options::_pauseTimeControlSecondsToWait, 0, " %d", NOT_IN_SUBSET},
    {"profileAllTheTime=",    "R<nnn>\tInterpreter profiling will be on all the time",
         TR::Options::setStaticNumeric, (intptrj_t)&TR::Options::_profileAllTheTime, 0, " %d", NOT_IN_SUBSET},
    {"queuedInvReqThresholdToDowngradeOptLevel=", "M<nnn>\tDowngrade opt level if too many inv req",
