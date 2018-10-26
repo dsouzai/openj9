@@ -82,21 +82,25 @@ TR::SymbolValidationManager::SymbolValidationManager(TR::Region &region, TR_Reso
       id = getNewSymbolID();
       _symbolToIdMap.insert(std::make_pair(static_cast<void *>(arrayClass), id));
       _idToSymbolsMap.insert(std::make_pair(id, static_cast<void *>(arrayClass)));
+      _seenSymbolsSet.insert(static_cast<void *>(arrayClass));
 
       id = getNewSymbolID();
       _symbolToIdMap.insert(std::make_pair(static_cast<void *>(component), id));
       _idToSymbolsMap.insert(std::make_pair(id, static_cast<void *>(component)));
+      _seenSymbolsSet.insert(static_cast<void *>(component));
       }
 
    id = getNewSymbolID();
    TR_OpaqueClassBlock *classOfMethod = compilee->classOfMethod();
    _symbolToIdMap.insert(std::make_pair(static_cast<void *>(classOfMethod), id));
    _idToSymbolsMap.insert(std::make_pair(id, static_cast<void *>(classOfMethod)));
+   _seenSymbolsSet.insert(static_cast<void *>(classOfMethod));
 
    id = getNewSymbolID();
    TR_OpaqueMethodBlock *method = compilee->getPersistentIdentifier();
    _symbolToIdMap.insert(std::make_pair(static_cast<void *>(method), id));
    _idToSymbolsMap.insert(std::make_pair(id, static_cast<void *>(method)));
+   _seenSymbolsSet.insert(static_cast<void *>(method));
    }
 
 uint16_t
@@ -970,7 +974,15 @@ TR::SymbolValidationManager::addMethodFromClassAndSignatureRecord(TR_OpaqueMetho
       }
 
    SymbolValidationRecord *record = new (_region) MethodFromClassAndSigRecord(method, methodClass, beholder);
-   return storeValidationRecordIfNecessary(static_cast<void *>(method), record);
+   bool valid = storeValidationRecordIfNecessary(static_cast<void *>(method), record);
+
+   if (valid)
+      {
+      J9Class *classOfMethod = J9_CLASS_FROM_METHOD(reinterpret_cast<J9Method *>(method));
+      valid = addClassFromMethodRecord(reinterpret_cast<TR_OpaqueClassBlock *>(classOfMethod), method);
+      }
+
+   return valid;
    }
 
 bool
