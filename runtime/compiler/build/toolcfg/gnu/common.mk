@@ -415,7 +415,7 @@ ifeq ($(HOST_ARCH),x)
     
     ifeq ($(HOST_BITS),64)
         SOLINK_FLAGS+=-m64
-        SOLINK_SLINK+=dl m
+        SOLINK_SLINK+=dl m unwind
     endif
     
     SUPPORT_STATIC_LIBCXX = $(shell $(SOLINK_CMD) -static-libstdc++ 2>&1 | grep "unrecognized option" > /dev/null; echo $$?)
