@@ -259,6 +259,8 @@ typedef struct TR_AOTStats
 
    TR_FailedPerfAssumptionCode failedPerfAssumptionCode;
 
+   uint32_t numRelocationsFailedByType[TR_NumExternalRelocationKinds];
+
    } TR_AOTStats;
 
 

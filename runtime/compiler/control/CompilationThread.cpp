@@ -2854,6 +2854,16 @@ void TR::CompilationInfo::stopCompilationThreads()
       fprintf(stderr, "numProfiledMethodGuardsValidationFailed: %d\n", aotStats->profiledMethodGuards.numFailedValidations);
       fprintf(stderr, "numProfiledMethodGuardsValidationSucceeded: %d\n", aotStats->profiledMethodGuards.numSucceededValidations);
       fprintf(stderr, "-------------------------\n");
+
+
+      fprintf(stderr, "\n\n");
+      fprintf(stderr, "Number of relocationFailuresByType:\n");
+      for (uint32_t i = 0; i < TR_NumExternalRelocationKinds; i++)
+         {
+         fprintf(stderr, "\t%s (%d) = %d\n", TR::ExternalRelocation::getName((TR_ExternalRelocationTargetKind)i), i, aotStats->numRelocationsFailedByType[i]);
+         }
+      fprintf(stderr, "\n\n");
+
       } // AOT stats
 
 
