@@ -245,6 +245,9 @@ int32_t J9::Options::_jProfilingEnablementSampleThreshold = 10000;
 
 bool J9::Options::_aggressiveLockReservation = false;
 
+int32_t J9::Options::_aotLoadRetryCount = 0;
+int32_t J9::Options::_aotLoadRetryInvocationCount = 50;
+
 //************************************************************************
 //
 // Options handling - the following code implements the VM-specific
@@ -907,6 +910,10 @@ TR::OptionTable OMR::Options::_feOptions[] = {
         TR::Options::setStaticNumeric, (intptrj_t)&TR::Options::_relaxedCompilationLimitsSampleThreshold, 0, " %d", NOT_IN_SUBSET },
    {"resetCountThreshold=", "R<nnn>\tThe number of global samples which if exceed during a method's sampling interval will cause the method's sampling counter to be incremented by the number of samples in a sampling interval",
         TR::Options::setStaticNumeric, (intptrj_t)&TR::Options::_resetCountThreshold, 0, " %d", NOT_IN_SUBSET},
+   {"retryAOTLoadCount=", "M<nnn>\tNumber of times to retry an AOT load on failure",
+        TR::Options::setStaticNumeric, (intptrj_t)&TR::Options::_aotLoadRetryCount, 0, "F%d"},
+   {"retryAOTLoadInvocationCount=", "M<nnn>\tInvocation count for an AOT load that will be retried",
+        TR::Options::setStaticNumeric, (intptrj_t)&TR::Options::_aotLoadRetryInvocationCount, 0, "F%d"},
    {"rtlog=",             "L<filename>\twrite verbose run-time output to filename",
         TR::Options::setStringForPrivateBase,  offsetof(TR_JitPrivateConfig,rtLogFileName), 0, "P%s"},
    {"rtResolve",          "D\ttreat all data references as unresolved", SET_JITCONFIG_RUNTIME_FLAG(J9JIT_RUNTIME_RESOLVE) },

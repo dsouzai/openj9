@@ -4668,6 +4668,7 @@ void JitShutdown(J9JITConfig * jitConfig)
 #endif // J9VM_INTERP_PROFILING_BYTECODES
 
    TR::CompilationInfo * compInfo = TR::CompilationInfo::get(jitConfig);
+   compInfo->printAOTLoadRetryStats();
 
    TR_HWProfiler *hwProfiler = ((TR_JitPrivateConfig*)(jitConfig->privateConfig))->hwProfiler;
    if (compInfo->getPersistentInfo()->isRuntimeInstrumentationEnabled())
