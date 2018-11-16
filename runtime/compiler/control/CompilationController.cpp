@@ -1017,7 +1017,7 @@ TR::DefaultCompilationStrategy::processJittedSample(TR_MethodEvent *event)
                   // and never be upgraded, which is what we want
                   }
                if ((uint32_t)crtSampleIntervalCount >= threshold &&
-                   compInfo->getMethodQueueSize() <= TR::CompilationInfo::SMALL_QUEUE &&
+                   compInfo->getMethodQueueSize() <= TR::CompilationInfo::MEDIUM_LARGE_QUEUE &&
                    !compInfo->getPersistentInfo()->isClassLoadingPhase() &&
                    !isAlreadyBeingCompiled &&
                    !cmdLineOptions->getOption(TR_DisableUpgradingColdCompilations))
