@@ -2866,13 +2866,18 @@ J9::CodeGenerator::processRelocations()
          TR_AOTMethodHeader *aotMethodHeaderEntry = (TR_AOTMethodHeader *)(aotMethodHeader + 1);
          aotMethodHeaderEntry->flags |= TR_AOTMethodHeader_UsesSymbolValidationManager;
 
+         traceMsg(TR::comp(), "\n\nSVM records for %s:", TR::comp()->signature());
+         self()->comp()->getSymbolValidationManager()->printSymbolToIdMap();
          for (auto it = validationRecords.begin(); it != validationRecords.end(); it++)
             {
             self()->addExternalRelocation(new (self()->trHeapMemory()) TR::ExternalRelocation(NULL,
                                                                              (uint8_t *)(*it),
                                                                              (*it)->_kind, self()),
                                                                              __FILE__, __LINE__, NULL);
+
+            (*it)->printFields();
             }
+         traceMsg(TR::comp(), "\n\n");
          }
 
 //#endif

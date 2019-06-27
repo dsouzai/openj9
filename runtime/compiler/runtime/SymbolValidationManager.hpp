@@ -745,6 +745,8 @@ public:
    void exitHeuristicRegion() { _heuristicRegion--; }
    bool inHeuristicRegion() { return (_heuristicRegion > 0); }
 
+   void printSymbolToIdMap();
+
    static bool assertionsAreFatal();
 
 private:
