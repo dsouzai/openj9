@@ -419,10 +419,12 @@ TR::SymbolValidationManager::appendNewRecord(void *symbol, TR::SymbolValidationR
    _symbolValidationRecords.push_front(record);
    _alreadyGeneratedRecords.insert(record);
 
+   /*
    record->printFields();
    traceMsg(_comp, "\tkind=%d\n", record->_kind);
    traceMsg(_comp, "\tid=%d\n", (uint32_t)getIDFromSymbol(symbol));
    traceMsg(_comp, "\n");
+   */
    }
 
 void
@@ -1376,13 +1378,46 @@ TR::SymbolValidationManager::assertionsAreFatal()
 #endif
    }
 
+void
+TR::SymbolValidationManager::printSymbolToIdMap()
+   {
+   traceMsg(_comp, "_symbolToIdMap:\n");
+   for (auto it = _symbolToIdMap.begin(); it != _symbolToIdMap.end(); it++)
+      {
+      traceMsg(_comp, "\t%d <--> %p\n", (uint32_t)it->second, it->first);
+      }
+   }
+
+static void printID(TR::Compilation *comp, TR::SymbolValidationManager *svm, void *symbol)
+   {
+   if (symbol != NULL)
+      {
+      uint16_t id = svm->getIDFromSymbol(symbol);
+      traceMsg(comp, "\tid=%d\n", (uint32_t)id);
+      }
+   } 
+
 static void printClass(TR_OpaqueClassBlock *clazz)
    {
    if (clazz != NULL)
       {
+      printID(TR::comp(), TR::comp()->getSymbolValidationManager(),clazz);
       J9UTF8 *className = J9ROMCLASS_CLASSNAME(((J9Class *)clazz)->romClass);
       traceMsg(TR::comp(), "\tclassName=%.*s\n", J9UTF8_LENGTH(className), J9UTF8_DATA(className));
       }
+   }
+
+static void printMethod(TR_OpaqueMethodBlock *method)
+   {
+   J9Method *j9method = (J9Method *)method;
+   J9UTF8 *methodClazz = J9ROMCLASS_CLASSNAME(J9_CLASS_FROM_METHOD(j9method)->romClass);
+   J9UTF8 *methodName = J9ROMMETHOD_GET_NAME(J9_CLASS_FROM_METHOD(j9method)->romClass, J9_ROM_METHOD_FROM_RAM_METHOD(j9method));
+   J9UTF8 *methodSignature = J9ROMMETHOD_GET_SIGNATURE(J9_CLASS_FROM_METHOD(j9method)->romClass, J9_ROM_METHOD_FROM_RAM_METHOD(j9method));
+
+   traceMsg(TR::comp(), "\tmethodName=%.*s.%.*s%.*s\n",
+                            J9UTF8_LENGTH(methodClazz), (char *) J9UTF8_DATA(methodClazz),
+                            J9UTF8_LENGTH(methodName), (char *) J9UTF8_DATA(methodName),
+                            J9UTF8_LENGTH(methodSignature), (char *) J9UTF8_DATA(methodSignature));
    }
 
 namespace // file-local
@@ -1671,6 +1706,8 @@ void TR::MethodFromClassRecord::printFields()
    {
    traceMsg(TR::comp(), "MethodFromClassRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
+   printID(TR::comp(), TR::comp()->getSymbolValidationManager(), _method);
    traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
    printClass(_beholder);
    traceMsg(TR::comp(), "\t_index=%u\n", _index);
@@ -1689,6 +1726,8 @@ void TR::StaticMethodFromCPRecord::printFields()
    {
    traceMsg(TR::comp(), "StaticMethodFromCPRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
+   printID(TR::comp(), TR::comp()->getSymbolValidationManager(),_method);
    traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
    printClass(_beholder);
    traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
@@ -1707,6 +1746,8 @@ void TR::SpecialMethodFromCPRecord::printFields()
    {
    traceMsg(TR::comp(), "SpecialMethodFromCPRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
+   printID(TR::comp(), TR::comp()->getSymbolValidationManager(),_method);
    traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
    printClass(_beholder);
    traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
@@ -1725,6 +1766,8 @@ void TR::VirtualMethodFromCPRecord::printFields()
    {
    traceMsg(TR::comp(), "VirtualMethodFromCPRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
+   printID(TR::comp(), TR::comp()->getSymbolValidationManager(),_method);
    traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
    printClass(_beholder);
    traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
@@ -1744,6 +1787,8 @@ void TR::VirtualMethodFromOffsetRecord::printFields()
    {
    traceMsg(TR::comp(), "VirtualMethodFromOffsetRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
+   printID(TR::comp(), TR::comp()->getSymbolValidationManager(),_method);
    traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
    printClass(_beholder);
    traceMsg(TR::comp(), "\t_virtualCallOffset=%d\n", _virtualCallOffset);
@@ -1764,6 +1809,8 @@ void TR::InterfaceMethodFromCPRecord::printFields()
    {
    traceMsg(TR::comp(), "InterfaceMethodFromCPRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
+   printID(TR::comp(), TR::comp()->getSymbolValidationManager(),_method);
    traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
    printClass(_beholder);
    traceMsg(TR::comp(), "\t_lookup=0x%p\n", _lookup);
@@ -1784,6 +1831,8 @@ void TR::MethodFromClassAndSigRecord::printFields()
    {
    traceMsg(TR::comp(), "MethodFromClassAndSigRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
+   printID(TR::comp(), TR::comp()->getSymbolValidationManager(),_method);
    traceMsg(TR::comp(), "\t_methodClass=0x%p\n", _lookupClass);
    printClass(_lookupClass);
    traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
@@ -1803,6 +1852,8 @@ void TR::StackWalkerMaySkipFramesRecord::printFields()
    {
    traceMsg(TR::comp(), "StackWalkerMaySkipFramesRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
+   printID(TR::comp(), TR::comp()->getSymbolValidationManager(),_method);
    traceMsg(TR::comp(), "\t_methodClass=0x%p\n", _methodClass);
    printClass(_methodClass);
    traceMsg(TR::comp(), "\t_skipFrames=%sp\n", _skipFrames ? "true" : "false");
@@ -1840,10 +1891,14 @@ void TR::MethodFromSingleImplementer::printFields()
    {
    traceMsg(TR::comp(), "MethodFromSingleImplementer\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
+   printID(TR::comp(), TR::comp()->getSymbolValidationManager(),_method);
    traceMsg(TR::comp(), "\t_thisClass=0x%p\n", _thisClass);
    printClass(_thisClass);
    traceMsg(TR::comp(), "\t_cpIndexOrVftSlot=%d\n", _cpIndexOrVftSlot);
    traceMsg(TR::comp(), "\t_callerMethod=0x%p\n", _callerMethod);
+   printMethod(_callerMethod);
+   printID(TR::comp(), TR::comp()->getSymbolValidationManager(),_callerMethod);
    traceMsg(TR::comp(), "\t_useGetResolvedInterfaceMethod=%d\n", _useGetResolvedInterfaceMethod);
    }
 
@@ -1861,10 +1916,14 @@ void TR::MethodFromSingleInterfaceImplementer::printFields()
    {
    traceMsg(TR::comp(), "MethodFromSingleInterfaceImplementer\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
+   printID(TR::comp(), TR::comp()->getSymbolValidationManager(),_method);
    traceMsg(TR::comp(), "\t_thisClass=0x%p\n", _thisClass);
    printClass(_thisClass);
    traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
    traceMsg(TR::comp(), "\t_callerMethod=0x%p\n", _callerMethod);
+   printMethod(_callerMethod);
+   printID(TR::comp(), TR::comp()->getSymbolValidationManager(),_callerMethod);
    }
 
 bool TR::MethodFromSingleAbstractImplementer::isLessThanWithinKind(
@@ -1881,10 +1940,14 @@ void TR::MethodFromSingleAbstractImplementer::printFields()
    {
    traceMsg(TR::comp(), "MethodFromSingleAbstractImplementer\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
+   printID(TR::comp(), TR::comp()->getSymbolValidationManager(),_method);
    traceMsg(TR::comp(), "\t_thisClass=0x%p\n", _thisClass);
    printClass(_thisClass);
    traceMsg(TR::comp(), "\t_vftSlot=%d\n", _vftSlot);
    traceMsg(TR::comp(), "\t_callerMethod=0x%p\n", _callerMethod);
+   printMethod(_callerMethod);
+   printID(TR::comp(), TR::comp()->getSymbolValidationManager(),_callerMethod);
    }
 
 bool TR::ImproperInterfaceMethodFromCPRecord::isLessThanWithinKind(
@@ -1900,6 +1963,8 @@ void TR::ImproperInterfaceMethodFromCPRecord::printFields()
    {
    traceMsg(TR::comp(), "ImproperInterfaceMethodFromCPRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
+   printID(TR::comp(), TR::comp()->getSymbolValidationManager(),_method);
    traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
    printClass(_beholder);
    traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
