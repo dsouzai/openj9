@@ -442,7 +442,7 @@ ifeq ($(HOST_ARCH),x)
 
     ifeq ($(HOST_BITS),64)
         SOLINK_FLAGS+=-m64
-        SOLINK_SLINK+=dl m
+        SOLINK_SLINK+=dl m unwind
     endif
 
     # Using the linker option -static-libgcc results in an error on OSX. The option -static-libstdc++ is unused. Therefore
