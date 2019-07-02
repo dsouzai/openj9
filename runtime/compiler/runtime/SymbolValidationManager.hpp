@@ -796,6 +796,8 @@ private:
    void setSymbolOfID(uint16_t id, void *symbol, TR::SymbolType type);
    void defineGuaranteedID(void *symbol, TR::SymbolType type);
 
+   bool isClassWorthRemembering(TR_OpaqueClassBlock *clazz);
+
    /* Monotonically increasing IDs */
    uint16_t _symbolID;
 
@@ -883,6 +885,8 @@ private:
    typedef TR::typed_allocator<ClassFromAnyCPIndex, TR::Region&> ClassFromAnyCPIndexAlloc;
    typedef std::set<ClassFromAnyCPIndex, LessClassFromAnyCPIndex, ClassFromAnyCPIndexAlloc> ClassFromAnyCPIndexSet;
    ClassFromAnyCPIndexSet _classesFromAnyCPIndex;
+
+   TR_OpaqueClassBlock *_jlthrowable;
    };
 
 }

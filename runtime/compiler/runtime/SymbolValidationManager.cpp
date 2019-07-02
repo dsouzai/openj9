@@ -33,6 +33,7 @@
 #include "runtime/SymbolValidationManager.hpp"
 
 #include "j9protos.h"
+#include "VMHelpers.hpp"
 
 #if defined (_MSC_VER) && _MSC_VER < 1900
 #define snprintf _snprintf
@@ -56,7 +57,8 @@ TR::SymbolValidationManager::SymbolValidationManager(TR::Region &region, TR_Reso
      _idToSymbolTable(_region),
      _seenSymbolsSet((SeenSymbolsComparator()), _region),
      _wellKnownClasses(_region),
-     _loadersOkForWellKnownClasses(_region)
+     _loadersOkForWellKnownClasses(_region),
+     _jlthrowable(_fej9->getSystemClassFromClassName("java/lang/Throwable", 19))
    {
    assertionsAreFatal(); // Acknowledge the env var whether or not assertions fail
 
@@ -86,6 +88,21 @@ TR::SymbolValidationManager::defineGuaranteedID(void *symbol, TR::SymbolType typ
    _symbolToIdMap.insert(std::make_pair(symbol, id));
    setSymbolOfID(id, symbol, type);
    _seenSymbolsSet.insert(symbol);
+   }
+
+bool
+TR::SymbolValidationManager::isClassWorthRemembering(TR_OpaqueClassBlock *clazz)
+   {
+   if (!_jlthrowable)
+      _jlthrowable = _fej9->getSystemClassFromClassName("java/lang/Throwable", 19);
+
+   if (_jlthrowable &&  VM_VMHelpers::isSameOrSuperclass((J9Class *)_jlthrowable, (J9Class*)clazz))
+      {
+      traceMsg(_comp, "isClassWorthRemembering: clazz %p is or inherits from jlthrowable\n", clazz);
+      return false;
+      }
+
+   return true;
    }
 
 void
