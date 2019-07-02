@@ -830,6 +830,11 @@ TR::SymbolValidationManager::addSpecialMethodFromCPRecord(TR_OpaqueMethodBlock *
    {
    TR_OpaqueClassBlock *beholder = reinterpret_cast<TR_OpaqueClassBlock *>(J9_CLASS_FROM_CP(cp));
    SVM_ASSERT_ALREADY_VALIDATED(this, beholder);
+
+   TR_OpaqueClassBlock *clazz = (TR_OpaqueClassBlock *)J9_CLASS_FROM_METHOD((J9Method *)method);
+   if (!isClassWorthRemembering(clazz))
+      return false;
+
    return addMethodRecord(new (_region) SpecialMethodFromCPRecord(method, beholder, cpIndex));
    }
 
