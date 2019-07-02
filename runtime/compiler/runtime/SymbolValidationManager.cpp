@@ -641,6 +641,8 @@ TR::SymbolValidationManager::addClassByNameRecord(TR_OpaqueClassBlock *clazz, TR
       return true;
    else if (anyClassFromCPRecordExists(clazz, beholder))
       return true; // already have an equivalent ClassFromCP
+   else if (!isClassWorthRemembering(clazz))
+      return false;
    else
       return addClassRecordWithChain(new (_region) ClassByNameRecord(clazz, beholder));
    }
@@ -682,6 +684,9 @@ TR::SymbolValidationManager::addClassFromCPRecord(TR_OpaqueClassBlock *clazz, J9
    ClassByNameRecord byName(clazz, beholder);
    if (recordExists(&byName))
       return true; // already have an equivalent ClassByName
+
+   if (!isClassWorthRemembering(clazz))
+      return false;
 
    bool added;
    if (!isAlreadyValidated(clazz)) // save a ClassChainRecord
