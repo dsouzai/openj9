@@ -332,9 +332,10 @@ TR_PersistentCHTable::findClassInfoAfterLocking(TR_OpaqueClassBlock *classId,
        comp->getOption(TR_UseSymbolValidationManager) &&
        validate)
       {
-      if (true)
+      static char *printStack = feGetEnv("TR_PrintStack");
+      if (printStack)
          {
-            traceMsg(comp, "##### Stack trace for ID %d", classId);
+            traceMsg(comp, "##### Stack trace for ID %d\n", classId);
             unw_cursor_t cursor;
             unw_context_t context;
             // Initialize cursor to current frame for local unwinding.
