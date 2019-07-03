@@ -306,6 +306,7 @@ List<OMR::RuntimeAssumption> *TR::InterProceduralAnalyzer::analyzeCallGraph(TR::
       TR_PersistentClassInfo *classInfo = comp()->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(clazz, comp(), allowForAOT);
       if (classInfo)
          {
+         traceMsg(comp(), "findClassInfoAfterLocking: TR::InterProceduralAnalyzer::analyzeCallGraph: %p\n", clazz);
          TR_ScratchList<TR_PersistentClassInfo> subClasses(trMemory());
 	 TR_ClassQueries::getSubClasses(classInfo, subClasses, fe());
          if (trace())
@@ -769,6 +770,9 @@ TR::InterProceduralAnalyzer::addClassThatShouldNotBeNewlyExtended(TR_OpaqueClass
    TR_PersistentClassInfo * cl = comp()->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(clazz, comp());
    if(!cl)
       return false;
+
+   if (cl)
+      traceMsg(comp(), "findClassInfoAfterLocking: TR::InterProceduralAnalyzer::addClassThatShouldNotBeNewlyExtended: %p\n", clazz);
 
    if (!cl->shouldNotBeNewlyExtended(comp()->getCompThreadID()))
       addSingleClassThatShouldNotBeNewlyExtended(clazz);

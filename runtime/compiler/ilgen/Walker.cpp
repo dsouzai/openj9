@@ -2760,6 +2760,9 @@ TR_J9ByteCodeIlGenerator::loadConstantValueIfPossible(TR::Node *topNode, uintptr
       if (classInfo && classInfo->isInitialized())
          isClassInitialized = true;
 
+      if (classInfo)
+         traceMsg(comp(), "findClassInfoAfterLocking: TR_J9ByteCodeIlGenerator::loadConstantValueIfPossible: %p\n", classOfStatic);
+
       bool canOptimizeFinalStatic = false;
       if (isResolved && symbol->isFinal() && !symRef->isUnresolved() &&
           classOfStatic != comp()->getSystemClassPointer() &&
@@ -4879,6 +4882,10 @@ break
                TR_PersistentClassInfo * classInfo = (comp()->getPersistentInfo()->getPersistentCHTable() == NULL) ?
                   NULL :
                   comp()->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(classBlock, comp());
+
+               if (classInfo)
+                  traceMsg(comp(), "findClassInfoAfterLocking: TR_J9ByteCodeIlGenerator::genInvoke 1: %p\n", classBlock);
+
                if (classInfo && classInfo->isInitialized() && !comp()->compileRelocatableCode())
                   {
                   dfpHWAvailableFlag = (int32_t *)fej9()->getStaticFieldAddress(classBlock,
@@ -5249,6 +5256,9 @@ break
          if (classInfo && classInfo->isInitialized())
              isClassInitialized = true;
 
+         if (classInfo)
+            traceMsg(comp(), "findClassInfoAfterLocking: TR_J9ByteCodeIlGenerator::genInvoke 2: %p\n", cl);
+
          if (comp()->getOption(TR_TraceILGen))
             traceMsg(comp(), "isClassInitialized = %d\n", isClassInitialized);
 
@@ -5340,6 +5350,7 @@ break
                   traceMsg(comp(), "isClassInitialized = %d\n", isClassInitialized);
                if (isClassInitialized)
                   {
+                  traceMsg(comp(), "findClassInfoAfterLocking: TR_J9ByteCodeIlGenerator::genInvoke 3: %p\n", cl);
                   TR_OpaqueClassBlock *serialClass = fej9()->getClassFromSignature(JAVA_SERIAL_REPLACE_CLASS_NAME, JAVA_SERIAL_REPLACE_CLASS_LEN, callNode->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod());
                   if (comp()->getOption(TR_TraceILGen))
                      traceMsg(comp(), "serialClass = %p, serialClassLoader %s systemClassLoader\n", serialClass, (fej9()->getClassLoader(cl) != fej9()->getSystemClassLoader()) ? "!=" : "==");
@@ -6221,6 +6232,9 @@ TR_J9ByteCodeIlGenerator::loadStatic(int32_t cpIndex)
       comp()->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(classOfStatic, comp());
    if (classInfo && classInfo->isInitialized())
       isClassInitialized = true;
+
+   if (classInfo)
+      traceMsg(comp(), "findClassInfoAfterLocking: TR_J9ByteCodeIlGenerator::loadStatic: %p\n", classOfStatic);
 
    /*
    if (classOfStatic)

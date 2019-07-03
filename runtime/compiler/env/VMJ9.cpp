@@ -5946,6 +5946,10 @@ TR_J9VMBase::getStringClassEnableCompressionFieldAddr(TR::Compilation *comp, boo
          TR_PersistentClassInfo * classInfo = (comp->getPersistentInfo()->getPersistentCHTable() == NULL) ?
             NULL :
             comp->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(stringClass, comp, isVettedForAOT);
+
+         if (classInfo)
+            traceMsg(comp, "findClassInfoAfterLocking: TR_J9VMBase::getStringClassEnableCompressionFieldAddr: %p\n", stringClass);
+
          if (classInfo && classInfo->isInitialized())
             {
             enableCompressionFieldAddr = (int32_t *)getStaticFieldAddress(stringClass,

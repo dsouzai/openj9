@@ -413,6 +413,8 @@ TR_ResolvedMethod * TR_PersistentCHTable::findSingleImplementer(
 
 
    TR_PersistentClassInfo * classInfo = comp->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(thisClass, comp, true, validate);
+   if (classInfo)
+      traceMsg(comp, "findClassInfoAfterLocking: TR_PersistentCHTable::findSingleImplementer: %p\n", thisClass);
    if (!classInfo)
       {
       return 0;
@@ -463,6 +465,8 @@ TR_PersistentCHTable::findSingleInterfaceImplementer(
       }
 
    TR_PersistentClassInfo * classInfo = findClassInfoAfterLocking(thisClass, comp, true, validate);
+   if (classInfo)
+      traceMsg(comp, "findClassInfoAfterLocking: TR_PersistentCHTable::findSingleInterfaceImplementer: %p\n", thisClass);
    if (!classInfo)
       {
       return 0;
@@ -505,6 +509,8 @@ TR_PersistentCHTable::hasThreeOrMoreCompiledImplementors(
       return false;
 
    TR_PersistentClassInfo * classInfo = findClassInfoAfterLocking(thisClass, comp, true);
+   if (classInfo)
+      traceMsg(comp, "findClassInfoAfterLocking: TR_PersistentCHTable::hasThreeOrMoreCompiledImplementors: %p\n", thisClass);
    if (!classInfo) return false;
 
    TR_ResolvedMethod *implArray[3];
@@ -528,6 +534,8 @@ TR_PersistentCHTable::findnInterfaceImplementers(
       return 0;
 
    TR_PersistentClassInfo * classInfo = findClassInfoAfterLocking(thisClass, comp, true);
+   if (classInfo)
+      traceMsg(comp, "findClassInfoAfterLocking: TR_PersistentCHTable::findnInterfaceImplementers: %p\n", thisClass);
    if (!classInfo) return 0;
 
    int32_t implCount = TR_ClassQueries::collectImplementorsCapped(classInfo, implArray,n,cpIndex,callerMethod,comp,locked);
@@ -569,6 +577,8 @@ TR_PersistentCHTable::findSingleAbstractImplementer(
       return 0;
    bool allowForAOT = comp->getOption(TR_UseSymbolValidationManager);
    TR_PersistentClassInfo * classInfo = findClassInfoAfterLocking(thisClass, comp, allowForAOT, validate);
+   if (classInfo)
+      traceMsg(comp, "findClassInfoAfterLocking: TR_PersistentCHTable::findSingleAbstractImplementer: %p\n", thisClass);
    if (!classInfo) return 0;
 
    if (TR::Compiler->cls.isInterfaceClass(comp, thisClass))
@@ -616,6 +626,7 @@ TR_PersistentCHTable::findSingleConcreteSubClass(
    TR_PersistentClassInfo *classInfo = comp->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(opaqueClass, comp, allowForAOT, validate);
    if (classInfo)
       {
+      traceMsg(comp, "findClassInfoAfterLocking: TR_PersistentCHTable::findSingleConcreteSubClass: %p\n", opaqueClass);
       TR_ScratchList<TR_PersistentClassInfo> subClasses(comp->trMemory());
       TR_ClassQueries::collectAllSubClasses(classInfo, &subClasses, comp);
       ListIterator<TR_PersistentClassInfo> subClassesIt(&subClasses);

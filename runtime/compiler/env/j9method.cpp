@@ -4761,6 +4761,8 @@ TR_ResolvedJ9Method::TR_ResolvedJ9Method(TR_OpaqueMethodBlock * aMethod, TR_Fron
 void
 TR_ResolvedJ9Method::setRecognizedMethodInfo(TR::RecognizedMethod rm)
    {
+   TR::Compilation* comp = fej9()->_compInfoPT ? fej9()->_compInfoPT->getCompilation() : NULL;
+
    setMandatoryRecognizedMethod(rm);
 
    bool failBecauseOfHCR = false;
@@ -4775,7 +4777,16 @@ TR_ResolvedJ9Method::setRecognizedMethodInfo(TR::RecognizedMethod rm)
       TR_PersistentClassInfo *clazzInfo = NULL;
       if (compInfo->getPersistentInfo()->getPersistentCHTable())
          {
-         clazzInfo = compInfo->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(clazz, fej9(), true);
+         if (comp)
+            clazzInfo = compInfo->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(clazz, comp, true);
+         else
+            clazzInfo = compInfo->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(clazz, fej9());
+         }
+
+      if (clazzInfo)
+         {
+         if (comp)
+            traceMsg(comp, "findClassInfoAfterLocking: TR_ResolvedJ9Method::setRecognizedMethodInfo: %p\n", clazz);
          }
 
       if (!clazzInfo)
@@ -4809,8 +4820,6 @@ TR_ResolvedJ9Method::setRecognizedMethodInfo(TR::RecognizedMethod rm)
        * going to compile this particular method, so let's set disableRecMethods = true conservatively
        *
        */
-      TR::Compilation* comp = fej9()->_compInfoPT ? fej9()->_compInfoPT->getCompilation() : NULL;
-
       bool disableRecMethods = !comp  ? true
          : (fej9()->getSupportsRecognizedMethods() && !comp->getOption(TR_DisableRecognizedMethods)) ? false : true;
 

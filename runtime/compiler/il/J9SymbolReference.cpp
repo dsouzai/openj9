@@ -193,6 +193,8 @@ SymbolReference::getTypeSignature(int32_t & len, TR_AllocationKind allocKind, bo
           persistentClassInfo =
              (comp->getPersistentInfo()->getPersistentCHTable() == NULL) ? NULL :
              comp->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(comp->getCurrentMethod()->containingClass(), comp, allowForAOT);
+          if (persistentClassInfo)
+             traceMsg(comp, "findClassInfoAfterLocking: SymbolReference::getTypeSignature 1: %p\n", comp->getCurrentMethod()->containingClass());
           if (persistentClassInfo &&
               persistentClassInfo->getFieldInfo() &&
               persistentClassInfo->getFieldInfo()->getFirst() &&
@@ -249,6 +251,8 @@ SymbolReference::getTypeSignature(int32_t & len, TR_AllocationKind allocKind, bo
                TR_PersistentClassInfo * classInfo =
                   (comp->getPersistentInfo()->getPersistentCHTable() == NULL) ? NULL :
                   comp->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(classOfStatic, comp, allowForAOT);
+               if (classInfo)
+                  traceMsg(comp, "findClassInfoAfterLocking: SymbolReference::getTypeSignature 2: %p\n", classOfStatic);
                if (classInfo && classInfo->isInitialized())
                   {
                   if (classInfo->getFieldInfo() && !classInfo->cannotTrustStaticFinal())
@@ -338,6 +342,10 @@ SymbolReference::getTypeSignature(int32_t & len, TR_AllocationKind allocKind, bo
          persistentClassInfo =
             (comp->getPersistentInfo()->getPersistentCHTable() == NULL) ? NULL :
              comp->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(comp->getCurrentMethod()->containingClass(), comp, allowForAOT);
+
+         if (persistentClassInfo)
+            traceMsg(comp, "findClassInfoAfterLocking: SymbolReference::getTypeSignature 3: %p\n", comp->getCurrentMethod()->containingClass());
+
          if (persistentClassInfo &&
              persistentClassInfo->getFieldInfo() &&
              persistentClassInfo->getFieldInfo()->getFirst() &&

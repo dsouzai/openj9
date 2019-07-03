@@ -990,6 +990,10 @@ J9::Node::getTypeSignature(int32_t & len, TR_AllocationKind allocKind, bool parm
       return 0;
    bool allowForAOT = c->getOption(TR_UseSymbolValidationManager);
    TR_PersistentClassInfo * classInfo = c->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(c->getCurrentMethod()->containingClass(), c, allowForAOT);
+
+   if (classInfo)
+      traceMsg(c, "findClassInfoAfterLocking: J9::Node::getTypeSignature995: %p\n", c->getCurrentMethod());
+
    TR::Node * node = self();
    TR_PersistentFieldInfo * fieldInfo = classInfo && classInfo->getFieldInfo() ? classInfo->getFieldInfo()->findFieldInfo(c, node, false) : 0;
     if (fieldInfo && fieldInfo->isTypeInfoValid() && fieldInfo->getNumChars() > 0)

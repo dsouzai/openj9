@@ -69,6 +69,9 @@ TR_ClassLookahead::perform()
     if (classInfo && classInfo->isInitialized())
        isClassInitialized = true;
 
+    if (classInfo)
+       traceMsg(comp(), "findClassInfoAfterLocking: TR_ClassLookahead::perform: %p\n", _classPointer);
+
     if (!isClassInitialized)
        return 0;
 

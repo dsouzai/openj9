@@ -85,6 +85,9 @@ TR_J9ByteCodeIlGenerator::TR_J9ByteCodeIlGenerator(
       {
       bool allowForAOT = comp->getOption(TR_UseSymbolValidationManager);
       _classInfo = comp->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(method()->containingClass(), comp, allowForAOT);
+
+      if (method()->containingClass())
+         traceMsg(comp, "findClassInfoAfterLocking: TR_J9ByteCodeIlGenerator::TR_J9ByteCodeIlGenerator: %p\n", method()->containingClass());
       }
    else
       {

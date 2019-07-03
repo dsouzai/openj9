@@ -1175,7 +1175,11 @@ J9::PersistentInfo::isObsoleteClass(void *v, TR_FrontEnd *fe)
    else if (!getPersistentCHTable()->findClassInfoAfterLocking((TR_OpaqueClassBlock*)v, fe, allowForAOT))
       return false; // It's not a class, so it can't be a replaced class
    else
+      {
+      if (getPersistentCHTable()->findClassInfoAfterLocking((TR_OpaqueClassBlock*)v, fe, allowForAOT))
+         traceMsg(comp, "findClassInfoAfterLocking: J9::PersistentInfo::isObsoleteClass: %p\n", v);
       return fe->classHasBeenReplaced((TR_OpaqueClassBlock*)v);
+      }
    }
 
 

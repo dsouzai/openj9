@@ -2382,6 +2382,12 @@ TR_IProfiler::createIProfilingValueInfo (TR_ByteCodeInfo &bcInfo, TR::Compilatio
          TR_PersistentClassInfo *currentPersistentClassInfo = _compInfo->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(comp->getCurrentMethod()->containingClass(), comp, allowForAOT);
          TR_PersistentClassInfo *calleePersistentClassInfo = _compInfo->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking((TR_OpaqueClassBlock *)J9_CLASS_FROM_METHOD(((J9Method *)method)), comp, allowForAOT);
 
+         if (currentPersistentClassInfo || calleePersistentClassInfo)
+            {
+            traceMsg(comp, "findClassInfoAfterLocking: TR_IProfiler::createIProfilingValueInfo: %p\n", comp->getCurrentMethod()->containingClass());
+            traceMsg(comp, "findClassInfoAfterLocking: TR_IProfiler::createIProfilingValueInfo: %p\n", (TR_OpaqueClassBlock *)J9_CLASS_FROM_METHOD(((J9Method *)method)));
+            }
+
          if (!currentPersistentClassInfo || !calleePersistentClassInfo)
             {
             if (traceIProfiling)
