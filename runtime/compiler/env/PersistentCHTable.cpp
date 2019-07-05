@@ -311,8 +311,7 @@ TR_PersistentCHTable::findClassInfo(TR_OpaqueClassBlock * classId)
 TR_PersistentClassInfo *
 TR_PersistentCHTable::findClassInfoAfterLocking(TR_OpaqueClassBlock *classId,
       TR::Compilation *comp,
-      bool returnClassInfoForAOT,
-      bool validate)
+      bool returnClassInfoForAOT)
    {
    // for AOT do not use the class hierarchy
    if (comp->compileRelocatableCode() && !returnClassInfoForAOT)
@@ -324,13 +323,6 @@ TR_PersistentCHTable::findClassInfoAfterLocking(TR_OpaqueClassBlock *classId,
       return NULL;
 
    TR_PersistentClassInfo *classInfo = findClassInfoAfterLocking(classId, comp->fe(), returnClassInfoForAOT);
-   if (classInfo &&
-       comp->compileRelocatableCode() &&
-       comp->getOption(TR_UseSymbolValidationManager) &&
-       validate)
-      {
-      comp->getSymbolValidationManager()->addClassInfoIsInitializedRecord(classId, classInfo->isInitialized());
-      }
    return classInfo;
    }
 
