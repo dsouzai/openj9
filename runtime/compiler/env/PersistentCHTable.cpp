@@ -404,7 +404,7 @@ TR_ResolvedMethod * TR_PersistentCHTable::findSingleImplementer(
 
 
 
-   TR_PersistentClassInfo * classInfo = comp->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(thisClass, comp, true, validate);
+   TR_PersistentClassInfo * classInfo = comp->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(thisClass, comp, true);
    if (classInfo)
       traceMsg(comp, "findClassInfoAfterLocking: TR_PersistentCHTable::findSingleImplementer: %p\n", thisClass);
    if (!classInfo)
@@ -456,7 +456,7 @@ TR_PersistentCHTable::findSingleInterfaceImplementer(
       return 0;
       }
 
-   TR_PersistentClassInfo * classInfo = findClassInfoAfterLocking(thisClass, comp, true, validate);
+   TR_PersistentClassInfo * classInfo = findClassInfoAfterLocking(thisClass, comp, true);
    if (classInfo)
       traceMsg(comp, "findClassInfoAfterLocking: TR_PersistentCHTable::findSingleInterfaceImplementer: %p\n", thisClass);
    if (!classInfo)
@@ -568,7 +568,7 @@ TR_PersistentCHTable::findSingleAbstractImplementer(
    if (comp->getOption(TR_DisableCHOpts))
       return 0;
    bool allowForAOT = comp->getOption(TR_UseSymbolValidationManager);
-   TR_PersistentClassInfo * classInfo = findClassInfoAfterLocking(thisClass, comp, allowForAOT, validate);
+   TR_PersistentClassInfo * classInfo = findClassInfoAfterLocking(thisClass, comp, allowForAOT);
    if (classInfo)
       traceMsg(comp, "findClassInfoAfterLocking: TR_PersistentCHTable::findSingleAbstractImplementer: %p\n", thisClass);
    if (!classInfo) return 0;
@@ -615,7 +615,7 @@ TR_PersistentCHTable::findSingleConcreteSubClass(
 
    bool allowForAOT = comp->getOption(TR_UseSymbolValidationManager);
 
-   TR_PersistentClassInfo *classInfo = comp->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(opaqueClass, comp, allowForAOT, validate);
+   TR_PersistentClassInfo *classInfo = comp->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(opaqueClass, comp, allowForAOT);
    if (classInfo)
       {
       traceMsg(comp, "findClassInfoAfterLocking: TR_PersistentCHTable::findSingleConcreteSubClass: %p\n", opaqueClass);
