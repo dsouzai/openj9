@@ -521,7 +521,7 @@ TR::SymbolValidationManager::addVanillaRecord(void *symbol, TR::SymbolValidation
 bool
 TR::SymbolValidationManager::addClassRecord(TR_OpaqueClassBlock *clazz, TR::ClassValidationRecord *record)
    {
-   if (shouldNotDefineSymbol(clazz))
+   if (shouldNotDefineSymbol(clazz) || !isClassWorthRemembering(clazz))
       return abandonRecord(record);
 
    if (recordExists(record))
@@ -542,7 +542,7 @@ TR::SymbolValidationManager::addClassRecord(TR_OpaqueClassBlock *clazz, TR::Clas
 bool
 TR::SymbolValidationManager::addClassRecordWithChain(TR::ClassValidationRecordWithChain *record)
    {
-   if (shouldNotDefineSymbol(record->_class))
+   if (shouldNotDefineSymbol(record->_class) || !isClassWorthRemembering(record->_class))
       return abandonRecord(record);
 
    int arrayDims = 0;
