@@ -34,6 +34,7 @@
 #include "control/Options_inlines.hpp"
 #include "env/CHTable.hpp"
 #include "env/CompilerEnv.hpp"
+#include "env/HeuristicRegion.hpp"
 #include "env/PersistentInfo.hpp"
 #include "env/RuntimeAssumptionTable.hpp"
 #include "env/TRMemory.hpp"
@@ -411,9 +412,11 @@ TR_ResolvedMethod * TR_PersistentCHTable::findSingleImplementer(
       }
 
    TR_ResolvedMethod *implArray[2]; // collect maximum 2 implementers if you can
-   comp->enterHeuristicRegion();
-   int32_t implCount = TR_ClassQueries::collectImplementorsCapped(classInfo, implArray, 2, cpIndexOrVftSlot, callerMethod, comp, locked, useGetResolvedInterfaceMethod);
-   comp->exitHeuristicRegion();
+   int32_t implCount;
+   {
+   TR::HeuristicRegion heuristicRegion(comp);
+   implCount = TR_ClassQueries::collectImplementorsCapped(classInfo, implArray, 2, cpIndexOrVftSlot, callerMethod, comp, locked, useGetResolvedInterfaceMethod);
+   }
 
    TR_ResolvedMethod *implementer = NULL;
    if (implCount == 1)
@@ -461,9 +464,11 @@ TR_PersistentCHTable::findSingleInterfaceImplementer(
       }
 
    TR_ResolvedMethod *implArray[2]; // collect maximum 2 implementers if you can
-   comp->enterHeuristicRegion();
-   int32_t implCount = TR_ClassQueries::collectImplementorsCapped(classInfo, implArray, 2, cpIndex, callerMethod, comp, locked);
-   comp->exitHeuristicRegion();
+   int32_t implCount;
+   {
+   TR::HeuristicRegion heuristicRegion(comp);
+   implCount = TR_ClassQueries::collectImplementorsCapped(classInfo, implArray, 2, cpIndex, callerMethod, comp, locked);
+   }
 
    TR_ResolvedMethod *implementer = NULL;
    if (implCount == 1)
@@ -567,9 +572,11 @@ TR_PersistentCHTable::findSingleAbstractImplementer(
       return 0;
 
    TR_ResolvedMethod *implArray[2]; // collect maximum 2 implementers if you can
-   comp->enterHeuristicRegion();
-   int32_t implCount = TR_ClassQueries::collectImplementorsCapped(classInfo, implArray, 2, vftSlot, callerMethod, comp, locked);
-   comp->exitHeuristicRegion();
+   int32_t implCount;
+   {
+   TR::HeuristicRegion heuristicRegion(comp);
+   implCount = TR_ClassQueries::collectImplementorsCapped(classInfo, implArray, 2, vftSlot, callerMethod, comp, locked);
+   }
 
    TR_ResolvedMethod *implementer = NULL;
    if(implCount == 1)
@@ -609,7 +616,10 @@ TR_PersistentCHTable::findSingleConcreteSubClass(
    if (classInfo)
       {
       TR_ScratchList<TR_PersistentClassInfo> subClasses(comp->trMemory());
+      {
+      TR::HeuristicRegion heuristicRegion(comp);
       TR_ClassQueries::collectAllSubClasses(classInfo, &subClasses, comp);
+      }
       ListIterator<TR_PersistentClassInfo> subClassesIt(&subClasses);
       for (TR_PersistentClassInfo *subClassInfo = subClassesIt.getFirst(); subClassInfo; subClassInfo = subClassesIt.getNext())
          {

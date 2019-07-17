@@ -29,6 +29,7 @@
 #include "compile/ResolvedMethod.hpp"
 #include "env/CompilerEnv.hpp"
 #include "env/CHTable.hpp"
+#include "env/HeuristicRegion.hpp"
 #include "env/PersistentCHTable.hpp"
 #include "env/VMJ9.h"
 #include "env/jittypes.h"
@@ -852,9 +853,8 @@ void TR_ProfileableCallSite::findSingleProfiledReceiver(ListIterator<TR_ExtraAdd
          bool profiledClassIsNotInstanceOfCallSiteClass = true;
          if (callSiteClass)
             {
-            comp()->enterHeuristicRegion();
+            TR::HeuristicRegion heuristicRegion(comp());
             profiledClassIsNotInstanceOfCallSiteClass = (fe()->isInstanceOf(tempreceiverClass, callSiteClass, true, true, true) != TR_yes);
-            comp()->exitHeuristicRegion();
             }
 
          if (profiledClassIsNotInstanceOfCallSiteClass)
@@ -868,9 +868,11 @@ void TR_ProfileableCallSite::findSingleProfiledReceiver(ListIterator<TR_ExtraAdd
             continue;
             }
 
-         comp()->enterHeuristicRegion();
-         TR_ResolvedMethod* targetMethod = getResolvedMethod (tempreceiverClass);
-         comp()->exitHeuristicRegion();
+         TR_ResolvedMethod* targetMethod;
+         {
+         TR::HeuristicRegion heuristicRegion(comp());
+         targetMethod = getResolvedMethod (tempreceiverClass);
+         }
 
          if (!targetMethod)
             {
