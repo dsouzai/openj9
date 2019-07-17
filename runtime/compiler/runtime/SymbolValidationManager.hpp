@@ -527,17 +527,15 @@ struct StackWalkerMaySkipFramesRecord : public SymbolValidationRecord
 
 struct ClassInfoIsInitialized : public SymbolValidationRecord
    {
-   ClassInfoIsInitialized(TR_OpaqueClassBlock *clazz, bool isInitialized)
+   ClassInfoIsInitialized(TR_OpaqueClassBlock *clazz)
       : SymbolValidationRecord(TR_ValidateClassInfoIsInitialized),
-        _class(clazz),
-        _isInitialized(isInitialized)
+        _class(clazz)
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
    virtual void printFields();
 
    TR_OpaqueClassBlock *_class;
-   bool _isInitialized;
    };
 
 struct MethodFromSingleImplementer : public MethodValidationRecord
@@ -689,7 +687,7 @@ public:
                                           TR_OpaqueMethodBlock *callerMethod);
 
    bool addStackWalkerMaySkipFramesRecord(TR_OpaqueMethodBlock *method, TR_OpaqueClassBlock *methodClass, bool skipFrames);
-   bool addClassInfoIsInitializedRecord(TR_OpaqueClassBlock *clazz, bool isInitialized);
+   bool addClassInfoIsInitializedRecord(TR_OpaqueClassBlock *clazz);
 
 
 
@@ -734,7 +732,7 @@ public:
                                                uint16_t callerMethodID);
 
    bool validateStackWalkerMaySkipFramesRecord(uint16_t methodID, uint16_t methodClassID, bool couldSkipFrames);
-   bool validateClassInfoIsInitializedRecord(uint16_t classID, bool wasInitialized);
+   bool validateClassInfoIsInitializedRecord(uint16_t classID);
 
 
    TR_OpaqueClassBlock *getBaseComponentClass(TR_OpaqueClassBlock *clazz, int32_t & numDims);

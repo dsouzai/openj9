@@ -929,10 +929,10 @@ TR::SymbolValidationManager::addStackWalkerMaySkipFramesRecord(TR_OpaqueMethodBl
    }
 
 bool
-TR::SymbolValidationManager::addClassInfoIsInitializedRecord(TR_OpaqueClassBlock *clazz, bool isInitialized)
+TR::SymbolValidationManager::addClassInfoIsInitializedRecord(TR_OpaqueClassBlock *clazz)
    {
    SVM_ASSERT_ALREADY_VALIDATED(this, clazz);
-   return addVanillaRecord(clazz, new (_region) ClassInfoIsInitialized(clazz, isInitialized));
+   return addVanillaRecord(clazz, new (_region) ClassInfoIsInitialized(clazz));
    }
 
 
@@ -1366,7 +1366,7 @@ TR::SymbolValidationManager::validateStackWalkerMaySkipFramesRecord(uint16_t met
    }
 
 bool
-TR::SymbolValidationManager::validateClassInfoIsInitializedRecord(uint16_t classID, bool wasInitialized)
+TR::SymbolValidationManager::validateClassInfoIsInitializedRecord(uint16_t classID)
    {
    TR_OpaqueClassBlock *clazz = getClassFromID(classID);
 
@@ -1378,8 +1378,7 @@ TR::SymbolValidationManager::validateClassInfoIsInitializedRecord(uint16_t class
    if (classInfo)
       initialized = classInfo->isInitialized(false);
 
-   bool valid = (!wasInitialized || initialized);
-   return valid;
+   return initialized;
    }
 
 bool
@@ -1831,8 +1830,7 @@ bool TR::ClassInfoIsInitialized::isLessThanWithinKind(
    SymbolValidationRecord *other)
    {
    TR::ClassInfoIsInitialized *rhs = downcast(this, other);
-   return LexicalOrder::by(_class, rhs->_class)
-      .thenBy(_isInitialized, rhs->_isInitialized).less();
+   return LexicalOrder::by(_class, rhs->_class).less();
    }
 
 void TR::ClassInfoIsInitialized::printFields()
@@ -1840,7 +1838,6 @@ void TR::ClassInfoIsInitialized::printFields()
    traceMsg(TR::comp(), "ClassInfoIsInitialized\n");
    traceMsg(TR::comp(), "\t_class=0x%p\n", _class);
    printClass(_class);
-   traceMsg(TR::comp(), "\t_isInitialized=%sp\n", _isInitialized ? "true" : "false");
    }
 
 bool TR::MethodFromSingleImplementer::isLessThanWithinKind(

@@ -1792,9 +1792,8 @@ J9::AheadOfTimeCompile::dumpRelocationData()
                   reinterpret_cast<TR_RelocationRecordValidateClassInfoIsInitializedBinaryTemplate *>(cursor);
             if (isVerbose)
                {
-               traceMsg(self()->comp(), "\n Validate Class Info Is Initialized: classID=%d, isInitialized=%s ",
-                        (uint32_t)binaryTemplate->_classID,
-                        binaryTemplate->_isInitialized ? "true" : "false");
+               traceMsg(self()->comp(), "\n Validate Class Info Is Initialized: classID=%d ",
+                        (uint32_t)binaryTemplate->_classID);
                }
             cursor += sizeof(TR_RelocationRecordValidateClassInfoIsInitializedBinaryTemplate);
             self()->traceRelocationOffsets(cursor, offsetSize, endOfCurrentRecord, orderedPair);

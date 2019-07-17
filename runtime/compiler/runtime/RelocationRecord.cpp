@@ -3806,16 +3806,14 @@ int32_t
 TR_RelocationRecordValidateClassInfoIsInitialized::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
    {
    uint16_t classID = reloTarget->loadUnsigned16b((uint8_t *) &((TR_RelocationRecordValidateClassInfoIsInitializedBinaryTemplate *)_record)->_classID);
-   bool wasInitialized = (bool)reloTarget->loadUnsigned8b((uint8_t *) &((TR_RelocationRecordValidateClassInfoIsInitializedBinaryTemplate *)_record)->_isInitialized);
 
    if (reloRuntime->reloLogger()->logEnabled())
       {
       reloRuntime->reloLogger()->printf("%s\n", name());
       reloRuntime->reloLogger()->printf("\tapplyRelocation: classID %d\n", classID);
-      reloRuntime->reloLogger()->printf("\tapplyRelocation: wasInitialized %s\n", wasInitialized ? "true" : "false");
       }
 
-   if (reloRuntime->comp()->getSymbolValidationManager()->validateClassInfoIsInitializedRecord(classID, wasInitialized))
+   if (reloRuntime->comp()->getSymbolValidationManager()->validateClassInfoIsInitializedRecord(classID))
       return 0;
    else
       return compilationAotClassReloFailure;

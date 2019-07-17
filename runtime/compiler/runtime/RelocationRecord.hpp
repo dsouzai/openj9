@@ -372,7 +372,6 @@ struct TR_RelocationRecordValidateStackWalkerMaySkipFramesBinaryTemplate : publi
 struct TR_RelocationRecordValidateClassInfoIsInitializedBinaryTemplate : public TR_RelocationRecordBinaryTemplate
    {
    uint16_t _classID;
-   bool _isInitialized;
    };
 
 struct TR_RelocationRecordSymbolFromManagerBinaryTemplate : public TR_RelocationRecordBinaryTemplate

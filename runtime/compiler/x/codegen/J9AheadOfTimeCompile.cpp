@@ -978,7 +978,6 @@ uint8_t *J9::X86::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::Iterated
                reinterpret_cast<TR_RelocationRecordValidateClassInfoIsInitializedBinaryTemplate *>(cursor);
 
          binaryTemplate->_classID = symValManager->getIDFromSymbol(static_cast<void *>(record->_class));
-         binaryTemplate->_isInitialized = record->_isInitialized;
 
          cursor += sizeof(TR_RelocationRecordValidateClassInfoIsInitializedBinaryTemplate);
          }
