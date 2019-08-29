@@ -320,7 +320,7 @@ IDATA J9VMDllMain(J9JavaVM* vm, IDATA stage, void * reserved)
                if (aotrtInitialized)
                   jitConfig->runtimeFlags |= J9JIT_AOT_ATTACHED;
 
-               if (jitConfig->runtimeFlags & J9JIT_JIT_ATTACHED)
+               if (!IS_RAM_CACHE_ON(vm) && jitConfig->runtimeFlags & J9JIT_JIT_ATTACHED)
                   goto _abort;
                if (onLoadInternal(vm, jitConfig, xjitCommandLineOptions, xaotCommandLineOptions, initialFlags, reserved, isJIT?0:1))
                   goto _abort;
