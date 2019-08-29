@@ -80,6 +80,7 @@ class OMR_EXTENSIBLE MonitorTable : public OMR::MonitorTableConnector
    void insert(TR::Monitor *monitor);
 
    J9PortLibrary *_portLib;
+   J9JavaVM      *_javaVM;
    TR_LinkHead0<TR::Monitor> _monitors;
 
    TR::Monitor _tableMonitor;

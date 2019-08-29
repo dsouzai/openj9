@@ -29,6 +29,8 @@
 #include "j9cfg.h"
 #include "j9thread.h"
 #include "j9port.h"
+#include "jvmimage.h"
+#include "jvmimageport.h"
 
 extern TR::Monitor *memoryAllocMonitor;
 
@@ -44,17 +46,33 @@ J9::MonitorTable::init(
       }
 
    PORT_ACCESS_FROM_PORT(portLib);
-   void *tableMem = j9mem_allocate_memory(sizeof(TR::MonitorTable), J9MEM_CATEGORY_JIT);
-   if (!tableMem) return 0;
-   TR::MonitorTable *table = new (tableMem) TR::MonitorTable();
+   JVMIMAGEPORT_ACCESS_FROM_JAVAVM(javaVM);
 
-   table->_portLib = portLib;
+   TR::MonitorTable *table; // D_QWERTY_TODO: need to get this for the load run
+   if (!IS_RAM_CACHE_ON(javaVM) || IS_COLD_RUN(javaVM))
+      {
+      void *tableMem;
+
+      if (IS_RAM_CACHE_ON(javaVM))
+         tableMem = imem_allocate_memory(sizeof(TR::MonitorTable), J9MEM_CATEGORY_JIT);
+      else
+         tableMem = j9mem_allocate_memory(sizeof(TR::MonitorTable), J9MEM_CATEGORY_JIT);
+
+      if (!tableMem) return 0;
+      table = new (tableMem) TR::MonitorTable();
+
+      // Memory for classUnloadMonitorHolders will be allocated later in allocInitClassUnloadMonitorHolders()
+      // just before the compilation threads are started
+      table->_classUnloadMonitorHolders = NULL;
+      }
+   else
+      {
+      table = (TR::MonitorTable *)(((TR_CacheForImage *)javaVM->jitConfig->cacheForImage)->monitorTable);
+      }
+
    table->_monitors.setFirst(0);
 
    table->_numCompThreads = 0;
-   // Memory for classUnloadMonitorHolders will be allocated later in allocInitClassUnloadMonitorHolders()
-   // just before the compilation threads are started
-   table->_classUnloadMonitorHolders = NULL;
 
    // Initialize the Monitors
    if (!table->_tableMonitor.init      ("JIT-MonitorTableMonitor")) return 0;
@@ -73,6 +91,9 @@ J9::MonitorTable::init(
    memoryAllocMonitor = table->_memoryAllocMonitor = &table->_j9MemoryAllocMonitor;
    table->_scratchMemoryPoolMonitor = &table->_j9ScratchMemoryPoolMonitor; // export this value
 
+   table->_portLib = portLib;
+   table->_javaVM = javaVM;
+
    OMR::MonitorTable::_instance = table;
    return table;
    }
@@ -81,10 +102,18 @@ bool
 J9::MonitorTable::allocInitClassUnloadMonitorHolders(uint32_t allowedTotalCompThreads)
    {
    PORT_ACCESS_FROM_PORT(_portLib);
+   JVMIMAGEPORT_ACCESS_FROM_JAVAVM(_javaVM);
 
    _numCompThreads = allowedTotalCompThreads;
-   // Allocate and initialize the array of classUnloadMonitorHolders
-   _classUnloadMonitorHolders = (int32_t*)j9mem_allocate_memory(sizeof(*(_classUnloadMonitorHolders)) * _numCompThreads, J9MEM_CATEGORY_JIT);
+
+   if (!IS_RAM_CACHE_ON(_javaVM) || IS_COLD_RUN(_javaVM))
+      {
+      if (IS_RAM_CACHE_ON(_javaVM))
+         _classUnloadMonitorHolders = (int32_t*)imem_allocate_memory(sizeof(*(_classUnloadMonitorHolders)) * _numCompThreads, J9MEM_CATEGORY_JIT);
+      else
+         _classUnloadMonitorHolders = (int32_t*)j9mem_allocate_memory(sizeof(*(_classUnloadMonitorHolders)) * _numCompThreads, J9MEM_CATEGORY_JIT);
+      }
+
    if (!_classUnloadMonitorHolders)
       return false;
    for (int32_t i = 0; i < _numCompThreads; i++)
@@ -97,8 +126,15 @@ TR::Monitor *
 J9::MonitorTable::create(char *name)
    {
    PORT_ACCESS_FROM_PORT(_portLib);
+   JVMIMAGEPORT_ACCESS_FROM_JAVAVM(_javaVM);
 
-   void *monMem = j9mem_allocate_memory(sizeof(TR::Monitor), J9MEM_CATEGORY_JIT);
+   void *monMem;
+
+   if (IS_RAM_CACHE_ON(_javaVM))
+      monMem = imem_allocate_memory(sizeof(TR::Monitor), J9MEM_CATEGORY_JIT);
+   else
+      monMem = j9mem_allocate_memory(sizeof(TR::Monitor), J9MEM_CATEGORY_JIT);
+
    if (!monMem)
       {
       return 0;
