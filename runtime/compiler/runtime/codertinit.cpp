@@ -29,6 +29,8 @@
 #include "jitprotos.h"
 #include "j9.h"
 #include "j9cfg.h"
+#include "jvmimage.h"
+#include "jvmimageport.h"
 #include "j9consts.h"
 #include "j9protos.h"
 #include "stackwalk.h"
@@ -170,6 +172,7 @@ J9JITConfig * codert_onload(J9JavaVM * javaVM)
    J9JITConfig * jitConfig = NULL;
    PORT_ACCESS_FROM_JAVAVM(javaVM);
    OMRPORT_ACCESS_FROM_J9PORT(PORTLIB);
+   JVMIMAGEPORT_ACCESS_FROM_JAVAVM(javaVM);
 
    #if defined(TR_HOST_X86) && !defined(TR_HOST_64BIT)
       vmThreadTLSKey = (U_32) javaVM->omrVM->_vmThreadKey;
@@ -192,22 +195,35 @@ J9JITConfig * codert_onload(J9JavaVM * javaVM)
    if (!TR::MonitorTable::init(privatePortLibrary, javaVM))
       goto _abort;
 
-   TR_ASSERT(!javaVM->jitConfig, "jitConfig already initialized.");
+   if (!IS_RAM_CACHE_ON(javaVM) || IS_COLD_RUN(javaVM))
+      {
+      TR_ASSERT(!javaVM->jitConfig, "jitConfig already initialized.");
 
 #if defined(J9VM_INTERP_AOT_COMPILE_SUPPORT)
-   javaVM->jitConfig = (J9JITConfig *) j9mem_allocate_memory(sizeof(J9AOTConfig), J9MEM_CATEGORY_JIT);
+      if (IS_RAM_CACHE_ON(javaVM))
+         javaVM->jitConfig = (J9JITConfig *) imem_allocate_memory(sizeof(J9AOTConfig), J9MEM_CATEGORY_JIT);
+      else
+         javaVM->jitConfig = (J9JITConfig *) j9mem_allocate_memory(sizeof(J9AOTConfig), J9MEM_CATEGORY_JIT);
 #else
-   javaVM->jitConfig = (J9JITConfig *) j9mem_allocate_memory(sizeof(J9JITConfig), J9MEM_CATEGORY_JIT);
+      if (IS_RAM_CACHE_ON(javaVM))
+         javaVM->jitConfig = (J9JITConfig *) imem_allocate_memory(sizeof(J9JITConfig), J9MEM_CATEGORY_JIT);
+      else
+         javaVM->jitConfig = (J9JITConfig *) j9mem_allocate_memory(sizeof(J9JITConfig), J9MEM_CATEGORY_JIT);
 #endif
+
+      if (javaVM->jitConfig)
+         {
+#if defined(J9VM_INTERP_AOT_COMPILE_SUPPORT)
+         memset(javaVM->jitConfig, 0, sizeof(J9AOTConfig));
+#else
+         memset(javaVM->jitConfig, 0, sizeof(J9JITConfig));
+#endif
+         }
+      }
 
    if (!javaVM->jitConfig)
       goto _abort;
 
-#if defined(J9VM_INTERP_AOT_COMPILE_SUPPORT)
-   memset(javaVM->jitConfig, 0, sizeof(J9AOTConfig));
-#else
-   memset(javaVM->jitConfig, 0, sizeof(J9JITConfig));
-#endif
    jitConfig = javaVM->jitConfig;
    jitConfig->sampleInterruptHandlerKey = -1;
 
@@ -312,43 +328,6 @@ void codert_freeJITConfig(J9JavaVM * javaVM)
          }
 #endif
 
-/*  Commented out because of rare failure during shutdown: 90700: JIT_Sanity.TestSCCMLTests1.Mode110 Crash during freeJITconfig()
-    Deallocating malloced memory is not going to very useful even for zOS
-
-      // Free the caches for fast stack walk mechanism
-      // before freeing the data caches or code caches
-      J9MemorySegment *dataCacheSeg = jitConfig->dataCacheList->nextSegment;
-      while (dataCacheSeg) // Iterate over all the data cache segments
-         {
-         // Iterate over all records in the data cache segment
-         UDATA current = (UDATA)dataCacheSeg->heapBase;
-         UDATA end = (UDATA)dataCacheSeg->heapAlloc;
-         while (current < end)
-            {
-            J9JITDataCacheHeader * hdr = (J9JITDataCacheHeader *)current;
-            if (hdr->type == J9DataTypeExceptionInfo)
-               {
-               J9JITExceptionTable * metaData = (J9JITExceptionTable *)(current + sizeof(J9JITDataCacheHeader));
-               // Don't look at unloaded metaData
-               if (metaData->constantPool != NULL)
-                  {
-                  if (metaData->bodyInfo != NULL)
-                     {
-                     void *mapTablePtr = ((TR_PersistentJittedBodyInfo *)metaData->bodyInfo)->getMapTable();
-                     if (mapTablePtr != (void*)-1 && mapTablePtr != NULL)
-                        {
-                        j9mem_free_memory(mapTablePtr);
-                        ((TR_PersistentJittedBodyInfo *)metaData->bodyInfo)->setMapTable(NULL);
-                        }
-                     }
-                  }
-               }
-            current += hdr->size;
-            }
-         dataCacheSeg = dataCacheSeg->nextSegment;
-         } // end while (dataCacheSeg)
-
-*/
       TR::CodeCacheManager *manager = TR::CodeCacheManager::instance();
       if (manager)
          manager->destroy();

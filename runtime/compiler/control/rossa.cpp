@@ -115,6 +115,9 @@
 #include "runtime/JITServerIProfiler.hpp"
 #endif
 
+#include "jvmimage.h"
+#include "jvmimageport.h"
+
 extern "C" int32_t encodeCount(int32_t count);
 
 #if defined(TR_HOST_POWER)
@@ -1045,15 +1048,25 @@ onLoadInternal(
 
    TR::CodeCache *firstCodeCache;
 
-   /* Allocate the code and data cache lists */
-   if (!(jitConfig->codeCacheList))
+   if (!IS_RAM_CACHE_ON(javaVM) || IS_COLD_RUN(javaVM))
       {
-      if ((jitConfig->codeCacheList = javaVM->internalVMFunctions->allocateMemorySegmentList(javaVM, 3, J9MEM_CATEGORY_JIT)) == NULL)
-         return -1;
+      /* Allocate the code and data cache lists */
+      if (!(jitConfig->codeCacheList))
+         {
+         if ((jitConfig->codeCacheList = javaVM->internalVMFunctions->allocateMemorySegmentList(javaVM, 3, J9MEM_CATEGORY_JIT)) == NULL)
+            return -1;
+         }
+      if (!(jitConfig->dataCacheList))
+         {
+         if ((jitConfig->dataCacheList = javaVM->internalVMFunctions->allocateMemorySegmentList(javaVM, 3, J9MEM_CATEGORY_JIT)) == NULL)
+            return -1;
+         }
       }
-   if (!(jitConfig->dataCacheList))
+   else
       {
-      if ((jitConfig->dataCacheList = javaVM->internalVMFunctions->allocateMemorySegmentList(javaVM, 3, J9MEM_CATEGORY_JIT)) == NULL)
+      if (omrthread_monitor_init_with_name(&(jitConfig->codeCacheList->segmentMutex), 0, "VM mem segment list"))
+         return -1;
+      if (omrthread_monitor_init_with_name(&(jitConfig->dataCacheList->segmentMutex), 0, "VM mem segment list"))
          return -1;
       }
 
@@ -1127,14 +1140,14 @@ onLoadInternal(
    TR_VerboseLog::initialize(jitConfig);
    initializePersistentMemory(jitConfig);
 
-
    TR_PersistentMemory * persistentMemory = (TR_PersistentMemory *)jitConfig->scratchSegment;
-   if (persistentMemory == NULL)
-      return -1;
 
-   // JITServer: persistentCHTable used to be inited here, but we have to move it after JITServer commandline opts
-   // setting it to null here to catch anything that assumes it's set between here and the new init code.
-   persistentMemory->getPersistentInfo()->setPersistentCHTable(NULL);
+   if (!IS_RAM_CACHE_ON(javaVM) || IS_COLD_RUN(javaVM))
+      {
+      // JITServer: persistentCHTable used to be inited here, but we have to move it after JITServer commandline opts
+      // setting it to null here to catch anything that assumes it's set between here and the new init code.
+      persistentMemory->getPersistentInfo()->setPersistentCHTable(NULL);
+      }
    
    if (!TR::CompilationInfo::createCompilationInfo(jitConfig))
       return -1;
@@ -1142,7 +1155,16 @@ onLoadInternal(
    if (!TR_J9VMBase::createGlobalFrontEnd(jitConfig, TR::CompilationInfo::get()))
       return -1;
 
-   TR_J9VMBase * feWithoutThread(TR_J9VMBase::get(jitConfig, NULL));
+   TR_J9VMBase * feWithoutThread;
+   if (!IS_RAM_CACHE_ON(javaVM) || IS_COLD_RUN(javaVM))
+      {
+      feWithoutThread = TR_J9VMBase::get(jitConfig, NULL);
+      }
+   else
+      {
+      feWithoutThread = (TR_J9VMBase *)(((TR_CacheForImage *)jitConfig->cacheForImage)->globalFrontend);
+      }
+
    if (!feWithoutThread)
       return -1;
 
@@ -1291,13 +1313,16 @@ onLoadInternal(
       numCodeCachesToCreateAtStartup = 4;
 #endif
 
-   if (!persistentMemory->getPersistentInfo()->getRuntimeAssumptionTable()->init())
-      return -1;
+   if (!IS_RAM_CACHE_ON(javaVM) || IS_COLD_RUN(javaVM))
+      {
+      if (!persistentMemory->getPersistentInfo()->getRuntimeAssumptionTable()->init())
+         return -1;
 
-   TR_PersistentClassLoaderTable *loaderTable = new (PERSISTENT_NEW) TR_PersistentClassLoaderTable(persistentMemory);
-   if (loaderTable == NULL)
-      return -1;
-   persistentMemory->getPersistentInfo()->setPersistentClassLoaderTable(loaderTable);
+      TR_PersistentClassLoaderTable *loaderTable = new (PERSISTENT_NEW) TR_PersistentClassLoaderTable(persistentMemory);
+      if (loaderTable == NULL)
+         return -1;
+      persistentMemory->getPersistentInfo()->setPersistentClassLoaderTable(loaderTable);
+      }
 
    jitConfig->iprofilerBufferSize = TR::Options::_iprofilerBufferSize;   //1024;
 
@@ -1315,90 +1340,112 @@ onLoadInternal(
    memset(aotStats, 0, sizeof(TR_AOTStats));
    ((TR_JitPrivateConfig*)jitConfig->privateConfig)->aotStats = aotStats;
 
-   TR::CodeCacheManager *codeCacheManager = (TR::CodeCacheManager *) j9mem_allocate_memory(sizeof(TR::CodeCacheManager), J9MEM_CATEGORY_JIT);
-   if (codeCacheManager == NULL)
-      return -1;
-   memset(codeCacheManager, 0, sizeof(TR::CodeCacheManager));
 
-   // must initialize manager using the global (not thread specific) fe because current thread isn't guaranteed to live longer than the manager
-   new (codeCacheManager) TR::CodeCacheManager(feWithoutThread, TR::Compiler->rawAllocator);
-
-   TR::CodeCacheConfig &codeCacheConfig = codeCacheManager->codeCacheConfig();
-
-   // Do not allow code caches smaller than 128KB
-   if (jitConfig->codeCacheKB < 128)
-      jitConfig->codeCacheKB = 128;
-   if (!fe->isAOT_DEPRECATED_DO_NOT_USE())
+   if (!IS_RAM_CACHE_ON(javaVM) || IS_COLD_RUN(javaVM))
       {
-      if (jitConfig->codeCacheKB > 32768)
-         jitConfig->codeCacheKB = 32768;
-      }
+      TR::CodeCacheManager *codeCacheManager;
 
-   if (jitConfig->codeCacheKB > jitConfig->codeCacheTotalKB)
-      {
-      /* Handle case where user has set codeCacheTotalKB smaller than codeCacheKB (e.g. -Xjit:codeTotal=256) by setting codeCacheKB = codeCacheTotalKB */
-      jitConfig->codeCacheKB = jitConfig->codeCacheTotalKB;
-      }
+      if (IS_RAM_CACHE_ON(javaVM))
+         codeCacheManager = (TR::CodeCacheManager *) imem_allocate_memory(sizeof(TR::CodeCacheManager), J9MEM_CATEGORY_JIT);
+      else
+         codeCacheManager = (TR::CodeCacheManager *) j9mem_allocate_memory(sizeof(TR::CodeCacheManager), J9MEM_CATEGORY_JIT);
 
-   if (jitConfig->dataCacheKB > jitConfig->dataCacheTotalKB)
-      {
-      /* Handle case where user has set dataCacheTotalKB smaller than dataCacheKB (e.g. -Xjit:dataTotal=256) by setting dataCacheKB = dataCacheTotalKB */
-      jitConfig->dataCacheKB = jitConfig->dataCacheTotalKB;
-      }
+      if (codeCacheManager == NULL)
+         return -1;
+      memset(codeCacheManager, 0, sizeof(TR::CodeCacheManager));
 
-   I_32 maxNumberOfCodeCaches = jitConfig->codeCacheTotalKB / jitConfig->codeCacheKB;
-   if (fe->isAOT_DEPRECATED_DO_NOT_USE())
-      maxNumberOfCodeCaches = 1;
+      // must initialize manager using the global (not thread specific) fe because current thread isn't guaranteed to live longer than the manager
+      new (codeCacheManager) TR::CodeCacheManager(feWithoutThread, TR::Compiler->rawAllocator);
 
-   // setupCodeCacheParameters must stay before  TR::CodeCacheManager::initialize() because it needs trampolineCodeSize
-   setupCodeCacheParameters(&codeCacheConfig._trampolineCodeSize, &codeCacheConfig._mccCallbacks, &codeCacheConfig._numOfRuntimeHelpers, &codeCacheConfig._CCPreLoadedCodeSize);
+      TR::CodeCacheConfig &codeCacheConfig = codeCacheManager->codeCacheConfig();
 
-   if (!TR_TranslationArtifactManager::initializeGlobalArtifactManager(jitConfig->translationArtifacts, jitConfig->javaVM))
-      return -1;
+      // Do not allow code caches smaller than 128KB
+      if (jitConfig->codeCacheKB < 128)
+         jitConfig->codeCacheKB = 128;
+      if (!fe->isAOT_DEPRECATED_DO_NOT_USE())
+         {
+         if (jitConfig->codeCacheKB > 32768)
+            jitConfig->codeCacheKB = 32768;
+         }
 
-   codeCacheConfig._allowedToGrowCache = (javaVM->jitConfig->runtimeFlags & J9JIT_GROW_CACHES) != 0;
-   codeCacheConfig._lowCodeCacheThreshold = TR::Options::_lowCodeCacheThreshold;
-   codeCacheConfig._verboseCodeCache = TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCodeCache);
-   codeCacheConfig._verbosePerformance = TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance);
-   codeCacheConfig._verboseReclamation = TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCodeCacheReclamation);
-   codeCacheConfig._doSanityChecks = TR::Options::getCmdLineOptions()->getOption(TR_CodeCacheSanityCheck);
-   codeCacheConfig._codeCacheTotalKB = jitConfig->codeCacheTotalKB;
-   codeCacheConfig._codeCacheKB = jitConfig->codeCacheKB;
-   codeCacheConfig._codeCachePadKB = jitConfig->codeCachePadKB;
-   codeCacheConfig._codeCacheAlignment = jitConfig->codeCacheAlignment;
-   codeCacheConfig._codeCacheFreeBlockRecylingEnabled = !TR::Options::getCmdLineOptions()->getOption(TR_DisableFreeCodeCacheBlockRecycling);
-   codeCacheConfig._largeCodePageSize = jitConfig->largeCodePageSize;
-   codeCacheConfig._largeCodePageFlags = jitConfig->largeCodePageFlags;
-   codeCacheConfig._maxNumberOfCodeCaches = maxNumberOfCodeCaches;
-   codeCacheConfig._canChangeNumCodeCaches = (TR::Options::getCmdLineOptions()->getNumCodeCachesToCreateAtStartup() <= 0);
+      if (jitConfig->codeCacheKB > jitConfig->codeCacheTotalKB)
+         {
+         /* Handle case where user has set codeCacheTotalKB smaller than codeCacheKB (e.g. -Xjit:codeTotal=256) by setting codeCacheKB = codeCacheTotalKB */
+         jitConfig->codeCacheKB = jitConfig->codeCacheTotalKB;
+         }
 
-   static char * segmentCarving = feGetEnv("TR_CodeCacheConsolidation");
-   bool useConsolidatedCodeCache = segmentCarving != NULL ||
-                                   TR::Options::getCmdLineOptions()->getOption(TR_EnableCodeCacheConsolidation);
+      if (jitConfig->dataCacheKB > jitConfig->dataCacheTotalKB)
+         {
+         /* Handle case where user has set dataCacheTotalKB smaller than dataCacheKB (e.g. -Xjit:dataTotal=256) by setting dataCacheKB = dataCacheTotalKB */
+         jitConfig->dataCacheKB = jitConfig->dataCacheTotalKB;
+         }
 
-   if (TR::Options::getCmdLineOptions()->getNumCodeCachesToCreateAtStartup() > 0) // user has specified option
-      numCodeCachesToCreateAtStartup = TR::Options::getCmdLineOptions()->getNumCodeCachesToCreateAtStartup();
-   // We cannot create at startup more code caches than the maximum
-   if (numCodeCachesToCreateAtStartup > maxNumberOfCodeCaches)
-      numCodeCachesToCreateAtStartup = maxNumberOfCodeCaches;
+      I_32 maxNumberOfCodeCaches = jitConfig->codeCacheTotalKB / jitConfig->codeCacheKB;
+      if (fe->isAOT_DEPRECATED_DO_NOT_USE())
+         maxNumberOfCodeCaches = 1;
 
-   firstCodeCache = codeCacheManager->initialize(useConsolidatedCodeCache, numCodeCachesToCreateAtStartup);
+      // setupCodeCacheParameters must stay before  TR::CodeCacheManager::initialize() because it needs trampolineCodeSize
+      setupCodeCacheParameters(&codeCacheConfig._trampolineCodeSize, &codeCacheConfig._mccCallbacks, &codeCacheConfig._numOfRuntimeHelpers, &codeCacheConfig._CCPreLoadedCodeSize);
 
-   // large code page size may have been updated by initialize(), so copy back to jitConfig
-   jitConfig->largeCodePageSize = (UDATA) codeCacheConfig.largeCodePageSize();
+      if (!TR_TranslationArtifactManager::initializeGlobalArtifactManager(jitConfig->translationArtifacts, jitConfig->javaVM))
+         return -1;
 
-   if (firstCodeCache == NULL)
-      return -1;
-   jitConfig->codeCache = firstCodeCache->j9segment();
-   ((TR_JitPrivateConfig *) jitConfig->privateConfig)->codeCacheManager = codeCacheManager; // for kca's benefit
+      codeCacheConfig._allowedToGrowCache = (javaVM->jitConfig->runtimeFlags & J9JIT_GROW_CACHES) != 0;
+      codeCacheConfig._lowCodeCacheThreshold = TR::Options::_lowCodeCacheThreshold;
+      codeCacheConfig._verboseCodeCache = TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCodeCache);
+      codeCacheConfig._verbosePerformance = TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance);
+      codeCacheConfig._verboseReclamation = TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCodeCacheReclamation);
+      codeCacheConfig._doSanityChecks = TR::Options::getCmdLineOptions()->getOption(TR_CodeCacheSanityCheck);
+      codeCacheConfig._codeCacheTotalKB = jitConfig->codeCacheTotalKB;
+      codeCacheConfig._codeCacheKB = jitConfig->codeCacheKB;
+      codeCacheConfig._codeCachePadKB = jitConfig->codeCachePadKB;
+      codeCacheConfig._codeCacheAlignment = jitConfig->codeCacheAlignment;
+      codeCacheConfig._codeCacheFreeBlockRecylingEnabled = !TR::Options::getCmdLineOptions()->getOption(TR_DisableFreeCodeCacheBlockRecycling);
+      codeCacheConfig._largeCodePageSize = jitConfig->largeCodePageSize;
+      codeCacheConfig._largeCodePageFlags = jitConfig->largeCodePageFlags;
+      codeCacheConfig._maxNumberOfCodeCaches = maxNumberOfCodeCaches;
+      codeCacheConfig._canChangeNumCodeCaches = (TR::Options::getCmdLineOptions()->getNumCodeCachesToCreateAtStartup() <= 0);
 
-   if (fe->isAOT_DEPRECATED_DO_NOT_USE())
-      {
-      jitConfig->codeCache->heapAlloc = firstCodeCache->getCodeTop();
-#if defined(TR_TARGET_X86) && defined(TR_HOST_32BIT)
-      javaVM->jitConfig = (J9JITConfig *)jitConfig;
-      queryX86TargetCPUID(javaVM);
-#endif
+      static char * segmentCarving = feGetEnv("TR_CodeCacheConsolidation");
+      bool useConsolidatedCodeCache = segmentCarving != NULL ||
+                                      TR::Options::getCmdLineOptions()->getOption(TR_EnableCodeCacheConsolidation);
+
+      if (TR::Options::getCmdLineOptions()->getNumCodeCachesToCreateAtStartup() > 0) // user has specified option
+         numCodeCachesToCreateAtStartup = TR::Options::getCmdLineOptions()->getNumCodeCachesToCreateAtStartup();
+      // We cannot create at startup more code caches than the maximum
+      if (numCodeCachesToCreateAtStartup > maxNumberOfCodeCaches)
+         numCodeCachesToCreateAtStartup = maxNumberOfCodeCaches;
+
+      firstCodeCache = codeCacheManager->initialize(useConsolidatedCodeCache, numCodeCachesToCreateAtStartup);
+
+      // large code page size may have been updated by initialize(), so copy back to jitConfig
+      jitConfig->largeCodePageSize = (UDATA) codeCacheConfig.largeCodePageSize();
+
+      if (firstCodeCache == NULL)
+         return -1;
+      jitConfig->codeCache = firstCodeCache->j9segment();
+      ((TR_JitPrivateConfig *) jitConfig->privateConfig)->codeCacheManager = codeCacheManager; // for kca's benefit
+
+      if (fe->isAOT_DEPRECATED_DO_NOT_USE())
+         {
+         jitConfig->codeCache->heapAlloc = firstCodeCache->getCodeTop();
+   #if defined(TR_TARGET_X86) && defined(TR_HOST_32BIT)
+         javaVM->jitConfig = (J9JITConfig *)jitConfig;
+         queryX86TargetCPUID(javaVM);
+   #endif
+         }
+
+      /* allocate the data cache */
+      if (jitConfig->dataCacheKB < 1)
+         {
+         printf("<JIT: fatal error, data cache size must be at least 1 Kb>\n");
+         return -1;
+         }
+      if (!TR_DataCacheManager::initialize(jitConfig))
+         {
+         printf("{JIT: fatal error, failed to allocate %lu Kb data cache}\n", jitConfig->dataCacheKB);
+         return -1;
+         }
       }
 
    if (!fe->isAOT_DEPRECATED_DO_NOT_USE())
@@ -1420,18 +1467,6 @@ onLoadInternal(
             currentVMThread->codertTOC = (void *)jitConfig->pseudoTOC;
       #endif
 
-      }
-
-   /* allocate the data cache */
-   if (jitConfig->dataCacheKB < 1)
-      {
-      printf("<JIT: fatal error, data cache size must be at least 1 Kb>\n");
-      return -1;
-      }
-   if (!TR_DataCacheManager::initialize(jitConfig))
-      {
-      printf("{JIT: fatal error, failed to allocate %lu Kb data cache}\n", jitConfig->dataCacheKB);
-      return -1;
       }
 
    jitConfig->thunkLookUpNameAndSig = &j9ThunkLookupNameAndSig;
@@ -1617,24 +1652,27 @@ onLoadInternal(
          persistentMemory->getPersistentInfo()->setRuntimeInstrumentationRecompilationEnabled(true);
       }
 
-   TR_PersistentCHTable *chtable;
+   if (!IS_RAM_CACHE_ON(javaVM) || IS_COLD_RUN(javaVM))
+      {
+      TR_PersistentCHTable *chtable;
 #if defined(JITSERVER_SUPPORT)
-   if (persistentMemory->getPersistentInfo()->getRemoteCompilationMode() == JITServer::SERVER)
-      {
-      chtable = new (PERSISTENT_NEW) JITServerPersistentCHTable(persistentMemory);
-      }
-   else if (persistentMemory->getPersistentInfo()->getRemoteCompilationMode() == JITServer::CLIENT)
-      {
-      chtable = new (PERSISTENT_NEW) JITClientPersistentCHTable(persistentMemory);
-      }
-   else
+      if (persistentMemory->getPersistentInfo()->getRemoteCompilationMode() == JITServer::SERVER)
+         {
+         chtable = new (PERSISTENT_NEW) JITServerPersistentCHTable(persistentMemory);
+         }
+      else if (persistentMemory->getPersistentInfo()->getRemoteCompilationMode() == JITServer::CLIENT)
+         {
+         chtable = new (PERSISTENT_NEW) JITClientPersistentCHTable(persistentMemory);
+         }
+      else
 #endif
-      {
-      chtable = new (PERSISTENT_NEW) TR_PersistentCHTable(persistentMemory);
+         {
+         chtable = new (PERSISTENT_NEW) TR_PersistentCHTable(persistentMemory);
+         }
+      if (chtable == NULL)
+         return -1;
+      persistentMemory->getPersistentInfo()->setPersistentCHTable(chtable);
       }
-   if (chtable == NULL)
-      return -1;
-   persistentMemory->getPersistentInfo()->setPersistentCHTable(chtable);
 
 #if defined(JITSERVER_SUPPORT)
    if (compInfo->getPersistentInfo()->getRemoteCompilationMode() == JITServer::SERVER)
