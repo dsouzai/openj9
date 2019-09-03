@@ -82,6 +82,7 @@
 #include "runtime/J9VMAccess.hpp"
 #include "runtime/RelocationRuntime.hpp"
 #include "runtime/J9Profiler.hpp"
+#include "runtime/ArtifactManager.hpp"
 #include "control/CompilationRuntime.hpp"
 #include "env/j9method.h"
 #include "env/J9SharedCache.hpp"
@@ -118,6 +119,9 @@
 #if defined(J9VM_OPT_SHARED_CLASSES)
 #include "j9jitnls.h"
 #endif
+
+#include "jvmimage.h"
+#include "jvmimageport.h"
 
 OMR::CodeCacheMethodHeader *getCodeCacheMethodHeader(char *p, int searchLimit, J9JITExceptionTable* metaData);
 extern "C" {
@@ -5352,7 +5356,20 @@ void *TR::CompilationInfo::startPCIfAlreadyCompiled(J9VMThread * vmThread, TR::I
       // compilation has already taken place
       //
       if (isCompiled(method))
+         {
          startPC = getJ9MethodStartPC(method);
+         }
+      else if (IS_RAM_CACHE_ON(_jitConfig->javaVM))
+         {
+         TR_TranslationArtifactManager *artifactManager = TR_TranslationArtifactManager::getGlobalArtifactManager();
+         TR_TranslationArtifactManager::CriticalSection getPCFromMap;
+         J9JITExceptionTable *metadata = (J9JITExceptionTable *)persistentMemory()->getPCFromMap(static_cast<void *>(method));
+         if (metadata)
+            {
+            startPC = (void *)metadata->startPC;
+            jitMethodTranslated(vmThread, method, startPC);
+            }
+         }
       }
    else
       {

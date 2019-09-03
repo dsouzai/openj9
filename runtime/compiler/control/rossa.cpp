@@ -1800,6 +1800,24 @@ onLoadInternal(
 
       if (!TR::CodeCacheManager::instance()->registerCodeCaches())
          return -1;
+
+
+      /*
+       * Critical Section
+       */
+         {
+         TR_TranslationArtifactManager *artifactManager = TR_TranslationArtifactManager::getGlobalArtifactManager();
+         TR_TranslationArtifactManager::CriticalSection getPCFromMap;
+
+         TR_PersistentMemory::MethodToPCMap &map = persistentMemory->_methodToPCMap;
+         for (auto it = map.begin(); it != map.end(); it++)
+            {
+            J9JITExceptionTable *metadata = (J9JITExceptionTable *)it->second;
+            if (!artifactManager->containsArtifact(metadata))
+               if (!artifactManager->insertArtifact(metadata))
+                  return -1;
+            }
+         }
       }
 
    return 0;
