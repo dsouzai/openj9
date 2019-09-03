@@ -69,6 +69,9 @@
 #include "control/CompilationRuntime.hpp"
 #include "runtime/HWProfiler.hpp"
 
+#include "jvmimage.h"
+#include "jvmimageport.h"
+
 typedef std::set<TR_GCStackMap*, std::less<TR_GCStackMap*>, TR::typed_allocator<TR_GCStackMap*, TR::Region&>> GCStackMapSet;
 
 struct TR_StackAtlasStats
@@ -1591,6 +1594,13 @@ createMethodMetaData(
          {
          // Insert trace point here for insertion failure
          }
+      TR::CompilationInfo *compInfo = TR::CompilationInfo::get();
+      if (IS_RAM_CACHE_ON(compInfo->getJITConfig()->javaVM))
+         {
+         void * j9method = static_cast<void *>(vmMethod->getPersistentIdentifier());
+         compInfo->persistentMemory()->addMethodToMap(j9method, (void *)data);
+         }
+
       if (vm->isAnonymousClass( ((TR_ResolvedJ9Method*)vmMethod)->romClassPtr()))
          {
          J9Class *j9clazz = ((TR_ResolvedJ9Method*)vmMethod)->constantPoolHdr();

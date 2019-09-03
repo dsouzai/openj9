@@ -30,6 +30,9 @@
 #include "rommeth.h"
 #include "env/jittypes.h"
 
+#include "jvmimage.h"
+#include "jvmimageport.h"
+
 #define FASTWALK 1
 
 #define FASTWALK_CACHESIZE 2
@@ -144,7 +147,12 @@ static JITINLINE TR_StackMapTable * initializeMapTable(J9JavaVM * javaVM, J9TR_M
    if (i._stackAtlas->numberOfMaps > threshold)
       {
       PORT_ACCESS_FROM_JAVAVM(javaVM);
-      mapTable = (TR_StackMapTable *) j9mem_allocate_memory(concreteMapCount * sizeof(TR_MapTableEntry) + sizeof(TR_StackMapTable), J9MEM_CATEGORY_JIT);
+      JVMIMAGEPORT_ACCESS_FROM_JAVAVM(javaVM);
+
+      if (IS_RAM_CACHE_ON(javaVM))
+         mapTable = (TR_StackMapTable *) imem_allocate_memory(concreteMapCount * sizeof(TR_MapTableEntry) + sizeof(TR_StackMapTable), J9MEM_CATEGORY_JIT);
+      else
+         mapTable = (TR_StackMapTable *) j9mem_allocate_memory(concreteMapCount * sizeof(TR_MapTableEntry) + sizeof(TR_StackMapTable), J9MEM_CATEGORY_JIT);
 
       if (mapTable)
          {
