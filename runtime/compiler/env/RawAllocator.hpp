@@ -72,7 +72,7 @@ public:
       PORT_ACCESS_FROM_JAVAVM(_javaVM);
       JVMIMAGEPORT_ACCESS_FROM_JAVAVM(_javaVM);
 
-      if (IS_COLD_RUN(_javaVM))
+      if (IS_RAM_CACHE_ON(_javaVM))
          {
          return imem_allocate_memory(size, J9MEM_CATEGORY_JIT);
          }
@@ -94,7 +94,7 @@ public:
       PORT_ACCESS_FROM_JAVAVM(_javaVM);
       JVMIMAGEPORT_ACCESS_FROM_JAVAVM(_javaVM);
 
-      if (IS_COLD_RUN(_javaVM))
+      if (IS_RAM_CACHE_ON(_javaVM))
          {
          imem_free_memory(p);
          }

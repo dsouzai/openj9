@@ -115,6 +115,9 @@ TR_DataCacheManager::destroyManager()
    {
    if (_dataCacheManager)
       {
+      if (IS_RAM_CACHE_ON(_dataCacheManager->_jitConfig->javaVM))
+         return;
+
       J9JITConfig *jitConfig = _dataCacheManager->_jitConfig; // make a copy before destroying the object
       _dataCacheManager->~TR_DataCacheManager();
       ((TR_JitPrivateConfig *)jitConfig->privateConfig)->dcManager = NULL;
@@ -175,6 +178,10 @@ TR_DataCacheManager::~TR_DataCacheManager()
    {
    // This list will eventually be integrated directly into the data cache manager.
    J9JavaVM *javaVM = _jitConfig->javaVM;
+
+   if (IS_RAM_CACHE_ON(javaVM))
+      return;
+
    freeDataCacheList(_activeDataCacheList);
    freeDataCacheList(_almostFullDataCacheList);
 
@@ -195,6 +202,9 @@ TR_DataCacheManager::~TR_DataCacheManager()
 void
 TR_DataCacheManager::freeDataCacheList(TR_DataCache *& head)
    {
+   if (IS_RAM_CACHE_ON(_jitConfig->javaVM))
+      return;
+
    for (TR_DataCache * next = 0; head; head = next)
       {
       next = head->_next;
@@ -293,7 +303,12 @@ TR_DataCache* TR_DataCacheManager::allocateNewDataCache(uint32_t minimumSize)
             else
                {
                TR_VerboseLog::write("<JIT: non-fatal error: failed to allocate %d Kb data cache>\n", _jitConfig->dataCacheKB);
-               j9mem_free_memory(dataCache);
+
+               if (IS_RAM_CACHE_ON(_jitConfig->javaVM))
+                  imem_free_memory(dataCache);
+               else
+                  j9mem_free_memory(dataCache);
+
                dataCache = NULL;
                _jitConfig->runtimeFlags |= J9JIT_DATA_CACHE_FULL;  // prevent future allocations
 #ifdef DATA_CACHE_DEBUG
@@ -722,7 +737,11 @@ TR_DataCacheManager::freeMemoryToVM(void *ptr)
    {
    PORT_ACCESS_FROM_JITCONFIG(_jitConfig);
    JVMIMAGEPORT_ACCESS_FROM_JAVAVM(_jitConfig->javaVM);
-   imem_free_memory(ptr);
+
+   if (IS_RAM_CACHE_ON(_jitConfig->javaVM))
+      imem_free_memory(ptr);
+   else
+      j9mem_free_memory(ptr);
    }
 
 

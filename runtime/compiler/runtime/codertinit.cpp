@@ -51,6 +51,8 @@ char * feGetEnv(const char * s);
 
 TR::Monitor * assumptionTableMutex = NULL;
 
+static bool freedJITConfig = false;
+
 JIT_HELPER(icallVMprJavaSendVirtual0);
 JIT_HELPER(icallVMprJavaSendVirtual1);
 JIT_HELPER(icallVMprJavaSendVirtualJ);
@@ -295,7 +297,7 @@ void codert_freeJITConfig(J9JavaVM * javaVM)
    {
    J9JITConfig * jitConfig = javaVM->jitConfig;
 
-   if (jitConfig)
+   if (jitConfig && !freedJITConfig)
       {
       PORT_ACCESS_FROM_JAVAVM(javaVM);
 
@@ -303,9 +305,13 @@ void codert_freeJITConfig(J9JavaVM * javaVM)
 
       if (jitConfig->translationArtifacts)
          avl_jit_artifact_free_all(javaVM, jitConfig->translationArtifacts);
+      jitConfig->translationArtifacts = NULL;
 
-      if (jitConfig->codeCacheList)
-         javaVM->internalVMFunctions->freeMemorySegmentList(javaVM, jitConfig->codeCacheList);
+      if (!IS_RAM_CACHE_ON(javaVM))
+         {
+         if (jitConfig->codeCacheList)
+            javaVM->internalVMFunctions->freeMemorySegmentList(javaVM, jitConfig->codeCacheList);
+         }
 
 #if defined(TR_TARGET_S390)
       if (jitConfig->pseudoTOC)
@@ -328,12 +334,14 @@ void codert_freeJITConfig(J9JavaVM * javaVM)
          }
 #endif
 
-      TR::CodeCacheManager *manager = TR::CodeCacheManager::instance();
-      if (manager)
-         manager->destroy();
+      if (!IS_RAM_CACHE_ON(javaVM))
+         {
+         TR::CodeCacheManager *manager = TR::CodeCacheManager::instance();
+         if (manager)
+            manager->destroy();
 
-      TR_DataCacheManager::destroyManager();
-
+         TR_DataCacheManager::destroyManager();
+         }
 
       // Destroy faint blocks
       OMR::FaintCacheBlock *currentFaintBlock = (OMR::FaintCacheBlock *)jitConfig->methodsToDelete;
@@ -366,15 +374,20 @@ void codert_freeJITConfig(J9JavaVM * javaVM)
 
       jitConfig->valid = (UDATA)0;
 
-      j9mem_free_memory(jitConfig);
+      if (!IS_RAM_CACHE_ON(javaVM))
+         {
+         j9mem_free_memory(jitConfig);
 
-      /* Finally break the connection between the VM and the JIT */
-      javaVM->jitConfig = NULL;
+         /* Finally break the connection between the VM and the JIT */
+         javaVM->jitConfig = NULL;
 
-      // TEMP FIX for 97269, re-enable when the similar problem for 92051
-      // above is fixed.
+         // TEMP FIX for 97269, re-enable when the similar problem for 92051
+         // above is fixed.
 
-      TR::MonitorTable::get()->free();
+         TR::MonitorTable::get()->free();
+         }
+
+      freedJITConfig = true;
       }
    }
 

@@ -166,6 +166,10 @@ J9::MonitorTable::removeAndDestroy(TR::Monitor *monitor)
    {
    TR::MonitorTable *table = TR::MonitorTable::get();
    if (!table) return;
+
+   if (IS_RAM_CACHE_ON(table->_javaVM))
+      return;
+
    PORT_ACCESS_FROM_PORT(table->_portLib);
    // search the table for my monitor
    {
@@ -201,6 +205,9 @@ J9::MonitorTable::free()
    {
    TR::MonitorTable *table = TR::MonitorTable::get();
    if (!table) return;
+
+   if (IS_RAM_CACHE_ON(table->_javaVM))
+      return;
 
    PORT_ACCESS_FROM_PORT(table->_portLib);
 

@@ -32,17 +32,21 @@ PersistentAllocator::PersistentAllocator(const PersistentAllocatorKit &creationK
    _minimumSegmentSize(creationKit.minimumSegmentSize),
    _segmentAllocator(MEMORY_TYPE_JIT_PERSISTENT, creationKit.javaVM),
    _freeBlocks(),
-   _segments(SegmentContainerAllocator(RawAllocator(&creationKit.javaVM)))
+   _segments(SegmentContainerAllocator(RawAllocator(&creationKit.javaVM))),
+   _javaVM(&creationKit.javaVM)
    {
    }
 
 PersistentAllocator::~PersistentAllocator() throw()
    {
-   while (!_segments.empty())
+   if (!IS_RAM_CACHE_ON(_javaVM))
       {
-      J9MemorySegment &segment = _segments.front();
-      _segments.pop_front();
-      _segmentAllocator.deallocate(segment);
+      while (!_segments.empty())
+         {
+         J9MemorySegment &segment = _segments.front();
+         _segments.pop_front();
+         _segmentAllocator.deallocate(segment);
+         }
       }
    }
 

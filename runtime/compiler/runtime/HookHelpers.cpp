@@ -41,6 +41,9 @@
 #include "env/VMJ9.h"
 #include "env/j9method.h"
 
+#include "jvmimage.h"
+#include "jvmimageport.h"
+
 namespace  {
 
 #if defined(RECLAMATION_DEBUG)
@@ -434,7 +437,8 @@ void freeFastWalkCache(J9VMThread *vmThread, J9JITExceptionTable *metaData)
          if (mapTable && mapTable != (void *)-1)
             {
             PORT_ACCESS_FROM_VMC(vmThread);
-            j9mem_free_memory(mapTable);
+            if (!IS_RAM_CACHE_ON(vmThread->javaVM))
+               j9mem_free_memory(mapTable);
             }
          ((TR_PersistentJittedBodyInfo *)metaData->bodyInfo)->setMapTable(NULL);
          }
