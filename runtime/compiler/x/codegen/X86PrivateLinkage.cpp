@@ -58,6 +58,10 @@
 #include "runtime/J9Profiler.hpp"
 #include "runtime/J9ValueProfiler.hpp"
 
+#include "jvmimage.h"
+#include "jvmimageport.h"
+#include "control/CompilationRuntime.hpp"
+
 #ifdef TR_TARGET_64BIT
 #include "x/amd64/codegen/AMD64GuardedDevirtualSnippet.hpp"
 #else
@@ -1737,6 +1741,11 @@ TR::Register *J9::X86PrivateLinkage::buildIndirectDispatch(TR::Node *callNode)
    void *virtualThunk = NULL;
    if (getProperties().getNeedsThunksForIndirectCalls())
       {
+      if (IS_RAM_CACHE_ON(TR::CompilationInfo::get()->getJITConfig()->javaVM))
+         {
+         comp()->failCompilation<TR::CompilationException>("Compilation uses thunks for indirect calls!");
+         }
+
       TR::MethodSymbol *methodSymbol = callNode->getSymbol()->castToMethodSymbol();
       TR::Method       *method       = methodSymbol->getMethod();
       if (methodSymbol->isComputed())
