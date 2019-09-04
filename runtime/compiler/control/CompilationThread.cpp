@@ -10417,7 +10417,11 @@ TR::CompilationInfoPerThreadBase::methodCanBeCompiled(TR_Memory *trMemory, TR_Fr
 
    static char *dontCompileNatives = feGetEnv("TR_DontCompile");
 
-   if (dontCompileNatives && (method->isNewInstanceImplThunk() || method->isJNINative()))
+   bool noNativeCompilation = (dontCompileNatives != NULL);
+   if (IS_RAM_CACHE_ON(_compInfo.getJITConfig()->javaVM))
+      noNativeCompilation = true;
+
+   if (noNativeCompilation && (method->isNewInstanceImplThunk() || method->isJNINative()))
       {
       printf("don't compile because JNI or thunk\n");
       return false;
