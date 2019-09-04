@@ -541,6 +541,9 @@ J9::CodeCacheManager::setupMemorySegmentFromRepository(uint8_t *start,
 void
 J9::CodeCacheManager::freeMemorySegment(TR::CodeCacheMemorySegment *segment)
    {
+   if (IS_RAM_CACHE_ON(_jitConfig->javaVM))
+      return;
+
    segment->free(self());
    }
 

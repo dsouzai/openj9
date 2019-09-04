@@ -60,6 +60,9 @@ void
 J9::CodeCacheMemorySegment::free(TR::CodeCacheManager *manager)
    {
    J9JavaVM *javaVM = manager->javaVM();
+   if (IS_RAM_CACHE_ON(javaVM))
+      return;
+
    javaVM->internalVMFunctions->freeMemorySegment(javaVM, _segment, 1);
    new (reinterpret_cast<TR::CodeCacheMemorySegment *>(this)) TR::CodeCacheMemorySegment();
    }

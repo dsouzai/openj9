@@ -99,6 +99,7 @@ private:
    typedef TR::typed_allocator<TR::reference_wrapper<J9MemorySegment>, TR::RawAllocator> SegmentContainerAllocator;
    typedef std::deque<TR::reference_wrapper<J9MemorySegment>, SegmentContainerAllocator> SegmentContainer;
    SegmentContainer _segments;
+   J9JavaVM *_javaVM;
    };
 
 }

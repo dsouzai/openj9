@@ -84,6 +84,8 @@ class TR_PersistentCHTable
    virtual void removeClass(TR_FrontEnd *, TR_OpaqueClassBlock *classId, TR_PersistentClassInfo *info, bool removeInfo);
    virtual void resetVisitedClasses(); // highly time consuming
 
+   static void destroy(TR_PersistentCHTable *pcht);
+
 #ifdef DEBUG
    void dumpStats(TR_FrontEnd *);
 #endif
