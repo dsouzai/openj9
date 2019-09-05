@@ -63,7 +63,9 @@ public:
    static TR::CodeCacheManager *instance() { return _codeCacheManager; }
    static void setInstance(TR::CodeCacheManager *ccm) { _codeCacheManager = ccm; }
    static J9JITConfig *jitConfig()         { return _jitConfig; }
+   static void setJitConfig(J9JITConfig *jitConfig) { _jitConfig = jitConfig; }
    static J9JavaVM *javaVM()               { return _javaVM; }
+   static void setJavaVM(J9JavaVM *javaVM) { _javaVM = javaVM; }
 
    TR_FrontEnd *fe();
    TR_J9VMBase *fej9();
@@ -71,6 +73,8 @@ public:
    TR::CodeCache *initialize(bool useConsolidatedCache, uint32_t numberOfCodeCachesToCreateAtStartup);
 
    void addCodeCache(TR::CodeCache *codeCache);
+
+   bool registerCodeCaches();
 
    TR::CodeCacheMemorySegment *allocateCodeCacheSegment(size_t segmentSize,
                                                         size_t &codeCacheSizeToAllocate,

@@ -1042,6 +1042,7 @@ onLoadInternal(
       I_32 xnojit)
    {
    PORT_ACCESS_FROM_JAVAVM(javaVM);
+   JVMIMAGEPORT_ACCESS_FROM_JAVAVM(javaVM);
 
    jitConfig->javaVM = javaVM;
    jitConfig->jitLevelName = TR_BUILD_NAME;
@@ -1340,6 +1341,33 @@ onLoadInternal(
    memset(aotStats, 0, sizeof(TR_AOTStats));
    ((TR_JitPrivateConfig*)jitConfig->privateConfig)->aotStats = aotStats;
 
+   // Do not allow code caches smaller than 128KB
+   if (jitConfig->codeCacheKB < 128)
+      jitConfig->codeCacheKB = 128;
+   if (!fe->isAOT_DEPRECATED_DO_NOT_USE())
+      {
+      if (jitConfig->codeCacheKB > 32768)
+         jitConfig->codeCacheKB = 32768;
+      }
+
+   if (jitConfig->codeCacheKB > jitConfig->codeCacheTotalKB)
+      {
+      /* Handle case where user has set codeCacheTotalKB smaller than codeCacheKB (e.g. -Xjit:codeTotal=256) by setting codeCacheKB = codeCacheTotalKB */
+      jitConfig->codeCacheKB = jitConfig->codeCacheTotalKB;
+      }
+
+   if (jitConfig->dataCacheKB > jitConfig->dataCacheTotalKB)
+      {
+      /* Handle case where user has set dataCacheTotalKB smaller than dataCacheKB (e.g. -Xjit:dataTotal=256) by setting dataCacheKB = dataCacheTotalKB */
+      jitConfig->dataCacheKB = jitConfig->dataCacheTotalKB;
+      }
+
+   I_32 maxNumberOfCodeCaches = jitConfig->codeCacheTotalKB / jitConfig->codeCacheKB;
+   if (fe->isAOT_DEPRECATED_DO_NOT_USE())
+      maxNumberOfCodeCaches = 1;
+
+   if (!TR_TranslationArtifactManager::initializeGlobalArtifactManager(jitConfig->translationArtifacts, jitConfig->javaVM))
+      return -1;
 
    if (!IS_RAM_CACHE_ON(javaVM) || IS_COLD_RUN(javaVM))
       {
@@ -1359,36 +1387,8 @@ onLoadInternal(
 
       TR::CodeCacheConfig &codeCacheConfig = codeCacheManager->codeCacheConfig();
 
-      // Do not allow code caches smaller than 128KB
-      if (jitConfig->codeCacheKB < 128)
-         jitConfig->codeCacheKB = 128;
-      if (!fe->isAOT_DEPRECATED_DO_NOT_USE())
-         {
-         if (jitConfig->codeCacheKB > 32768)
-            jitConfig->codeCacheKB = 32768;
-         }
-
-      if (jitConfig->codeCacheKB > jitConfig->codeCacheTotalKB)
-         {
-         /* Handle case where user has set codeCacheTotalKB smaller than codeCacheKB (e.g. -Xjit:codeTotal=256) by setting codeCacheKB = codeCacheTotalKB */
-         jitConfig->codeCacheKB = jitConfig->codeCacheTotalKB;
-         }
-
-      if (jitConfig->dataCacheKB > jitConfig->dataCacheTotalKB)
-         {
-         /* Handle case where user has set dataCacheTotalKB smaller than dataCacheKB (e.g. -Xjit:dataTotal=256) by setting dataCacheKB = dataCacheTotalKB */
-         jitConfig->dataCacheKB = jitConfig->dataCacheTotalKB;
-         }
-
-      I_32 maxNumberOfCodeCaches = jitConfig->codeCacheTotalKB / jitConfig->codeCacheKB;
-      if (fe->isAOT_DEPRECATED_DO_NOT_USE())
-         maxNumberOfCodeCaches = 1;
-
       // setupCodeCacheParameters must stay before  TR::CodeCacheManager::initialize() because it needs trampolineCodeSize
       setupCodeCacheParameters(&codeCacheConfig._trampolineCodeSize, &codeCacheConfig._mccCallbacks, &codeCacheConfig._numOfRuntimeHelpers, &codeCacheConfig._CCPreLoadedCodeSize);
-
-      if (!TR_TranslationArtifactManager::initializeGlobalArtifactManager(jitConfig->translationArtifacts, jitConfig->javaVM))
-         return -1;
 
       codeCacheConfig._allowedToGrowCache = (javaVM->jitConfig->runtimeFlags & J9JIT_GROW_CACHES) != 0;
       codeCacheConfig._lowCodeCacheThreshold = TR::Options::_lowCodeCacheThreshold;
@@ -1780,6 +1780,26 @@ onLoadInternal(
       {
       TR::CodeCacheManager::setInstance((TR::CodeCacheManager*)(((TR_CacheForImage *)jitConfig->cacheForImage)->codeCacheManager));
       TR_DataCacheManager::setManager((TR_DataCacheManager *)(((TR_CacheForImage *)jitConfig->cacheForImage)->dataCacheManager));
+
+      J9ThreadMonitor **cacheListMutex = (J9ThreadMonitor **)TR::CodeCacheManager::instance()->cacheListMutex()->getVMMonitorAddr();
+      J9ThreadMonitor **ccRepoMutex = (J9ThreadMonitor **)TR::CodeCacheManager::instance()->getCodeCacheRepositoryMonitor()->getVMMonitorAddr();
+      J9ThreadMonitor **dataCacheMutex = (J9ThreadMonitor **)TR_DataCacheManager::getManager()->getMonitor()->getVMMonitorAddr();
+
+      if (omrthread_monitor_init_with_name(cacheListMutex, 0, "JIT-CodeCacheListMutex"))
+         return -1;
+      if (omrthread_monitor_init_with_name(ccRepoMutex, 0, "CodeCacheRepositoryMonitor"))
+         return -1;
+      if (omrthread_monitor_init_with_name(dataCacheMutex, 0, "JIT-DataCacheManagerMutex"))
+         return -1;
+
+      /*
+       * Must be done before registering code caches
+       */
+      TR::CodeCacheManager::setJitConfig(jitConfig);
+      TR::CodeCacheManager::setJavaVM(javaVM);
+
+      if (!TR::CodeCacheManager::instance()->registerCodeCaches())
+         return -1;
       }
 
    return 0;
