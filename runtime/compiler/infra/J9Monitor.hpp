@@ -73,6 +73,8 @@ class Monitor : public TR_Link0<TR::Monitor>
    // Dangerous: do not use this routine, except for thread exit
    void *getVMMonitor() { return (void*)_monitor; }
 
+   void *getVMMonitorAddr() { return (void *)(&_monitor); }
+
    private:
 
    friend class J9::MonitorTable;

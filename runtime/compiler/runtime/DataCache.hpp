@@ -396,6 +396,8 @@ public:
       convertDataCachesToAllocations();
       }
 
+   TR::Monitor * getMonitor() { return _mutex; }
+
    virtual void printStatistics();
 
 

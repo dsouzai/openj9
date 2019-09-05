@@ -20,6 +20,10 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
  *******************************************************************************/
 
+#include "j9.h"
+#include "jvmimage.h"
+#include "jvmimageport.h"
+
 #include <algorithm>
 #include "runtime/DataCache.hpp"
 #include "infra/Monitor.hpp"
@@ -43,18 +47,28 @@ TR_DataCacheManager* TR_DataCacheManager::constructManager (
    )
    {
    PORT_ACCESS_FROM_JITCONFIG(jitConfig);
-   T* newManager = static_cast<T *>(j9mem_allocate_memory( sizeof(T), J9MEM_CATEGORY_JIT ));
-   if (newManager)
+   JVMIMAGEPORT_ACCESS_FROM_JAVAVM(jitConfig->javaVM);
+   if (!IS_RAM_CACHE_ON(jitConfig->javaVM) || IS_COLD_RUN(jitConfig->javaVM))
       {
-      newManager = new (newManager) T (
-         jitConfig,
-         monitor,
-         quantumSize,
-         minQuanta,
-         newImplementation
-         );
+      T* newManager;
+
+      if (IS_RAM_CACHE_ON(jitConfig->javaVM))
+         newManager = static_cast<T *>(imem_allocate_memory( sizeof(T), J9MEM_CATEGORY_JIT ));
+      else
+         newManager = static_cast<T *>(j9mem_allocate_memory( sizeof(T), J9MEM_CATEGORY_JIT ));
+
+      if (newManager)
+         {
+         newManager = new (newManager) T (
+            jitConfig,
+            monitor,
+            quantumSize,
+            minQuanta,
+            newImplementation
+            );
+         }
+      return newManager;
       }
-   return newManager;
    }
 
 
@@ -231,6 +245,7 @@ TR_DataCache* TR_DataCacheManager::allocateNewDataCache(uint32_t minimumSize)
    {
    TR_DataCache *dataCache = NULL;
    PORT_ACCESS_FROM_JITCONFIG(_jitConfig);
+   JVMIMAGEPORT_ACCESS_FROM_JAVAVM(_jitConfig->javaVM);
 #if defined(DATA_CACHE_DEBUG) && (DATA_CACHE_VERBOSITY_LEVEL >=2)
    fprintf(stderr, "Will allocate a new segment for data cache\n");
 #endif
@@ -240,7 +255,11 @@ TR_DataCache* TR_DataCacheManager::allocateNewDataCache(uint32_t minimumSize)
       {
       if (_jitConfig->dataCacheList->totalSegmentSize < _jitConfig->dataCacheTotalKB * 1024)
          {
-         dataCache = (TR_DataCache*)j9mem_allocate_memory(sizeof(TR_DataCache), J9MEM_CATEGORY_JIT);
+         if (IS_RAM_CACHE_ON(_jitConfig->javaVM))
+            dataCache = (TR_DataCache*)imem_allocate_memory(sizeof(TR_DataCache), J9MEM_CATEGORY_JIT);
+         else
+            dataCache = (TR_DataCache*)j9mem_allocate_memory(sizeof(TR_DataCache), J9MEM_CATEGORY_JIT);
+
          if (dataCache)
             {
             // Compute the size for the segment
@@ -683,7 +702,14 @@ void *
 TR_DataCacheManager::allocateMemoryFromVM(size_t size)
    {
    PORT_ACCESS_FROM_JITCONFIG(_jitConfig);
-   void *alloc = j9mem_allocate_memory(size, J9MEM_CATEGORY_JIT);
+   JVMIMAGEPORT_ACCESS_FROM_JAVAVM(_jitConfig->javaVM);
+   void *alloc;
+
+   if (IS_RAM_CACHE_ON(_jitConfig->javaVM))
+      alloc = imem_allocate_memory(size, J9MEM_CATEGORY_JIT);
+   else
+      alloc = j9mem_allocate_memory(size, J9MEM_CATEGORY_JIT);
+
    if (!alloc)
       {
       // out of memory
@@ -695,7 +721,8 @@ void
 TR_DataCacheManager::freeMemoryToVM(void *ptr)
    {
    PORT_ACCESS_FROM_JITCONFIG(_jitConfig);
-   j9mem_free_memory(ptr);
+   JVMIMAGEPORT_ACCESS_FROM_JAVAVM(_jitConfig->javaVM);
+   imem_free_memory(ptr);
    }
 
 

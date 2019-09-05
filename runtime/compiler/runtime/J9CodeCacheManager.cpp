@@ -75,6 +75,48 @@ J9::CodeCacheManager::initialize(bool useConsolidatedCache, uint32_t numberOfCod
    return self()->OMR::CodeCacheManager::initialize(useConsolidatedCache, numberOfCodeCachesToCreateAtStartup);
    }
 
+bool
+J9::CodeCacheManager::registerCodeCaches()
+   {
+   bool success = true;
+   J9VMThread *vmThread = TR::CodeCacheManager::javaVM()->internalVMFunctions->currentVMThread(TR::CodeCacheManager::javaVM());
+   bool threadHadNoVMAccess = false;
+   if (vmThread)
+      {
+      threadHadNoVMAccess = (!(vmThread->publicFlags & J9_PUBLIC_FLAGS_VM_ACCESS));
+
+      /* Acquire VM access only if we don't have it */
+      if(threadHadNoVMAccess)
+         acquireVMAccessNoSuspend(vmThread);
+      }
+
+      {
+      CacheListCriticalSection scanCacheList(self());
+      for (TR::CodeCache *codeCache = self()->getFirstCodeCache(); codeCache; codeCache = codeCache->next())
+         {
+         TR::CodeCacheMemorySegment *segment = codeCache->segment();
+         J9MemorySegment *j9segment = segment->j9segment();
+
+         if (j9segment)
+            {
+            jit_artifact_protected_add_code_cache(TR::CodeCacheManager::javaVM(),
+                                                  TR::CodeCacheManager::jitConfig()->translationArtifacts,
+                                                  j9segment, NULL);
+            }
+
+         J9ThreadMonitor **codeCacheMutex = (J9ThreadMonitor **)codeCache->_mutex->getVMMonitorAddr();
+         if (omrthread_monitor_init_with_name(codeCacheMutex, 0, "JIT-CodeCacheMonitor-??"))
+            success = false;
+         }
+      }
+
+   /* Release VM access only if we didn't have it before the call */
+   if(threadHadNoVMAccess)
+      releaseVMAccess(vmThread);
+
+   return success;
+   }
+
 void
 J9::CodeCacheManager::addCodeCache(TR::CodeCache *codeCache)
    {
