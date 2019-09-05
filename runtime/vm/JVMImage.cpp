@@ -23,12 +23,13 @@
 #include "JVMImage.hpp"
 #include "segment.h"
 #include <errno.h>
+#include <string.h>
 
 #include <sys/mman.h> /* TODO: Change to OMRPortLibrary MMAP functionality. Currently does not allow MAP_FIXED as it is not supported in all architectures */
 
 /* TODO: reallocation will fail so initial heap size is large (Should be PAGE_SIZE aligned) */
 /* TODO: initial image size restriction will be removed once MMAP MAP_FIXED removed. see @ref JVMImage::readImageFromFile */
-const UDATA JVMImage::INITIAL_IMAGE_SIZE = 100 * 1024 * 1024;
+const UDATA JVMImage::INITIAL_IMAGE_SIZE = 1024 * 1024 * 1024;
 const UDATA JVMImage::CLASS_LOADER_REMOVE_COUNT = 8;
 
 JVMImage::JVMImage(J9PortLibrary *portLibrary, const char* ramCache) :
@@ -64,10 +65,12 @@ JVMImage::getJ9JavaVM()
 
 JVMImage::~JVMImage()
 {
-	PORT_ACCESS_FROM_JAVAVM(_vm);
+	//PORT_ACCESS_FROM_JAVAVM(_vm);
 	destroyMonitor();
 	if (IS_COLD_RUN(_vm)) {
-		j9mem_free_memory((void*)_jvmImageHeader->imageAddress);
+		//j9mem_free_memory((void*)_jvmImageHeader->imageAddress);
+		//UDATA pageSize = j9vmem_supported_page_sizes()[0];
+		munmap((void*)_jvmImageHeader, _jvmImageHeader->imageSize);
 	} else {
 		munmap((void*)_jvmImageHeader, _jvmImageHeader->imageAlignedAddress);
 	}
@@ -188,15 +191,23 @@ JVMImage::allocateImageMemory(UDATA size)
 {
 	PORT_ACCESS_FROM_PORT(_portLibrary);
 	UDATA pageSize = j9vmem_supported_page_sizes()[0];
-	void *imageAddress = j9mem_allocate_memory(size + pageSize, J9MEM_CATEGORY_CLASSES);
-	if (NULL == imageAddress) {
+	//void *imageAddress = j9mem_allocate_memory(size + pageSize, J9MEM_CATEGORY_CLASSES);
+        void *imageAddress = mmap(
+		0,
+		size + pageSize,
+		PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+	printf ("\n\n\nD_QWERTY: imageAddress = %p, errno=%s\n\n\n", imageAddress, strerror(errno));
+
+	if (NULL == imageAddress || (void *)-1 == imageAddress) {
 		return NULL;
 	}
 
-	_jvmImageHeader = (JVMImageHeader *) ROUND_UP_TO_POWEROF2((UDATA)imageAddress, pageSize);
+	//_jvmImageHeader = (JVMImageHeader *) ROUND_UP_TO_POWEROF2((UDATA)imageAddress, pageSize);
+	_jvmImageHeader = (JVMImageHeader *)imageAddress;
 	_jvmImageHeader->imageAddress = (uintptr_t)imageAddress;
 	_jvmImageHeader->imageAlignedAddress = (uintptr_t)_jvmImageHeader;
-	_jvmImageHeader->imageSize = size;
+	_jvmImageHeader->imageSize = size + pageSize;
 
 	return _jvmImageHeader;
 }
@@ -497,7 +508,9 @@ JVMImage::fixupVMStructures(void)
 	UDATA omrRuntimeOffset = ROUND_UP_TO_POWEROF2(sizeof(J9JavaVM), 8);
 	UDATA omrVMOffset = ROUND_UP_TO_POWEROF2(omrRuntimeOffset + sizeof(OMR_Runtime), 8);
 	UDATA vmAllocationSize = omrVMOffset + sizeof(OMR_VM);
+	J9JITConfig *jitConfig = _vm->jitConfig;
 	memset(_vm, 0, vmAllocationSize);
+	_vm->jitConfig = jitConfig;
 }
 
 void

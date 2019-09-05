@@ -127,7 +127,7 @@ void freeMemorySegment(J9JavaVM *javaVM, J9MemorySegment *segment, BOOLEAN freeD
 		/* The order of these checks is important.
 		 * MEMORY_TYPE_VIRTUAL is expected to be used along with another bit, like MEMORY_TYPE_JIT_SCRATCH_SPACE.
 		 */
-		if (J9_ARE_ANY_BITS_SET(segment->type, MEMORY_TYPE_CODE | MEMORY_TYPE_FIXED_RAM_CLASS | MEMORY_TYPE_VIRTUAL)) {
+		if ( (J9_ARE_ANY_BITS_SET(segment->type, MEMORY_TYPE_VIRTUAL | MEMORY_TYPE_FIXED_RAM_CLASS)) || (!IS_RAM_CACHE_ON(javaVM) && (segment->type & MEMORY_TYPE_CODE)) ) {
 			j9vmem_free_memory(segment->baseAddress, segment->size, &segment->vmemIdentifier);
 		} else if ((useAdvise) && (MEMORY_TYPE_JIT_SCRATCH_SPACE & segment->type)) {
 			j9mem_advise_and_free_memory(segment->baseAddress);
@@ -148,6 +148,12 @@ void freeMemorySegment(J9JavaVM *javaVM, J9MemorySegment *segment, BOOLEAN freeD
 				}
 			}
 		} else if ((segment->type & MEMORY_TYPE_ROM_CLASS) && IS_RAM_CACHE_ON(javaVM)) {
+			imem_free_memory(segment->baseAddress);
+		} else if (IS_RAM_CACHE_ON(javaVM) && 
+				((segment->type & MEMORY_TYPE_JIT_PERSISTENT) ||
+				 (segment->type & MEMORY_TYPE_CODE) ||
+				 (segment->type & MEMORY_TYPE_RAM) )
+			  ) {
 			imem_free_memory(segment->baseAddress);
 		} else {
 			j9mem_free_memory(segment->baseAddress);
@@ -240,7 +246,7 @@ allocateMemoryForSegment(J9JavaVM *javaVM,J9MemorySegment *segment, J9PortVmemPa
 	/* The order of these checks is important.
 	 * MEMORY_TYPE_VIRTUAL is expected to be used along with another bit, like MEMORY_TYPE_JIT_SCRATCH_SPACE.
 	 */
-	if (J9_ARE_ANY_BITS_SET(segment->type,  MEMORY_TYPE_CODE | MEMORY_TYPE_VIRTUAL)) {
+	if ( (segment->type & MEMORY_TYPE_VIRTUAL) || (!IS_RAM_CACHE_ON(javaVM) && (segment->type & MEMORY_TYPE_CODE)) ) {
 		/* MEMORY_TYPE_CODE and MEMORY_TYPE_VIRTUAL are allocated via the virtual memory functions.
 		 * Assert MEMORY_TYPE_VIRTUAL is used in combination with another bit, like MEMORY_TYPE_JIT_SCRATCH_SPACE.
 		 */
@@ -268,6 +274,12 @@ allocateMemoryForSegment(J9JavaVM *javaVM,J9MemorySegment *segment, J9PortVmemPa
 	} else if (J9_ARE_ALL_BITS_SET(segment->type, MEMORY_TYPE_ROM_CLASS) && IS_RAM_CACHE_ON(javaVM)) {
 		tmpAddr = imem_allocate_memory(segment->size, memoryCategory);
 		/* TODO: Add Memory type for allocation inside JVMImage (MEMORY_TYPE_IMAGE_ALLOCATED). see @ref omr:j9nongenerated.h */
+	} else if (IS_RAM_CACHE_ON(javaVM) && 
+			((segment->type & MEMORY_TYPE_JIT_PERSISTENT) ||
+			 (segment->type & MEMORY_TYPE_CODE) ||
+			 (segment->type & MEMORY_TYPE_RAM) )
+		  ) {
+		tmpAddr = imem_allocate_memory(segment->size, memoryCategory);
 	} else {
 		tmpAddr = j9mem_allocate_memory(segment->size, memoryCategory);
 	}
@@ -457,7 +469,11 @@ J9MemorySegmentList *allocateMemorySegmentListWithSize(J9JavaVM * javaVM, U_32 n
 	JVMIMAGEPORT_ACCESS_FROM_JAVAVM(javaVM);
 	
 	/* Check if its a cold run and class memory segments list */
-	if (IS_COLD_RUN(javaVM) && ((J9MEM_CATEGORY_CLASSES == memoryCategory) || (OMRMEM_CATEGORY_VM == memoryCategory))) {
+	if (IS_COLD_RUN(javaVM) && 
+		(J9MEM_CATEGORY_CLASSES == memoryCategory || 
+			OMRMEM_CATEGORY_VM == memoryCategory ||
+			J9MEM_CATEGORY_JIT == memoryCategory)
+	   ) {
 		if (NULL == (segmentList = imem_allocate_memory(sizeof(J9MemorySegmentList), memoryCategory))) {
 			return NULL;
 		}
