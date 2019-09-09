@@ -103,7 +103,8 @@ CX_FLAGS+=\
     -fasynchronous-unwind-tables \
     -Wreturn-type \
     -fno-strict-aliasing \
-    -fstack-protector
+    -fstack-protector \
+    -g
 
 ifneq ($(JITSERVER_SUPPORT),)
     CXX_FLAGS+=\
@@ -452,7 +453,9 @@ endif # HOST_ARCH == aarch64
 SOLINK_CMD?=$(CXX)
 
 SOLINK_FLAGS+=
-SOLINK_FLAGS_PROD+=-Wl,-S
+#SOLINK_FLAGS_PROD+=-Wl,-S
+SOLINK_FLAGS_PROD+=
+
 
 SOLINK_LIBPATH+=$(PRODUCT_LIBPATH)
 SOLINK_SLINK+=$(PRODUCT_SLINK) j9thr$(J9_VERSION) j9hookable$(J9_VERSION)
