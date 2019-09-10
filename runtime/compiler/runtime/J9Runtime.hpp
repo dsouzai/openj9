@@ -95,6 +95,15 @@ void fixPersistentMethodInfo(void *table, bool isJITClientAOTLoad = false);
 void fixupMethodInfoAddressInCodeCache(void *startPC, void *bodyInfo);
 #endif
 
+typedef struct TR_CacheForImage
+   {
+   void *persistentMemory;
+   void *monitorTable;
+   void *compilerEnv;
+   void *codeCacheManager;
+   void *dataCacheManager;
+   void *globalFrontend;
+   } TR_CacheForImage;
 
 typedef struct TR_InlinedSiteLinkedListEntry
    {

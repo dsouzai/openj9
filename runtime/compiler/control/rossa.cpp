@@ -1726,6 +1726,24 @@ onLoadInternal(
          return -1;
       persistentMemory->getPersistentInfo()->setInvokeExactJ2IThunkTable(ieThunkTable);
       }
+
+   if (!IS_RAM_CACHE_ON(javaVM) || IS_COLD_RUN(javaVM))
+      {
+      jitConfig->cacheForImage = persistentMemory->allocatePersistentMemory(sizeof(TR_CacheForImage));
+      memset(jitConfig->cacheForImage, 0, sizeof(TR_CacheForImage));
+      ((TR_CacheForImage *)jitConfig->cacheForImage)->persistentMemory = (void *)persistentMemory;
+      ((TR_CacheForImage *)jitConfig->cacheForImage)->monitorTable = (void *)TR::MonitorTable::get();
+      ((TR_CacheForImage *)jitConfig->cacheForImage)->compilerEnv = (void *)TR::Compiler;
+      ((TR_CacheForImage *)jitConfig->cacheForImage)->codeCacheManager = (void *)TR::CodeCacheManager::instance();
+      ((TR_CacheForImage *)jitConfig->cacheForImage)->dataCacheManager = (void *)TR_DataCacheManager::getManager();
+      ((TR_CacheForImage *)jitConfig->cacheForImage)->globalFrontend = (void *)feWithoutThread;
+      }
+   else
+      {
+      TR::CodeCacheManager::setInstance((TR::CodeCacheManager*)(((TR_CacheForImage *)jitConfig->cacheForImage)->codeCacheManager));
+      TR_DataCacheManager::setManager((TR_DataCacheManager *)(((TR_CacheForImage *)jitConfig->cacheForImage)->dataCacheManager));
+      }
+
    return 0;
    }
 
