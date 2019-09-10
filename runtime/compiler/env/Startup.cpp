@@ -22,32 +22,44 @@
 
 #include "env/CompilerEnv.hpp"
 #include "env/RawAllocator.hpp"
+#include "env/TRMemory.hpp"
+#include "runtime/J9Runtime.hpp"
 #include "j9.h"
+#include "jvmimage.h"
+#include "jvmimageport.h"
 
 bool initializeJIT(J9JavaVM *vm)
    {
 
-   // Create a bootstrap raw allocator.
-   //
-   TR::RawAllocator rawAllocator(vm);
-
-   try
+   if (!IS_RAM_CACHE_ON(vm) || IS_COLD_RUN(vm))
       {
-      // Allocate the host environment structure
+      // Create a bootstrap raw allocator.
       //
-      TR::Compiler = new (rawAllocator)
-         TR::CompilerEnv(
-            vm,
-            rawAllocator,
-            (TR::PersistentAllocatorKit( 1 << 20, *vm))
-            );
-      }
-   catch (const std::bad_alloc& ba)
-      {
-      return false;
-      }
+      TR::RawAllocator rawAllocator(vm);
 
-   TR::Compiler->initialize();
+      try
+         {
+         // Allocate the host environment structure
+         //
+         TR::Compiler = new (rawAllocator)
+            TR::CompilerEnv(
+               vm,
+               rawAllocator,
+               (TR::PersistentAllocatorKit( 1 << 20, *vm))
+               );
+         }
+      catch (const std::bad_alloc& ba)
+         {
+         return false;
+         }
+
+      TR::Compiler->initialize();
+      }
+   else
+      {
+      TR_PersistentMemory * persistentMemory = (TR_PersistentMemory *)vm->jitConfig->scratchSegment;
+      TR::Compiler = (TR::CompilerEnv *)(((TR_CacheForImage *)vm->jitConfig->cacheForImage)->compilerEnv);
+      }
 
    return true;
    }
