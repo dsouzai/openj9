@@ -3758,6 +3758,8 @@ typedef struct J9JITConfig {
 	void ( *jitIllegalFinalFieldModification)(struct J9VMThread *currentThread, struct J9Class *fieldClass);
 	U_8* (*codeCacheWarmAlloc)(void *codeCache);
 	U_8* (*codeCacheColdAlloc)(void *codeCache);
+   void *cacheForImage;
+   UDATA valid;
 } J9JITConfig;
 
 #define J9JIT_GROW_CACHES  0x100000

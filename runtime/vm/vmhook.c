@@ -154,7 +154,7 @@ J9HookInterface**
 getJITHookInterface(J9JavaVM* vm)
 {
 #ifdef J9VM_INTERP_NATIVE_SUPPORT
-	if (vm->jitConfig) {
+	if (vm->jitConfig && vm->jitConfig->valid) {
 		return J9_HOOK_INTERFACE(vm->jitConfig->hookInterface);
 	}
 #endif
