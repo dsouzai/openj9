@@ -41,6 +41,8 @@ using J9::RawAllocator;
 #include <new>
 #include "env/TypedAllocator.hpp"
 #include "j9.h"
+#include "jvmimage.h"
+#include "jvmimageport.h"
 #undef min
 #undef max
 
@@ -68,7 +70,16 @@ public:
    void * allocate(size_t size, const std::nothrow_t& tag, void * hint = 0) throw()
       {
       PORT_ACCESS_FROM_JAVAVM(_javaVM);
-      return j9mem_allocate_memory(size, J9MEM_CATEGORY_JIT);
+      JVMIMAGEPORT_ACCESS_FROM_JAVAVM(_javaVM);
+
+      if (IS_COLD_RUN(_javaVM))
+         {
+         return imem_allocate_memory(size, J9MEM_CATEGORY_JIT);
+         }
+      else
+         {
+         return j9mem_allocate_memory(size, J9MEM_CATEGORY_JIT);
+         }
       }
 
    void * allocate(size_t size, void * hint = 0)
@@ -81,7 +92,16 @@ public:
    void deallocate(void * p, size_t size = 0) throw()
       {
       PORT_ACCESS_FROM_JAVAVM(_javaVM);
-      j9mem_free_memory(p);
+      JVMIMAGEPORT_ACCESS_FROM_JAVAVM(_javaVM);
+
+      if (IS_COLD_RUN(_javaVM))
+         {
+         imem_free_memory(p);
+         }
+      else
+         {
+         j9mem_free_memory(p);
+         }
       }
 
    friend bool operator ==(const RawAllocator &left, const RawAllocator &right)
