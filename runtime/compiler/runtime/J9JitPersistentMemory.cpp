@@ -26,6 +26,8 @@
 #include <stdint.h>
 #include "j9.h"
 #include "j9jitnls.h"
+#include "jvmimage.h"
+#include "jvmimageport.h"
 #include "control/Options.hpp"
 #include "control/Options_inlines.hpp"
 #include "env/TRMemory.hpp"
@@ -38,22 +40,32 @@ J9JITConfig *jitConfig;
 TR_PersistentMemory * initializePersistentMemory(J9JITConfig * jitConfig)
    {
    TR_PersistentMemory * persistentMemory = (TR_PersistentMemory *)jitConfig->scratchSegment;
-   if (!persistentMemory)
+
+   if (!IS_RAM_CACHE_ON(jitConfig->javaVM) || IS_COLD_RUN(jitConfig->javaVM))
       {
-      TR::RawAllocator rawAllocator(jitConfig->javaVM);
-      try
+      if (!persistentMemory)
          {
-         persistentMemory = new (rawAllocator) TR_PersistentMemory(
-            jitConfig,
-            TR::Compiler->persistentAllocator()
-            );
-         ::trPersistentMemory = persistentMemory;
-         jitConfig->scratchSegment = pointer_cast<J9MemorySegment *>(persistentMemory);
-         }
-      catch (const std::exception &e)
-         {
+         TR::RawAllocator rawAllocator(jitConfig->javaVM);
+         try
+            {
+            persistentMemory = new (rawAllocator) TR_PersistentMemory(
+               jitConfig,
+               TR::Compiler->persistentAllocator()
+               );
+            ::trPersistentMemory = persistentMemory;
+            jitConfig->scratchSegment = pointer_cast<J9MemorySegment *>(persistentMemory);
+            }
+         catch (const std::exception &e)
+            {
+            }
          }
       }
+   else
+      {
+      persistentMemory = (TR_PersistentMemory *)(((TR_CacheForImage *)jitConfig->cacheForImage)->persistentMemory);
+      ::trPersistentMemory = persistentMemory;
+      }
+
    return persistentMemory;
    }
 
