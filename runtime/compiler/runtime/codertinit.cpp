@@ -264,6 +264,8 @@ J9JITConfig * codert_onload(J9JavaVM * javaVM)
    jitConfig->osrScratchBufferMaximumSize = (UDATA) 1024;
    jitConfig->osrStackFrameMaximumSize = (UDATA) 8192;
 
+   jitConfig->valid = (UDATA)1;
+
    return jitConfig;
 
    _abort:
@@ -380,6 +382,9 @@ void codert_freeJITConfig(J9JavaVM * javaVM)
          j9mem_free_memory(jitConfig->privateConfig);
          jitConfig->privateConfig = NULL;
          }
+
+      jitConfig->valid = (UDATA)0;
+
       j9mem_free_memory(jitConfig);
 
       /* Finally break the connection between the VM and the JIT */
