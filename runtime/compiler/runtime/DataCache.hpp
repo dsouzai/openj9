@@ -402,6 +402,7 @@ public:
    // static methods
    static TR_DataCacheManager* initialize(J9JITConfig * jitConfig);
    static TR_DataCacheManager* getManager() { return _dataCacheManager; }
+   static void setManager(TR_DataCacheManager *dcm) { _dataCacheManager = dcm; }
    static void destroyManager();
    static void copyDataCacheAllocation (J9JITDataCacheHeader *dest, J9JITDataCacheHeader *src);
 #if defined(TR_HOST_64BIT)

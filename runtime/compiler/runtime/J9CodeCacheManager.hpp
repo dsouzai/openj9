@@ -61,6 +61,7 @@ public:
    void *operator new(size_t s, TR::CodeCacheManager *m) { return m; }
 
    static TR::CodeCacheManager *instance() { return _codeCacheManager; }
+   static void setInstance(TR::CodeCacheManager *ccm) { _codeCacheManager = ccm; }
    static J9JITConfig *jitConfig()         { return _jitConfig; }
    static J9JavaVM *javaVM()               { return _javaVM; }
 
