@@ -388,6 +388,7 @@ void codert_freeJITConfig(J9JavaVM * javaVM)
          }
 
       freedJITConfig = true;
+      printf("\n\nD_QWERTY: Done \"freeing\" JITConfig\n\n");
       }
    }
 

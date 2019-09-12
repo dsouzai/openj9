@@ -5366,6 +5366,7 @@ void *TR::CompilationInfo::startPCIfAlreadyCompiled(J9VMThread * vmThread, TR::I
          J9JITExceptionTable *metadata = (J9JITExceptionTable *)persistentMemory()->getPCFromMap(static_cast<void *>(method));
          if (metadata)
             {
+            printf("Found start pc %p!\n", (void *)metadata->startPC);
             startPC = (void *)metadata->startPC;
             jitMethodTranslated(vmThread, method, startPC);
             }

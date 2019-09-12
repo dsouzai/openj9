@@ -1598,6 +1598,7 @@ createMethodMetaData(
       if (IS_RAM_CACHE_ON(compInfo->getJITConfig()->javaVM))
          {
          void * j9method = static_cast<void *>(vmMethod->getPersistentIdentifier());
+         printf("Adding <%p, %p> to map\n", j9method, (void *)data);
          compInfo->persistentMemory()->addMethodToMap(j9method, (void *)data);
          }
 
