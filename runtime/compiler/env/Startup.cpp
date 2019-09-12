@@ -59,6 +59,11 @@ bool initializeJIT(J9JavaVM *vm)
       {
       TR_PersistentMemory * persistentMemory = (TR_PersistentMemory *)vm->jitConfig->scratchSegment;
       TR::Compiler = (TR::CompilerEnv *)(((TR_CacheForImage *)vm->jitConfig->cacheForImage)->compilerEnv);
+      printf("CompilerEnv=%p, PersistentAllocator=%p, PersistentMemory = %p\n",
+             TR::Compiler,
+             &TR::Compiler->persistentAllocator(),
+             ((TR_CacheForImage *)vm->jitConfig->cacheForImage)->persistentMemory);
+      TR::Compiler->persistentAllocator().printSegments();
       }
 
    return true;

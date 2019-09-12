@@ -299,6 +299,12 @@ void codert_freeJITConfig(J9JavaVM * javaVM)
 
    if (jitConfig && !freedJITConfig)
       {
+      printf("CompilerEnv=%p, PersistentAllocator=%p, PersistentMemory = %p\n",
+             TR::Compiler,
+             &TR::Compiler->persistentAllocator(),
+             ((TR_CacheForImage *)jitConfig->cacheForImage)->persistentMemory);
+      TR::Compiler->persistentAllocator().printSegments();
+
       PORT_ACCESS_FROM_JAVAVM(javaVM);
 
       j9ThunkTableFree(javaVM);
