@@ -33,12 +33,14 @@ PersistentAllocator::PersistentAllocator(const PersistentAllocatorKit &creationK
    _segmentAllocator(MEMORY_TYPE_JIT_PERSISTENT, creationKit.javaVM),
    _freeBlocks(),
    _segments(SegmentContainerAllocator(RawAllocator(&creationKit.javaVM))),
-   _javaVM(&creationKit.javaVM)
+   _javaVM(&creationKit.javaVM),
+   _rawAllocator(&creationKit.javaVM)
    {
    }
 
 PersistentAllocator::~PersistentAllocator() throw()
    {
+   printf("\n\nPersistentAllocator DESTRUCTOR\n\n");
    if (!IS_RAM_CACHE_ON(_javaVM))
       {
       while (!_segments.empty())
@@ -50,9 +52,22 @@ PersistentAllocator::~PersistentAllocator() throw()
       }
    }
 
+void
+PersistentAllocator::printSegments()
+   {
+   auto count = 0;
+   for (auto i = _segments.begin(); i != _segments.end(); i++)
+      {
+      J9MemorySegment &segment = *i;
+      printf("Segment %d: %p\n", count, segment.baseAddress);
+      }
+   }
+
 void *
 PersistentAllocator::allocate(size_t size, const std::nothrow_t tag, void * hint) throw()
    {
+   return _rawAllocator.allocate(size, tag, hint);
+
    if (::memoryAllocMonitor)
       ::memoryAllocMonitor->enter();
 
@@ -200,6 +215,9 @@ PersistentAllocator::freeBlock(Block * block)
 void
 PersistentAllocator::deallocate(void * mem, size_t) throw()
    {
+   _rawAllocator.deallocate(mem);
+   return;
+
    if (::memoryAllocMonitor)
       ::memoryAllocMonitor->enter();
 

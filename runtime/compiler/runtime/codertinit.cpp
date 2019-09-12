@@ -298,6 +298,12 @@ void codert_freeJITConfig(J9JavaVM * javaVM)
 
    if (jitConfig && !freedJITConfig)
       {
+      printf("CompilerEnv=%p, PersistentAllocator=%p, PersistentMemory = %p\n",
+             TR::Compiler,
+             &TR::Compiler->persistentAllocator(),
+             ((TR_CacheForImage *)jitConfig->cacheForImage)->persistentMemory);
+      TR::Compiler->persistentAllocator().printSegments();
+
       if (IS_RAM_CACHE_ON(javaVM))
          {
          TR_PersistentMemory * persistentMemory = (TR_PersistentMemory *)jitConfig->scratchSegment;

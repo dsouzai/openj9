@@ -62,6 +62,8 @@ public:
       return !operator ==(left, right);
       }
 
+   void printSegments();
+
 private:
 
    // Persistent block header
@@ -100,6 +102,7 @@ private:
    typedef std::deque<TR::reference_wrapper<J9MemorySegment>, SegmentContainerAllocator> SegmentContainer;
    SegmentContainer _segments;
    J9JavaVM *_javaVM;
+   TR::RawAllocator _rawAllocator;
    };
 
 }
