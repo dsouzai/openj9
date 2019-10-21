@@ -305,6 +305,21 @@ void codert_freeJITConfig(J9JavaVM * javaVM)
              ((TR_CacheForImage *)jitConfig->cacheForImage)->persistentMemory);
       TR::Compiler->persistentAllocator().printSegments();
 
+      if (IS_RAM_CACHE_ON(javaVM))
+         {
+         TR_TranslationArtifactManager::CriticalSection getPCFromMap;
+
+         TR_PersistentMemory * persistentMemory = (TR_PersistentMemory *)jitConfig->scratchSegment;
+         TR_PersistentMemory::MethodToPCMap &map = persistentMemory->_methodToPCMap;
+         for (auto it = map.begin(); it != map.end(); it++)
+            {
+            J9JITExceptionTable *metadata = (J9JITExceptionTable *)it->second;
+
+            UDATA size = (metadata->endPC - metadata->startPC);
+            memcpy((void *)metadata->startPC, metadata->shadowCodeStart, size);
+            }
+         }
+
       PORT_ACCESS_FROM_JAVAVM(javaVM);
 
       j9ThunkTableFree(javaVM);

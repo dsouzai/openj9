@@ -29,7 +29,7 @@
 
 /* TODO: reallocation will fail so initial heap size is large (Should be PAGE_SIZE aligned) */
 /* TODO: initial image size restriction will be removed once MMAP MAP_FIXED removed. see @ref JVMImage::readImageFromFile */
-const UDATA JVMImage::INITIAL_IMAGE_SIZE = 1024 * 1024 * 1024;
+const UDATA JVMImage::INITIAL_IMAGE_SIZE = (1024 + 256) * 1024 * 1024;
 const UDATA JVMImage::CLASS_LOADER_REMOVE_COUNT = 8;
 
 JVMImage::JVMImage(J9PortLibrary *portLibrary, const char* ramCache) :

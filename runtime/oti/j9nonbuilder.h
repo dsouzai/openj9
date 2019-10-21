@@ -528,6 +528,7 @@ typedef struct J9JITExceptionTable {
 	UDATA codeCacheAlloc;
 	void* gpuCode;
 	void* riData;
+	void* shadowCodeStart;
 } J9JITExceptionTable;
 
 #define JIT_METADATA_FLAGS_USED_FOR_SIZE 1

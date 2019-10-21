@@ -1477,6 +1477,15 @@ createMethodMetaData(
    data->tempOffset = comp->cg()->getStackAtlas()->getNumberOfPendingPushSlots();
    data->size = tableSize;
 
+   TR::CompilationInfo *compInfo = TR::CompilationInfo::get();
+   if (IS_RAM_CACHE_ON(compInfo->getJITConfig()->javaVM))
+      {
+      JVMIMAGEPORT_ACCESS_FROM_JAVAVM(compInfo->getJITConfig()->javaVM);
+      UDATA size = (data->endPC - data->startPC);
+      data->shadowCodeStart = imem_allocate_memory(size, J9MEM_CATEGORY_JIT);
+      memcpy(data->shadowCodeStart, (void *)data->startPC, size);
+      }
+
    data->gcStackAtlas = createStackAtlas(
          vm,
          comp->cg(),
@@ -1594,7 +1603,7 @@ createMethodMetaData(
          {
          // Insert trace point here for insertion failure
          }
-      TR::CompilationInfo *compInfo = TR::CompilationInfo::get();
+
       if (IS_RAM_CACHE_ON(compInfo->getJITConfig()->javaVM))
          {
          void * j9method = static_cast<void *>(vmMethod->getPersistentIdentifier());
