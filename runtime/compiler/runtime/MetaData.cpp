@@ -1590,6 +1590,19 @@ createMethodMetaData(
 
    populateInlineCalls(comp, vm, data, callSiteCursor, numberOfMapBytes);
 
+   if (IS_RAM_CACHE_ON(compInfo->getJITConfig()->javaVM))
+      {
+      uintptrj_t sizeOfReloBuffer = comp->getSymbolValidationManager()->getTotalSizeOfRecords();
+      struct ReloBuffer *reloBuffer =
+            (struct ReloBuffer *)compInfo->persistentMemory()->allocatePersistentMemory(sizeOfReloBuffer + sizeof(uintptrj_t));
+      reloBuffer->size = sizeOfReloBuffer;
+
+      if (!comp->getSymbolValidationManager()->writeRecordsToBuffer((void *)reloBuffer->buffer, reloBuffer->size))
+         return NULL;
+
+      data->reloBuffer = (void *)reloBuffer;
+      }
+
    if (!(vm->_jitConfig->runtimeFlags & J9JIT_TOSS_CODE) && !vm->isAOT_DEPRECATED_DO_NOT_USE()
 #if defined(JITSERVER_SUPPORT)
       && !comp->isOutOfProcessCompilation()

@@ -36,6 +36,10 @@
 #include "env/TRMemory.hpp"
 #include "env/VMJ9.h"
 #include "exceptions/AOTFailure.hpp"
+
+#include "j9protos.h"
+#include "jvmimage.h"
+#include "jvmimageport.h"
 #include "runtime/J9Runtime.hpp"
 
 #define SVM_ASSERT_LOCATION_INNER(line) __FILE__ ":" #line
@@ -658,6 +662,8 @@ public:
 
    bool isAlreadyValidated(void *symbol)
       {
+      if (IS_RAM_CACHE_ON(_javaVM))
+         return true;
       return inHeuristicRegion() || tryGetIDFromSymbol(symbol) != NO_ID;
       }
 
@@ -711,6 +717,7 @@ public:
    bool validateClassInstanceOfClassRecord(uint16_t classOneID, uint16_t classTwoID, bool objectTypeIsFixed, bool castTypeIsFixed, bool wasInstanceOf);
    bool validateSystemClassByNameRecord(uint16_t systemClassID, uintptrj_t *classChain);
    bool validateClassFromITableIndexCPRecord(uint16_t classID, uint16_t beholderID, uint32_t cpIndex);
+   TR_OpaqueClassBlock * getDeclaringClassFromFieldOrStatic(J9Class *beholder, int32_t cpIndex);
    bool validateDeclaringClassFromFieldOrStaticRecord(uint16_t definingClassID, uint16_t beholderID, int32_t cpIndex);
    bool validateConcreteSubClassFromClassRecord(uint16_t childClassID, uint16_t superClassID);
 
@@ -756,6 +763,10 @@ public:
    bool inHeuristicRegion() { return (_heuristicRegion > 0); }
 
    static bool assertionsAreFatal();
+
+   uintptrj_t getTotalSizeOfRecords() { return _totalSizeOfRecords; }
+   bool writeRecordsToBuffer(void *buffer, uintptrj_t sizeOfBuffer);
+   bool validateRecordsInBuffer(void *buffer, uintptrj_t sizeOfBuffer);
 
 #if defined(JITSERVER_SUPPORT)
    std::string serializeSymbolToIDMap();
@@ -828,6 +839,7 @@ private:
    TR_J9VM * const _fej9; // DEFAULT_VM
    TR_Memory * const _trMemory;
    TR_PersistentCHTable * const _chTable;
+   J9JavaVM * const _javaVM;
 
    TR_OpaqueClassBlock *_rootClass;
    const void *_wellKnownClassChainOffsets;
@@ -905,6 +917,8 @@ private:
    ClassFromAnyCPIndexSet _classesFromAnyCPIndex;
 
    TR_OpaqueClassBlock *_jlthrowable;
+
+   uintptrj_t _totalSizeOfRecords;
    };
 
 }
