@@ -5359,18 +5359,6 @@ void *TR::CompilationInfo::startPCIfAlreadyCompiled(J9VMThread * vmThread, TR::I
          {
          startPC = getJ9MethodStartPC(method);
          }
-      else if (IS_RAM_CACHE_ON(_jitConfig->javaVM))
-         {
-         TR_TranslationArtifactManager *artifactManager = TR_TranslationArtifactManager::getGlobalArtifactManager();
-         TR_TranslationArtifactManager::CriticalSection getPCFromMap;
-         J9JITExceptionTable *metadata = (J9JITExceptionTable *)persistentMemory()->getPCFromMap(static_cast<void *>(method));
-         if (metadata)
-            {
-            printf("Found start pc %p!\n", (void *)metadata->startPC);
-            startPC = (void *)metadata->startPC;
-            jitMethodTranslated(vmThread, method, startPC);
-            }
-         }
       }
    else
       {
@@ -8931,6 +8919,7 @@ TR::CompilationInfoPerThreadBase::compile(
          }
 
       intptr_t rtn = 0;
+      bool foundMethodInMap = false;
 
       if (_methodBeingCompiled->isAotLoad())
          {
@@ -8969,7 +8958,20 @@ TR::CompilationInfoPerThreadBase::compile(
             compiler->getOption(TR_UseSymbolValidationManager))
             compiler->getSymbolValidationManager()->populateWellKnownClasses();
 
-         rtn = compiler->compile();
+         if (IS_RAM_CACHE_ON(_jitConfig->javaVM))
+            {
+            TR_TranslationArtifactManager *artifactManager = TR_TranslationArtifactManager::getGlobalArtifactManager();
+            TR_TranslationArtifactManager::CriticalSection getPCFromMap;
+            metaData = (J9JITExceptionTable *)persistentMemory(_jitConfig)->getPCFromMap(static_cast<void *>(method));
+            if (metaData)
+               {
+               printf("Found start pc %p!\n", (void *)metaData->startPC);
+               foundMethodInMap = true;
+               }
+            }
+
+         if (!foundMethodInMap)
+            rtn = compiler->compile();
 
          if (TR::Options::getVerboseOption(TR_VerboseCompilationDispatch) && !rtn)
             {
@@ -9044,7 +9046,7 @@ TR::CompilationInfoPerThreadBase::compile(
          }
 
       _methodBeingCompiled->_compErrCode = compilationOK;
-      if (!_methodBeingCompiled->isAotLoad() && !_methodBeingCompiled->isRemoteCompReq())
+      if (!foundMethodInMap && !_methodBeingCompiled->isAotLoad() && !_methodBeingCompiled->isRemoteCompReq())
          {
          class TraceMethodMetadata
             {
@@ -9130,13 +9132,14 @@ TR::CompilationInfoPerThreadBase::compile(
          TR::Compiler->debug.breakPoint();
          }
 
-      if (metaData &&
+      if (!foundMethodInMap && metaData &&
           compiler->getPersistentInfo()->isRuntimeInstrumentationEnabled())
          {
          // This must be called after createMethodMetaData because TR_PersistentJittedBodyInfo can change in that function.
          _compInfo.getHWProfiler()->registerRecords(metaData, compiler);
          }
 
+      if (!foundMethodInMap)
          {
          TR::ClassTableCriticalSection chTableCommit(&vm);
          TR_ASSERT(!chTableCommit.acquiredVMAccess(), "We should have already acquired VM access at this point.");
@@ -9171,7 +9174,7 @@ TR::CompilationInfoPerThreadBase::compile(
          }
 
       // As the body is finished, mark its profile info as active so that the JProfiler thread will inspect it
-      if (compiler->getRecompilationInfo())
+      if (!foundMethodInMap && compiler->getRecompilationInfo())
          {
          TR_PersistentJittedBodyInfo *bodyInfo = compiler->getRecompilationInfo()->getJittedBodyInfo();
          if (bodyInfo && bodyInfo->getProfileInfo())
