@@ -1012,7 +1012,8 @@ TR::CompilationInfo::CompilationInfo(J9JITConfig *jitConfig) :
    _samplingThreadWaitTimeInDeepIdleToNotifyVM(-1),
    _numDiagnosticThreads(0),
    _numCompThreads(0),
-   _arrayOfCompilationInfoPerThread(NULL)
+   _arrayOfCompilationInfoPerThread(NULL),
+   _loadRetryMap((LoadRetryComparator()), TR_TypedPersistentAllocatorBase())
    {
    // The object is zero-initialized before this method is called
    //
@@ -2078,6 +2079,8 @@ bool TR::CompilationInfo::shouldRetryCompilation(TR_MethodToBeCompiled *entry, T
    TR::IlGeneratorMethodDetails & details = entry->getMethodDetails();
    J9Method *method = details.getMethod();
 
+   TR::CompilationInfo *compInfo = TR::CompilationInfo::get();
+
    // when the compilation fails we might retry
    //
    if (entry->_compErrCode != compilationOK &&
@@ -2089,6 +2092,14 @@ bool TR::CompilationInfo::shouldRetryCompilation(TR_MethodToBeCompiled *entry, T
          TR_PersistentJittedBodyInfo *bodyInfo;
          switch (entry->_compErrCode)
             {
+            case compilationRetryAfterSomeTime:
+               {
+               if (compInfo->retryLoadIfPossible((void *)method, comp))
+                  {
+                  tryCompilingAgain = true;
+                  }
+               }
+               break;
             case compilationAotValidateFieldFailure:
             case compilationAotStaticFieldReloFailure:
             case compilationAotClassReloFailure:
@@ -4230,7 +4241,7 @@ TR::CompilationInfoPerThread::processEntry(TR_MethodToBeCompiled &entry, J9::J9S
    // Copy this because it is needed later and entry may be recycled
    bool tryCompilingAgain = entry._tryCompilingAgain;
 
-   if (entry._tryCompilingAgain)
+   if (entry._tryCompilingAgain && !compInfo->shouldRetryLoad((void *)entry.getMethodDetails().getMethod()))
       {
       // We got interrupted during the compile, and want to requeue this compilation request
       //
@@ -10303,7 +10314,12 @@ TR::CompilationInfo::compilationEnd(J9VMThread * vmThread, TR::IlGeneratorMethod
       // Tell the VM that a non-compiled method failed translation
       //
       if (vmThread && entry && !entry->isOutOfProcessCompReq())
-         jitMethodFailedTranslation(vmThread, method);
+         {
+         if (!IS_RAM_CACHE_ON(jitConfig->javaVM) || !compInfo->shouldRetryLoad((void *)method))
+            {
+            jitMethodFailedTranslation(vmThread, method);
+            }
+         }
 #if defined(JITSERVER_SUPPORT)
       if (entry && isJITServerMode) // failure at the JITServer
          {
@@ -11016,6 +11032,10 @@ TR::CompilationInfoPerThreadBase::processException(
    catch (const J9::AOTNoSupportForAOTFailure &e)
       {
       _methodBeingCompiled->_compErrCode = compilationAOTNoSupportForAOTFailure;
+      }
+   catch (const J9::RetryLoadAfterSomeTime &e)
+      {
+      _methodBeingCompiled->_compErrCode = compilationRetryAfterSomeTime;
       }
    catch (const J9::ClassChainPersistenceFailure &e)
       {
@@ -12810,6 +12830,80 @@ TR::CompilationInfo::canRelocateMethod(TR::Compilation *comp)
          }
       }
    return canRelocateMethod;
+   }
+
+/*
+ * Assumes the Compilation Monitor has been acquired
+ */
+bool TR::CompilationInfo::shouldRetryLoad(void *j9method)
+   {
+   LoadRetryMap::iterator it = _loadRetryMap.find(j9method);
+   return (it != _loadRetryMap.end());
+   }
+
+/*
+ * Assumes the Compilation Monitor has been acquired
+ */
+bool TR::CompilationInfo::retryLoadIfPossible(void *j9method, TR::Compilation *comp)
+   {
+   bool retryLoad = false;
+   int32_t loadRetryInvocationCount = J9::Options::_retryLoadInitialInvocationCount;
+
+   if (loadRetryInvocationCount < 1)
+      return false;
+
+   J9ROMMethod * romMethod = J9_ROM_METHOD_FROM_RAM_METHOD(j9method);
+   bool loopy = J9ROMMETHOD_HAS_BACKWARDS_BRANCHES(romMethod);
+   int32_t initialInvocationCount;
+   if (loopy)
+      {
+      initialInvocationCount = comp->getOptions()->getInitialBCount();
+      }
+   else
+      {
+      initialInvocationCount = comp->getOptions()->getInitialCount();
+      }
+
+   LoadRetryMap::iterator it = _loadRetryMap.find(j9method);
+   if (it == _loadRetryMap.end())
+      {
+      _loadRetryMap.insert(std::make_pair(j9method, loadRetryInvocationCount));
+      retryLoad = true;
+      }
+   else
+      {
+      loadRetryInvocationCount = it->second * 2;
+      if (loadRetryInvocationCount <= (initialInvocationCount/2))
+         {
+         it->second = loadRetryInvocationCount;
+         retryLoad = true;
+         }
+      else
+         {
+         _loadRetryMap.erase(it);
+         }
+      }
+
+   if (retryLoad)
+      {
+      int32_t methodVMExtra = TR::CompilationInfo::getJ9MethodVMExtra(static_cast<J9Method *>(j9method));
+      if (methodVMExtra == 1 || methodVMExtra == J9_JIT_QUEUED_FOR_COMPILATION)
+         {
+         if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
+            {
+            TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Will retry Load of %p; setting invocationCount to %d",
+                                          j9method, loadRetryInvocationCount);
+            }
+
+         TR::CompilationInfo::setInvocationCount(static_cast<J9Method *>(j9method), loadRetryInvocationCount);
+         }
+      else
+         {
+         retryLoad = false;
+         }
+      }
+
+   return retryLoad;
    }
 
 #if defined(JITSERVER_SUPPORT)

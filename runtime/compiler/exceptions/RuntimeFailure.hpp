@@ -79,6 +79,11 @@ class EnforceProfiling : public virtual TR::InsufficientlyAggressiveCompilation
    {
    virtual const char* what() const throw() { return "Enforce Profiling"; }
    };
+
+class RetryLoadAfterSomeTime : public virtual TR::CompilationException
+   {
+   virtual const char* what() const throw() { return "Retry Load After Some Time"; }
+   };
 }
 
 #endif // RUNTIME_FAILURE
