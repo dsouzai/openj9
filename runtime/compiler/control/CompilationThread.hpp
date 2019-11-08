@@ -127,6 +127,12 @@ struct CompileParameters
    TR::CompileIlGenRequest  _ilGenRequest;
    };
 
+struct ReloBuffer
+   {
+   uintptrj_t size;
+   char buffer[1];
+   };
+
 #if defined(TR_HOST_S390)
 struct timeval;
 #endif

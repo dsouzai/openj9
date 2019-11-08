@@ -8971,12 +8971,25 @@ TR::CompilationInfoPerThreadBase::compile(
 
          if (IS_RAM_CACHE_ON(_jitConfig->javaVM))
             {
-            TR_TranslationArtifactManager *artifactManager = TR_TranslationArtifactManager::getGlobalArtifactManager();
             TR_TranslationArtifactManager::CriticalSection getPCFromMap;
             metaData = (J9JITExceptionTable *)persistentMemory(_jitConfig)->getPCFromMap(static_cast<void *>(method));
             if (metaData)
                {
-               printf("Found start pc %p!\n", (void *)metaData->startPC);
+               struct ReloBuffer *reloBuffer = (struct ReloBuffer *)metaData->reloBuffer;
+
+               bool success = false;
+               try
+                  {
+                  success = compiler->getSymbolValidationManager()->validateRecordsInBuffer((void *)reloBuffer->buffer, reloBuffer->size);
+                  }
+               catch (...)
+                  {
+                  // Catch any SVM Asserts
+                  }
+               if (!success)
+                  compiler->failCompilation<J9::RetryLoadAfterSomeTime>("Failed validation records");
+
+               printf("Found start pc %p!\n", metaData->startPC);
                foundMethodInMap = true;
                }
             }
