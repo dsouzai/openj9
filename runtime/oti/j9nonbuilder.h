@@ -529,6 +529,7 @@ typedef struct J9JITExceptionTable {
 	void* gpuCode;
 	void* riData;
 	void* shadowCodeStart;
+	void* reloBuffer;
 } J9JITExceptionTable;
 
 #define JIT_METADATA_FLAGS_USED_FOR_SIZE 1
