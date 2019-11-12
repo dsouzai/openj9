@@ -7243,10 +7243,25 @@ TR_J9VMBase::getResolvedInterfaceMethod(J9ConstantPool *ownerCP, TR_OpaqueClassB
 TR_OpaqueMethodBlock *
 TR_J9VMBase::getResolvedInterfaceMethod(TR_OpaqueMethodBlock *interfaceMethod, TR_OpaqueClassBlock * classObject, I_32 cpIndex)
    {
-   return getResolvedInterfaceMethod((J9ConstantPool *)(J9_CP_FROM_METHOD((J9Method*)interfaceMethod)),
+   TR_OpaqueMethodBlock *ramMethod = getResolvedInterfaceMethod((J9ConstantPool *)(J9_CP_FROM_METHOD((J9Method*)interfaceMethod)),
                                                         classObject,
                                                         cpIndex);
 
+   if (IS_RAM_CACHE_ON(getJ9JITConfig()->javaVM) && ramMethod)
+      {
+      TR::Compilation* comp = TR::comp();
+      if (comp)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         bool validated = svm->addInterfaceMethodFromCPRecord(ramMethod,
+                                                              (TR_OpaqueClassBlock *)J9_CLASS_FROM_METHOD((J9Method*)interfaceMethod),
+                                                              classObject,
+                                                              cpIndex);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+
+   return ramMethod;
    }
 
 TR_OpaqueMethodBlock *
