@@ -6756,6 +6756,18 @@ TR_J9VM::getSystemClassFromClassName(const char * name, int32_t length, bool isV
                                                                                                 (J9ClassLoader*)vmThread()->javaVM->systemClassLoader,
                                                                                                 (void *)name,
                                                                                                 length));
+
+   if (IS_RAM_CACHE_ON(getJ9JITConfig()->javaVM) && result)
+      {
+      TR::Compilation* comp = TR::comp();
+      if (comp)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         bool validated = svm->addSystemClassByNameRecord(result);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+
    return result;
    }
 
