@@ -6213,7 +6213,13 @@ TR_ResolvedJ9Method::getClassFromCP(TR_J9VMBase *fej9, J9ConstantPool *cp, TR::C
 TR_OpaqueClassBlock *
 TR_ResolvedJ9Method::getClassFromConstantPool(TR::Compilation * comp, uint32_t cpIndex, bool)
    {
-   return getClassFromCP(fej9(), cp(), comp, cpIndex);
+   TR_OpaqueClassBlock * j9class = getClassFromCP(fej9(), cp(), comp, cpIndex);
+   if (IS_RAM_CACHE_ON(_fe->_jitConfig->javaVM) && j9class)
+      {
+      bool validated = comp->getSymbolValidationManager()->addClassFromCPRecord(reinterpret_cast<TR_OpaqueClassBlock *>(j9class), cp(), cpIndex);
+      TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+      }
+   return j9class;
    }
 
 /*
