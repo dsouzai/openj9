@@ -5902,7 +5902,17 @@ TR_ResolvedJ9Method::getClassOfStaticFromCP(TR_J9VMBase *fej9, J9ConstantPool *c
 TR_OpaqueClassBlock *
 TR_ResolvedJ9Method::classOfStatic(I_32 cpIndex, bool returnClassForAOT)
    {
-   return getClassOfStaticFromCP(fej9(), cp(), cpIndex);
+   TR_OpaqueClassBlock *j9class = getClassOfStaticFromCP(fej9(), cp(), cpIndex);
+   if (IS_RAM_CACHE_ON(_fe->_jitConfig->javaVM) && j9class)
+      {
+      TR::Compilation *comp = TR::comp();
+      if (comp)
+         {
+         bool validated = comp->getSymbolValidationManager()->addStaticClassFromCPRecord(j9class, cp(), cpIndex);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+   return j9class;
    }
 
 TR_OpaqueClassBlock *
