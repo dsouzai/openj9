@@ -6636,6 +6636,17 @@ TR_J9VMBase::getMethodFromClass(TR_OpaqueClassBlock * methodClass, char * method
          (J9Class *)methodClass, (J9ROMNameAndSignature *) &nameAndSig, (J9Class *)callingClass, J9_LOOK_JNI | J9_LOOK_NO_JAVA);
       }
 
+   if (IS_RAM_CACHE_ON(getJ9JITConfig()->javaVM) && result)
+      {
+      TR::Compilation* comp = TR::comp();
+      if (comp)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         bool validated = svm->addMethodFromClassAndSignatureRecord(result, methodClass, callingClass);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+
    return result;
    }
 
@@ -6751,6 +6762,18 @@ TR_J9VM::getSystemClassFromClassName(const char * name, int32_t length, bool isV
                                                                                                 (J9ClassLoader*)vmThread()->javaVM->systemClassLoader,
                                                                                                 (void *)name,
                                                                                                 length));
+
+   if (IS_RAM_CACHE_ON(getJ9JITConfig()->javaVM) && result)
+      {
+      TR::Compilation* comp = TR::comp();
+      if (comp)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         bool validated = svm->addSystemClassByNameRecord(result);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+
    return result;
    }
 
@@ -6973,7 +6996,20 @@ TR_OpaqueClassBlock *
 TR_J9VM::getClassFromSignature(const char * sig, int32_t sigLength, TR_OpaqueMethodBlock * method, bool isVettedForAOT)
    {
    J9ConstantPool * constantPool = (J9ConstantPool *) (J9_CP_FROM_METHOD((J9Method*)method));
-   return getClassFromSignature(sig, sigLength, constantPool);
+   TR_OpaqueClassBlock * j9class = getClassFromSignature(sig, sigLength, constantPool);
+
+   if (IS_RAM_CACHE_ON(getJ9JITConfig()->javaVM) && j9class)
+      {
+      TR::Compilation* comp = TR::comp();
+      if (comp)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         bool validated = svm->addClassByNameRecord(j9class, getClassFromMethodBlock(method));
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+
+   return j9class;
    }
 
 TR_OpaqueClassBlock *
@@ -7012,6 +7048,7 @@ TR_J9VM::getClassFromSignature(const char * sig, int32_t sigLength, J9ConstantPo
       {
       returnValue = convertClassPtrToClassOffset(j9class);
       }
+
    return returnValue; // 0 means failure
    }
 

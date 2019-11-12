@@ -964,6 +964,24 @@ TR_ResolvedJ9MethodBase::getDeclaringClassFromFieldOrStatic(TR::Compilation *com
    return (TR_OpaqueClassBlock*)containingClass;
    }
 
+TR_OpaqueClassBlock *
+TR_ResolvedJ9Method::getDeclaringClassFromFieldOrStatic(TR::Compilation *comp, int32_t cpIndex)
+   {
+   TR_OpaqueClassBlock *definingClass = TR_ResolvedJ9MethodBase::getDeclaringClassFromFieldOrStatic(comp, cpIndex);
+
+   if (IS_RAM_CACHE_ON(_fe->getJ9JITConfig()->javaVM) && definingClass)
+      {
+      if (comp)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         bool validated = svm->addDeclaringClassFromFieldOrStaticRecord(definingClass, cp(), cpIndex);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+
+   return definingClass;
+   }
+
 void
 TR_J9MethodBase::setSignature(char *newSignature, int32_t newSignatureLength, TR_Memory *trMemory)
    {
@@ -5893,7 +5911,17 @@ TR_ResolvedJ9Method::getClassOfStaticFromCP(TR_J9VMBase *fej9, J9ConstantPool *c
 TR_OpaqueClassBlock *
 TR_ResolvedJ9Method::classOfStatic(I_32 cpIndex, bool returnClassForAOT)
    {
-   return getClassOfStaticFromCP(fej9(), cp(), cpIndex);
+   TR_OpaqueClassBlock *j9class = getClassOfStaticFromCP(fej9(), cp(), cpIndex);
+   if (IS_RAM_CACHE_ON(_fe->_jitConfig->javaVM) && j9class)
+      {
+      TR::Compilation *comp = TR::comp();
+      if (comp)
+         {
+         bool validated = comp->getSymbolValidationManager()->addStaticClassFromCPRecord(j9class, cp(), cpIndex);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+   return j9class;
    }
 
 TR_OpaqueClassBlock *
@@ -6202,7 +6230,13 @@ TR_ResolvedJ9Method::getClassFromCP(TR_J9VMBase *fej9, J9ConstantPool *cp, TR::C
 TR_OpaqueClassBlock *
 TR_ResolvedJ9Method::getClassFromConstantPool(TR::Compilation * comp, uint32_t cpIndex, bool)
    {
-   return getClassFromCP(fej9(), cp(), comp, cpIndex);
+   TR_OpaqueClassBlock * j9class = getClassFromCP(fej9(), cp(), comp, cpIndex);
+   if (IS_RAM_CACHE_ON(_fe->_jitConfig->javaVM) && j9class)
+      {
+      bool validated = comp->getSymbolValidationManager()->addClassFromCPRecord(reinterpret_cast<TR_OpaqueClassBlock *>(j9class), cp(), cpIndex);
+      TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+      }
+   return j9class;
    }
 
 /*
@@ -6379,6 +6413,15 @@ TR_ResolvedJ9Method::getResolvedInterfaceMethod(I_32 cpIndex, UDATA *pITableInde
       if (!comp->getSymbolValidationManager()->addClassFromITableIndexCPRecord(result, cp(), cpIndex))
          result = NULL;
       }
+   else if (IS_RAM_CACHE_ON(_fe->getJ9JITConfig()->javaVM) && result)
+      {
+      if (comp)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         bool validated = svm->addClassFromITableIndexCPRecord(result, cp(), cpIndex);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
 
    return result;
 #endif
@@ -6428,6 +6471,15 @@ TR_ResolvedJ9Method::getResolvedImproperInterfaceMethod(TR::Compilation * comp, 
       {
       if (!comp->getSymbolValidationManager()->addImproperInterfaceMethodFromCPRecord((TR_OpaqueMethodBlock *)j9method, cp(), cpIndex))
          j9method = NULL;
+      }
+   else if (IS_RAM_CACHE_ON(_fe->getJ9JITConfig()->javaVM) && j9method)
+      {
+      if (comp)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         bool validated = svm->addImproperInterfaceMethodFromCPRecord((TR_OpaqueMethodBlock *)j9method, cp(), cpIndex);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
       }
 
    if (j9method == NULL)
@@ -6498,6 +6550,15 @@ TR_ResolvedJ9Method::getResolvedStaticMethod(TR::Compilation * comp, I_32 cpInde
       if (!comp->getSymbolValidationManager()->addStaticMethodFromCPRecord((TR_OpaqueMethodBlock *)ramMethod, cp(), cpIndex))
          ramMethod = NULL;
       }
+   else if (IS_RAM_CACHE_ON(_fe->getJ9JITConfig()->javaVM) && ramMethod)
+      {
+      if (comp)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         bool validated = svm->addStaticMethodFromCPRecord((TR_OpaqueMethodBlock *)ramMethod, cp(), cpIndex);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
 
    bool skipForDebugging = doResolveAtRuntime(ramMethod, cpIndex, comp);
    if (isArchetypeSpecimen())
@@ -6566,6 +6627,15 @@ TR_ResolvedJ9Method::getResolvedSpecialMethod(TR::Compilation * comp, I_32 cpInd
             if (!comp->getSymbolValidationManager()->addSpecialMethodFromCPRecord((TR_OpaqueMethodBlock *)ramMethod, cp(), cpIndex))
                createResolvedMethod = false;
             }
+         else if (IS_RAM_CACHE_ON(_fe->getJ9JITConfig()->javaVM))
+            {
+            if (comp)
+               {
+               TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+               bool validated = svm->addSpecialMethodFromCPRecord((TR_OpaqueMethodBlock *)ramMethod, cp(), cpIndex);
+               TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+               }
+            }
 
          TR_AOTInliningStats *aotStats = NULL;
          if (comp->getOption(TR_EnableAOTStats))
@@ -6615,6 +6685,15 @@ TR_ResolvedJ9Method::getResolvedPossiblyPrivateVirtualMethod(TR::Compilation * c
          {
          if (!comp->getSymbolValidationManager()->addVirtualMethodFromCPRecord((TR_OpaqueMethodBlock *)ramMethod, cp(), cpIndex))
             createResolvedMethod = false;
+         }
+      else if (IS_RAM_CACHE_ON(_fe->getJ9JITConfig()->javaVM) && ramMethod)
+         {
+         if (comp)
+            {
+            TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+            bool validated = svm->addVirtualMethodFromCPRecord((TR_OpaqueMethodBlock *)ramMethod, cp(), cpIndex);
+            TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+            }
          }
 
       if (vTableOffset)
@@ -6969,6 +7048,20 @@ TR_ResolvedJ9Method::fieldAttributes(TR::Compilation * comp, I_32 cpIndex, U_32 
       }
 
    *type = decodeType(ltype);
+
+   if (IS_RAM_CACHE_ON(fej9()->getJ9JITConfig()->javaVM))
+      {
+      J9ConstantPool *constantPool = (J9ConstantPool *)(J9_CP_FROM_METHOD(ramMethod()));
+      TR::CompilationInfo *compInfo = TR::CompilationInfo::get(fej9()->getJ9JITConfig());
+      TR_RelocationRuntime *reloRuntime = compInfo->reloRuntime();
+      TR_OpaqueClassBlock *clazz = reloRuntime->getClassFromCP(fej9()->vmThread(), constantPool, cpIndex, false);
+      if (clazz)
+         {
+         bool validated = comp->getSymbolValidationManager()->addDefiningClassFromCPRecord(clazz, constantPool, cpIndex);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+
    return resolved;
    }
 
@@ -7037,6 +7130,20 @@ TR_ResolvedJ9Method::staticAttributes(TR::Compilation * comp, I_32 cpIndex, void
       }
 
    *type = decodeType(ltype);
+
+   if (IS_RAM_CACHE_ON(fej9()->getJ9JITConfig()->javaVM))
+      {
+      J9ConstantPool *constantPool = (J9ConstantPool *)(J9_CP_FROM_METHOD(ramMethod()));
+      TR::CompilationInfo *compInfo = TR::CompilationInfo::get(fej9()->getJ9JITConfig());
+      TR_RelocationRuntime *reloRuntime = compInfo->reloRuntime();
+      TR_OpaqueClassBlock *clazz = reloRuntime->getClassFromCP(fej9()->vmThread(), constantPool, cpIndex, false);
+      if (clazz)
+         {
+         bool validated = comp->getSymbolValidationManager()->addDefiningClassFromCPRecord(clazz, constantPool, cpIndex, true);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+
    return resolved;
    }
 
@@ -7171,13 +7278,27 @@ TR_J9VMBase::getResolvedVirtualMethod(TR_OpaqueClassBlock * classObject, I_32 vi
 
    TR_ASSERT(ramMethod, "getResolvedVirtualMethod should always find a ramMethod in the vtable slot");
 
+   TR_OpaqueMethodBlock *result = NULL;
    if (ramMethod &&
        (!(_jitConfig->runtimeFlags & J9JIT_RUNTIME_RESOLVE) ||
          ignoreRtResolve) &&
        J9_BYTECODE_START_FROM_RAM_METHOD(ramMethod))
-      return (TR_OpaqueMethodBlock* ) ramMethod;
+      {
+      result = (TR_OpaqueMethodBlock* ) ramMethod;
+      }
 
-   return 0;
+   TR::Compilation *comp = TR::comp();
+   if (IS_RAM_CACHE_ON(getJ9JITConfig()->javaVM) && result)
+      {
+      if (comp)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         bool validated = svm->addVirtualMethodFromOffsetRecord(result, classObject, virtualCallOffset, ignoreRtResolve);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+
+   return result;
    }
 
 TR_OpaqueMethodBlock *
@@ -7200,10 +7321,25 @@ TR_J9VMBase::getResolvedInterfaceMethod(J9ConstantPool *ownerCP, TR_OpaqueClassB
 TR_OpaqueMethodBlock *
 TR_J9VMBase::getResolvedInterfaceMethod(TR_OpaqueMethodBlock *interfaceMethod, TR_OpaqueClassBlock * classObject, I_32 cpIndex)
    {
-   return getResolvedInterfaceMethod((J9ConstantPool *)(J9_CP_FROM_METHOD((J9Method*)interfaceMethod)),
+   TR_OpaqueMethodBlock *ramMethod = getResolvedInterfaceMethod((J9ConstantPool *)(J9_CP_FROM_METHOD((J9Method*)interfaceMethod)),
                                                         classObject,
                                                         cpIndex);
 
+   if (IS_RAM_CACHE_ON(getJ9JITConfig()->javaVM) && ramMethod)
+      {
+      TR::Compilation* comp = TR::comp();
+      if (comp)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         bool validated = svm->addInterfaceMethodFromCPRecord(ramMethod,
+                                                              (TR_OpaqueClassBlock *)J9_CLASS_FROM_METHOD((J9Method*)interfaceMethod),
+                                                              classObject,
+                                                              cpIndex);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+
+   return ramMethod;
    }
 
 TR_OpaqueMethodBlock *

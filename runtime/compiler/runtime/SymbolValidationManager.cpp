@@ -150,7 +150,6 @@ TR::SymbolValidationManager::SymbolValidationManager(TR::Region &region, TR_Reso
      _seenSymbolsSet((SeenSymbolsComparator()), _region),
      _wellKnownClasses(_region),
      _loadersOkForWellKnownClasses(_region),
-     _jlthrowable(_fej9->getSystemClassFromClassName(jlthrowableName, (int32_t)strlen(jlthrowableName))),
      _totalSizeOfRecords(0)
    {
    assertionsAreFatal(); // Acknowledge the env var whether or not assertions fail
@@ -180,6 +179,9 @@ TR::SymbolValidationManager::SymbolValidationManager(TR::Region &region, TR_Reso
       _alreadyGeneratedRecords.insert(
          new (_region) ArrayClassFromComponentClassRecord(arrayClass, component));
       }
+
+   if (!IS_RAM_CACHE_ON(_javaVM))
+      _jlthrowable = _fej9->getSystemClassFromClassName(jlthrowableName, (int32_t)strlen(jlthrowableName));
    }
 
 void
