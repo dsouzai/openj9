@@ -6978,7 +6978,20 @@ TR_OpaqueClassBlock *
 TR_J9VM::getClassFromSignature(const char * sig, int32_t sigLength, TR_OpaqueMethodBlock * method, bool isVettedForAOT)
    {
    J9ConstantPool * constantPool = (J9ConstantPool *) (J9_CP_FROM_METHOD((J9Method*)method));
-   return getClassFromSignature(sig, sigLength, constantPool);
+   TR_OpaqueClassBlock * j9class = getClassFromSignature(sig, sigLength, constantPool);
+
+   if (IS_RAM_CACHE_ON(getJ9JITConfig()->javaVM) && j9class)
+      {
+      TR::Compilation* comp = TR::comp();
+      if (comp)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         bool validated = svm->addClassByNameRecord(j9class, getClassFromMethodBlock(method));
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+
+   return j9class;
    }
 
 TR_OpaqueClassBlock *
@@ -7017,6 +7030,7 @@ TR_J9VM::getClassFromSignature(const char * sig, int32_t sigLength, J9ConstantPo
       {
       returnValue = convertClassPtrToClassOffset(j9class);
       }
+
    return returnValue; // 0 means failure
    }
 
