@@ -1157,6 +1157,8 @@ TR::SymbolValidationManager::writeRecordsToBuffer(void *buffer, uintptrj_t sizeO
                                                         "%llu, %llu\n",
                    bytesWritten, _totalSizeOfRecords);
 
+   printf("Wrote %d bytes!\n", bytesWritten);
+
    return true;
    }
 
