@@ -5219,6 +5219,8 @@ TR_ResolvedJ9Method::isInterpreted()
    {
    if (_fe->tossingCode())
       return true;
+   if (IS_RAM_CACHE_ON(_fe->getJ9JITConfig()->javaVM))
+      return true;
    return !(TR::CompilationInfo::isCompiled(ramMethod()));
    }
 
