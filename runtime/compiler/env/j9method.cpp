@@ -6695,6 +6695,15 @@ TR_ResolvedJ9Method::getResolvedPossiblyPrivateVirtualMethod(TR::Compilation * c
          if (!comp->getSymbolValidationManager()->addVirtualMethodFromCPRecord((TR_OpaqueMethodBlock *)ramMethod, cp(), cpIndex))
             createResolvedMethod = false;
          }
+      else if (IS_RAM_CACHE_ON(_fe->getJ9JITConfig()->javaVM) && ramMethod)
+         {
+         if (comp)
+            {
+            TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+            bool validated = svm->addVirtualMethodFromCPRecord((TR_OpaqueMethodBlock *)ramMethod, cp(), cpIndex);
+            TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+            }
+         }
 
       if (vTableOffset)
          {
