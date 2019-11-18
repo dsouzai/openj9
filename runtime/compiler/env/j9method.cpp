@@ -7075,6 +7075,20 @@ TR_ResolvedJ9Method::fieldAttributes(TR::Compilation * comp, I_32 cpIndex, U_32 
       }
 
    *type = decodeType(ltype);
+
+   if (IS_RAM_CACHE_ON(fej9()->getJ9JITConfig()->javaVM))
+      {
+      J9ConstantPool *constantPool = (J9ConstantPool *)(J9_CP_FROM_METHOD(ramMethod()));
+      TR::CompilationInfo *compInfo = TR::CompilationInfo::get(fej9()->getJ9JITConfig());
+      TR_RelocationRuntime *reloRuntime = compInfo->reloRuntime();
+      TR_OpaqueClassBlock *clazz = reloRuntime->getClassFromCP(fej9()->vmThread(), constantPool, cpIndex, false);
+      if (clazz)
+         {
+         bool validated = comp->getSymbolValidationManager()->addDefiningClassFromCPRecord(clazz, constantPool, cpIndex);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+
    return resolved;
    }
 
@@ -7143,6 +7157,20 @@ TR_ResolvedJ9Method::staticAttributes(TR::Compilation * comp, I_32 cpIndex, void
       }
 
    *type = decodeType(ltype);
+
+   if (IS_RAM_CACHE_ON(fej9()->getJ9JITConfig()->javaVM))
+      {
+      J9ConstantPool *constantPool = (J9ConstantPool *)(J9_CP_FROM_METHOD(ramMethod()));
+      TR::CompilationInfo *compInfo = TR::CompilationInfo::get(fej9()->getJ9JITConfig());
+      TR_RelocationRuntime *reloRuntime = compInfo->reloRuntime();
+      TR_OpaqueClassBlock *clazz = reloRuntime->getClassFromCP(fej9()->vmThread(), constantPool, cpIndex, false);
+      if (clazz)
+         {
+         bool validated = comp->getSymbolValidationManager()->addDefiningClassFromCPRecord(clazz, constantPool, cpIndex, true);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+
    return resolved;
    }
 
