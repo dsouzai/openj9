@@ -7268,13 +7268,27 @@ TR_J9VMBase::getResolvedVirtualMethod(TR_OpaqueClassBlock * classObject, I_32 vi
 
    TR_ASSERT(ramMethod, "getResolvedVirtualMethod should always find a ramMethod in the vtable slot");
 
+   TR_OpaqueMethodBlock *result = NULL;
    if (ramMethod &&
        (!(_jitConfig->runtimeFlags & J9JIT_RUNTIME_RESOLVE) ||
          ignoreRtResolve) &&
        J9_BYTECODE_START_FROM_RAM_METHOD(ramMethod))
-      return (TR_OpaqueMethodBlock* ) ramMethod;
+      {
+      result = (TR_OpaqueMethodBlock* ) ramMethod;
+      }
 
-   return 0;
+   TR::Compilation *comp = TR::comp();
+   if (IS_RAM_CACHE_ON(getJ9JITConfig()->javaVM) && result)
+      {
+      if (comp)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         bool validated = svm->addVirtualMethodFromOffsetRecord(result, classObject, virtualCallOffset, ignoreRtResolve);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+
+   return result;
    }
 
 TR_OpaqueMethodBlock *
