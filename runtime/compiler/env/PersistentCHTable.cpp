@@ -419,7 +419,9 @@ TR_ResolvedMethod * TR_PersistentCHTable::findSingleImplementer(
    if (implCount == 1)
       implementer =implArray[0];
 
-   if (implementer && comp->getOption(TR_UseSymbolValidationManager) && validate)
+   if (implementer
+       && (comp->getOption(TR_UseSymbolValidationManager) || IS_RAM_CACHE_ON(comp->fej9()->getJ9JITConfig()->javaVM))
+       && validate)
       {
       TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
 
@@ -428,10 +430,18 @@ TR_ResolvedMethod * TR_PersistentCHTable::findSingleImplementer(
                                                                  cpIndexOrVftSlot,
                                                                  callerMethod->getPersistentIdentifier(),
                                                                  useGetResolvedInterfaceMethod);
-      if (validated)
-         SVM_ASSERT_ALREADY_VALIDATED(svm, implementer->classOfMethod());
+
+      if (IS_RAM_CACHE_ON(comp->fej9()->getJ9JITConfig()->javaVM))
+         {
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
       else
-         implementer = NULL;
+         {
+         if (validated)
+            SVM_ASSERT_ALREADY_VALIDATED(svm, implementer->classOfMethod());
+         else
+            implementer = NULL;
+         }
       }
 
    return implementer;
@@ -469,7 +479,9 @@ TR_PersistentCHTable::findSingleInterfaceImplementer(
    if (implCount == 1)
       implementer = implArray[0];
 
-   if (implementer && comp->getOption(TR_UseSymbolValidationManager) && validate)
+   if (implementer
+       && (comp->getOption(TR_UseSymbolValidationManager) || IS_RAM_CACHE_ON(comp->fej9()->getJ9JITConfig()->javaVM))
+       && validate)
       {
       TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
       bool validated = svm->addMethodFromSingleInterfaceImplementerRecord(implementer->getPersistentIdentifier(),
@@ -477,10 +489,17 @@ TR_PersistentCHTable::findSingleInterfaceImplementer(
                                                                           cpIndex,
                                                                           callerMethod->getPersistentIdentifier());
 
-      if (validated)
-         SVM_ASSERT_ALREADY_VALIDATED(svm, implementer->classOfMethod());
+      if (IS_RAM_CACHE_ON(comp->fej9()->getJ9JITConfig()->javaVM))
+         {
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
       else
-         implementer = NULL;
+         {
+         if (validated)
+            SVM_ASSERT_ALREADY_VALIDATED(svm, implementer->classOfMethod());
+         else
+            implementer = NULL;
+         }
       }
 
    return implementer;
@@ -575,7 +594,9 @@ TR_PersistentCHTable::findSingleAbstractImplementer(
    if(implCount == 1)
       implementer = implArray[0];
 
-   if (implementer && comp->getOption(TR_UseSymbolValidationManager) && validate)
+   if (implementer
+       && (comp->getOption(TR_UseSymbolValidationManager) || IS_RAM_CACHE_ON(comp->fej9()->getJ9JITConfig()->javaVM))
+       && validate)
       {
       TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
       bool validated = svm->addMethodFromSingleAbstractImplementerRecord(implementer->getPersistentIdentifier(),
@@ -583,10 +604,17 @@ TR_PersistentCHTable::findSingleAbstractImplementer(
                                                                          vftSlot,
                                                                          callerMethod->getPersistentIdentifier());
 
-      if (validated)
-         SVM_ASSERT_ALREADY_VALIDATED(svm, implementer->classOfMethod());
+      if (IS_RAM_CACHE_ON(comp->fej9()->getJ9JITConfig()->javaVM))
+         {
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
       else
-         implementer = NULL;
+         {
+         if (validated)
+            SVM_ASSERT_ALREADY_VALIDATED(svm, implementer->classOfMethod());
+         else
+            implementer = NULL;
+         }
       }
 
    return implementer;
@@ -623,10 +651,20 @@ TR_PersistentCHTable::findSingleConcreteSubClass(
          }
       }
 
-   if (validate && comp->getOption(TR_UseSymbolValidationManager))
+   if (validate
+       && (comp->getOption(TR_UseSymbolValidationManager) || IS_RAM_CACHE_ON(comp->fej9()->getJ9JITConfig()->javaVM)))
       {
-      if (!comp->getSymbolValidationManager()->addConcreteSubClassFromClassRecord(concreteSubClass, opaqueClass))
-         concreteSubClass = NULL;
+      bool validated = comp->getSymbolValidationManager()->addConcreteSubClassFromClassRecord(concreteSubClass, opaqueClass);
+
+      if (IS_RAM_CACHE_ON(comp->fej9()->getJ9JITConfig()->javaVM) && concreteSubClass)
+         {
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      else
+         {
+         if (!validated)
+            concreteSubClass = NULL;
+         }
       }
 
    return concreteSubClass;
