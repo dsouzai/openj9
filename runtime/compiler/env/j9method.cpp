@@ -6552,6 +6552,15 @@ TR_ResolvedJ9Method::getResolvedStaticMethod(TR::Compilation * comp, I_32 cpInde
       if (!comp->getSymbolValidationManager()->addStaticMethodFromCPRecord((TR_OpaqueMethodBlock *)ramMethod, cp(), cpIndex))
          ramMethod = NULL;
       }
+   else if (IS_RAM_CACHE_ON(_fe->getJ9JITConfig()->javaVM) && ramMethod)
+      {
+      if (comp)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         bool validated = svm->addStaticMethodFromCPRecord((TR_OpaqueMethodBlock *)ramMethod, cp(), cpIndex);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
 
    bool skipForDebugging = doResolveAtRuntime(ramMethod, cpIndex, comp);
    if (isArchetypeSpecimen())
