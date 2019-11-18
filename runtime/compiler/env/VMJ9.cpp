@@ -6641,6 +6641,17 @@ TR_J9VMBase::getMethodFromClass(TR_OpaqueClassBlock * methodClass, char * method
          (J9Class *)methodClass, (J9ROMNameAndSignature *) &nameAndSig, (J9Class *)callingClass, J9_LOOK_JNI | J9_LOOK_NO_JAVA);
       }
 
+   if (IS_RAM_CACHE_ON(getJ9JITConfig()->javaVM) && result)
+      {
+      TR::Compilation* comp = TR::comp();
+      if (comp)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         bool validated = svm->addMethodFromClassAndSignatureRecord(result, methodClass, callingClass);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+
    return result;
    }
 
