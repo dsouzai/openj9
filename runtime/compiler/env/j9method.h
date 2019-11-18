@@ -458,6 +458,8 @@ public:
    virtual TR_ResolvedMethod *     getResolvedInterfaceMethod( TR::Compilation *, TR_OpaqueClassBlock * classObject, int32_t cpIndex);
    virtual TR_ResolvedMethod *     getResolvedVirtualMethod( TR::Compilation *, TR_OpaqueClassBlock * classObject, int32_t virtualCallOffset, bool ignoreRtResolve = true);
 
+   virtual TR_OpaqueClassBlock  *  getDeclaringClassFromFieldOrStatic( TR::Compilation *comp, int32_t cpIndex);
+
    virtual bool                    virtualMethodIsOverridden();
    virtual void                    setVirtualMethodIsOverridden();
    virtual void *                  addressContainingIsOverriddenBit();

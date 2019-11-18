@@ -964,6 +964,24 @@ TR_ResolvedJ9MethodBase::getDeclaringClassFromFieldOrStatic(TR::Compilation *com
    return (TR_OpaqueClassBlock*)containingClass;
    }
 
+TR_OpaqueClassBlock *
+TR_ResolvedJ9Method::getDeclaringClassFromFieldOrStatic(TR::Compilation *comp, int32_t cpIndex)
+   {
+   TR_OpaqueClassBlock *definingClass = TR_ResolvedJ9MethodBase::getDeclaringClassFromFieldOrStatic(comp, cpIndex);
+
+   if (IS_RAM_CACHE_ON(_fe->getJ9JITConfig()->javaVM) && definingClass)
+      {
+      if (comp)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         bool validated = svm->addDeclaringClassFromFieldOrStaticRecord(definingClass, cp(), cpIndex);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
+
+   return definingClass;
+   }
+
 void
 TR_J9MethodBase::setSignature(char *newSignature, int32_t newSignatureLength, TR_Memory *trMemory)
    {
