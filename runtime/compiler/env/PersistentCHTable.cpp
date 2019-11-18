@@ -66,6 +66,25 @@ TR_PersistentCHTable::TR_PersistentCHTable(TR_PersistentMemory *trPersistentMemo
    _classes = static_cast<TR_LinkHead<TR_PersistentClassInfo> *>(static_cast<void *>(_buffer));
    }
 
+void
+TR_PersistentCHTable::destroy(TR_PersistentCHTable *pcht)
+   {
+   for (int32_t i = 0; i <= CLASSHASHTABLE_SIZE; ++i)
+      {
+      TR_PersistentClassInfo *cursor = pcht->_classes[i].getFirst();
+      while (cursor)
+         {
+         TR_PersistentClassInfo *next = cursor->getNext();
+
+         cursor->removeSubClasses();
+         jitPersistentFree(cursor);
+
+         cursor = next;
+         }
+      }
+   jitPersistentFree(pcht);
+   }
+
 
 void
 TR_PersistentCHTable::commitSideEffectGuards(TR::Compilation *comp)

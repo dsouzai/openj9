@@ -1653,27 +1653,24 @@ onLoadInternal(
          persistentMemory->getPersistentInfo()->setRuntimeInstrumentationRecompilationEnabled(true);
       }
 
-   if (!IS_RAM_CACHE_ON(javaVM) || IS_COLD_RUN(javaVM))
-      {
-      TR_PersistentCHTable *chtable;
+   TR_PersistentCHTable *chtable;
 #if defined(JITSERVER_SUPPORT)
-      if (persistentMemory->getPersistentInfo()->getRemoteCompilationMode() == JITServer::SERVER)
-         {
-         chtable = new (PERSISTENT_NEW) JITServerPersistentCHTable(persistentMemory);
-         }
-      else if (persistentMemory->getPersistentInfo()->getRemoteCompilationMode() == JITServer::CLIENT)
-         {
-         chtable = new (PERSISTENT_NEW) JITClientPersistentCHTable(persistentMemory);
-         }
-      else
-#endif
-         {
-         chtable = new (PERSISTENT_NEW) TR_PersistentCHTable(persistentMemory);
-         }
-      if (chtable == NULL)
-         return -1;
-      persistentMemory->getPersistentInfo()->setPersistentCHTable(chtable);
+   if (persistentMemory->getPersistentInfo()->getRemoteCompilationMode() == JITServer::SERVER)
+      {
+      chtable = new (PERSISTENT_NEW) JITServerPersistentCHTable(persistentMemory);
       }
+   else if (persistentMemory->getPersistentInfo()->getRemoteCompilationMode() == JITServer::CLIENT)
+      {
+      chtable = new (PERSISTENT_NEW) JITClientPersistentCHTable(persistentMemory);
+      }
+   else
+#endif
+      {
+      chtable = new (PERSISTENT_NEW) TR_PersistentCHTable(persistentMemory);
+      }
+   if (chtable == NULL)
+      return -1;
+   persistentMemory->getPersistentInfo()->setPersistentCHTable(chtable);
 
 #if defined(JITSERVER_SUPPORT)
    if (compInfo->getPersistentInfo()->getRemoteCompilationMode() == JITServer::SERVER)

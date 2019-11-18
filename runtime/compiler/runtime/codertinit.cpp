@@ -37,6 +37,7 @@
 #include "control/Recompilation.hpp"
 #include "control/RecompilationInfo.hpp"
 #include "env/ProcessorInfo.hpp"
+#include "env/PersistentCHTable.hpp"
 #include "infra/Monitor.hpp"
 #include "infra/MonitorTable.hpp"
 #include "runtime/ArtifactManager.hpp"
@@ -305,11 +306,12 @@ void codert_freeJITConfig(J9JavaVM * javaVM)
              ((TR_CacheForImage *)jitConfig->cacheForImage)->persistentMemory);
       TR::Compiler->persistentAllocator().printSegments();
 
+      TR_PersistentMemory * persistentMemory = (TR_PersistentMemory *)jitConfig->scratchSegment;
+
       if (IS_RAM_CACHE_ON(javaVM))
          {
          TR_TranslationArtifactManager::CriticalSection getPCFromMap;
 
-         TR_PersistentMemory * persistentMemory = (TR_PersistentMemory *)jitConfig->scratchSegment;
          TR_PersistentMemory::MethodToPCMap &map = persistentMemory->_methodToPCMap;
          for (auto it = map.begin(); it != map.end(); it++)
             {
@@ -318,6 +320,12 @@ void codert_freeJITConfig(J9JavaVM * javaVM)
             UDATA size = (metadata->endPC - metadata->startPC);
             memcpy((void *)metadata->startPC, metadata->shadowCodeStart, size);
             }
+         }
+
+      if (IS_RAM_CACHE_ON(javaVM))
+         {
+         TR_PersistentCHTable::destroy(persistentMemory->getPersistentInfo()->getPersistentCHTable());
+         persistentMemory->getPersistentInfo()->setPersistentCHTable(NULL);
          }
 
       PORT_ACCESS_FROM_JAVAVM(javaVM);
