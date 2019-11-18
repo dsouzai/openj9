@@ -45,14 +45,19 @@ TR_PersistentClassInfo::isInitialized(bool validate)
    {
    bool initialized = ((((uintptr_t) _classId) & 1) == 0);
    TR::Compilation *comp = TR::comp();
-   if (comp &&
-       comp->compileRelocatableCode() &&
-       comp->getOption(TR_UseSymbolValidationManager) &&
-       validate &&
-       initialized)
+   if (comp)
       {
-      initialized = comp->getSymbolValidationManager()->addClassInfoIsInitializedRecord(_classId, initialized);
+      bool shouldAddRecord = ((comp->compileRelocatableCode() && comp->getOption(TR_UseSymbolValidationManager))
+                              || IS_RAM_CACHE_ON(comp->fej9()->getJ9JITConfig()->javaVM));
+
+      if (shouldAddRecord && validate && initialized)
+         {
+         initialized = comp->getSymbolValidationManager()->addClassInfoIsInitializedRecord(_classId, initialized);
+         if (IS_RAM_CACHE_ON(comp->fej9()->getJ9JITConfig()->javaVM))
+            TR_ASSERT_FATAL(initialized, "Add Validation Record should not fail...");
+         }
       }
+
    return initialized;
    }
 
