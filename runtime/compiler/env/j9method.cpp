@@ -6636,6 +6636,15 @@ TR_ResolvedJ9Method::getResolvedSpecialMethod(TR::Compilation * comp, I_32 cpInd
             if (!comp->getSymbolValidationManager()->addSpecialMethodFromCPRecord((TR_OpaqueMethodBlock *)ramMethod, cp(), cpIndex))
                createResolvedMethod = false;
             }
+         else if (IS_RAM_CACHE_ON(_fe->getJ9JITConfig()->javaVM))
+            {
+            if (comp)
+               {
+               TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+               bool validated = svm->addSpecialMethodFromCPRecord((TR_OpaqueMethodBlock *)ramMethod, cp(), cpIndex);
+               TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+               }
+            }
 
          TR_AOTInliningStats *aotStats = NULL;
          if (comp->getOption(TR_EnableAOTStats))
