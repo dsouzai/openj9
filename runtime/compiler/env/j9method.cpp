@@ -6406,6 +6406,15 @@ TR_ResolvedJ9Method::getResolvedInterfaceMethod(I_32 cpIndex, UDATA *pITableInde
       if (!comp->getSymbolValidationManager()->addClassFromITableIndexCPRecord(result, cp(), cpIndex))
          result = NULL;
       }
+   else if (IS_RAM_CACHE_ON(_fe->getJ9JITConfig()->javaVM) && result)
+      {
+      if (comp)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         bool validated = svm->addClassFromITableIndexCPRecord(result, cp(), cpIndex);
+         TR_ASSERT_FATAL(validated, "Add Validation Record should not fail...");
+         }
+      }
 
    return result;
 #endif
