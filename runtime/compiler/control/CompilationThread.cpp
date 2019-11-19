@@ -8969,7 +8969,7 @@ TR::CompilationInfoPerThreadBase::compile(
             compiler->getOption(TR_UseSymbolValidationManager))
             compiler->getSymbolValidationManager()->populateWellKnownClasses();
 
-         if (IS_RAM_CACHE_ON(_jitConfig->javaVM))
+         if (IS_RAM_CACHE_ON(_jitConfig->javaVM) && _methodBeingCompiled->_oldStartPC == NULL)
             {
             TR_TranslationArtifactManager::CriticalSection getPCFromMap;
             metaData = (J9JITExceptionTable *)persistentMemory(_jitConfig)->getPCFromMap(static_cast<void *>(method));
