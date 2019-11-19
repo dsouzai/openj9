@@ -1816,6 +1816,8 @@ onLoadInternal(
                   return -1;
             }
          }
+
+      jitConfig->methodsToDelete = NULL;
       }
 
    return 0;
