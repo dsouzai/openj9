@@ -563,10 +563,13 @@ TR::SymbolValidationManager::appendNewRecord(void *symbol, TR::SymbolValidationR
 
    _totalSizeOfRecords += getSizeOfRecord(record->_kind);
 
-   record->printFields();
-   traceMsg(_comp, "\tkind=%d\n", record->_kind);
-   traceMsg(_comp, "\tid=%d\n", (uint32_t)getIDFromSymbol(symbol));
-   traceMsg(_comp, "\n");
+   if (!IS_RAM_CACHE_ON(_javaVM))
+      {
+      record->printFields();
+      traceMsg(_comp, "\tkind=%d\n", record->_kind);
+      traceMsg(_comp, "\tid=%d\n", (uint32_t)getIDFromSymbol(symbol));
+      traceMsg(_comp, "\n");
+      }
    }
 
 void
