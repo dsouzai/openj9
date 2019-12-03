@@ -310,20 +310,6 @@ void codert_freeJITConfig(J9JavaVM * javaVM)
 
       if (IS_RAM_CACHE_ON(javaVM))
          {
-         TR_TranslationArtifactManager::CriticalSection getPCFromMap;
-
-         TR_PersistentMemory::MethodToPCMap &map = persistentMemory->_methodToPCMap;
-         for (auto it = map.begin(); it != map.end(); it++)
-            {
-            J9JITExceptionTable *metadata = (J9JITExceptionTable *)it->second;
-
-            UDATA size = (metadata->endPC - metadata->startPC);
-            memcpy((void *)metadata->startPC, metadata->shadowCodeStart, size);
-            }
-         }
-
-      if (IS_RAM_CACHE_ON(javaVM))
-         {
          TR_PersistentCHTable::destroy(persistentMemory->getPersistentInfo()->getPersistentCHTable());
          persistentMemory->getPersistentInfo()->setPersistentCHTable(NULL);
          }
