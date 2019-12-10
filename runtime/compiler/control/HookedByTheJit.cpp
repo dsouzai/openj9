@@ -60,6 +60,7 @@
 #include "infra/CriticalSection.hpp"
 #include "optimizer/DebuggingCounters.hpp"
 #include "optimizer/JProfilingBlock.hpp"
+#include "runtime/ArtifactManager.hpp"
 #include "runtime/CodeCacheManager.hpp"
 #include "runtime/HookHelpers.hpp"
 #include "runtime/MethodMetaData.h"
@@ -4830,6 +4831,25 @@ void JitShutdown(J9JITConfig * jitConfig)
    if (isPrintJITServerCHTableStats)
       JITServerHelpers::printJITServerCHTableStats(jitConfig, compInfo);
 #endif
+
+
+   if (IS_RAM_CACHE_ON(javaVM) && jitConfig && jitConfig->valid)
+      {
+      TR_PersistentMemory * persistentMemory = (TR_PersistentMemory *)jitConfig->scratchSegment;
+      TR_TranslationArtifactManager::CriticalSection getPCFromMap;
+
+      TR_PersistentMemory::MethodToPCMap &map = persistentMemory->_methodToPCMap;
+      for (auto it = map.begin(); it != map.end(); it++)
+         {
+         J9JITExceptionTable *metadata = (J9JITExceptionTable *)it->second;
+
+         UDATA size = (metadata->endPC - metadata->startPC);
+         memcpy((void *)metadata->startPC, metadata->shadowCodeStart, size);
+
+         //printf("shutdown: memcpy'd %p to %p size %d\n", metadata->shadowCodeStart, metadata->startPC, size);
+         }
+      }
+
 
    TRC_JIT_ShutDownEnd(vmThread, "end of JitShutdown function");
    }
