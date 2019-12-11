@@ -1621,6 +1621,9 @@ createMethodMetaData(
          {
          void * j9method = static_cast<void *>(vmMethod->getPersistentIdentifier());
          compInfo->persistentMemory()->addMethodToMap(j9method, (void *)data);
+
+         if (TR::Options::_verboseImage > 0)
+            printf("Added <%p, %p> to map\n", j9method, (void *)data);
          }
 
       if (vm->isAnonymousClass( ((TR_ResolvedJ9Method*)vmMethod)->romClassPtr()))

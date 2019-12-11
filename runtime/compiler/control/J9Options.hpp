@@ -160,6 +160,8 @@ class OMR_EXTENSIBLE Options : public OMR::OptionsConnector
    static int32_t _userClassLoadingPhaseThreshold;
    static bool _userClassLoadingPhase;
 
+   static int32_t _verboseImage;
+
    static int32_t _cpuCompTimeExpensiveThreshold;
    int32_t getCpuCompTimeExpensiveThreshold() { return _cpuCompTimeExpensiveThreshold; }
 

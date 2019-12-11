@@ -9035,6 +9035,9 @@ TR::CompilationInfoPerThreadBase::compile(
             metaData = (J9JITExceptionTable *)persistentMemory(_jitConfig)->getPCFromMap(static_cast<void *>(method));
             if (metaData)
                {
+               if (TR::Options::_verboseImage > 0)
+                  printf("Found start pc %p!\n", (void *)metaData->startPC);
+
                struct ReloBuffer *reloBuffer = (struct ReloBuffer *)metaData->reloBuffer;
 
                bool success = false;
@@ -9045,11 +9048,19 @@ TR::CompilationInfoPerThreadBase::compile(
                catch (...)
                   {
                   // Catch any SVM Asserts
+                  if (TR::Options::_verboseImage > 0)
+                     printf("EXCEPTION THROWN: Failed to validate %p!\n", metaData->startPC);
                   }
                if (!success)
+                  {
+                  if (TR::Options::_verboseImage > 0)
+                     printf("Failed to validate %p!\n", metaData->startPC);
                   compiler->failCompilation<J9::RetryLoadAfterSomeTime>("Failed validation records");
+                  }
 
                foundMethodInMap = true;
+               if (TR::Options::_verboseImage > 0)
+                  printf("Validation succeeded for %p!\n", metaData->startPC);
                }
             }
 

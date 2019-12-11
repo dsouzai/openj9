@@ -116,6 +116,8 @@ int32_t J9::Options::_numClassLoadPhaseQuiesceIntervals = 1;
 int32_t J9::Options::_userClassLoadingPhaseThreshold = 5;
 bool J9::Options::_userClassLoadingPhase = false;
 
+int32_t J9::Options::_verboseImage = 0;
+
 int32_t J9::Options::_bigAppSampleThresholdAdjust = 3; //amount to shift the hot and scorching threshold
 int32_t J9::Options::_availableCPUPercentage = 100;
 int32_t J9::Options::_cpuCompTimeExpensiveThreshold = 4000;
@@ -993,6 +995,8 @@ TR::OptionTable OMR::Options::_feOptions[] = {
         TR::Options::setVerboseBitsInJitPrivateConfig, offsetof(J9JITConfig, privateConfig), 5, "F=1"},
    {"verbose=",           "L{regex}\tlist of verbose output to write to vlog or stdout",
         TR::Options::setVerboseBitsInJitPrivateConfig, offsetof(J9JITConfig, privateConfig), 0, "F"},
+   {"verboseImage=",          "R<nnn>\tImage verbose level",
+        TR::Options::setStaticNumeric, (intptrj_t)&TR::Options::_verboseImage, 0, " %d", NOT_IN_SUBSET},
    {"version",            "L\tdisplay the jit build version",
         TR::Options::versionOption, 0, 0, "F"},
    {"veryHotSampleThreshold=",          "R<nnn>\tThe maximum number of global samples taken during a sample interval for which the method will be recompiled at hot with normal priority",
