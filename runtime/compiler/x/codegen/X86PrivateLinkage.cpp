@@ -48,6 +48,7 @@
 #include "il/Node.hpp"
 #include "il/Node_inlines.hpp"
 #include "il/ParameterSymbol.hpp"
+#include "il/StaticSymbol.hpp"
 #include "il/TreeTop.hpp"
 #include "il/TreeTop_inlines.hpp"
 #include "infra/SimpleRegex.hpp"
@@ -603,6 +604,27 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
          cursor = new (trHeapMemory()) TR::X86PaddingInstruction(cursor, minInstructionSize, TR_AtomicNoOpPadding, cg());
          }
       cursor = new (trHeapMemory()) TR::Instruction(BADIA32Op, cursor, cg());
+      }
+
+   if (comp()->getOption(TR_EnableDummyCheckPrologue))
+      {
+      TR::StaticSymbol *sym = TR::StaticSymbol::create(trHeapMemory(),TR::Address);
+      sym->setStaticAddress(&TR::Options::_dummyTest);
+      TR::LabelSymbol *label = generateLabelSymbol(cg());
+      label->setCodeLocation(reinterpret_cast<uint8_t*>(0x10000000));
+
+      TR::SymbolReferenceTable *symRefTab = cg()->comp()->getSymRefTab();
+      TR::SymbolReference *symRef = new (trHeapMemory()) TR::SymbolReference(symRefTab, sym);
+      TR::MemoryReference *memRef = new (trHeapMemory()) TR::MemoryReference(symRef, cg());
+
+      /*
+       * mov rdi, [memRef]
+       * test rdi, 1
+       * jne 0x0
+       */
+      cursor = generateRegMemInstruction(cursor, LRegMem(), scratchReg, memRef, cg());
+      cursor = generateRegImmInstruction(cursor, TEST4RegImm4, scratchReg, 1, cg());
+      cursor = new (trHeapMemory()) TR::X86LabelInstruction(cursor, JNE4, label, cg());
       }
 
    // Compute the nature of the preserved regs
