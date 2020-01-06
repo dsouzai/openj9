@@ -608,8 +608,13 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
 
    if (comp()->getOption(TR_EnableDummyCheckPrologue))
       {
+      void *dummyTest = comp()->trPersistentMemory()->allocatePersistentMemory(sizeof(uintptrj_t));
+      if (NULL == dummyTest)
+         comp()->failCompilation<TR::CompilationException>("dummyTest == NULL!\n");
+      *(uintptrj_t *)dummyTest = 0;
+
       TR::StaticSymbol *sym = TR::StaticSymbol::create(trHeapMemory(),TR::Address);
-      sym->setStaticAddress(&TR::Options::_dummyTest);
+      sym->setStaticAddress(dummyTest);
       TR::LabelSymbol *label = generateLabelSymbol(cg());
       label->setCodeLocation(reinterpret_cast<uint8_t*>(0x10000000));
 
@@ -618,12 +623,10 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
       TR::MemoryReference *memRef = new (trHeapMemory()) TR::MemoryReference(symRef, cg());
 
       /*
-       * mov rdi, [memRef]
-       * test rdi, 1
-       * jne 0x0
+       * test [memRef], 1
+       * jne 0x10000000
        */
-      cursor = generateRegMemInstruction(cursor, LRegMem(), scratchReg, memRef, cg());
-      cursor = generateRegImmInstruction(cursor, TEST4RegImm4, scratchReg, 1, cg());
+      cursor = generateMemImmInstruction(cursor, TESTMemImm4(), memRef, 1, cg());
       cursor = new (trHeapMemory()) TR::X86LabelInstruction(cursor, JNE4, label, cg());
       }
 
