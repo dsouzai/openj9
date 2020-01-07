@@ -39,6 +39,8 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/mman.h>
+#include <errno.h>
 #include "j9.h"
 #include "j9cfg.h"
 #include "j9protos.h"
@@ -80,6 +82,7 @@
 #include "runtime/asmprotos.h"
 #include "runtime/CodeCache.hpp"
 #include "runtime/CodeCacheManager.hpp"
+#include "runtime/CodeCacheMemorySegment.hpp"
 #include "runtime/J9VMAccess.hpp"
 #include "runtime/RelocationRuntime.hpp"
 #include "runtime/J9Profiler.hpp"
@@ -120,11 +123,13 @@
 #include "j9jitnls.h"
 #endif
 
-struct ExclusiveVMAccess
+struct ExclusiveVMAccessAndProtect
    {
-   ExclusiveVMAccess(J9VMThread * vmThread, J9JavaVM *javaVM)
+   ExclusiveVMAccessAndProtect(J9VMThread * vmThread, J9JavaVM *javaVM)
       : _vmThread(vmThread),
-        _javaVM(javaVM)
+        _javaVM(javaVM),
+        _unProtect(PROT_READ | PROT_WRITE | PROT_EXEC),
+        _protect(PROT_READ | PROT_EXEC)
       {
       _alreadyHaveVMAccess = ((_vmThread->publicFlags & J9_PUBLIC_FLAGS_VM_ACCESS) != 0);
       if (!_alreadyHaveVMAccess)
@@ -133,9 +138,24 @@ struct ExclusiveVMAccess
 
       if (TR::Options::getVerboseOption(TR_VerbosePerformance))
          TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Acquired Exclusive VM Access");
+
+      TR::CodeCacheMemorySegment *repository = TR::CodeCacheManager::instance()->getRepository();
+      _startAddr = (void *)repository->segmentBase();
+      _len = (repository->segmentTop() - repository->segmentBase());
+
+      if (mprotect(_startAddr, _len, _unProtect) != 0)
+         printf("Failed to unprotect code cache, %s", strerror(errno));
+      else if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Unprotected Code Cache");
       }
-   ~ExclusiveVMAccess()
+
+   ~ExclusiveVMAccessAndProtect()
       {
+      if (mprotect(_startAddr, _len, _protect) != 0)
+         printf("Failed to protect code cache, %s", strerror(errno));
+      else if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Protected Code Cache");
+
       _javaVM->internalVMFunctions->releaseExclusiveVMAccess(_vmThread);
       if (!_alreadyHaveVMAccess)
          _javaVM->internalVMFunctions->internalReleaseVMAccess(_vmThread);
@@ -143,9 +163,14 @@ struct ExclusiveVMAccess
       if (TR::Options::getVerboseOption(TR_VerbosePerformance))
          TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Released Exclusive VM Access");
       }
+
    bool _alreadyHaveVMAccess;
    J9VMThread *_vmThread;
    J9JavaVM *_javaVM;
+   void *_startAddr;
+   UDATA _len;
+   int _unProtect;
+   int _protect;
    };
 
 OMR::CodeCacheMethodHeader *getCodeCacheMethodHeader(char *p, int searchLimit, J9JITExceptionTable* metaData);
@@ -4246,7 +4271,7 @@ TR::CompilationInfoPerThread::processEntry(TR_MethodToBeCompiled &entry, J9::J9S
    void *startPC;
    if (TR::Options::getCmdLineOptions()->getOption(TR_UnwritableCodeCache))
       {
-      ExclusiveVMAccess exclusiveVMAccess(compThread, compThread->javaVM);
+      ExclusiveVMAccessAndProtect exclusiveVMAccessAndProtect(compThread, compThread->javaVM);
       startPC = compile(compThread, &entry, scratchSegmentProvider);
       }
    else

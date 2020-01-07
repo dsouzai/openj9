@@ -2183,6 +2183,17 @@ J9::Options::fePostProcessJIT(void * base)
    self()->setupJITServerOptions();
 #endif /* defined(JITSERVER_SUPPORT) */
 
+
+   if (self()->getOption(TR_UnwritableCodeCache))
+      {
+      _numUsableCompilationThreads = 1;
+      compInfo->updateNumUsableCompThreads(_numUsableCompilationThreads);
+
+      self()->setOption(TR_InhibitRecompilation);
+      self()->setOption(TR_DisableVirtualGuardNOPing);
+      }
+
+
    return true;
    }
 
