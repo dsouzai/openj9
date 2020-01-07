@@ -120,6 +120,34 @@
 #include "j9jitnls.h"
 #endif
 
+struct ExclusiveVMAccess
+   {
+   ExclusiveVMAccess(J9VMThread * vmThread, J9JavaVM *javaVM)
+      : _vmThread(vmThread),
+        _javaVM(javaVM)
+      {
+      _alreadyHaveVMAccess = ((_vmThread->publicFlags & J9_PUBLIC_FLAGS_VM_ACCESS) != 0);
+      if (!_alreadyHaveVMAccess)
+         _javaVM->internalVMFunctions->internalAcquireVMAccess(_vmThread);
+      _javaVM->internalVMFunctions->acquireExclusiveVMAccess(_vmThread);
+
+      if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Acquired Exclusive VM Access");
+      }
+   ~ExclusiveVMAccess()
+      {
+      _javaVM->internalVMFunctions->releaseExclusiveVMAccess(_vmThread);
+      if (!_alreadyHaveVMAccess)
+         _javaVM->internalVMFunctions->internalReleaseVMAccess(_vmThread);
+
+      if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Released Exclusive VM Access");
+      }
+   bool _alreadyHaveVMAccess;
+   J9VMThread *_vmThread;
+   J9JavaVM *_javaVM;
+   };
+
 OMR::CodeCacheMethodHeader *getCodeCacheMethodHeader(char *p, int searchLimit, J9JITExceptionTable* metaData);
 extern "C" {
    int32_t getCount(J9ROMMethod *romMethod, TR::Options *optionsJIT, TR::Options *optionsAOT);
@@ -4215,7 +4243,16 @@ TR::CompilationInfoPerThread::processEntry(TR_MethodToBeCompiled &entry, J9::J9S
    // The following call will return with compilation monitor and the
    // queue slot (entry) monitor in hand
    //
-   void *startPC = compile(compThread, &entry, scratchSegmentProvider);
+   void *startPC;
+   if (TR::Options::getCmdLineOptions()->getOption(TR_UnwritableCodeCache))
+      {
+      ExclusiveVMAccess exclusiveVMAccess(compThread, compThread->javaVM);
+      startPC = compile(compThread, &entry, scratchSegmentProvider);
+      }
+   else
+      {
+      startPC = compile(compThread, &entry, scratchSegmentProvider);
+      }
 
    // Unpin the class
    if (!entry.isOutOfProcessCompReq())
