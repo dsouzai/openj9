@@ -643,10 +643,15 @@ public:
    void * operator new(size_t s, void * p) throw() { return p; }
    CompilationInfo (J9JITConfig *jitConfig);
    TR::Monitor *getCompilationMonitor() {return _compilationMonitor;}
+   TR::Monitor *getCodeCacheProtectionMonitor() {return _codeCacheProtectionMonitor;}
    void acquireCompMonitor(J9VMThread *vmThread); // used when we know we have a compilation monitor
    void releaseCompMonitor(J9VMThread *vmThread); // used when we know we have a compilation monitor
    void waitOnCompMonitor(J9VMThread *vmThread);
    intptr_t waitOnCompMonitorTimed(J9VMThread *vmThread, int64_t millis, int32_t nanos);
+
+   bool canCompile() { return _canCompile; }
+   void setCanCompile() { _canCompile = true; }
+   void resetCanCompile() { _canCompile = false; }
 
    TR_PersistentMemory *     persistentMemory() { return _persistentMemory; }
 
@@ -1096,6 +1101,7 @@ private:
    J9JITConfig           *_jitConfig;
    TR_PersistentMemory   *_persistentMemory;  // memorize the persistentMemory
    TR::Monitor *_compilationMonitor;
+   TR::Monitor *_codeCacheProtectionMonitor;
    J9::RWMonitor *_classUnloadMonitor;
    TR::Monitor *_logMonitor; // only used if multiple compilation threads
    TR::Monitor *_schedulingMonitor;
@@ -1184,6 +1190,8 @@ private:
       S390SupportsVectorFacility       = 0x00040000,
       DummyLastFlag
       };
+
+   bool                   _canCompile;
 
 #ifdef DEBUG
    bool                   _traceCompiling;

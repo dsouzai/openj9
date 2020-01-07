@@ -277,7 +277,8 @@ bool acquireVMaccessIfNeeded(J9VMThread *vmThread, TR_YesNoMaybe isCompThread)
       {
       bool haveAcquiredVMAccess = false;
       if (TR::Options::getCmdLineOptions() == 0 || // if options haven't been created yet, there is no danger
-          TR::Options::getCmdLineOptions()->getOption(TR_DisableNoVMAccess))
+          TR::Options::getCmdLineOptions()->getOption(TR_DisableNoVMAccess) ||
+          TR::Options::getCmdLineOptions()->getOption(TR_UnwritableCodeCache))
           return false; // don't need to acquire VM access
 
       // we need to test if the thread has VM access

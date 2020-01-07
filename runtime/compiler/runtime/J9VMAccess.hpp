@@ -24,15 +24,18 @@
 #define J9VMACCESS_HPP
 
 #include "j9.h"
+#include "control/Options.hpp"
 
 inline void acquireVMAccessNoSuspend(J9VMThread *vmThread)
    {
-   vmThread->javaVM->internalVMFunctions->internalAcquireVMAccessWithMask(vmThread, J9_PUBLIC_FLAGS_HALT_THREAD_ANY_NO_JAVA_SUSPEND);
+   if (!TR::Options::getCmdLineOptions()->getOption(TR_UnwritableCodeCache))
+      vmThread->javaVM->internalVMFunctions->internalAcquireVMAccessWithMask(vmThread, J9_PUBLIC_FLAGS_HALT_THREAD_ANY_NO_JAVA_SUSPEND);
    }
 
 inline void releaseVMAccessNoSuspend(J9VMThread *vmThread)
    {
-   vmThread->javaVM->internalVMFunctions->internalReleaseVMAccess(vmThread);
+   if (!TR::Options::getCmdLineOptions()->getOption(TR_UnwritableCodeCache))
+      vmThread->javaVM->internalVMFunctions->internalReleaseVMAccess(vmThread);
    }
 
 #endif // J9VMACCESS_HPP

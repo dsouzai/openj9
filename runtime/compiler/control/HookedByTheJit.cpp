@@ -1542,6 +1542,37 @@ static void jitHookLocalGCStart(J9HookInterface * * hookInterface, UDATA eventNu
    jitReclaimMarkedAssumptions(false);
    }
 
+static void doCompilesNow(TR::CompilationInfo *compInfo, const char *hookName)
+   {
+   if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+      {
+      TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "%s: Starting Compiles, Q_SZ=%d\n", hookName, compInfo->getMethodQueueSize());
+      }
+
+   if (compInfo->getMethodQueueSize() > 0)
+      {
+      // TODO: Unprotect Code Cache
+      compInfo->setCanCompile();
+      if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "%s: canCompile=%d\n", hookName, compInfo->canCompile());
+
+      compInfo->acquireCompilationLock();
+      compInfo->getCompilationMonitor()->notifyAll();
+      compInfo->releaseCompilationLock();
+
+      compInfo->getCodeCacheProtectionMonitor()->enter();
+      compInfo->getCodeCacheProtectionMonitor()->wait();
+      compInfo->getCodeCacheProtectionMonitor()->exit();
+      compInfo->resetCanCompile();
+      // TODO: Protect Code Cache
+      }
+
+   if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+      {
+      TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "%s: Ending Compiles\n", hookName);
+      }
+   }
+
 static void jitHookGlobalGCEnd(J9HookInterface * * hookInterface, UDATA eventNum, void * eventData, void * userData)
    {
    J9VMThread* vmThread = (J9VMThread*)((MM_GlobalGCStartEvent *)eventData)->currentThread->_language_vmthread;
@@ -1556,6 +1587,9 @@ static void jitHookGlobalGCEnd(J9HookInterface * * hookInterface, UDATA eventNum
    TR::CompilationInfo * compInfo = TR::CompilationInfo::get(jitConfig);
 
    getOutOfIdleStatesUnlocked(TR::CompilationInfo::SAMPLER_DEEPIDLE, compInfo, "GC");
+
+   if (TR::Options::getCmdLineOptions()->getOption(TR_UnwritableCodeCache))
+      doCompilesNow(compInfo, "jitHookGlobalGCEnd");
 
    TR::CodeCacheManager::instance()->synchronizeTrampolines();
    if (jitConfig->runtimeFlags & J9JIT_GC_NOTIFY)
@@ -1581,6 +1615,12 @@ static void jitHookLocalGCEnd(J9HookInterface * * hookInterface, UDATA eventNum,
    TR::CompilationInfo *compInfo = TR::CompilationInfo::get(jitConfig);
    compInfo->incrementLocalGCCounter();
 #endif
+
+   if (TR::Options::getCmdLineOptions()->getOption(TR_UnwritableCodeCache))
+      {
+      TR::CompilationInfo *compInfo = TR::CompilationInfo::get(jitConfig);
+      doCompilesNow(compInfo, "jitHookLocalGCEnd");
+      }
    }
 
 static void initThreadAfterCreation(J9VMThread *vmThread)

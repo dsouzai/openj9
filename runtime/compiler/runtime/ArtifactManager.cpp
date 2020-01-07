@@ -23,6 +23,8 @@
 #include "jithash.h"
 #include "avl_api.h"
 #include "util_api.h"
+#include "control/Options.hpp"
+#include "control/Options_inlines.hpp"
 #include "infra/Monitor.hpp"
 #include "infra/CriticalSection.hpp"
 #include "runtime/CodeCache.hpp"
@@ -35,14 +37,14 @@ TR_VMExclusiveAccess::TR_VMExclusiveAccess(J9JavaVM *vm) :
    _vm(vm),
    _currentThread(vm->internalVMFunctions->currentVMThread(vm))
    {
-   if (_currentThread)
+   if (_currentThread && !TR::Options::getCmdLineOptions()->getOption(TR_UnwritableCodeCache))
       _vm->internalVMFunctions->acquireExclusiveVMAccess(_currentThread);
    }
 
 
 TR_VMExclusiveAccess::~TR_VMExclusiveAccess()
    {
-   if (_currentThread)
+   if (_currentThread && !TR::Options::getCmdLineOptions()->getOption(TR_UnwritableCodeCache))
       _vm->internalVMFunctions->releaseExclusiveVMAccess(_currentThread);
    }
 

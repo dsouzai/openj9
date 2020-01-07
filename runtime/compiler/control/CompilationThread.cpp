@@ -1086,6 +1086,7 @@ TR::CompilationInfo::CompilationInfo(J9JITConfig *jitConfig) :
    // Initialize the compilation monitor
    //
    _compilationMonitor = TR::Monitor::create("JIT-CompilationQueueMonitor");
+   _codeCacheProtectionMonitor = TR::Monitor::create("JIT-CodeCacheProtectionMonitor");
    _schedulingMonitor = TR::Monitor::create("JIT-SchedulingMonitor");
 #if defined(J9VM_JIT_DYNAMIC_LOOP_TRANSFER)
    _dltMonitor = TR::Monitor::create("JIT-DLTmonitor");
@@ -1099,6 +1100,8 @@ TR::CompilationInfo::CompilationInfo(J9JITConfig *jitConfig) :
    _persistentMemory->getPersistentInfo()->setGpuInitializationMonitor(_gpuInitMonitor);
 
    _iprofilerMaxCount = TR::Options::_maxIprofilingCountInStartupMode;
+
+   _canCompile = false;
 
    PORT_ACCESS_FROM_JAVAVM(jitConfig->javaVM);
    _cpuUtil = 0; // Field will be set in onLoadInternal after option processing
@@ -3779,7 +3782,32 @@ TR::CompilationInfoPerThread::run()
          {
          case COMPTHREAD_ACTIVE:
             {
+            if (TR::Options::getCmdLineOptions()->getOption(TR_UnwritableCodeCache))
+               {
+               if (!getCompilationInfo()->canCompile())
+                  {
+                  if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+                     TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "canCompile is false");
+                  setCompilationThreadState(COMPTHREAD_SIGNAL_WAIT);
+                  break;
+                  }
+               else
+                  {
+                  if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+                     TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Will process entries");
+                  }
+               }
             processEntries();
+            if (TR::Options::getCmdLineOptions()->getOption(TR_UnwritableCodeCache))
+               {
+               if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+                  TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Done processing entries");
+               getCompilationInfo()->resetCanCompile();
+
+               getCompilationInfo()->getCodeCacheProtectionMonitor()->enter();
+               getCompilationInfo()->getCodeCacheProtectionMonitor()->notifyAll();
+               getCompilationInfo()->getCodeCacheProtectionMonitor()->exit();
+               }
             break;
             }
          case COMPTHREAD_SIGNAL_WAIT:
@@ -3811,6 +3839,10 @@ TR::CompilationInfoPerThread::waitForWork()
    compInfo->incNumCompThreadsJobless();
    setLastTimeThreadWentToSleep(compInfo->getPersistentInfo()->getElapsedTime());
    setCompilationThreadState(COMPTHREAD_WAITING);
+
+   if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+      TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Comp Thread waiting");
+
    compInfo->waitOnCompMonitor(compThread);
    if (getCompilationThreadState() == COMPTHREAD_WAITING)
       {
@@ -3819,7 +3851,14 @@ TR::CompilationInfoPerThread::waitForWork()
        * we need to make sure to not lose that information.
        */
       setCompilationThreadState(COMPTHREAD_ACTIVE);
+
+      if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Comp Thread will be active");
       }
+
+   if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+      TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Comp Thread woken up");
+
    compInfo->decNumCompThreadsJobless();
    compInfo->debugPrint(compThread, "+CM\n");
    }
@@ -8737,6 +8776,8 @@ TR::CompilationInfoPerThreadBase::performAOTLoad(
    return metaData;
    }
 
+
+
 // This routine should only be called from wrappedCompile
 TR_MethodMetaData *
 TR::CompilationInfoPerThreadBase::compile(
@@ -9011,7 +9052,10 @@ TR::CompilationInfoPerThreadBase::compile(
             compiler->getOption(TR_UseSymbolValidationManager))
             compiler->getSymbolValidationManager()->populateWellKnownClasses();
 
+         {
+         ExcusiveVMAccess exclusiveVMAccess(vmThread, javaVM);
          rtn = compiler->compile();
+         }
 
          if (TR::Options::getVerboseOption(TR_VerboseCompilationDispatch) && !rtn)
             {
