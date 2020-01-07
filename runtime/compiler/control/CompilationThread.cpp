@@ -2389,6 +2389,7 @@ bool TR::CompilationInfo::shouldRetryCompilation(TR_MethodToBeCompiled *entry, T
             case compilationCodeMemoryExhausted:
             case compilationCodeCacheError:
             case compilationDataCacheError:
+            case compilationDontRecompile:
             default:
                break;
             } // end switch
@@ -11113,6 +11114,10 @@ TR::CompilationInfoPerThreadBase::processException(
    catch (const J9::AOTNoSupportForAOTFailure &e)
       {
       _methodBeingCompiled->_compErrCode = compilationAOTNoSupportForAOTFailure;
+      }
+   catch (const J9::DontRecompile &e)
+      {
+      _methodBeingCompiled->_compErrCode = compilationDontRecompile;
       }
    catch (const J9::ClassChainPersistenceFailure &e)
       {

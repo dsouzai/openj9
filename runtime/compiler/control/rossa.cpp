@@ -215,6 +215,7 @@ char *compilationErrorNames[]={
    "compilationStreamVersionIncompatible", // 56
    "compilationStreamInterrupted", // 57
 #endif /* defined(JITSERVER_SUPPORT) */
+   "compilationDontRecompile", // 58
    "compilationMaxError"
 };
 
