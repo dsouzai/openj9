@@ -48,6 +48,7 @@
 #include "il/Node.hpp"
 #include "il/Node_inlines.hpp"
 #include "il/ParameterSymbol.hpp"
+#include "il/StaticSymbol.hpp"
 #include "il/TreeTop.hpp"
 #include "il/TreeTop_inlines.hpp"
 #include "infra/SimpleRegex.hpp"
@@ -602,6 +603,51 @@ void J9::X86::PrivateLinkage::createPrologue(TR::Instruction *cursor)
          cursor = new (trHeapMemory()) TR::X86PaddingInstruction(cursor, minInstructionSize, TR_AtomicNoOpPadding, cg());
          }
       cursor = new (trHeapMemory()) TR::Instruction(BADIA32Op, cursor, cg());
+      }
+
+   if (comp()->getOption(TR_ReadOnlyRecomp))
+      {
+      TR::Recompilation *recompilationInfo = comp()->getRecompilationInfo();
+      if (recompilationInfo)
+         {
+         if (minInstructionSize > 0)
+            {
+            // We don't want the breakpoint to get patched, so generate a sacrificial no-op
+            //
+            cursor = new (trHeapMemory()) TR::X86PaddingInstruction(cursor, minInstructionSize, TR_AtomicNoOpPadding, cg());
+            }
+
+         TR_PersistentJittedBodyInfo *bodyInfo = recompilationInfo->getJittedBodyInfo();
+         TR::SymbolReferenceTable *symRefTab = cg()->comp()->getSymRefTab();
+         TR::LabelSymbol *continueLabel = generateLabelSymbol(cg());
+
+         // Test Symbol, Symref, Memref
+         TR::StaticSymbol *cmpSym = TR::StaticSymbol::createWithAddress(trHeapMemory(), TR::Address, bodyInfo->getAddressOfMethodHasBeenRecompiled());
+         cmpSym->setNotDataAddress();
+         TR::SymbolReference *cmpSymRef = new (trHeapMemory()) TR::SymbolReference(symRefTab, cmpSym);
+         TR::MemoryReference *cmpMemRef = new (trHeapMemory()) TR::MemoryReference(cmpSymRef, cg());
+
+         // Recompiled moethod Symbol, Symref, Memref
+         TR::StaticSymbol *newAddrSym = TR::StaticSymbol::createWithAddress(trHeapMemory(), TR::Address, bodyInfo->getAddressOfRecompiledMethodStartPC());
+         newAddrSym->setNotDataAddress();
+         TR::SymbolReference *newAddrSymRef = new (trHeapMemory()) TR::SymbolReference(symRefTab, newAddrSym);
+         TR::MemoryReference *newAddrMemRef = new (trHeapMemory()) TR::MemoryReference(newAddrSymRef, cg());
+
+         // Test if recompiled
+         cursor = generateMemImmInstruction(cursor, TESTMemImm4(true), cmpMemRef, 1, cg());
+
+         // Conditional Jump
+         cursor = generateLabelInstruction(cursor, JE4, continueLabel, cg());
+
+         // Load recompiled method startPC
+         cursor = generateRegMemInstruction(cursor, LRegMem(), scratchReg, newAddrMemRef, cg());
+
+         // Jump to recompiled method
+         cursor = generateRegInstruction(cursor, JMPReg, scratchReg, cg());
+
+         // Merge Label
+         cursor = generateLabelInstruction(cursor, LABEL, continueLabel, cg());
+         }
       }
 
    // Compute the nature of the preserved regs
