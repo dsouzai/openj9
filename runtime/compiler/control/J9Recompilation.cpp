@@ -639,6 +639,8 @@ TR_PersistentJittedBodyInfo::TR_PersistentJittedBodyInfo(
    _methodInfo(methodInfo),
    _counter(INT_MAX),
    _mapTable(comp == 0 || comp->getOption(TR_DoNotUseFastStackwalk) ? 0 : (void *)-1),
+   _methodHasBeenRecompiled(0),
+   _recompiledMethodStartPC(NULL),
    _hotness(hotness),
    _flags(0),
    _sampleIntervalCount(0),

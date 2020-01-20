@@ -431,6 +431,13 @@ class TR_PersistentJittedBodyInfo
       UsesJProfiling          = 0x4000   // Body has jProfiling code
       };
 
+   void *getAddressOfMethodHasBeenRecompiled() { return &_methodHasBeenRecompiled; }
+   void *getAddressOfRecompiledMethodStartPC() { return &_recompiledMethodStartPC; }
+
+   // These might need to be atomic
+   void setMethodHasBeenRecompiled() { _methodHasBeenRecompiled = 1; }
+   void setRecompiledMethodStartPC(void *startPC) { _recompiledMethodStartPC = startPC; }
+
    // ### IMPORTANT ###
    // These following four fields must always be the first four elements of this structure
    private:
@@ -440,6 +447,9 @@ class TR_PersistentJittedBodyInfo
    void                    *_mapTable;            // must be at offset 12 (24 for 64bit)
 
    // ### IMPORTANT ###
+
+   uint64_t                 _methodHasBeenRecompiled;
+   void                    *_recompiledMethodStartPC;
 
    static TR_PersistentJittedBodyInfo *allocate(TR_PersistentMethodInfo *methodInfo, TR_Hotness hotness, bool profiling, TR::Compilation * comp = 0);
    TR_PersistentJittedBodyInfo(TR_PersistentMethodInfo *methodInfo, TR_Hotness hotness, bool profile, TR::Compilation * comp = 0);
