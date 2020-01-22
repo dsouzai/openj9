@@ -176,7 +176,38 @@ void J9::Recompilation::methodHasBeenRecompiled(void *oldStartPC, void *newStart
    char *p;
    int32_t offset, bytesToSaveAtStart;
    J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(oldStartPC);
-   if (linkageInfo->isCountingMethodBody())
+   if (TR::Options::getCmdLineOptions()->getOption(TR_ReadOnlyRecomp))
+      {
+      TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
+      J9JITExceptionTable *metaData = fej9->getJ9JITConfig()->jitGetExceptionTableFromPC(fej9->vmThread(), (UDATA)oldStartPC);
+      TR_PersistentJittedBodyInfo *bodyInfo = (TR_PersistentJittedBodyInfo *)metaData->bodyInfo;
+
+      // This assert may not be general enough - a body that should not be recompiled
+      // could be forced to be recompiled because of invalidation. However, I'm
+      // leaving this here for now. This comment is a reminder that it should
+      // probably be removed later.
+      TR_ASSERT_FATAL(bodyInfo != NULL, "bodyInfo of old body cannot be NULL\n");
+
+      if (bodyInfo)
+         {
+         if ((uintptr_t)NULL != VM_AtomicSupport::lockCompareExchange((UDATA*)bodyInfo->getAddressOfRecompiledMethodStartPC(), (uintptr_t)NULL, (uintptr_t)newStartPC))
+            {
+            TR_ASSERT_FATAL(false, "Failed to update bodyinfo=%p with newStartPC=%p\n", bodyInfo, newStartPC);
+            return;
+            }
+         if ((uintptr_t)0 != VM_AtomicSupport::lockCompareExchange((UDATA*)bodyInfo->getAddressOfMethodHasBeenRecompiled(), (uintptr_t)0, (uintptr_t)1))
+            {
+            TR_ASSERT_FATAL(false, "Failed to update bodyinfo=%p with method has been recompiled bit", bodyInfo);
+            return;
+            }
+         }
+      else
+         {
+         // Need to handle this case
+         return;
+         }
+      }
+   else if (linkageInfo->isCountingMethodBody())
       {
       // The start of the old method looks like on IA32:
       //  when not profiling:
@@ -232,6 +263,9 @@ void J9::Recompilation::methodHasBeenRecompiled(void *oldStartPC, void *newStart
       *((int16_t*)startByte) = ((offset & 0xFF) << 8) | CALL_INSTRUCTION;
 
       bytesToSaveAtStart = 7 + jitEntryOffset(oldStartPC); // the new call instruction + 2-byte offset; TODO: this could be 5 on IA32
+
+      if (TR::Options::getCmdLineOptions()->getOption(TR_ReadOnlyRecomp))
+         TR_ASSERT_FATAL(false, "Should not be calling fixing up counting body startPC from methodHasBeenRecompiled");
       }
    else
       {
@@ -263,6 +297,8 @@ void J9::Recompilation::methodHasBeenRecompiled(void *oldStartPC, void *newStart
 
       // With guarded counting recompilations, we need to fix up the method code regardless of whether it is
       // synchronous or asynchronous
+      if (TR::Options::getCmdLineOptions()->getOption(TR_ReadOnlyRecomp))
+         TR_ASSERT_FATAL(false, "Should not be calling fixUpMethodCode from methodHasBeenRecompiled");
       fixUpMethodCode(oldStartPC);
 
       bytesToSaveAtStart = 2 + jitEntryOffset(oldStartPC); // the jmp instruction
@@ -311,12 +347,17 @@ void J9::Recompilation::methodCannotBeRecompiled(void *oldStartPC, TR_FrontEnd *
       //
       if (!methodInfo->hasBeenReplaced()) // HCR: VM presumably already has the method in its proper state
          fej9->revertToInterpreted(methodInfo->getMethodInfo());
+
+      if (TR::Options::getCmdLineOptions()->getOption(TR_ReadOnlyRecomp))
+         printf("Patching %p to jump to interpreter\n", oldStartPC);
       }
    else if (usesSampling)
       {
       // Restore the original first 2 bytes of the method
       //
       replaceFirstTwoBytesWithData(oldStartPC, START_PC_TO_ORIGINAL_ENTRY_BYTES);
+      if (TR::Options::getCmdLineOptions()->getOption(TR_ReadOnlyRecomp))
+         printf("Restoring %p\n", oldStartPC);
       }
    else
       {
@@ -343,6 +384,9 @@ void J9::Recompilation::methodCannotBeRecompiled(void *oldStartPC, TR_FrontEnd *
          profileInfo->setProfilingFrequency(INT_MAX);
          profileInfo->setProfilingCount(-1);
          }
+
+      if (TR::Options::getCmdLineOptions()->getOption(TR_ReadOnlyRecomp))
+         printf("Restoring counting body %p\n", oldStartPC);
       }
 
    linkageInfo->setHasFailedRecompilation();
@@ -364,6 +408,8 @@ void J9::Recompilation::invalidateMethodBody(void *startPC, TR_FrontEnd *fe)
    //
    if (linkageInfo->recompilationAttempted())
       return;
+   if (TR::Options::getCmdLineOptions()->getOption(TR_ReadOnlyRecomp))
+      printf("Calling fixUpMethodCode in invalidateMethodBody because method has been invalidated\n");
    fixUpMethodCode(startPC); // schedule a sync compilation
    }
 

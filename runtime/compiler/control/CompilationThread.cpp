@@ -11285,7 +11285,11 @@ TR::CompilationInfo::triggerOrderedCompiles(TR_FrontEnd * f, intptr_t tickCount)
                if (fe->isAsyncCompilation())
                   fe->startAsyncCompile((TR_OpaqueMethodBlock *) ramMethod, startPC, &queued);
                else
+                  {
+                  if (TR::Options::getCmdLineOptions()->getOption(TR_ReadOnlyRecomp))
+                     printf("Calling fixUpMethodCode in triggerOrderedCompiles because sync recompile\n");
                   TR::Recompilation::fixUpMethodCode(startPC);
+                  }
 
                if (logSampling)
                   {

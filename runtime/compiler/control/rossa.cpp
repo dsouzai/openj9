@@ -287,6 +287,8 @@ j9jit_testarossa_err(
 
          if (pmi && pmi->hasBeenReplaced()) // HCR
             {
+            if (TR::Options::getCmdLineOptions()->getOption(TR_ReadOnlyRecomp))
+               printf("Calling fixUpMethodCode in j9jit_testarossa_err because method has been replaced\n");
             // Obsolete method bodies are invalid.
             //
             TR::Recompilation::fixUpMethodCode(oldStartPC);
@@ -431,6 +433,8 @@ retranslateWithPreparation(
    {
    if (!TR::CompilationInfo::get()->asynchronousCompilation() && !J9::PrivateLinkage::LinkageInfo::get(oldStartPC)->recompilationAttempted())
       {
+      if (TR::Options::getCmdLineOptions()->getOption(TR_ReadOnlyRecomp))
+         printf("Calling fixUpMethodCode in retranslateWithPreparation because sync recompile\n");
       TR::Recompilation::fixUpMethodCode(oldStartPC);
       }
 

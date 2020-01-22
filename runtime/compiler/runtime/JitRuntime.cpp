@@ -298,6 +298,8 @@ J9::Recompilation::induceRecompilation(
        TR_OptimizationPlan::_optimizationPlanMonitor->exit();
       // Change the current method to trigger a recompilation on the next invocation
       //
+      if (TR::Options::getCmdLineOptions()->getOption(TR_ReadOnlyRecomp))
+         printf("Calling fixUpMethodCode in induceRecompilation because sync recompile\n");
       fixUpMethodCode(startPC);
       return true;
       }
