@@ -190,7 +190,8 @@ void J9::Recompilation::methodHasBeenRecompiled(void *oldStartPC, void *newStart
 
       if (bodyInfo)
          {
-         if ((uintptr_t)NULL != VM_AtomicSupport::lockCompareExchange((UDATA*)bodyInfo->getAddressOfRecompiledMethodStartPC(), (uintptr_t)NULL, (uintptr_t)newStartPC))
+         void *startPC = (void *)((uintptr_t)newStartPC + J9::PrivateLinkage::LinkageInfo::get(newStartPC)->getJitEntryOffset());
+         if ((uintptr_t)NULL != VM_AtomicSupport::lockCompareExchange((UDATA*)bodyInfo->getAddressOfRecompiledMethodStartPC(), (uintptr_t)NULL, (uintptr_t)startPC))
             {
             TR_ASSERT_FATAL(false, "Failed to update bodyinfo=%p with newStartPC=%p\n", bodyInfo, newStartPC);
             return;
@@ -264,7 +265,7 @@ void J9::Recompilation::methodHasBeenRecompiled(void *oldStartPC, void *newStart
 
       bytesToSaveAtStart = 7 + jitEntryOffset(oldStartPC); // the new call instruction + 2-byte offset; TODO: this could be 5 on IA32
 
-      if (TR::Options::getCmdLineOptions()->getOption(TR_ReadOnlyRecomp))
+      if (false && TR::Options::getCmdLineOptions()->getOption(TR_ReadOnlyRecomp))
          TR_ASSERT_FATAL(false, "Should not be calling fixing up counting body startPC from methodHasBeenRecompiled");
       }
    else
@@ -297,7 +298,7 @@ void J9::Recompilation::methodHasBeenRecompiled(void *oldStartPC, void *newStart
 
       // With guarded counting recompilations, we need to fix up the method code regardless of whether it is
       // synchronous or asynchronous
-      if (TR::Options::getCmdLineOptions()->getOption(TR_ReadOnlyRecomp))
+      if (false && TR::Options::getCmdLineOptions()->getOption(TR_ReadOnlyRecomp))
          TR_ASSERT_FATAL(false, "Should not be calling fixUpMethodCode from methodHasBeenRecompiled");
       fixUpMethodCode(oldStartPC);
 
