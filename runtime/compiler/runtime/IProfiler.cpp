@@ -3113,6 +3113,7 @@ TR_IPBCDataCallGraph::createPersistentCopy(TR_J9SharedCache *sharedCache, TR_IPB
              */
             if (sharedCache->isPointerInSharedCache(clazz->romClass))
                {
+               TR_ASSERT_FATAL(sharedCache->romClassInCacheClassArea(clazz->romClass), "createPersistentCopy: %p isn't in the Class area in the SCC!\n", clazz->romClass);
                store->_csInfo.setClazz(i, (uintptrj_t)sharedCache->offsetInSharedCacheFromPointer(clazz->romClass));
                TR_ASSERT(_csInfo.getClazz(i), "Race condition detected: cached value=%p, pc=%p", clazz, _pc);
                }
@@ -3150,7 +3151,10 @@ TR_IPBCDataCallGraph::loadFromPersistentCopy(TR_IPBCDataStorageHeader * storage,
 
          uintptrj_t csInfoClazzOffset = store->_csInfo.getClazz(i);
          if (comp->fej9()->sharedCache()->isOffsetInSharedCache(csInfoClazzOffset, &romClass))
+            {
+            TR_ASSERT_FATAL(comp->fej9()->sharedCache()->romClassInCacheClassArea((J9ROMClass *)romClass), "loadFromPersistentCopy: %p isn't in the Class area in the SCC!\n", romClass);
             ramClass = ((TR_J9VM *)comp->fej9())->matchRAMclassFromROMclass((J9ROMClass *)romClass, comp);
+            }
 
          if (ramClass)
             {

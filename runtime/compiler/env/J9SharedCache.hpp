@@ -160,6 +160,8 @@ public:
    static void setStoreSharedDataFailedLength(UDATA length) {_storeSharedDataFailedLength = length; }
    virtual J9SharedClassCacheDescriptor *getCacheDescriptorList();
 
+   bool romClassInCacheClassArea(J9ROMClass *romClass);
+
 private:
    // This class is intended to be a POD; keep it simple.
    struct SCCHint

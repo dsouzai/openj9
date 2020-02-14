@@ -429,6 +429,20 @@ TR_J9SharedCache::isPointerInCache(const J9SharedClassCacheDescriptor *cacheDesc
    return isPointerInCache;
    }
 
+bool
+TR_J9SharedCache::romClassInCacheClassArea(J9ROMClass *romClass)
+   {
+   void *classStartAddr = getCacheDescriptorList()->romclassStartAddress;
+   void *classEndAddr = getCacheDescriptorList()->metadataStartAddress;
+
+   if (((uintptrj_t)romClass >= (uintptrj_t)classStartAddr) &&
+       ((uintptrj_t)romClass < (uintptrj_t)classEndAddr))
+      {
+      return true;
+      }
+   return false;
+   }
+
 void *
 TR_J9SharedCache::pointerFromOffsetInSharedCache(uintptr_t offset)
    {
