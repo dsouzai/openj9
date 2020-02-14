@@ -109,6 +109,7 @@ JIT_PRODUCT_BACKEND_SOURCES+=\
     omr/compiler/control/OMRRecompilation.cpp \
     omr/compiler/control/OptimizationPlan.cpp \
     omr/compiler/env/DebugSegmentProvider.cpp \
+    omr/compiler/env/OMRTestSegmentAllocator.cpp \
     omr/compiler/env/ExceptionTable.cpp \
     omr/compiler/env/OMRArithEnv.cpp \
     omr/compiler/env/OMRCPU.cpp \
@@ -293,6 +294,7 @@ JIT_PRODUCT_SOURCE_FILES+=\
     compiler/env/J9SegmentAllocator.cpp \
     compiler/env/J9SegmentCache.cpp \
     compiler/env/J9SegmentProvider.cpp \
+    compiler/env/J9TestSegmentAllocator.cpp \
     compiler/env/J9SharedCache.cpp \
     compiler/env/J9VMEnv.cpp \
     compiler/env/J9VMMethodEnv.cpp \
