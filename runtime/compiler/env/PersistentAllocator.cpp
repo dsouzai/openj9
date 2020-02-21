@@ -30,9 +30,18 @@ namespace J9 {
 
 PersistentAllocator::PersistentAllocator(const PersistentAllocatorKit &creationKit) :
    _minimumSegmentSize(creationKit.minimumSegmentSize),
+#if defined(NEW_MEMORY)
+   _rawAllocator(&creationKit.javaVM),
+   _segmentAllocator(MEMORY_TYPE_JIT_PERSISTENT, creationKit.javaVM, _rawAllocator),
+#else
    _segmentAllocator(MEMORY_TYPE_JIT_PERSISTENT, creationKit.javaVM),
+#endif
    _freeBlocks(),
+#if defined(NEW_MEMORY)
+   _segments(SegmentContainerAllocator(_rawAllocator))
+#else
    _segments(SegmentContainerAllocator(RawAllocator(&creationKit.javaVM)))
+ #endif
    {
    }
 
@@ -40,7 +49,11 @@ PersistentAllocator::~PersistentAllocator() throw()
    {
    while (!_segments.empty())
       {
+#if defined(NEW_MEMORY)
+      TR::MemorySegment &segment = _segments.front();
+#else
       J9MemorySegment &segment = _segments.front();
+#endif
       _segments.pop_front();
       _segmentAllocator.deallocate(segment);
       }
@@ -122,6 +135,33 @@ PersistentAllocator::allocateLocked(size_t requestedSize)
 
    // Find the first persistent segment with enough free space
    //
+#if defined(NEW_MEMORY)
+   SegmentContainer::const_iterator iter = findUsableSegment(allocSize);
+   if (iter == _segments.end())
+      {
+      size_t const segmentSize = allocSize < _minimumSegmentSize ? _minimumSegmentSize : allocSize;
+      TR::MemorySegment &segment = _segmentAllocator.allocate(segmentSize);
+      try
+         {
+         _segments.push_front(TR::ref(segment));
+         }
+      catch(const std::exception &e)
+         {
+         _segmentAllocator.deallocate(segment);
+         return 0;
+         }
+
+      TR_ASSERT(segment.remaining() >= allocSize, "Failed to acquire a segment");
+      block = new(segment.allocate(allocSize)) Block(allocSize);
+      }
+   else
+      {
+      TR::MemorySegment &segment = TR::ref(*iter);
+
+      TR_ASSERT(segment.remaining() >= allocSize, "Failed to acquire a segment");
+      block = new(segment.allocate(allocSize)) Block(allocSize);
+      }
+#else
    J9MemorySegment *segment = findUsableSegment(allocSize);
    if (!segment)
       {
@@ -140,9 +180,26 @@ PersistentAllocator::allocateLocked(size_t requestedSize)
       }
    TR_ASSERT(segment && remainingSpace(*segment) >= allocSize, "Failed to acquire a segment");
    block = new(operator new(allocSize, *segment)) Block(allocSize);
+#endif
+
    return block + 1;
    }
 
+#if defined(NEW_MEMORY)
+PersistentAllocator::SegmentContainer::const_iterator
+PersistentAllocator::findUsableSegment(size_t requiredSize)
+   {
+   for (auto i = _segments.begin(); i != _segments.end(); ++i)
+      {
+      TR::MemorySegment &candidate = TR::ref(*i);
+      if (candidate.remaining() >= requiredSize )
+         {
+         return i;
+         }
+      }
+   return _segments.end();
+   }
+#else
 J9MemorySegment *
 PersistentAllocator::findUsableSegment(size_t requiredSize)
    {
@@ -162,6 +219,7 @@ PersistentAllocator::remainingSpace(J9MemorySegment &segment) throw()
    {
    return (segment.heapTop - segment.heapAlloc);
    }
+#endif
 
 void
 PersistentAllocator::freeBlock(Block * block)

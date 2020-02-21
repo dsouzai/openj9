@@ -30,16 +30,27 @@ namespace TR { using J9::PersistentAllocator; }
 
 #include <new>
 #include "env/PersistentAllocatorKit.hpp"
+
+#if defined(NEW_MEMORY)
+#include "env/J9TestRawAllocator.hpp"
+#else
 #include "env/RawAllocator.hpp"
+#endif
 #include "env/TypedAllocator.hpp"
+#if defined(NEW_MEMORY)
+#include "env/J9TestSegmentAllocator.hpp"
+#else
 #include "env/J9SegmentAllocator.hpp"
+#endif
 #include "infra/ReferenceWrapper.hpp"
 #include "env/MemorySegment.hpp"
 #include <deque>
 
+#if !defined(NEW_MEMORY)
 extern "C" {
 struct J9MemorySegment;
 }
+#endif
 
 namespace J9 {
 
@@ -88,16 +99,29 @@ private:
    void * allocateLocked(size_t);
    void freeBlock(Block *);
 
-   J9MemorySegment * findUsableSegment(size_t requiredSize);
-
-   static void * allocate(J9MemorySegment &memorySegment, size_t size) throw();
-   static size_t remainingSpace(J9MemorySegment &memorySegment) throw();
-
-   size_t const _minimumSegmentSize;
-   SegmentAllocator _segmentAllocator;
-   Block * _freeBlocks[PERSISTANT_BLOCK_SIZE_BUCKETS];
+#if defined(NEW_MEMORY)
+   typedef TR::typed_allocator<TR::reference_wrapper<TR::MemorySegment>, TestAlloc::RawAllocator> SegmentContainerAllocator;
+   typedef std::deque<TR::reference_wrapper<TR::MemorySegment>, SegmentContainerAllocator> SegmentContainer;
+   SegmentContainer::const_iterator findUsableSegment(size_t requiredSize);
+#else
    typedef TR::typed_allocator<TR::reference_wrapper<J9MemorySegment>, TR::RawAllocator> SegmentContainerAllocator;
    typedef std::deque<TR::reference_wrapper<J9MemorySegment>, SegmentContainerAllocator> SegmentContainer;
+
+   J9MemorySegment * findUsableSegment(size_t requiredSize);
+   static void * allocate(J9MemorySegment &memorySegment, size_t size) throw();
+   static size_t remainingSpace(J9MemorySegment &memorySegment) throw();
+#endif
+
+   size_t const _minimumSegmentSize;
+
+#if defined(NEW_MEMORY)
+   TestAlloc::J9RA _rawAllocator;
+   TestAlloc::J9SA _segmentAllocator;
+#else
+   SegmentAllocator _segmentAllocator;
+#endif
+
+   Block * _freeBlocks[PERSISTANT_BLOCK_SIZE_BUCKETS];
    SegmentContainer _segments;
    };
 
