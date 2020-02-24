@@ -250,8 +250,14 @@ TR_DebugExt::TR_DebugExt(
    _dbgMalloc(dbgjit_Malloc),
    _dbgFree(dbgjit_Free),
    _dbgGetExpression(dbgGetExpression),
+#if defined(NEW_MEMORY)
+   _rawAllocator(::jitConfig->javaVM),
+   _debugSegmentProvider(1 << 20, dbgjit_Malloc, dbgjit_Free),
+   _debugRegion(_debugSegmentProvider, _rawAllocator),
+#else
    _debugSegmentProvider(1 << 20, dbgjit_Malloc, dbgjit_Free),
    _debugRegion(_debugSegmentProvider, TR::RawAllocator(::jitConfig->javaVM)),
+#endif
    _isAOT(false),
    _structureValid(false)
    {

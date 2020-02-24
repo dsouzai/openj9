@@ -77,7 +77,11 @@
 #include "runtime/IProfiler.hpp"
 #include "runtime/HWProfiler.hpp"
 #include "runtime/LMGuardedStorage.hpp"
+#if defined(NEW_MEMORY)
+#include "env/J9TestSegmentAllocator.hpp"
+#else
 #include "env/SystemSegmentProvider.hpp"
+#endif
 #if defined(JITSERVER_SUPPORT)
 #include "control/JITServerHelpers.hpp"
 #include "runtime/JITServerIProfiler.hpp"
@@ -4727,6 +4731,17 @@ void JitShutdown(J9JITConfig * jitConfig)
       {
       try
          {
+#if defined(NEW_MEMORY)
+         TestAlloc::J9RA rawAllocator(jitConfig->javaVM);
+         TestAlloc::J9SA segmentAllocator(MEMORY_TYPE_JIT_SCRATCH_SPACE | MEMORY_TYPE_VIRTUAL, *jitConfig->javaVM, rawAllocator);
+         TestAlloc::J9SystemSegmentProvider regionSegmentProvider(
+            1 << 20,
+            1 << 20,
+            TR::Options::getScratchSpaceLimit(),
+            segmentAllocator,
+            rawAllocator
+            );
+#else
          TR::RawAllocator rawAllocator(jitConfig->javaVM);
          J9::SegmentAllocator segmentAllocator(MEMORY_TYPE_JIT_SCRATCH_SPACE | MEMORY_TYPE_VIRTUAL, *jitConfig->javaVM);
          J9::SystemSegmentProvider regionSegmentProvider(
@@ -4736,6 +4751,7 @@ void JitShutdown(J9JITConfig * jitConfig)
             segmentAllocator,
             rawAllocator
             );
+#endif
          TR::Region dispatchRegion(regionSegmentProvider, rawAllocator);
          TR_Memory trMemory(*compInfo->persistentMemory(), dispatchRegion);
 

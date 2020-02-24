@@ -90,9 +90,13 @@
 #include "env/annotations/AnnotationBase.hpp"
 #include "runtime/MethodMetaData.h"
 #include "env/J9JitMemory.hpp"
+#if defined(NEW_MEMORY)
+#include "env/J9TestSegmentAllocator.hpp"
+#else
 #include "env/J9SegmentCache.hpp"
 #include "env/SystemSegmentProvider.hpp"
 #include "env/DebugSegmentProvider.hpp"
+#endif
 #if defined(JITSERVER_SUPPORT)
 #include "control/JITClientCompilationThread.hpp"
 #include "control/JITServerCompilationThread.hpp"
@@ -3862,12 +3866,21 @@ TR::CompilationInfoPerThread::doSuspend()
    _compInfo.acquireCompMonitor(getCompilationThread());
    }
 
+#if defined(NEW_MEMORY)
+TestAlloc::J9SegmentCache
+TR::CompilationInfoPerThread::initializeSegmentCache(TestAlloc::SegmentAllocator &segmentProvider)
+#else
 J9::J9SegmentCache
 TR::CompilationInfoPerThread::initializeSegmentCache(J9::J9SegmentProvider &segmentProvider)
+#endif
    {
    try
       {
+#if defined(NEW_MEMORY)
+      TestAlloc::J9SegmentCache segmentCache(1 << 24, segmentProvider);
+#else
       J9::J9SegmentCache segmentCache(1 << 24, segmentProvider);
+#endif
       return segmentCache;
       }
    catch (const std::bad_alloc &allocationFailure)
@@ -3879,7 +3892,11 @@ TR::CompilationInfoPerThread::initializeSegmentCache(J9::J9SegmentProvider &segm
       }
    try
       {
+#if defined(NEW_MEMORY)
+      TestAlloc::J9SegmentCache segmentCache(1 << 21, segmentProvider);
+#else
       J9::J9SegmentCache segmentCache(1 << 21, segmentProvider);
+#endif
       return segmentCache;
       }
    catch (const std::bad_alloc &allocationFailure)
@@ -3889,7 +3906,11 @@ TR::CompilationInfoPerThread::initializeSegmentCache(J9::J9SegmentProvider &segm
          TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Failed to initialize segment cache of size 1 << 21");
          }
       }
+#if defined(NEW_MEMORY)
+   TestAlloc::J9SegmentCache segmentCache(1 << 16, segmentProvider);
+#else
    J9::J9SegmentCache segmentCache(1 << 16, segmentProvider);
+#endif
    return segmentCache;
    }
 
@@ -3919,8 +3940,14 @@ TR::CompilationInfoPerThread::processEntries()
    J9VMThread  * compThread = getCompilationThread();
    try
       {
+#if defined(NEW_MEMORY)
+      TestAlloc::J9RA rawAllocator(_jitConfig->javaVM);
+      TestAlloc::J9SA scratchSegmentAllocator(MEMORY_TYPE_JIT_SCRATCH_SPACE | MEMORY_TYPE_VIRTUAL, *_jitConfig->javaVM, rawAllocator);
+      TestAlloc::J9SegmentCache scratchSegmentCache(initializeSegmentCache(scratchSegmentAllocator).ref());
+#else
       J9::SegmentAllocator scratchSegmentAllocator(MEMORY_TYPE_JIT_SCRATCH_SPACE | MEMORY_TYPE_VIRTUAL, *_jitConfig->javaVM);
       J9::J9SegmentCache scratchSegmentCache(initializeSegmentCache(scratchSegmentAllocator).ref());
+#endif
       while (getCompilationThreadState() == COMPTHREAD_ACTIVE)
       {
       TR::CompilationInfo::TR_CompThreadActions compThreadAction = TR::CompilationInfo::UNDEFINED_ACTION;
@@ -4111,7 +4138,11 @@ TR::CompilationInfoPerThread::processEntries()
    }
 
 void
+#if defined(NEW_MEMORY)
+TR::CompilationInfoPerThread::processEntry(TR_MethodToBeCompiled &entry, TestAlloc::SegmentAllocator &scratchSegmentProvider)
+#else
 TR::CompilationInfoPerThread::processEntry(TR_MethodToBeCompiled &entry, J9::J9SegmentProvider &scratchSegmentProvider)
+#endif
    {
    TR::CompilationInfo *compInfo = getCompilationInfo();
    J9VMThread *compThread = getCompilationThread();
@@ -6397,7 +6428,12 @@ void *TR::CompilationInfo::compileOnApplicationThread(J9VMThread * vmThread, TR:
             bodyInfo->getMethodInfo()->setNextCompileLevel(optimizationPlan->getOptLevel(), optimizationPlan->insertInstrumentation());
          }
 
+#if defined(NEW_MEMORY)
+      TestAlloc::J9RA rawAllocator(_jitConfig->javaVM);
+      TestAlloc::J9SA scratchSegmentProvider(MEMORY_TYPE_JIT_SCRATCH_SPACE | MEMORY_TYPE_VIRTUAL, *_jitConfig->javaVM, rawAllocator);
+#else
       J9::SegmentAllocator scratchSegmentProvider(MEMORY_TYPE_JIT_SCRATCH_SPACE | MEMORY_TYPE_VIRTUAL, *_jitConfig->javaVM);
+#endif
       startPC = _compInfoForCompOnAppThread->compile(vmThread, &methodEntry, scratchSegmentProvider);
 
       if (compErrCode)
@@ -7583,7 +7619,11 @@ TR::CompilationInfoPerThreadBase::postCompilationTasks(J9VMThread * vmThread,
 void *
 TR::CompilationInfoPerThreadBase::compile(J9VMThread * vmThread,
                                          TR_MethodToBeCompiled *entry,
+#if defined(NEW_MEMORY)
+                                         TestAlloc::SegmentAllocator &scratchSegmentProvider)
+#else
                                          J9::J9SegmentProvider &scratchSegmentProvider)
+#endif
    {
    TR_ASSERT(!_compiler, "The previous compilation was not properly cleared.");
 
@@ -7613,6 +7653,25 @@ TR::CompilationInfoPerThreadBase::compile(J9VMThread * vmThread,
 
    try
       {
+#if defined(NEW_MEMORY)
+      TestAlloc::J9RA rawAllocator(vmThread->javaVM);
+      TestAlloc::J9SystemSegmentProvider defaultSegmentProvider(
+         1 << 16,
+         (0 != scratchSegmentProvider.getPreferredSegmentSize()) ? scratchSegmentProvider.getPreferredSegmentSize()
+                                                                 : 1 << 24,
+         TR::Options::getScratchSpaceLimit(),
+         scratchSegmentProvider,
+         rawAllocator
+         );
+      TestAlloc::OMRDebugSegmentProvider debugSegmentProvider(
+         1 << 16,
+         rawAllocator
+         );
+      TestAlloc::SegmentAllocator &regionSegmentProvider =
+         TR::Options::getCmdLineOptions()->getOption(TR_EnableScratchMemoryDebugging) ?
+            static_cast<TestAlloc::SegmentAllocator &>(debugSegmentProvider) :
+            static_cast<TestAlloc::SegmentAllocator &>(defaultSegmentProvider);
+#else
       TR::RawAllocator rawAllocator(vmThread->javaVM);
       J9::SystemSegmentProvider defaultSegmentProvider(
          1 << 16,
@@ -7630,6 +7689,7 @@ TR::CompilationInfoPerThreadBase::compile(J9VMThread * vmThread,
          TR::Options::getCmdLineOptions()->getOption(TR_EnableScratchMemoryDebugging) ?
             static_cast<TR::SegmentAllocator &>(debugSegmentProvider) :
             static_cast<TR::SegmentAllocator &>(defaultSegmentProvider);
+#endif
       TR::Region dispatchRegion(regionSegmentProvider, rawAllocator);
       TR_Memory trMemory(*_compInfo.persistentMemory(), dispatchRegion);
 
@@ -7795,7 +7855,11 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
    J9JITConfig *jitConfig = that->_jitConfig;
    bool reducedWarm = false;
 
+#if defined(NEW_MEMORY)
+   TestAlloc::SegmentAllocator &scratchSegmentProvider = p->_scratchSegmentProvider;
+#else
    TR::SegmentAllocator &scratchSegmentProvider = p->_scratchSegmentProvider;
+#endif
 
    // cleanup the compilationShouldBeInterrupted flag.
    that->setCompilationShouldBeInterrupted(0);
@@ -8771,7 +8835,11 @@ TR::CompilationInfoPerThreadBase::compile(
    TR_ResolvedMethod * compilee,
    TR_J9VMBase &vm,
    TR_OptimizationPlan *optimizationPlan,
+#if defined(NEW_MEMORY)
+   TestAlloc::SegmentAllocator const &scratchSegmentProvider
+#else
    TR::SegmentAllocator const &scratchSegmentProvider
+#endif
    )
    {
 
@@ -10534,7 +10602,11 @@ void TR::CompilationInfoPerThreadBase::logCompilationSuccess(
    J9VMThread * vmThread,
    TR_J9VMBase &vm,
    J9Method * method,
+#if defined(NEW_MEMORY)
+   TestAlloc::SegmentAllocator const &scratchSegmentProvider,
+#else
    TR::SegmentAllocator const &scratchSegmentProvider,
+#endif
    TR_ResolvedMethod * compilee,
    TR::Compilation * compiler,
    TR_MethodMetaData * metaData,
@@ -10897,7 +10969,11 @@ printCompFailureInfo(TR::Compilation * comp, const char * reason)
 void
 TR::CompilationInfoPerThreadBase::processException(
    J9VMThread *vmThread,
+#if defined(NEW_MEMORY)
+   TestAlloc::SegmentAllocator const &scratchSegmentProvider,
+#else
    TR::SegmentAllocator const &scratchSegmentProvider,
+#endif
    TR::Compilation * compiler,
    volatile bool & haveLockedClassUnloadMonitor,
    const char *exceptionName
@@ -11169,7 +11245,11 @@ TR::CompilationInfoPerThreadBase::processException(
 void
 TR::CompilationInfoPerThreadBase::processExceptionCommonTasks(
    J9VMThread *vmThread,
+#if defined(NEW_MEMORY)
+   TestAlloc::SegmentAllocator const &scratchSegmentProvider,
+#else
    TR::SegmentAllocator const &scratchSegmentProvider,
+#endif
    TR::Compilation * compiler,
    const char *exceptionName
    )

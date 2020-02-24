@@ -33,7 +33,12 @@
 #include "ras/Debug.hpp"
 #include "ras/InternalFunctionsExt.hpp"
 #include "env/VMJ9.h"
+#if defined(NEW_MEMORY)
+#include "env/J9TestRawAllocator.hpp"
+#include "env/J9TestSegmentAllocator.hpp"
+#else
 #include "ras/DebugExtSegmentProvider.hpp"
+#endif
 #include "env/Region.hpp"
 
 class TR_CHTable;
@@ -302,7 +307,12 @@ private:
    void  (*_dbgFree)(void *addr);
    uintptrj_t (*_dbgGetExpression)(const char* args);
 
+#if defined(NEW_MEMORY)
+   TestAlloc::J9RA _rawAllocator;
+   TestAlloc::DebugExtSegmentAllocator _debugSegmentProvider;
+#else
    J9::DebugSegmentProvider _debugSegmentProvider;
+#endif
    TR::Region _debugRegion;
 
    TR_HashTable *_toRemotePtrMap;

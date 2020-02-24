@@ -47,7 +47,11 @@
 #include "infra/Link.hpp"
 #include "env/IO.hpp"
 #include "runtime/RelocationRuntime.hpp"
+#if defined(NEW_MEMORY)
+#include "env/J9TestSegmentAllocator.hpp"
+#else
 #include "env/J9SegmentCache.hpp"
+#endif
 #if defined(JITSERVER_SUPPORT)
 #include "env/VMJ9Server.hpp"
 #include "env/PersistentCollections.hpp"
@@ -102,7 +106,11 @@ struct CompileParameters
          J9VMThread * vmThread,
          TR_RelocationRuntime *reloRuntime,
          TR_OptimizationPlan * optimizationPlan,
+#if defined(NEW_MEMORY)
+         TestAlloc::SegmentAllocator &scratchSegmentProvider,
+#else
          TR::SegmentAllocator &scratchSegmentProvider,
+#endif
          TR::Region &dispatchRegion,
          TR_Memory &trMemory,
          const TR::CompileIlGenRequest &ilGenRequest
@@ -125,7 +133,11 @@ struct CompileParameters
    J9VMThread         *_vmThread;
    TR_RelocationRuntime *_reloRuntime;
    TR_OptimizationPlan*_optimizationPlan;
+#if defined(NEW_MEMORY)
+   TestAlloc::SegmentAllocator &_scratchSegmentProvider;
+#else
    TR::SegmentAllocator &_scratchSegmentProvider;
+#endif
    TR::Region           &_dispatchRegion;
    TR_Memory            &_trMemory;
    TR::CompileIlGenRequest  _ilGenRequest;
@@ -161,9 +173,15 @@ class CompilationInfoPerThreadBase
    void                   printCompilationThreadTime();
    TR_MethodMetaData     *getMetadata() {return _metadata;}
    void                   setMetadata(TR_MethodMetaData *m) {_metadata = m;}
+#if defined(NEW_MEMORY)
+   void *compile(J9VMThread *context, TR_MethodToBeCompiled *entry, TestAlloc::SegmentAllocator &scratchSegmentProvider);
+   TR_MethodMetaData *compile(J9VMThread *context, TR::Compilation *,
+                 TR_ResolvedMethod *compilee, TR_J9VMBase &, TR_OptimizationPlan*, TestAlloc::SegmentAllocator const &scratchSegmentProvider);
+#else
    void *compile(J9VMThread *context, TR_MethodToBeCompiled *entry, J9::J9SegmentProvider &scratchSegmentProvider);
    TR_MethodMetaData *compile(J9VMThread *context, TR::Compilation *,
                  TR_ResolvedMethod *compilee, TR_J9VMBase &, TR_OptimizationPlan*, TR::SegmentAllocator const &scratchSegmentProvider);
+#endif
    TR_MethodMetaData *performAOTLoad(J9VMThread *context, TR::Compilation *, TR_ResolvedMethod *compilee, TR_J9VMBase *vm, J9Method *method);
 
    void preCompilationTasks(J9VMThread * vmThread,
@@ -301,7 +319,11 @@ private:
       J9VMThread *vmThread,
       TR_J9VMBase & vm,
       J9Method * method,
+#if defined(NEW_MEMORY)
+      const TestAlloc::SegmentAllocator &scratchSegmentProvider,
+#else
       const TR::SegmentAllocator &scratchSegmentProvider,
+#endif
       TR_ResolvedMethod * compilee,
       TR::Compilation *compiler,
       TR_MethodMetaData *metadata,
@@ -309,7 +331,11 @@ private:
 
    void processException(
       J9VMThread *vmThread,
+#if defined(NEW_MEMORY)
+      const TestAlloc::SegmentAllocator &scratchSegmentProvider,
+#else
       const TR::SegmentAllocator &scratchSegmentProvider,
+#endif
       TR::Compilation * compiler,
       volatile bool & haveLockedClassUnloadMonitor,
       const char *exceptionName
@@ -317,7 +343,11 @@ private:
 
    void processExceptionCommonTasks(
       J9VMThread *vmThread,
+#if defined(NEW_MEMORY)
+      TestAlloc::SegmentAllocator const &scratchSegmentProvider,
+#else
       TR::SegmentAllocator const &scratchSegmentProvider,
+#endif
       TR::Compilation * compiler,
       const char *exceptionName);
 
@@ -367,7 +397,11 @@ class CompilationInfoPerThread : public TR::CompilationInfoPerThreadBase
    TR::Monitor *getCompThreadMonitor() { return _compThreadMonitor; }
    void                   run();
    void                   processEntries();
+#if defined (NEW_MEMORY)
+   virtual void           processEntry(TR_MethodToBeCompiled &entry, TestAlloc::SegmentAllocator &scratchSegmentProvider);
+#else
    virtual void           processEntry(TR_MethodToBeCompiled &entry, J9::J9SegmentProvider &scratchSegmentProvider);
+#endif
    bool                   shouldPerformCompilation(TR_MethodToBeCompiled &entry);
    void                   waitForWork();
    void                   doSuspend();
@@ -400,7 +434,11 @@ class CompilationInfoPerThread : public TR::CompilationInfoPerThreadBase
 #endif /* defined(JITSERVER_SUPPORT) */
 
    protected:
+#if defined(NEW_MEMORY)
+   TestAlloc::J9SegmentCache initializeSegmentCache(TestAlloc::SegmentAllocator &segmentProvider);
+#else
    J9::J9SegmentCache initializeSegmentCache(J9::J9SegmentProvider &segmentProvider);
+#endif
 
    j9thread_t             _osThread;
    J9VMThread            *_compilationThread;
