@@ -20,7 +20,11 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
  *******************************************************************************/
 
+#if defined(NEW_MEMORY)
+#include "env/J9TestRawAllocator.hpp"
+#else
 #include "env/RawAllocator.hpp"
+#endif
 
 #include <memory.h>
 #include <stdint.h>
@@ -40,7 +44,11 @@ TR_PersistentMemory * initializePersistentMemory(J9JITConfig * jitConfig)
    TR_PersistentMemory * persistentMemory = (TR_PersistentMemory *)jitConfig->scratchSegment;
    if (!persistentMemory)
       {
+#if defined(NEW_MEMORY)
+      TestAlloc::J9RA rawAllocator(jitConfig->javaVM);
+#else
       TR::RawAllocator rawAllocator(jitConfig->javaVM);
+#endif
       try
          {
          persistentMemory = new (rawAllocator) TR_PersistentMemory(

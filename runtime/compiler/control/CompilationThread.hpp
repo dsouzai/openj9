@@ -25,7 +25,11 @@
 
 #include <ctime>
 #include "control/CompilationPriority.hpp"
+#if defined(NEW_MEMORY)
+#include "env/J9TestRawAllocator.hpp"
+#else
 #include "env/RawAllocator.hpp"
+#endif
 #include "j9.h"
 #include "j9thread.h"
 #include "j9cfg.h"

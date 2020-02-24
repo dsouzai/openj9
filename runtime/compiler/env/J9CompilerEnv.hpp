@@ -46,7 +46,11 @@ class OMR_EXTENSIBLE CompilerEnv : public OMR::CompilerEnvConnector
    {
 public:
 
+#if defined(NEW_MEMORY)
+   CompilerEnv(J9JavaVM *vm, TestAlloc::RawAllocator &raw, const TR::PersistentAllocatorKit &persistentAllocatorKit);
+#else
    CompilerEnv(J9JavaVM *vm, TR::RawAllocator raw, const TR::PersistentAllocatorKit &persistentAllocatorKit);
+#endif
 
    J9PortLibrary * const portLib;
    J9JavaVM * const javaVM;

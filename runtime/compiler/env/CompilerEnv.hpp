@@ -24,7 +24,11 @@
 #define TR_COMPILER_ENV_INCL
 
 #include "infra/Annotations.hpp"
+#if defined(NEW_MEMORY)
+#include "env/J9TestRawAllocator.hpp"
+#else
 #include "env/RawAllocator.hpp"
+#endif
 #include "env/J9CompilerEnv.hpp"
 
 namespace TR
@@ -34,7 +38,11 @@ class OMR_EXTENSIBLE CompilerEnv : public J9::CompilerEnvConnector
    {
 public:
 
+#if defined(NEW_MEMORY)
+   CompilerEnv(J9JavaVM *vm, TestAlloc::RawAllocator &raw, const TR::PersistentAllocatorKit &persistentAllocatorKit) :
+#else
    CompilerEnv(J9JavaVM *vm, RawAllocator raw, const TR::PersistentAllocatorKit &persistentAllocatorKit) :
+#endif
          J9::CompilerEnvConnector(vm, raw, persistentAllocatorKit)
       {}
    };

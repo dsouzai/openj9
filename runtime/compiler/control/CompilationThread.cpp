@@ -743,7 +743,11 @@ TR::CompilationInfo::createCompilationInfo(J9JITConfig * jitConfig)
    TR_ASSERT(!_compilationRuntime, "The global compilation info has already been allocated");
    try
       {
+#if defined(NEW_MEMORY)
+      TestAlloc::J9RA rawAllocator(jitConfig->javaVM);
+#else
       TR::RawAllocator rawAllocator(jitConfig->javaVM);
+#endif
       void * alloc = rawAllocator.allocate(sizeof(TR::CompilationInfo));
       /* FIXME: Replace this with the appropriate initializers in the constructor */
       /* Note: there are embedded objects in TR::CompilationInfo that rely on the fact
@@ -816,7 +820,11 @@ void TR::CompilationInfo::freeCompilationInfo(J9JITConfig *jitConfig)
 
    compilationRuntime->freeAllResources();
 
+#if defined(NEW_MEMORY)
+   TestAlloc::J9RA rawAllocator(jitConfig->javaVM);
+#else
    TR::RawAllocator rawAllocator(jitConfig->javaVM);
+#endif
    compilationRuntime->~CompilationInfo();
    rawAllocator.deallocate(compilationRuntime);
    }

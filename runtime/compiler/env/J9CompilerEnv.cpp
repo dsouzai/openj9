@@ -21,12 +21,20 @@
  *******************************************************************************/
 
 #include "env/CompilerEnv.hpp"
+#if defined(NEW_MEMORY)
+#include "env/J9TestRawAllocator.hpp"
+#else
 #include "env/RawAllocator.hpp"
+#endif
 #include "env/defines.h"
 #include "env/CPU.hpp"
 #include "j9.h"
 
+#if defined(NEW_MEMORY)
+J9::CompilerEnv::CompilerEnv(J9JavaVM *vm, TestAlloc::RawAllocator &raw, const TR::PersistentAllocatorKit &persistentAllocatorKit) :
+#else
 J9::CompilerEnv::CompilerEnv(J9JavaVM *vm, TR::RawAllocator raw, const TR::PersistentAllocatorKit &persistentAllocatorKit) :
+#endif
    OMR::CompilerEnvConnector(raw, persistentAllocatorKit),
    portLib(vm->portLibrary),
    javaVM(vm)

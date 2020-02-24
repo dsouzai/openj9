@@ -30,7 +30,11 @@ namespace TR {
 class OMR_EXTENSIBLE CodeCacheManager : public J9::CodeCacheManagerConnector
     {
     public:
+#if defined(NEW_MEMORY)
+   CodeCacheManager(TR_FrontEnd *fe, TestAlloc::RawAllocator &rawAllocator) :
+#else
     CodeCacheManager(TR_FrontEnd *fe, TR::RawAllocator rawAllocator) :
+#endif
        J9::CodeCacheManagerConnector(fe, rawAllocator)
        {
        }

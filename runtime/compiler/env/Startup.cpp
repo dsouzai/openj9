@@ -21,7 +21,11 @@
  *******************************************************************************/
 
 #include "env/CompilerEnv.hpp"
+#if defined(NEW_MEMORY)
+#include "env/J9TestRawAllocator.hpp"
+#else
 #include "env/RawAllocator.hpp"
+#endif
 #include "j9.h"
 
 bool initializeJIT(J9JavaVM *vm)
@@ -29,7 +33,13 @@ bool initializeJIT(J9JavaVM *vm)
 
    // Create a bootstrap raw allocator.
    //
+#if defined(NEW_MEMORY)
+   TestAlloc::J9RA localj9RA(vm);
+   TestAlloc::J9RA *j9RA = new (localj9RA) TestAlloc::J9RA(vm);
+   TestAlloc::RawAllocator &rawAllocator = *j9RA;
+#else
    TR::RawAllocator rawAllocator(vm);
+#endif
 
    try
       {
