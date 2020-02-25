@@ -40,7 +40,11 @@ class TR_EstimateCodeSize
    {
    public:
 
+#if defined(NEW_MEMORY)
+   void * operator new (size_t size, TR::Allocator &allocator) { return allocator.allocate(size); }
+#else
    void * operator new (size_t size, TR::Allocator allocator) { return allocator.allocate(size); }
+#endif
 
    //    {
    //    TR_EstimateCodeSize::raiiWrapper lexicalScopeObject(....);
