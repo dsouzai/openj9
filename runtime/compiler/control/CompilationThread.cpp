@@ -8332,14 +8332,6 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
                      options->setOption(TR_EnableGRACostBenefitModel, false);
                   }
 
-               // Disable AOT w/ SVM during startup
-               if (jitConfig->javaVM->phase != J9VM_PHASE_NOT_STARTUP)
-                  {
-                  static char *dontDisableSVMDuringStartup = feGetEnv("TR_DontDisableSVMDuringStartup");
-                  if (!dontDisableSVMDuringStartup)
-                     options->setOption(TR_UseSymbolValidationManager, false);
-                  }
-
                // See if we need to inset GCR trees
                if (!details.supportsInvalidation())
                   {
