@@ -312,6 +312,9 @@ class OMR_EXTENSIBLE Options : public OMR::OptionsConnector
 
    static bool _aggressiveLockReservation;
 
+   static int32_t _retryAOTLoadInitialInvocationCount;
+   static int32_t _retryAOTLoadMaxInvocationCount;
+
    static void  printPID();
 
 

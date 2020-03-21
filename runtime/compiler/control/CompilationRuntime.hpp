@@ -994,6 +994,9 @@ public:
    bool getSuspendThreadDueToLowPhysicalMemory() const { return _suspendThreadDueToLowPhysicalMemory; }
    void setSuspendThreadDueToLowPhysicalMemory(bool b) { _suspendThreadDueToLowPhysicalMemory = b; }
 
+   bool shouldRetryAOTLoad(void *j9method);
+   bool retryAOTLoadIfPossible(void *j9method, Compilation *comp);
+
 #if defined(J9VM_OPT_JITSERVER)
    ClientSessionHT *getClientSessionHT() const { return _clientSessionHT; }
    void setClientSessionHT(ClientSessionHT *ht) { _clientSessionHT = ht; }
@@ -1167,6 +1170,11 @@ private:
    int32_t                _numSeriousFailures; // count failures where method needs to continue interpreted
 
    TR::Monitor           *_gpuInitMonitor;
+
+   typedef TR::typed_allocator<std::pair<void* const, uint32_t>, TR_TypedPersistentAllocatorBase&> AOTLoadRetryAllocator;
+   typedef std::less<void*> AOTLoadRetryComparator;
+   typedef std::map<void*, uint32_t, AOTLoadRetryComparator, AOTLoadRetryAllocator> AOTLoadRetryMap;
+   AOTLoadRetryMap        _aotLoadRetryMap;
 
    enum // flags
       {

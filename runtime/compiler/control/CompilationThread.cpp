@@ -1063,7 +1063,8 @@ TR::CompilationInfo::CompilationInfo(J9JITConfig *jitConfig) :
    _samplingThreadWaitTimeInDeepIdleToNotifyVM(-1),
    _numDiagnosticThreads(0),
    _numCompThreads(0),
-   _arrayOfCompilationInfoPerThread(NULL)
+   _arrayOfCompilationInfoPerThread(NULL),
+   _aotLoadRetryMap((AOTLoadRetryComparator()), TR_TypedPersistentAllocatorBase())
    {
    // The object is zero-initialized before this method is called
    //
@@ -2129,6 +2130,8 @@ bool TR::CompilationInfo::shouldRetryCompilation(TR_MethodToBeCompiled *entry, T
    TR::IlGeneratorMethodDetails & details = entry->getMethodDetails();
    J9Method *method = details.getMethod();
 
+   TR::CompilationInfo *compInfo = TR::CompilationInfo::get();
+
    // when the compilation fails we might retry
    //
    if (entry->_compErrCode != compilationOK &&
@@ -2142,7 +2145,6 @@ bool TR::CompilationInfo::shouldRetryCompilation(TR_MethodToBeCompiled *entry, T
             {
             case compilationAotValidateFieldFailure:
             case compilationAotStaticFieldReloFailure:
-            case compilationAotClassReloFailure:
             case compilationAotThunkReloFailure:
             case compilationAotHasInvokehandle:
             case compilationAotHasInvokeVarHandle:
@@ -2156,6 +2158,16 @@ bool TR::CompilationInfo::shouldRetryCompilation(TR_MethodToBeCompiled *entry, T
                // switch to JIT for these cases (we don't want to relocate again)
                entry->_doNotUseAotCodeFromSharedCache = true;
                tryCompilingAgain = true;
+               break;
+            case compilationAotClassReloFailure:
+               {
+               if (!compInfo->retryAOTLoadIfPossible((void *)method, comp))
+                  {
+                  entry->_compilationAttemptsLeft++;
+                  entry->_doNotUseAotCodeFromSharedCache = true;
+                  tryCompilingAgain = true;
+                  }
+               }
                break;
             //case compilationAotRelocationFailure:
             case compilationAotTrampolineReloFailure:
@@ -6629,8 +6641,6 @@ TR::CompilationInfoPerThreadBase::installAotCachedMethod(
       if (entry)
          {
          entry->_compErrCode = returnCode;
-         entry->setAotCodeToBeRelocated(NULL); // reset if relocation failed
-         entry->_tryCompilingAgain = _compInfo.shouldRetryCompilation(entry, compiler); // this will set entry->_doNotUseAotCodeFromSharedCache = true;
 
          // Feature [Defect 172216/180384]: Implement hints for failed AOT validations.  The idea is that the failed validations are due to the
          // fact that AOT methods are loaded at a lower count than when they were compiled so the JVM is given less opportunity to resolve things.
@@ -10378,7 +10388,17 @@ TR::CompilationInfo::compilationEnd(J9VMThread * vmThread, TR::IlGeneratorMethod
       // Tell the VM that a non-compiled method failed translation
       //
       if (vmThread && entry && !entry->isOutOfProcessCompReq())
-         jitMethodFailedTranslation(vmThread, method);
+         {
+         if (entry->_optimizationPlan->getIsAotLoad() &&
+             compInfo->shouldRetryAOTLoad((void *)method))
+            {
+            entry->setAotCodeToBeRelocated(NULL);
+            }
+         else
+            {
+            jitMethodFailedTranslation(vmThread, method);
+            }
+         }
 #if defined(J9VM_OPT_JITSERVER)
       if (entry && isJITServerMode) // failure at the JITServer
          {
@@ -11180,7 +11200,7 @@ TR::CompilationInfoPerThreadBase::processExceptionCommonTasks(
    PORT_ACCESS_FROM_JITCONFIG(_jitConfig);
 
    if (TR::Options::isAnyVerboseOptionSet(TR_VerbosePerformance, TR_VerboseCompileEnd, TR_VerboseCompFailure))
-      {
+      {      
       uintptr_t translationTime = j9time_usec_clock() - getTimeWhenCompStarted(); //get the time it took to fail the compilation
       TR_VerboseLog::vlogAcquire();
       if (_methodBeingCompiled->_compErrCode != compilationFailure)
@@ -12888,6 +12908,78 @@ TR::CompilationInfo::canRelocateMethod(TR::Compilation *comp)
          }
       }
    return canRelocateMethod;
+   }
+
+/*
+ * Assumes the Compilation Monitor has been acquired
+ */
+bool TR::CompilationInfo::shouldRetryAOTLoad(void *j9method)
+   {
+   AOTLoadRetryMap::iterator it = _aotLoadRetryMap.find(j9method);
+   return (it != _aotLoadRetryMap.end());
+   }
+
+/*
+ * Assumes the Compilation Monitor has been acquired
+ */
+bool TR::CompilationInfo::retryAOTLoadIfPossible(void *j9method, TR::Compilation *comp)
+   {
+   bool retryAOTLoad = false;
+   int32_t aotLoadRetryInvocationCount = J9::Options::_retryAOTLoadInitialInvocationCount;
+   int32_t aotLoadRetryMaxInvocationCount = J9::Options::_retryAOTLoadMaxInvocationCount;
+
+   if (aotLoadRetryInvocationCount < 1)
+      return false;
+
+   int32_t initialInvocationCount = J9ROMMETHOD_HAS_BACKWARDS_BRANCHES(J9_ROM_METHOD_FROM_RAM_METHOD(j9method)) ?
+                                       comp->getOptions()->getInitialBCount() :
+                                       comp->getOptions()->getInitialCount();
+
+
+   if (aotLoadRetryMaxInvocationCount < 1)
+      aotLoadRetryMaxInvocationCount = (initialInvocationCount/2);
+
+
+   AOTLoadRetryMap::iterator it = _aotLoadRetryMap.find(j9method);
+   if (it == _aotLoadRetryMap.end())
+      {
+      _aotLoadRetryMap.insert(std::make_pair(j9method, aotLoadRetryInvocationCount));
+      retryAOTLoad = true;
+      }
+   else
+      {
+      aotLoadRetryInvocationCount = it->second * 2;
+      if (aotLoadRetryInvocationCount <= aotLoadRetryMaxInvocationCount)
+         {
+         it->second = aotLoadRetryInvocationCount;
+         retryAOTLoad = true;
+         }
+      else
+         {
+         _aotLoadRetryMap.erase(it);
+         }
+      }
+
+   if (retryAOTLoad)
+      {
+      int32_t methodVMExtra = TR::CompilationInfo::getJ9MethodVMExtra(static_cast<J9Method *>(j9method));
+      if (methodVMExtra == 1 || methodVMExtra == J9_JIT_QUEUED_FOR_COMPILATION)
+         {
+         if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
+            {
+            TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Will retry AOT Load of %p; setting invocationCount to %d",
+                                          j9method, aotLoadRetryInvocationCount);
+            }
+
+         TR::CompilationInfo::setInvocationCount(static_cast<J9Method *>(j9method), aotLoadRetryInvocationCount);
+         }
+      else
+         {
+         retryAOTLoad = false;
+         }
+      }
+
+   return retryAOTLoad;
    }
 
 #if defined(J9VM_OPT_JITSERVER)
