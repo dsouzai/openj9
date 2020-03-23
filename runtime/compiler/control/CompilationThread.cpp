@@ -2164,7 +2164,6 @@ bool TR::CompilationInfo::shouldRetryCompilation(TR_MethodToBeCompiled *entry, T
                {
                if (!compInfo->retryAOTLoadIfPossible((void *)method, comp))
                   {
-                  entry->_compilationAttemptsLeft++;
                   entry->_doNotUseAotCodeFromSharedCache = true;
                   tryCompilingAgain = true;
                   }
