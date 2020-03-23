@@ -164,7 +164,7 @@ TR_RelocationRecordGroup::applyRelocations(TR_RelocationRuntime *reloRuntime,
       if (rc != 0)
          {
          uint8_t reloType = recordPointer->type(reloTarget);
-         aotStats->numRelocationsFailedByType[reloType]++;
+         reloRuntime->comp()->setFailedReloType(reloType);
          return rc;
          }
 

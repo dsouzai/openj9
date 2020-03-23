@@ -330,6 +330,9 @@ class OMR_EXTENSIBLE Compilation : public OMR::CompilationConnector
    void setOSRProhibitedOverRangeOfTrees() { _osrProhibitedOverRangeOfTrees = true; }
    bool isOSRProhibitedOverRangeOfTrees() { return _osrProhibitedOverRangeOfTrees; }
 
+   void setFailedReloType(uint8_t reloType) { _failedReloType = reloType; }
+   uint8_t getFailedReloType() { return _failedReloType; }
+
 private:
    enum CachedClassPointerId
       {
@@ -427,6 +430,8 @@ private:
 
    TR::SymbolValidationManager *_symbolValidationManager;
    bool _osrProhibitedOverRangeOfTrees;
+
+   uint8_t _failedReloType;
    };
 
 }

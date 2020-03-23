@@ -152,6 +152,16 @@ TR_RelocationRuntime::TR_RelocationRuntime(J9JITConfig *jitCfg)
 #endif
    }
 
+void
+TR_RelocationRuntime::incFailedRelocation(uint8_t reloType, J9JITConfig *jitConfig)
+   {
+   if (reloType != (uint8_t)-1)
+      {
+      TR_AOTStats *aotStats = ((TR_JitPrivateConfig *)jitConfig->privateConfig)->aotStats;
+      aotStats->numRelocationsFailedByType[reloType]++;
+      }
+   }
+
 
 // Prepare to relocate an AOT method from either a JXE or shared cache
 // returns J9JITExceptionTable pointer if successful, NULL if not

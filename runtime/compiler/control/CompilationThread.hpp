@@ -287,6 +287,8 @@ class CompilationInfoPerThreadBase
 
    static TR::FILE *_perfFile; // used on Linux for perl tool support
 
+   char                         _compFailMessage[4096];
+
 #if defined(J9VM_OPT_JITSERVER)
    ClientSessionData * _cachedClientDataPtr;
    JITServer::ClientStream * _clientStream;

@@ -165,6 +165,8 @@ class TR_RelocationRuntime {
 
       TR::PersistentInfo *getPersistentInfo()                      { return comp()->getPersistentInfo(); }
 
+      static void incFailedRelocation(uint8_t reloType, J9JITConfig *jitConfig);
+
       // current main entry point
       J9JITExceptionTable *prepareRelocateAOTCodeAndData(J9VMThread* vmThread,
                                                          TR_FrontEnd *fe,

@@ -181,7 +181,8 @@ J9::Compilation::Compilation(int32_t id,
    _remoteCompilation(false),
    _serializedRuntimeAssumptions(getTypedAllocator<SerializedRuntimeAssumption>(self()->allocator())),
 #endif /* defined(J9VM_OPT_JITSERVER) */
-   _osrProhibitedOverRangeOfTrees(false)
+   _osrProhibitedOverRangeOfTrees(false),
+   _failedReloType((uint8_t)-1)
    {
    _symbolValidationManager = new (self()->region()) TR::SymbolValidationManager(self()->region(), compilee);
 

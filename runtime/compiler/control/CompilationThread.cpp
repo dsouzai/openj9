@@ -956,6 +956,7 @@ TR::CompilationInfoPerThreadBase::CompilationInfoPerThreadBase(TR::CompilationIn
    _compilationCanBeInterrupted(false),
    _compilationThreadState(COMPTHREAD_UNINITIALIZED),
    _compilationShouldBeInterrupted(false),
+   _compFailMessage({0}),
 #if defined(J9VM_OPT_JITSERVER)
    _cachedClientDataPtr(NULL),
    _clientStream(NULL),
@@ -11199,21 +11200,25 @@ TR::CompilationInfoPerThreadBase::processExceptionCommonTasks(
    {
    PORT_ACCESS_FROM_JITCONFIG(_jitConfig);
 
+   uint32_t charsWritten = 0;
+
+   if (_methodBeingCompiled->isAotLoad())
+      TR_RelocationRuntime::incFailedRelocation(compiler->getFailedReloType(), _jitConfig);
+
    if (TR::Options::isAnyVerboseOptionSet(TR_VerbosePerformance, TR_VerboseCompileEnd, TR_VerboseCompFailure))
       {      
       uintptr_t translationTime = j9time_usec_clock() - getTimeWhenCompStarted(); //get the time it took to fail the compilation
-      TR_VerboseLog::vlogAcquire();
       if (_methodBeingCompiled->_compErrCode != compilationFailure)
          {
          if ((_jitConfig->runtimeFlags & J9JIT_TESTMODE) && _methodBeingCompiled->_compErrCode == compilationInterrupted)
-            TR_VerboseLog::writeLine(TR_Vlog_FAILURE,"<JIT: translating %s -- Interrupted because of %s", compiler->signature(), exceptionName);
+            charsWritten = sprintf(_compFailMessage, "<JIT: translating %s -- Interrupted because of %s", compiler->signature(), exceptionName);
          else
             {
             bool incomplete;
             uint64_t freePhysicalMemorySizeB = _compInfo.computeAndCacheFreePhysicalMemory(incomplete);
             if (freePhysicalMemorySizeB != OMRPORT_MEMINFO_NOT_AVAILABLE)
                {
-               TR_VerboseLog::writeLine(TR_Vlog_COMPFAIL,"%s time=%dus %s memLimit=%zu KB freePhysicalMemory=%llu MB",
+               charsWritten = sprintf(_compFailMessage, "%s time=%dus %s memLimit=%zu KB freePhysicalMemory=%llu MB",
                                            compiler->signature(),
                                            translationTime,
                                            compilationErrorNames[_methodBeingCompiled->_compErrCode],
@@ -11222,7 +11227,7 @@ TR::CompilationInfoPerThreadBase::processExceptionCommonTasks(
                }
             else
                {
-               TR_VerboseLog::writeLine(TR_Vlog_COMPFAIL,"%s time=%dus %s memLimit=%zu KB",
+               charsWritten = sprintf(_compFailMessage, "%s time=%dus %s memLimit=%zu KB",
                                            compiler->signature(),
                                            translationTime,
                                            compilationErrorNames[_methodBeingCompiled->_compErrCode],
@@ -11233,7 +11238,7 @@ TR::CompilationInfoPerThreadBase::processExceptionCommonTasks(
       else
          {
          uintptr_t translationTime = j9time_usec_clock() - getTimeWhenCompStarted(); //get the time it took to fail the compilation
-         TR_VerboseLog::writeLine(TR_Vlog_COMPFAIL,"%s time=%dus %s <TRANSLATION FAILURE: out of scratch memory>",
+         charsWritten = sprintf(_compFailMessage,"%s time=%dus %s <TRANSLATION FAILURE: out of scratch memory>",
                                         compiler->signature(),
                                         translationTime,
                                         exceptionName);
@@ -11241,13 +11246,14 @@ TR::CompilationInfoPerThreadBase::processExceptionCommonTasks(
 
       if (TR::Options::getVerboseOption(TR_VerbosePerformance))
          {
-         TR_VerboseLog::write(
+         charsWritten = sprintf(_compFailMessage+charsWritten,
             " mem=[region=%llu system=%llu]KB",
             static_cast<unsigned long long>(scratchSegmentProvider.regionBytesAllocated())/1024,
             static_cast<unsigned long long>(scratchSegmentProvider.systemBytesAllocated())/1024
             );
          }
-      TR_VerboseLog::vlogRelease();
+
+      TR_VerboseLog::writeLineLocked(TR_Vlog_COMPFAIL, _compFailMessage);
       }
 
    if(_methodBeingCompiled->_compErrCode == compilationFailure)
