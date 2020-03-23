@@ -7481,6 +7481,27 @@ TR::CompilationInfoPerThreadBase::postCompilationTasks(J9VMThread * vmThread,
          _compInfo._statNumAotedMethods++;
       }
 
+
+   if (entry->_compErrCode != compilationOK && TR::Options::isAnyVerboseOptionSet(TR_VerbosePerformance, TR_VerboseCompileEnd, TR_VerboseCompFailure))
+      {
+      if (entry->isAotLoad())
+         {
+         if (!_compInfo.shouldRetryAOTLoad(method))
+            {
+            TR_RelocationRuntime::incFailedRelocation(_compiler->getFailedReloType(), _jitConfig);
+            TR_VerboseLog::writeLineLocked(TR_Vlog_COMPFAIL, _compFailMessage);
+            }
+         else
+            {
+            TR_VerboseLog::writeLineLocked(TR_Vlog_FAILURE, _compFailMessage);
+            }
+         }
+      else
+         {
+         TR_VerboseLog::writeLineLocked(TR_Vlog_COMPFAIL, _compFailMessage);
+         }
+      }
+
    // compilation success can be detected by checking startPC && startPC != _oldStartPC
 
    if (TR::Options::getAOTCmdLineOptions()->getOption(TR_EnableAOTRelocationTiming) && entry->isAotLoad())
@@ -11201,9 +11222,6 @@ TR::CompilationInfoPerThreadBase::processExceptionCommonTasks(
 
    uint32_t charsWritten = 0;
 
-   if (_methodBeingCompiled->isAotLoad())
-      TR_RelocationRuntime::incFailedRelocation(compiler->getFailedReloType(), _jitConfig);
-
    if (TR::Options::isAnyVerboseOptionSet(TR_VerbosePerformance, TR_VerboseCompileEnd, TR_VerboseCompFailure))
       {      
       uintptr_t translationTime = j9time_usec_clock() - getTimeWhenCompStarted(); //get the time it took to fail the compilation
@@ -11251,8 +11269,6 @@ TR::CompilationInfoPerThreadBase::processExceptionCommonTasks(
             static_cast<unsigned long long>(scratchSegmentProvider.systemBytesAllocated())/1024
             );
          }
-
-      TR_VerboseLog::writeLineLocked(TR_Vlog_COMPFAIL, _compFailMessage);
       }
 
    if(_methodBeingCompiled->_compErrCode == compilationFailure)
