@@ -4769,9 +4769,49 @@ TR_RelocationRecordValidateMethodFromSingleAbstractImpl::callerMethodID(TR_Reloc
    }
 
 int32_t
-TR_RelocationRecordValidateMethodFromSingleAbstractImpl::vftSlot(TR_RelocationTarget *reloTarget)
+TR_RelocationRecordSymbolFromManager::print(TR_RelocationRuntime *reloRuntime)
    {
-   return reloTarget->loadSigned32b((uint8_t *) &((TR_RelocationRecordValidateMethodFromSingleAbstractImplBinaryTemplate *)_record)->_vftSlot);
+   TR_RelocationTarget *reloTarget = reloRuntime->reloTarget();
+   TR_RelocationRuntimeLogger *reloLogger = reloRuntime->reloLogger();
+   TR_RelocationRecord::print(reloRuntime);
+
+   const char *symType;
+   TR::SymbolType symbolType = this->symbolType(reloTarget);
+   if (symbolType == TR::SymbolType::typeOpaque)
+      symType = "typeOpaque";
+   else if (symbolType == TR::SymbolType::typeClass)
+      symType = "typeClass";
+   else if (symbolType == TR::SymbolType::typeMethod)
+      symType = "typeMethod";
+   else
+      TR_ASSERT_FATAL(false, "Unknown symbolType %d\n", symbolType);
+
+   reloLogger->printf("\tsymbolID %d\n", symbolID(reloTarget));
+   reloLogger->printf("\tsymbolType %s\n", symType);
+   }
+
+void
+TR_RelocationRecordSymbolFromManager::setSymbolID(TR_RelocationTarget *reloTarget, uint16_t symbolID)
+   {
+   reloTarget->storeUnsigned16b(symbolID, (uint8_t *) &((TR_RelocationRecordSymbolFromManagerBinaryTemplate *)_record)->_symbolID);
+   }
+
+uint16_t
+TR_RelocationRecordSymbolFromManager::symbolID(TR_RelocationTarget *reloTarget)
+   {
+   return reloTarget->loadUnsigned16b((uint8_t *) &((TR_RelocationRecordSymbolFromManagerBinaryTemplate *)_record)->_symbolID);
+   }
+
+void
+TR_RelocationRecordSymbolFromManager::setSymbolType(TR_RelocationTarget *reloTarget, TR::SymbolType symbolType)
+   {
+   reloTarget->storeUnsigned16b((uint16_t)symbolType, (uint8_t *) &((TR_RelocationRecordSymbolFromManagerBinaryTemplate *)_record)->_symbolType);
+   }
+
+TR::SymbolType
+TR_RelocationRecordSymbolFromManager::symbolType(TR_RelocationTarget *reloTarget)
+   {
+   return (TR::SymbolType)reloTarget->loadUnsigned16b((uint8_t *) &((TR_RelocationRecordSymbolFromManagerBinaryTemplate *)_record)->_symbolType);
    }
 
 void
@@ -4779,17 +4819,10 @@ TR_RelocationRecordSymbolFromManager::preparePrivateData(TR_RelocationRuntime *r
    {
    TR_RelocationSymbolFromManagerPrivateData *reloPrivateData = &(privateData()->symbolFromManager);
 
-   uint16_t symbolID = reloTarget->loadUnsigned16b((uint8_t *) &((TR_RelocationRecordSymbolFromManagerBinaryTemplate *)_record)->_symbolID);
-   uint16_t symbolType = reloTarget->loadUnsigned16b((uint8_t *) &((TR_RelocationRecordSymbolFromManagerBinaryTemplate *)_record)->_symbolType);
+   uint16_t symbolID = this->symbolID(reloTarget);
+   TR::SymbolType symbolType = this->symbolType(reloTarget);
 
-   if (reloRuntime->reloLogger()->logEnabled())
-      {
-      reloRuntime->reloLogger()->printf("%s\n", name());
-      reloRuntime->reloLogger()->printf("\tpreparePrivateData: symbolID %d\n", symbolID);
-      reloRuntime->reloLogger()->printf("\tpreparePrivateData: symbolType %d\n", symbolType);
-      }
-
-   reloPrivateData->_symbol = reloRuntime->comp()->getSymbolValidationManager()->getSymbolFromID(symbolID, (TR::SymbolType)symbolType);
+   reloPrivateData->_symbol = reloRuntime->comp()->getSymbolValidationManager()->getSymbolFromID(symbolID, symbolType);
    reloPrivateData->_symbolType = symbolType;
    }
 
