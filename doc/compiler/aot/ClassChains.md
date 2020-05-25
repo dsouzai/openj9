@@ -1,5 +1,5 @@
 <!--
-Copyright (c) 2018, 2019 IBM Corp. and others
+Copyright (c) 2018, 2020 IBM Corp. and others
 
 This program and the accompanying materials are made available under
 the terms of the Eclipse Public License 2.0 which accompanies this
@@ -150,3 +150,117 @@ It then asks the Class Loader to provide the `J9Class` pointer
 corresponding to the Class Name. It is worth noting that this `J9Class`
 may not yet be loaded. The validation is then performed using this `J9Class`
 pointer, if it exists.
+
+## Caching
+If the `-Xaot:enableClassChainValidationCaching` option is set, the result
+of a class chain validation is stored in a map. Currently this map is
+implemented using a `std::map`, but that might change in the future
+pending performance validation.
+
+## Sharing
+If the `-Xaot:enableClassChainSharing` option is set, the class chain
+generated is in a form such that the class chain of a class is the sub
+chain of the class chain of its children. Without this option, the chain
+that is generated is a unique array of offsets for each class.
+
+The following class hierarchy will be used to describe this feature:
+
+```
+class A implements IC1;
+class B extends A implements IC2, IC3;
+```
+
+Without `-Xaot:enableClassChainSharing`, the class chains generated 
+for each would look like the following:
+
+```
+Class Chain of A stored at some location in SCC:
+3                                        # length of Chain
+offset of ROMClass of A
+offset of ROMClass of java/lang/Object
+offset of IC1
+
+
+Class Chain of B stored at a different location in SCC:
+6                                        # length of Chain
+offset of ROMClass of B
+offset of ROMClass of A
+offset of ROMClass of java/lang/Object
+offset of IC2
+offset of IC3
+offset of IC1
+```
+
+Notice that the Class Chain of `A` is contained in the Class Chain of `B`.
+This duplication of information is what Class Chain Sharing aims to 
+remove.
+
+With `-Xaot:enableClassChainSharing`, the class chains generated
+for each would look like the following:
+
+```
+ClassChainNode for java/lang/Object stored in SCC:
+0                                               # number of interfaces declarated on java/lang/Object
+offset of ROMClass of java/lang/Object
+ClassChainNode::NULL_NODE                       # next node in chain
+
+
+ClassChainNode for A stored in SCC:
+1                                               # number of interfaces declared on A
+offset of ROMClass of A
+offset of ClassChainNode for java/lang/Object   # next node in chain
+offset of ROMClass of IC1
+
+
+ClassChainNode for B stored in SCC:
+2                                               # number of interfaces declared on B
+offset of ROMClass of B
+offset of ClassChainNode for A                  # next node in chain
+offset of ROMClass of IC2
+offset of ROMClass of IC3
+
+
+Class Chain of A == ClassChainNode for A
+Class Chain of B == ClassChainNode for B
+```
+
+Class Chain sharing takes advantage of a key fact of how interface classes
+hang off of a class. The linked list of iTables from `A` is the sub list of the
+linked list of iTables from `B`. Therefore, a node in the class chain only
+needs to have information about the interfaces declared by the class associated
+with it. The remaining interfaces will have been captured by the nodes
+associated with the super classes.
+
+As a consequence of this sharing, the creation of a class chain also results
+in the creation of the class chains of every class in its hierarchy for free. 
+It also means that when creating the class chain for a class, the chain only
+has to be created up to the point where a class in the heirarchy already had
+its chain created.
+
+### Validation
+Without `-Xaot:enableClassChainSharing`, the way `A` would be validated is:
+
+1. Acquire the class chain from the SCC
+2. Validate that the offset into the SCC of the `J9ROMClass` of `A` matches the offset in the class chain array
+3. Iterate through the superclasses of `A` and compare the offset into the SCC of the `J9ROMClass` of each super class with the offsets in the class chain array
+4. Iterate through the iTable linked list from the `J9Class` of `A` and compare the offset into the SCC of the `J9ROMClass` of each interface class with the offsets in the class chain array
+
+If everything matches, the class chain validation succeeds.
+
+With `-Xaot:enableClassChainSharing`, the way `A` would be validated is:
+
+1. Acquire the `J9Class` of `A`, and set the current class to it
+2. Acquire the iTable linked list from the `J9Class` of `A`, and set the current iTable to it
+3. Acquire the class chain node from the SCC
+4. Iterate through the class chain in the following manner:
+    1. Validate that the offset into the SCC of the `J9ROMClass` of the current class  matches `_romClassOffset`
+    2. Iterate through the current iTable linked list `_numInterfaces` times, comparing the offset into the SCC of the `J9ROMClass` of the iTable entry with the appropriate entry in the `_interfaces` array. Note, this process updates the current ITable pointer.
+    3. Set the current class to the super class of the current class
+    4. Get the next `ClassChainNode` using `_next` (which is the offset into the SCC of the next class chain node)
+    5. If `_next` is not `ClassChainNode::NULL_NODE` and the current class is not `NULL`, go to the top of the loop
+
+If everything matches, the class chain validation succeeds. It is important to
+note that the iTable linked list used in the validation is acquired ONLY from 
+the `J9Class` whose class chain is being validated, and NOT from any of its
+super classes. In the example above, the iTable linked list is acquired from `A`
+but never from `java/lang/Object`.
