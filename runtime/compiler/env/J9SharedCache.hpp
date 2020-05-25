@@ -369,6 +369,30 @@ private:
 
    static const uintptr_t OFFSET_FROM_END = 0x1;
 
+   /* This class is intended to be a POD; keep it simple.
+    * This class is to be used when TR_EnableClassChainSharing is set
+    */
+   struct ClassChainNode
+      {
+      static const uintptr_t NULL_NODE = (uintptr_t)-1;
+      static const uint32_t DEFAULT_NUM_INTERFACES = 1;
+      static const uint32_t MAX_NUM_INTERFACES = 32;
+
+      /* number of interfaces only implemented by the current class */
+      uint32_t  _numInterfaces;
+
+      /* offset of the current class' rom class in the SCC */
+      uintptr_t _romClassOffset;
+
+      /* offset of the next ClassChainNode in the SCC */
+      uintptr_t _next;
+
+      /* Variable length array of offsets in the SCC of interfaces
+       * declared by the current class
+       */
+      uintptr_t _interfaces[DEFAULT_NUM_INTERFACES];
+      };
+
    J9JITConfig *jitConfig() { return _jitConfig; }
    J9JavaVM *javaVM() { return _javaVM; }
    TR_J9VMBase *fe() { return _fe; }
@@ -412,6 +436,116 @@ private:
 
    bool romclassMatchesCachedVersion(J9ROMClass *romClass, UDATA * & chainPtr, UDATA *chainEnd);
    UDATA *findChainForClass(J9Class *clazz, const char *key, uint32_t keyLength);
+
+   /**
+    * @brief Initializes a class chain node that is part of the sharable class chain
+    *
+    * @param ccNode The ClassChainNode to be initialized; this pointer is NOT a pointer
+    *        into the SCC, but to some local storage
+    * @param clazz The J9Class associated with the ClassChainNode to be initialized
+    * @param classOffsetInCache The offset into the SCC of the J9ROMClass of clazz
+    * @param nextCCNode The ClassChainNode associated with the super class of clazz
+    * @param create Parameter to determine whether the node will stored in the SCC
+    *
+    * @return true if successfully initialized, false otherwise.
+    */
+   bool initializeClassChainNode(ClassChainNode *ccNode, TR_OpaqueClassBlock *clazz, uintptr_t classOffsetInCache, ClassChainNode *nextCCNode, bool create);
+
+   /**
+    * @brief Stores a class chain node into the SCC
+    *
+    * @param ccNode The ClassChainNode to be stored (copied) into the SCC; this
+    *        pointer is NOT apointer into the SCC, but to some local storage
+    *
+    * @return The pointer of the ClassChainNode stored in the SCC.
+    */
+   ClassChainNode *storeClassChainNode(ClassChainNode *ccNode);
+
+   /**
+    * @brief Gets the ClassChainNode in the SCC associated with the J9ROMClass passed in
+    *
+    * @param romClass The ROMClass associated with the ClassChainNode to be found
+    *
+    * @return The pointer of the ClassChainNode stored in the SCC; NULL if it doesn't exist
+    */
+   ClassChainNode * getClassChainNode(J9ROMClass *romClass);
+
+   /**
+    * @brief Gets the next node in the class chain given a ClassChainNode. The pointer
+    *        passed in should be a pointer to a ClassChainNode in the SCC.
+    *
+    * @param ccNode The ClassChainNode whose next node is desired
+    *
+    * @return The next node in the chain if it exists, NULL otherwise
+    */
+   ClassChainNode * getNextClassChainNode(ClassChainNode *ccNode);
+
+   /**
+    * @brief Validates a sharable class chain. It does so by traversing the nodes in the
+    *        sharable class chain. For each node, first the J9ROMClass associated with the
+    *        node is verified. Then the interfaces declared on the class associated with
+    *        the node is verified.
+    *
+    *        However, the interfaces are not verified by starting with the list of interfaces
+    *        on the class associated with the current node. Rather, this method walks the list
+    *        of interfaces acquired from the clazz which is passed in (this is done in
+    *        validateInterfacesInClassChainNode).
+    *
+    *        If a ClassChainNode specifies that there were interfaces declared on the class
+    *        associated with it, the list of interfaces from clazz is traversed the appropriate
+    *        number of times. This is because the the list of interfaces for any given class is
+    *        is a super set of the list of interfaces of its super class. When moving on to the
+    *        next ClassChainNode, if more interfaces have to be verified, the interface list is
+    *        traversed continuing from where it left off from the previous verification.
+    *
+    *        Therefore, if the class being validated has the same shape as that described by the
+    *        class chain, 1. the number of interfaces in the list of interfaces acquired from clazz
+    *        will equal the sum of interfaces specified in the list of class chain nodes that
+    *        make up the class chain, and 2. each interface class will successfully match.
+    *
+    * @param The J9Class whose chain is to be validated
+    * @param The start of the class chain
+    *
+    * @return true if successfully validated, false otherwise.
+    */
+   bool validateClassChainWithSharing(TR_OpaqueClassBlock *clazz, ClassChainNode *startOfClassChain);
+
+   /**
+    * @brief Validates the interfaces declared on the class associated with the current ClassChainNode.
+    *
+    * @param ccNode The current class chain node in the class chain
+    * @param interfaceElement Pointer into the list of interfaces of the clazz whose chain is being
+    *        validated
+    *
+    * @return true if sucessfully validated, false otherwise.
+    */
+   bool validateInterfacesInClassChainNode(ClassChainNode *ccNode, J9ITable * & interfaceElement);
+
+   /**
+    * @brief Validates that the romclass matches the one specified in the current class chain node
+    *
+    * @param romClass The ROMClass of a class in the hierarchy of the class whos chain is being
+    *        validated
+    * @param offsetInCCNode The offset into the SCC of a class described in the ClassChainNode;
+    *        this offset could either be the J9ROMClass of the class associated with the current
+    *        class chain node, or the J9ROMClass of one of the declared interfaces of the class
+    *        associated with the current class chain node
+    *
+    * @return true if successfully validated, false otherwise.
+    */
+   bool romclassMatchesCachedVersion(J9ROMClass *romClass, uintptr_t offsetInCCNode);
+
+   /**
+    * @brief Finds, or creates and stores, the sharable class chain of a class
+    *
+    * @param clazz The class whose chain is to be created
+    * @param storage Memory to be used to create a local copy of the ClassChainNode that will be then
+    *        stored (copied) into the SCC
+    * @param create Debugging parameter to go through the steps of creating the node but not store it
+    *
+    * @return The pointer into the SCC of the ClassChainNode; NULL if failure
+    */
+   ClassChainNode *rememberClassWithSharing(TR_OpaqueClassBlock *clazz, ClassChainNode *storage, bool create);
 
    /**
     * \brief Helper Method; Converts an offset into the ROMClass section into a pointer.
@@ -556,6 +690,8 @@ private:
    static TR_J9SharedCacheDisabledReason _sharedCacheState;
    static TR_YesNoMaybe                  _sharedCacheDisabledBecauseFull;
    static UDATA                          _storeSharedDataFailedLength;
+
+   static ClassChainNode                 _dummyClassChainNode;
    };
 
 

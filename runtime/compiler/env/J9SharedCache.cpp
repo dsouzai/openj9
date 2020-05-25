@@ -60,6 +60,14 @@ TR_J9SharedCache::TR_J9SharedCacheDisabledReason TR_J9SharedCache::_sharedCacheS
 TR_YesNoMaybe TR_J9SharedCache::_sharedCacheDisabledBecauseFull = TR_maybe;
 UDATA TR_J9SharedCache::_storeSharedDataFailedLength = 0;
 
+TR_J9SharedCache::ClassChainNode TR_J9SharedCache::_dummyClassChainNode = {0, 0, TR_J9SharedCache::ClassChainNode::NULL_NODE, {0} };
+
+static TR_OpaqueClassBlock * getSuperClass(TR_OpaqueClassBlock *clazz)
+   {
+   int32_t superClassIndex = TR::Compiler->cls.classDepthOf(clazz) - 1;
+   return TR::Compiler->cls.convertClassPtrToClassOffset(TR::Compiler->cls.superClassesOf(clazz)[superClassIndex]);
+   }
+
 TR_YesNoMaybe TR_J9SharedCache::isSharedCacheDisabledBecauseFull(TR::CompilationInfo *compInfo)
    {
    if (_sharedCacheDisabledBecauseFull == TR_maybe)
@@ -994,8 +1002,8 @@ TR_J9SharedCache::numInterfacesDeclared(TR_OpaqueClassBlock *clazz)
    uint32_t count = 0;
    J9ITable *superClassITableHead = NULL;
 
-   /* Get the most immediate super class, hence index 0 */
-   J9Class *superClass = TR::Compiler->cls.superClassesOf(clazz)[0];
+   /* Get the most immediate super class */
+   J9Class *superClass = reinterpret_cast<J9Class *>(getSuperClass(clazz));
    if (superClass)
       superClassITableHead = TR::Compiler->cls.iTableOf(fe()->convertClassPtrToClassOffset(superClass));
 
@@ -1138,6 +1146,315 @@ TR_J9SharedCache::findChainForClass(J9Class *clazz, const char *key, uint32_t ke
 #endif
    return chainForClass;
    }
+
+/*
+ * CLASS CHAIN SHARING METHODS BEGIN
+ */
+
+bool
+TR_J9SharedCache::romclassMatchesCachedVersion(J9ROMClass *romClass, uintptr_t offsetInCCNode)
+   {
+   J9UTF8 * className = J9ROMCLASS_CLASSNAME(romClass);
+   UDATA romClassOffset;
+   if (!isROMClassInSharedCache(romClass, &romClassOffset))
+      return false;
+   LOG(3, "\t\tExamining romclass %p (%.*s) offset %d, comparing to %d\n", romClass, J9UTF8_LENGTH(className), J9UTF8_DATA(className), romClassOffset, offsetInCCNode);
+   if (romClassOffset != offsetInCCNode)
+      return false;
+   return true;
+   }
+
+TR_J9SharedCache::ClassChainNode *
+TR_J9SharedCache::rememberClassWithSharing(TR_OpaqueClassBlock *clazz, ClassChainNode *storage, bool create)
+   {
+   ClassChainNode *ccNodeInSCC = NULL;
+
+#if defined(J9VM_OPT_SHARED_CLASSES) && (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) || defined(TR_HOST_ARM64))
+   ClassChainNode *nextCCNodeInSCC = NULL;
+   J9ROMClass *romClass = TR::Compiler->cls.romClassOf(clazz);
+
+   J9UTF8 * className = J9ROMCLASS_CLASSNAME(romClass);
+   LOG(1, "rememberClassWithSharing class %p romClass %p %.*s\n", clazz, romClass, J9UTF8_LENGTH(className), J9UTF8_DATA(className));
+
+   /* Check if the romclass is in the SCC */
+   uintptr_t classOffsetInCache;
+   if (!isROMClassInSharedCache(romClass, &classOffsetInCache))
+      {
+      LOG(1,"\trom class not in shared cache, returning\n");
+      return NULL;
+      }
+
+   /* CHeck if the class chain already exists */
+   ccNodeInSCC = getClassChainNode(romClass);
+   if (ccNodeInSCC != NULL)
+      {
+      LOG(1, "\tchain exists (%p) so nothing to store\n", ccNodeInSCC);
+      return ccNodeInSCC;
+      }
+
+   /* Get the most immediate super class */
+   TR_OpaqueClassBlock *superClass = getSuperClass(clazz);
+
+   /* Find or create the class chain node of the superclass */
+   if (superClass)
+      {
+      LOG(1, "rememberClassWithSharing trying to find or create chain node of superclass %p\n", superClass);
+      nextCCNodeInSCC = rememberClassWithSharing(superClass, storage, create);
+      }
+
+   /* If nextCCNodeInSCC is NULL, we must be trying to store the
+    * Class Chain Node of java/lang/Object, which has no super class
+    */
+   if (nextCCNodeInSCC || !superClass)
+      {
+      TR_ASSERT_FATAL(!nextCCNodeInSCC || superClass, "nextCCNodeInSCC %p is not NULL but superClass is\n", nextCCNodeInSCC);
+
+      ClassChainNode *localCCNode = storage;
+
+      /* Initialize the Class Chain Node to be stored into the SCC in the memory pointed
+       * to by storage
+       */
+      LOG(1, "rememberClassWithSharing trying to initialize and store chain node of %p\n", clazz);
+      if (initializeClassChainNode(localCCNode, clazz, classOffsetInCache, nextCCNodeInSCC, create))
+         {
+         /* Store the Class Chain Node in the SCC */
+         if (create)
+            {
+            ccNodeInSCC = storeClassChainNode(localCCNode);
+            }
+         else
+            {
+            LOG(1, "\tnot asked to create but could create, returning dummy node\n");
+            ccNodeInSCC = &_dummyClassChainNode;
+            }
+         }
+      }
+#endif
+
+   return ccNodeInSCC;
+   }
+
+bool
+TR_J9SharedCache::initializeClassChainNode(ClassChainNode *ccNode, TR_OpaqueClassBlock *clazz, uintptr_t classOffsetInCache, ClassChainNode *nextCCNode, bool create)
+   {
+   uintptr_t numInterfaces = numInterfacesDeclared(clazz);
+   if (numInterfaces > ClassChainNode::MAX_NUM_INTERFACES)
+      {
+      LOG(1, "\t\t%d interfaces declared, greater than MAX_NUM_INTERFACES=%d, so bailing\n", numInterfaces, ClassChainNode::MAX_NUM_INTERFACES);
+      return false;
+      }
+
+   ccNode->_numInterfaces = numInterfaces;
+   ccNode->_romClassOffset = classOffsetInCache;
+   if (create && nextCCNode)
+      ccNode->_next = offsetInSharedCacheFromPointer(nextCCNode);
+   else
+      ccNode->_next = ClassChainNode::NULL_NODE;
+
+   /* Get the start of the ITable linked list */
+   J9ITable *interfaceElement = TR::Compiler->cls.iTableOf(clazz);
+
+   /* Store the interfaces only implemented by clazz */
+   for (uint32_t i = 0; i < numInterfaces; i++)
+      {
+      TR_ASSERT_FATAL(interfaceElement, "interfaceElement is NULL even though i=%d (out of %d interfaces)\n", i, numInterfaces);
+
+      uintptr_t interfaceClassOffsetInCache;
+      J9ROMClass *romClassOfInterface = TR::Compiler->cls.iTableRomClass(interfaceElement);
+
+      /* Ensure that the romclass of the interface is in the SCC */
+      if (!isROMClassInSharedCache(romClassOfInterface, &interfaceClassOffsetInCache))
+         {
+         LOG(3, "\t\tinterface romclass %p not in shared cache, initializeClassChainNode returning false\n", romClassOfInterface);
+         return false;
+         }
+
+      LOG(3, "\t\tadding interface romclass %p\n", romClassOfInterface);
+      ccNode->_interfaces[i] = interfaceClassOffsetInCache;
+
+      interfaceElement = TR::Compiler->cls.iTableNext(interfaceElement);
+      }
+
+   return true;
+   }
+
+TR_J9SharedCache::ClassChainNode *
+TR_J9SharedCache::storeClassChainNode(ClassChainNode *ccNode)
+   {
+   const U_8 *ccNodeInSCC = NULL;
+
+#if defined(J9VM_OPT_SHARED_CLASSES) && (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) || defined(TR_HOST_ARM64))
+   /* Account for the fact that sizeof(ClassChainNode) will include the size of one
+    * array element
+    */
+   UDATA ccNodeDataLength =
+         static_cast<uintptr_t>(sizeof(ClassChainNode))
+         - static_cast<uintptr_t>((ClassChainNode::DEFAULT_NUM_INTERFACES*sizeof(uintptr_t)))
+         + static_cast<uintptr_t>((ccNode->_numInterfaces*sizeof(uintptr_t)));
+
+   J9VMThread *vmThread = fe()->getCurrentVMThread();
+
+   char key[17]; // longest possible key length is way less than 16 digits
+   uint32_t keyLength;
+   createClassKey(ccNode->_romClassOffset, key, keyLength);
+
+   J9SharedDataDescriptor dataDescriptor;
+   dataDescriptor.address = reinterpret_cast<U_8*>(ccNode);
+   dataDescriptor.length  = ccNodeDataLength;
+   dataDescriptor.type    = J9SHR_DATA_TYPE_AOTCLASSCHAIN;
+   dataDescriptor.flags   = J9SHRDATA_SINGLE_STORE_FOR_KEY_TYPE;
+
+   ccNodeInSCC = sharedCacheConfig()->storeSharedData(vmThread, key, keyLength, &dataDescriptor);
+
+   if (ccNodeInSCC)
+      {
+      LOG(1, "\tstored data, class chain node at %p\n", ccNodeInSCC);
+      if (aotStats())
+         aotStats()->numNewCHEntriesInSharedClass++;
+      }
+   else
+      {
+      LOG(1, "\tunable to store class chain node\n");
+      TR::Options::getAOTCmdLineOptions()->setOption(TR_NoStoreAOT);
+
+      setSharedCacheDisabledReason(SHARED_CACHE_CLASS_CHAIN_STORE_FAILED);
+      setStoreSharedDataFailedLength(reinterpret_cast<const UDATA>(ccNodeInSCC));
+      }
+#endif
+
+   return const_cast<ClassChainNode *>(reinterpret_cast<const ClassChainNode *>(ccNodeInSCC));
+   }
+
+TR_J9SharedCache::ClassChainNode *
+TR_J9SharedCache::getClassChainNode(J9ROMClass *romClass)
+   {
+   ClassChainNode *ccNode = NULL;
+
+#if defined(J9VM_OPT_SHARED_CLASSES) && (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) || defined(TR_HOST_ARM64))
+   if (romClass)
+      {
+      J9VMThread *vmThread = fe()->getCurrentVMThread();
+
+      char key[17]; // longest possible key length is way less than 16 digits
+      uint32_t keyLength;
+      createClassKey(offsetInSharedCacheFromROMClass(romClass), key, keyLength);
+
+      J9SharedDataDescriptor dataDescriptor;
+      dataDescriptor.address = NULL;
+      sharedCacheConfig()->findSharedData(vmThread,
+                                          key,
+                                          keyLength,
+                                          J9SHR_DATA_TYPE_AOTCLASSCHAIN,
+                                          FALSE,
+                                          &dataDescriptor,
+                                          NULL);
+
+      ccNode = reinterpret_cast<ClassChainNode *>(dataDescriptor.address);
+      }
+#endif
+
+   return ccNode;
+   }
+
+TR_J9SharedCache::ClassChainNode *
+TR_J9SharedCache::getNextClassChainNode(ClassChainNode *ccNode)
+   {
+   uintptr_t nextCCNodeOffset = ccNode->_next;
+   if (nextCCNodeOffset == ClassChainNode::NULL_NODE)
+      return NULL;
+   else
+      return reinterpret_cast<ClassChainNode *>(pointerFromOffsetInSharedCache(ccNode->_next));
+   }
+
+bool
+TR_J9SharedCache::validateInterfacesInClassChainNode(ClassChainNode *ccNode, J9ITable *&interfaceElement)
+   {
+   /* Validate interfaces implemented only by the current class */
+   for (uint32_t i = 0; i < ccNode->_numInterfaces; i++)
+      {
+      /* ccNode specifies there should be more interfaces */
+      if (!interfaceElement)
+         {
+         LOG(1, "\tNot enough interfaces, returning false\n");
+         return false;
+         }
+
+      J9ROMClass *romClassOfInterface = TR::Compiler->cls.iTableRomClass(interfaceElement);
+      if (!romclassMatchesCachedVersion(romClassOfInterface, ccNode->_interfaces[i]))
+         {
+         LOG(1, "\tInterface class %p did not match, returning false\n", romClassOfInterface);
+         return false;
+         }
+
+      /* This is a pointer to the full linked list of the clazz being validated.
+       * Even though in any given iteration of this inner for loop only the
+       * interfaces implemented by the class associated with the current Class
+       * Chain Node is being validated, all the interfaces will be validated
+       * while iterating through the entire class hierarchy
+       */
+      interfaceElement = TR::Compiler->cls.iTableNext(interfaceElement);
+      }
+   return true;
+   }
+
+bool
+TR_J9SharedCache::validateClassChainWithSharing(TR_OpaqueClassBlock *clazz, ClassChainNode *startOfClassChain)
+   {
+   /* Get the start of the ITable linked list */
+   J9ITable *interfaceElement = TR::Compiler->cls.iTableOf(clazz);
+
+   ClassChainNode *ccNode = startOfClassChain;
+   TR_OpaqueClassBlock *currClass = clazz;
+
+   /* Iterate through the class chain */
+   while (ccNode && currClass)
+      {
+      J9ROMClass *romClass = TR::Compiler->cls.romClassOf(currClass);
+
+      if (!romclassMatchesCachedVersion(romClass, ccNode->_romClassOffset))
+         {
+         LOG(1, "\tClass %p in hierarchy did not match, returning false\n", romClass);
+         return false;
+         }
+      else if (!validateInterfacesInClassChainNode(ccNode, interfaceElement))
+         {
+         LOG(1, "\tInterface class did not match, returning false\n");
+         return false;
+         }
+
+      /* Get next ccNode */
+      ccNode = getNextClassChainNode(ccNode);
+
+      /* Get next class in hierarchy */
+      currClass = getSuperClass(currClass);
+      }
+
+   /* Consistency checks */
+   if (ccNode)
+      {
+      LOG(1, "\tfinished classes and interfaces, but not at chain end, returning false\n");
+      return false;
+      }
+   else
+      {
+      if (currClass)
+         {
+         LOG(1, "\tfinished chain, but there are still more classes in hierarchy, returning false\n");
+         return false;
+         }
+      else if (interfaceElement)
+         {
+         LOG(1, "\tfinished chain, but there are still more interfaces being implemented, returning false\n");
+         return false;
+         }
+      }
+
+   return true;
+   }
+
+/*
+ * CLASS CHAIN SHARING METHODS END
+ */
 
 bool
 TR_J9SharedCache::validateSuperClassesInClassChain(TR_OpaqueClassBlock *clazz, UDATA * & chainPtr, UDATA *chainEnd)
