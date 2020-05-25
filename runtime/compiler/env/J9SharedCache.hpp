@@ -383,7 +383,26 @@ private:
    void convertUnsignedOffsetToASCII(UDATA offset, char *myBuffer);
    void createClassKey(UDATA classOffsetInCache, char *key, uint32_t & keyLength);
 
-   uint32_t numInterfacesImplemented(J9Class *clazz);
+   /**
+    * @brief Determines the number of interfaces that are specified on the declaration of
+    *        the class. This is different from the number of interfaces implemented by the
+    *        class, because the class might implement interfaces than are specified on its
+    *        declaration (because of interfaces specified on some super class' declaration)
+    *
+    * @param clazz The J9Class whose declared interfaces is to be determined
+    *
+    * @return The number of declared interfaces on clazz
+    */
+   uint32_t numInterfacesDeclared(TR_OpaqueClassBlock *clazz);
+
+   /**
+    * @brief Determines the number of interfaces implemented by the class passed in
+    *
+    * @param clazz The J9Class whose number of implemented interfaces is to be determined
+    *
+    * @return The number of interfaces implemented by clazz
+    */
+   uint32_t numInterfacesImplemented(TR_OpaqueClassBlock *clazz);
 
    bool writeClassToChain(J9ROMClass *romClass, UDATA * & chainPtr);
    bool writeClassesToChain(J9Class *clazz, int32_t numSuperclasses, UDATA * & chainPtr);

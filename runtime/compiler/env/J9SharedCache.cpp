@@ -867,7 +867,9 @@ TR_J9SharedCache::rememberClass(J9Class *clazz, bool create)
    UDATA *chainData = NULL;
 #if defined(J9VM_OPT_SHARED_CLASSES) && (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) || defined(TR_HOST_ARM64))
    TR_J9VMBase *fej9 = (TR_J9VMBase *)(fe());
-   J9ROMClass *romClass = TR::Compiler->cls.romClassOf(fej9->convertClassPtrToClassOffset(clazz));
+   TR_OpaqueClassBlock *opaqueClass = fe()->convertClassPtrToClassOffset(clazz);
+
+   J9ROMClass *romClass = TR::Compiler->cls.romClassOf(opaqueClass);
 
    J9UTF8 * className = J9ROMCLASS_CLASSNAME(romClass);
    LOG(1, "rememberClass class %p romClass %p %.*s\n", clazz, romClass, J9UTF8_LENGTH(className), J9UTF8_DATA(className));
@@ -892,8 +894,8 @@ TR_J9SharedCache::rememberClass(J9Class *clazz, bool create)
       return chainData;
       }
 
-   int32_t numSuperclasses = TR::Compiler->cls.classDepthOf(fe()->convertClassPtrToClassOffset(clazz));
-   int32_t numInterfaces = numInterfacesImplemented(clazz);
+   int32_t numSuperclasses = TR::Compiler->cls.classDepthOf(opaqueClass);
+   int32_t numInterfaces = numInterfacesImplemented(opaqueClass);
 
    LOG(3, "\tcreating chain now: 1 + 1 + %d superclasses + %d interfaces\n", numSuperclasses, numInterfaces);
    UDATA chainLength = (2 + numSuperclasses + numInterfaces) * sizeof(UDATA);
@@ -987,10 +989,38 @@ TR_J9SharedCache::getDebugCounterName(UDATA offset)
    }
 
 uint32_t
-TR_J9SharedCache::numInterfacesImplemented(J9Class *clazz)
+TR_J9SharedCache::numInterfacesDeclared(TR_OpaqueClassBlock *clazz)
+   {
+   uint32_t count = 0;
+   J9ITable *superClassITableHead = NULL;
+
+   /* Get the most immediate super class, hence index 0 */
+   J9Class *superClass = TR::Compiler->cls.superClassesOf(clazz)[0];
+   if (superClass)
+      superClassITableHead = TR::Compiler->cls.iTableOf(fe()->convertClassPtrToClassOffset(superClass));
+
+   J9ITable *classITableHead = TR::Compiler->cls.iTableOf(clazz);
+
+   /* The linked listed point to by superClassITableHead is contained in
+    * the linked list pointed to by classITableHead. Therefore, it is not
+    * possible for classITableHead to be NULL if superClassITableHead is
+    * not NULL.
+    */
+   J9ITable *element = classITableHead;
+   while (element != superClassITableHead)
+      {
+      count++;
+      element = TR::Compiler->cls.iTableNext(element);
+      }
+
+   return count;
+   }
+
+uint32_t
+TR_J9SharedCache::numInterfacesImplemented(TR_OpaqueClassBlock *clazz)
    {
    uint32_t count=0;
-   J9ITable *element = TR::Compiler->cls.iTableOf(fe()->convertClassPtrToClassOffset(clazz));
+   J9ITable *element = TR::Compiler->cls.iTableOf(clazz);
    while (element != NULL)
       {
       count++;
