@@ -429,13 +429,13 @@ private:
    uint32_t numInterfacesImplemented(TR_OpaqueClassBlock *clazz);
 
    bool writeClassToChain(J9ROMClass *romClass, UDATA * & chainPtr);
-   bool writeClassesToChain(J9Class *clazz, int32_t numSuperclasses, UDATA * & chainPtr);
-   bool writeInterfacesToChain(J9Class *clazz, UDATA * & chainPtr);
-   bool fillInClassChain(J9Class *clazz, UDATA *chainData, uint32_t chainLength,
+   bool writeClassesToChain(TR_OpaqueClassBlock *clazz, int32_t numSuperclasses, UDATA * & chainPtr);
+   bool writeInterfacesToChain(TR_OpaqueClassBlock *clazz, UDATA * & chainPtr);
+   bool fillInClassChain(TR_OpaqueClassBlock *clazz, UDATA *chainData, uint32_t chainLength,
                          uint32_t numSuperclasses, uint32_t numInterfaces);
 
    bool romclassMatchesCachedVersion(J9ROMClass *romClass, UDATA * & chainPtr, UDATA *chainEnd);
-   UDATA *findChainForClass(J9Class *clazz, const char *key, uint32_t keyLength);
+   UDATA *findChainForClass(const char *key, uint32_t keyLength);
 
    /**
     * @brief Create a class chain without sharing enabled

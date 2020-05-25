@@ -883,7 +883,7 @@ TR_J9SharedCache::rememberClass(J9Class *clazz, bool create)
       uint32_t bufferSize = sizeof(ClassChainNode) + (ClassChainNode::MAX_NUM_INTERFACES - 1)*sizeof(uintptr_t);
       uint8_t buffer[bufferSize];
 
-      return reinterpret_cast<UDATA *>(rememberClassWithSharing(fe()->convertClassPtrToClassOffset(clazz),
+      return reinterpret_cast<UDATA *>(rememberClassWithSharing(TR::Compiler->cls.convertClassPtrToClassOffset(clazz),
                                                                 reinterpret_cast<ClassChainNode *>(buffer),
                                                                 create));
       }
@@ -938,7 +938,7 @@ TR_J9SharedCache::numInterfacesDeclared(TR_OpaqueClassBlock *clazz)
    /* Get the most immediate super class */
    J9Class *superClass = reinterpret_cast<J9Class *>(getSuperClass(clazz));
    if (superClass)
-      superClassITableHead = TR::Compiler->cls.iTableOf(fe()->convertClassPtrToClassOffset(superClass));
+      superClassITableHead = TR::Compiler->cls.iTableOf(TR::Compiler->cls.convertClassPtrToClassOffset(superClass));
 
    J9ITable *classITableHead = TR::Compiler->cls.iTableOf(clazz);
 
@@ -987,13 +987,13 @@ TR_J9SharedCache::writeClassToChain(J9ROMClass *romClass, UDATA * & chainPtr)
    }
 
 bool
-TR_J9SharedCache::writeClassesToChain(J9Class *clazz, int32_t numSuperclasses, UDATA * & chainPtr)
+TR_J9SharedCache::writeClassesToChain(TR_OpaqueClassBlock *clazz, int32_t numSuperclasses, UDATA * & chainPtr)
    {
    LOG(3, "\t\twriteClassesToChain:\n");
 
    for (int32_t index=0; index < numSuperclasses;index++)
       {
-      J9ROMClass *romClass = TR::Compiler->cls.romClassOfSuperClass(fe()->convertClassPtrToClassOffset(clazz), index);
+      J9ROMClass *romClass = TR::Compiler->cls.romClassOfSuperClass(clazz, index);
       if (!writeClassToChain(romClass, chainPtr))
          return false;
       }
@@ -1001,11 +1001,11 @@ TR_J9SharedCache::writeClassesToChain(J9Class *clazz, int32_t numSuperclasses, U
    }
 
 bool
-TR_J9SharedCache::writeInterfacesToChain(J9Class *clazz, UDATA * & chainPtr)
+TR_J9SharedCache::writeInterfacesToChain(TR_OpaqueClassBlock *clazz, UDATA * & chainPtr)
    {
    LOG(3, "\t\twriteInterfacesToChain:\n");
 
-   J9ITable *element = TR::Compiler->cls.iTableOf(fe()->convertClassPtrToClassOffset(clazz));
+   J9ITable *element = TR::Compiler->cls.iTableOf(clazz);
    while (element != NULL)
       {
       J9ROMClass *romClass = TR::Compiler->cls.iTableRomClass(element);
@@ -1019,14 +1019,14 @@ TR_J9SharedCache::writeInterfacesToChain(J9Class *clazz, UDATA * & chainPtr)
    }
 
 bool
-TR_J9SharedCache::fillInClassChain(J9Class *clazz, UDATA *chainData, uint32_t chainLength,
+TR_J9SharedCache::fillInClassChain(TR_OpaqueClassBlock *clazz, UDATA *chainData, uint32_t chainLength,
                                    uint32_t numSuperclasses, uint32_t numInterfaces)
    {
    LOG(3, "\t\tChain %p store chainLength %d\n", chainData, chainLength);
 
    UDATA *chainPtr = chainData;
    *chainPtr++ = chainLength;
-   J9ROMClass* romClass = TR::Compiler->cls.romClassOf(fe()->convertClassPtrToClassOffset(clazz));
+   J9ROMClass* romClass = TR::Compiler->cls.romClassOf(clazz);
    writeClassToChain(romClass, chainPtr);
    if (!writeClassesToChain(clazz, numSuperclasses, chainPtr))
       {
@@ -1057,7 +1057,7 @@ TR_J9SharedCache::romclassMatchesCachedVersion(J9ROMClass *romClass, UDATA * & c
    }
 
 UDATA *
-TR_J9SharedCache::findChainForClass(J9Class *clazz, const char *key, uint32_t keyLength)
+TR_J9SharedCache::findChainForClass(const char *key, uint32_t keyLength)
    {
    UDATA * chainForClass = NULL;
 #if defined(J9VM_OPT_SHARED_CLASSES) && (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) || defined(TR_HOST_ARM64))
@@ -1085,8 +1085,7 @@ TR_J9SharedCache::rememberClassWithoutSharing(J9Class *clazz, bool create)
    {
    UDATA *chainData = NULL;
 #if defined(J9VM_OPT_SHARED_CLASSES) && (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) || defined(TR_HOST_ARM64))
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(fe());
-   TR_OpaqueClassBlock *opaqueClass = fej9->convertClassPtrToClassOffset(clazz);
+   TR_OpaqueClassBlock *opaqueClass = TR::Compiler->cls.convertClassPtrToClassOffset(clazz);
 
    J9ROMClass *romClass = TR::Compiler->cls.romClassOf(opaqueClass);
 
@@ -1106,7 +1105,7 @@ TR_J9SharedCache::rememberClassWithoutSharing(J9Class *clazz, bool create)
 
    LOG(3, "\tkey created: %.*s\n", keyLength, key);
 
-   chainData = findChainForClass(clazz, key, keyLength);
+   chainData = findChainForClass(key, keyLength);
    if (chainData != NULL)
       {
       LOG(1, "\tchain exists (%p) so nothing to store\n", chainData);
@@ -1127,7 +1126,7 @@ TR_J9SharedCache::rememberClassWithoutSharing(J9Class *clazz, bool create)
       return NULL;
       }
 
-   if (!fillInClassChain(clazz, chainData, chainLength, numSuperclasses, numInterfaces))
+   if (!fillInClassChain(opaqueClass, chainData, chainLength, numSuperclasses, numInterfaces))
       {
       LOG(1, "\tfillInClassChain failed, bailing\n");
       return NULL;
@@ -1150,7 +1149,7 @@ TR_J9SharedCache::rememberClassWithoutSharing(J9Class *clazz, bool create)
    if (aotStats())
       aotStats()->numNewCHEntriesInSharedClass++;
 
-   J9VMThread *vmThread = fej9->getCurrentVMThread();
+   J9VMThread *vmThread = fe()->getCurrentVMThread();
    chainData = (UDATA *) sharedCacheConfig()->storeSharedData(vmThread,
                                                              (const char*)key,
                                                              keyLength,
@@ -1545,7 +1544,8 @@ TR_J9SharedCache::validateClassChainWithoutSharing(J9ROMClass *romClass, TR_Opaq
 bool
 TR_J9SharedCache::classMatchesCachedVersion(J9Class *clazz, UDATA *chainData)
    {
-   J9ROMClass *romClass = TR::Compiler->cls.romClassOf(fe()->convertClassPtrToClassOffset(clazz));
+   TR_OpaqueClassBlock *opaqueClass = TR::Compiler->cls.convertClassPtrToClassOffset(clazz);
+   J9ROMClass *romClass = TR::Compiler->cls.romClassOf(opaqueClass);
    J9UTF8 * className = J9ROMCLASS_CLASSNAME(romClass);
    LOG(1, "classMatchesCachedVersion class %p %.*s\n", clazz, J9UTF8_LENGTH(className), J9UTF8_DATA(className));
 
@@ -1597,7 +1597,7 @@ TR_J9SharedCache::classMatchesCachedVersion(J9Class *clazz, UDATA *chainData)
          uint32_t keyLength;
          createClassKey(classOffsetInCache, key, keyLength);
          LOG(3, "\tno chain specific, so looking up for key %.*s\n", keyLength, key);
-         chainData = findChainForClass(clazz, key, keyLength);
+         chainData = findChainForClass(key, keyLength);
          }
       }
 
@@ -1619,7 +1619,7 @@ TR_J9SharedCache::classMatchesCachedVersion(J9Class *clazz, UDATA *chainData)
       LOG(3, "\tfound chain: %p\n", chainData);
 
       /* Perform class chain validation with sharing */
-      success = validateClassChainWithSharing(fe()->convertClassPtrToClassOffset(clazz), reinterpret_cast<ClassChainNode *>(chainData));
+      success = validateClassChainWithSharing(opaqueClass, reinterpret_cast<ClassChainNode *>(chainData));
       }
    else
       {
@@ -1629,7 +1629,7 @@ TR_J9SharedCache::classMatchesCachedVersion(J9Class *clazz, UDATA *chainData)
       LOG(3, "\tfound chain: %p with length %d\n", chainData, chainLength);
 
       /* Perform class chain validation without sharing */
-      success = validateClassChainWithoutSharing(romClass, fe()->convertClassPtrToClassOffset(clazz), chainPtr, chainEnd);
+      success = validateClassChainWithoutSharing(romClass, opaqueClass, chainPtr, chainEnd);
       }
 
    /* Cache the result of the validation */
