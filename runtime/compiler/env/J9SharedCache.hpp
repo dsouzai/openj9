@@ -438,6 +438,16 @@ private:
    UDATA *findChainForClass(J9Class *clazz, const char *key, uint32_t keyLength);
 
    /**
+    * @brief Create a class chain without sharing enabled
+    *
+    * @param The J9Class whose chain is to be validated
+    * @param The start of the class chain
+    *
+    * @return true if successfully validated, false otherwise.
+    */
+   UDATA *rememberClassWithoutSharing(J9Class *clazz, bool create);
+
+   /**
     * @brief Initializes a class chain node that is part of the sharable class chain
     *
     * @param ccNode The ClassChainNode to be initialized; this pointer is NOT a pointer
@@ -597,7 +607,7 @@ private:
     * \param[in] chainEnd Pointer to the end of the class chain
     * \return true if validation succeeded, false otherwise.
     */
-   bool validateClassChain(J9ROMClass *romClass, TR_OpaqueClassBlock *clazz, UDATA * & chainPtr, UDATA *chainEnd);
+   bool validateClassChainWithoutSharing(J9ROMClass *romClass, TR_OpaqueClassBlock *clazz, UDATA * & chainPtr, UDATA *chainEnd);
 
    /**
     * \brief Validates the super classes portion of the class chain. This method modifies the chainPtr arg.

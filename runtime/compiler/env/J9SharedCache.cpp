@@ -872,92 +872,25 @@ TR_J9SharedCache::createClassKey(UDATA classOffsetInCache, char *key, uint32_t &
 UDATA *
 TR_J9SharedCache::rememberClass(J9Class *clazz, bool create)
    {
-   UDATA *chainData = NULL;
-#if defined(J9VM_OPT_SHARED_CLASSES) && (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) || defined(TR_HOST_ARM64))
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(fe());
-   TR_OpaqueClassBlock *opaqueClass = fe()->convertClassPtrToClassOffset(clazz);
-
-   J9ROMClass *romClass = TR::Compiler->cls.romClassOf(opaqueClass);
-
-   J9UTF8 * className = J9ROMCLASS_CLASSNAME(romClass);
-   LOG(1, "rememberClass class %p romClass %p %.*s\n", clazz, romClass, J9UTF8_LENGTH(className), J9UTF8_DATA(className));
-
-   uintptr_t classOffsetInCache;
-   if (!isROMClassInSharedCache(romClass, &classOffsetInCache))
+   if (TR::Options::getAOTCmdLineOptions()->getOption(TR_EnableClassChainSharing))
       {
-      LOG(1,"\trom class not in shared cache, returning\n");
-      return NULL;
-      }
+      /* Allocate a buffer on the stack for temporary local storage to initialize the
+       * ClassChainNode that will be stored (copied) into the SCC. Allocate the buffer
+       * here to minimize the chance of a stack overflow, as rememberClassWithSharing
+       * is recursive. We do (ClassChainNode::MAX_NUM_INTERFACES - 1) because
+       * sizeof(ClassChainNode) includes the size of an array of length 1.
+       */
+      uint32_t bufferSize = sizeof(ClassChainNode) + (ClassChainNode::MAX_NUM_INTERFACES - 1)*sizeof(uintptr_t);
+      uint8_t buffer[bufferSize];
 
-   char key[17]; // longest possible key length is way less than 16 digits
-   uint32_t keyLength;
-   createClassKey(classOffsetInCache, key, keyLength);
-
-   LOG(3, "\tkey created: %.*s\n", keyLength, key);
-
-   chainData = findChainForClass(clazz, key, keyLength);
-   if (chainData != NULL)
-      {
-      LOG(1, "\tchain exists (%p) so nothing to store\n", chainData);
-      return chainData;
-      }
-
-   int32_t numSuperclasses = TR::Compiler->cls.classDepthOf(opaqueClass);
-   int32_t numInterfaces = numInterfacesImplemented(opaqueClass);
-
-   LOG(3, "\tcreating chain now: 1 + 1 + %d superclasses + %d interfaces\n", numSuperclasses, numInterfaces);
-   UDATA chainLength = (2 + numSuperclasses + numInterfaces) * sizeof(UDATA);
-   const uint32_t maxChainLength = 32;
-   UDATA typicalChainData[maxChainLength];
-   chainData = typicalChainData;
-   if (chainLength > maxChainLength*sizeof(UDATA))
-      {
-      LOG(1, "\t\t > %d so bailing\n", maxChainLength);
-      return NULL;
-      }
-
-   if (!fillInClassChain(clazz, chainData, chainLength, numSuperclasses, numInterfaces))
-      {
-      LOG(1, "\tfillInClassChain failed, bailing\n");
-      return NULL;
-      }
-
-   if (!create)
-      {
-      LOG(1, "\tnot asked to create but could create, returning non-null\n");
-      return (UDATA *) 0x1;
-      }
-
-   UDATA chainDataLength = chainData[0];
-
-   J9SharedDataDescriptor dataDescriptor;
-   dataDescriptor.address = (U_8*)chainData;
-   dataDescriptor.length  = chainDataLength;
-   dataDescriptor.type    = J9SHR_DATA_TYPE_AOTCLASSCHAIN;
-   dataDescriptor.flags   = J9SHRDATA_SINGLE_STORE_FOR_KEY_TYPE;
-
-   if (aotStats())
-      aotStats()->numNewCHEntriesInSharedClass++;
-
-   J9VMThread *vmThread = fej9->getCurrentVMThread();
-   chainData = (UDATA *) sharedCacheConfig()->storeSharedData(vmThread,
-                                                             (const char*)key,
-                                                             keyLength,
-                                                             &dataDescriptor);
-   if (chainData)
-      {
-      LOG(1, "\tstored data, chain at %p\n", chainData);
+      return reinterpret_cast<UDATA *>(rememberClassWithSharing(fe()->convertClassPtrToClassOffset(clazz),
+                                                                reinterpret_cast<ClassChainNode *>(buffer),
+                                                                create));
       }
    else
       {
-      LOG(1, "\tunable to store chain\n");
-      TR::Options::getAOTCmdLineOptions()->setOption(TR_NoStoreAOT);
-
-      setSharedCacheDisabledReason(SHARED_CACHE_CLASS_CHAIN_STORE_FAILED);
-      setStoreSharedDataFailedLength(chainDataLength);
+      return rememberClassWithoutSharing(clazz, create);
       }
-#endif
-   return chainData;
    }
 
 UDATA
@@ -1145,6 +1078,97 @@ TR_J9SharedCache::findChainForClass(J9Class *clazz, const char *key, uint32_t ke
    chainForClass = (UDATA *) dataDescriptor.address;
 #endif
    return chainForClass;
+   }
+
+UDATA *
+TR_J9SharedCache::rememberClassWithoutSharing(J9Class *clazz, bool create)
+   {
+   UDATA *chainData = NULL;
+#if defined(J9VM_OPT_SHARED_CLASSES) && (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) || defined(TR_HOST_ARM64))
+   TR_J9VMBase *fej9 = (TR_J9VMBase *)(fe());
+   TR_OpaqueClassBlock *opaqueClass = fej9->convertClassPtrToClassOffset(clazz);
+
+   J9ROMClass *romClass = TR::Compiler->cls.romClassOf(opaqueClass);
+
+   J9UTF8 * className = J9ROMCLASS_CLASSNAME(romClass);
+   LOG(1, "rememberClassWithoutSharing class %p romClass %p %.*s\n", clazz, romClass, J9UTF8_LENGTH(className), J9UTF8_DATA(className));
+
+   uintptr_t classOffsetInCache;
+   if (!isROMClassInSharedCache(romClass, &classOffsetInCache))
+      {
+      LOG(1,"\trom class not in shared cache, returning\n");
+      return NULL;
+      }
+
+   char key[17]; // longest possible key length is way less than 16 digits
+   uint32_t keyLength;
+   createClassKey(classOffsetInCache, key, keyLength);
+
+   LOG(3, "\tkey created: %.*s\n", keyLength, key);
+
+   chainData = findChainForClass(clazz, key, keyLength);
+   if (chainData != NULL)
+      {
+      LOG(1, "\tchain exists (%p) so nothing to store\n", chainData);
+      return chainData;
+      }
+
+   int32_t numSuperclasses = TR::Compiler->cls.classDepthOf(opaqueClass);
+   int32_t numInterfaces = numInterfacesImplemented(opaqueClass);
+
+   LOG(3, "\tcreating chain now: 1 + 1 + %d superclasses + %d interfaces\n", numSuperclasses, numInterfaces);
+   UDATA chainLength = (2 + numSuperclasses + numInterfaces) * sizeof(UDATA);
+   const uint32_t maxChainLength = 32;
+   UDATA typicalChainData[maxChainLength];
+   chainData = typicalChainData;
+   if (chainLength > maxChainLength*sizeof(UDATA))
+      {
+      LOG(1, "\t\t > %d so bailing\n", maxChainLength);
+      return NULL;
+      }
+
+   if (!fillInClassChain(clazz, chainData, chainLength, numSuperclasses, numInterfaces))
+      {
+      LOG(1, "\tfillInClassChain failed, bailing\n");
+      return NULL;
+      }
+
+   if (!create)
+      {
+      LOG(1, "\tnot asked to create but could create, returning non-null\n");
+      return (UDATA *) 0x1;
+      }
+
+   UDATA chainDataLength = chainData[0];
+
+   J9SharedDataDescriptor dataDescriptor;
+   dataDescriptor.address = (U_8*)chainData;
+   dataDescriptor.length  = chainDataLength;
+   dataDescriptor.type    = J9SHR_DATA_TYPE_AOTCLASSCHAIN;
+   dataDescriptor.flags   = J9SHRDATA_SINGLE_STORE_FOR_KEY_TYPE;
+
+   if (aotStats())
+      aotStats()->numNewCHEntriesInSharedClass++;
+
+   J9VMThread *vmThread = fej9->getCurrentVMThread();
+   chainData = (UDATA *) sharedCacheConfig()->storeSharedData(vmThread,
+                                                             (const char*)key,
+                                                             keyLength,
+                                                             &dataDescriptor);
+   if (chainData)
+      {
+      LOG(1, "\tstored data, chain at %p\n", chainData);
+      }
+   else
+      {
+      LOG(1, "\tunable to store chain\n");
+      TR::Options::getAOTCmdLineOptions()->setOption(TR_NoStoreAOT);
+
+      setSharedCacheDisabledReason(SHARED_CACHE_CLASS_CHAIN_STORE_FAILED);
+      setStoreSharedDataFailedLength(chainDataLength);
+      }
+#endif
+   return chainData;
    }
 
 /*
@@ -1490,7 +1514,7 @@ TR_J9SharedCache::validateInterfacesInClassChain(TR_OpaqueClassBlock *clazz, UDA
    }
 
 bool
-TR_J9SharedCache::validateClassChain(J9ROMClass *romClass, TR_OpaqueClassBlock *clazz, UDATA * & chainPtr, UDATA *chainEnd)
+TR_J9SharedCache::validateClassChainWithoutSharing(J9ROMClass *romClass, TR_OpaqueClassBlock *clazz, UDATA * & chainPtr, UDATA *chainEnd)
    {
    bool validationSucceeded = false;
 
@@ -1563,11 +1587,18 @@ TR_J9SharedCache::classMatchesCachedVersion(J9Class *clazz, UDATA *chainData)
     */
    if (chainData == NULL)
       {
-      char key[17]; // longest possible key length is way less than 16 digits
-      uint32_t keyLength;
-      createClassKey(classOffsetInCache, key, keyLength);
-      LOG(3, "\tno chain specific, so looking up for key %.*s\n", keyLength, key);
-      chainData = findChainForClass(clazz, key, keyLength);
+      if (TR::Options::getAOTCmdLineOptions()->getOption(TR_EnableClassChainSharing))
+         {
+         chainData = reinterpret_cast<UDATA *>(getClassChainNode(romClass));
+         }
+      else
+         {
+         char key[17]; // longest possible key length is way less than 16 digits
+         uint32_t keyLength;
+         createClassKey(classOffsetInCache, key, keyLength);
+         LOG(3, "\tno chain specific, so looking up for key %.*s\n", keyLength, key);
+         chainData = findChainForClass(clazz, key, keyLength);
+         }
       }
 
    /* If the chainData is still NULL, cache the result as failure
@@ -1582,13 +1613,24 @@ TR_J9SharedCache::classMatchesCachedVersion(J9Class *clazz, UDATA *chainData)
       return false;
       }
 
-   UDATA *chainPtr = chainData;
-   UDATA chainLength = *chainPtr++;
-   UDATA *chainEnd = (UDATA *) (((U_8*)chainData) + chainLength);
-   LOG(3, "\tfound chain: %p with length %d\n", chainData, chainLength);
+   bool success;
+   if (TR::Options::getAOTCmdLineOptions()->getOption(TR_EnableClassChainSharing))
+      {
+      LOG(3, "\tfound chain: %p\n", chainData);
 
-   /* Perform class chain validation */
-   bool success = validateClassChain(romClass, fe()->convertClassPtrToClassOffset(clazz), chainPtr, chainEnd);
+      /* Perform class chain validation with sharing */
+      success = validateClassChainWithSharing(fe()->convertClassPtrToClassOffset(clazz), reinterpret_cast<ClassChainNode *>(chainData));
+      }
+   else
+      {
+      UDATA *chainPtr = chainData;
+      UDATA chainLength = *chainPtr++;
+      UDATA *chainEnd = (UDATA *) (((U_8*)chainData) + chainLength);
+      LOG(3, "\tfound chain: %p with length %d\n", chainData, chainLength);
+
+      /* Perform class chain validation without sharing */
+      success = validateClassChainWithoutSharing(romClass, fe()->convertClassPtrToClassOffset(clazz), chainPtr, chainEnd);
+      }
 
    /* Cache the result of the validation */
    if (TR::Options::getAOTCmdLineOptions()->getOption(TR_EnableClassChainValidationCaching))
