@@ -378,6 +378,7 @@ class ClientSessionData
       TR_ASSERT(_unloadedClassAddresses, "Unloaded classes address set should exist by now");
       return *_unloadedClassAddresses;
       }
+   void updateCacheDescHeader(JITServer::ServerStream *stream);
 
    void incInUse() { _inUse++; }
    void decInUse() { _inUse--; TR_ASSERT(_inUse >= 0, "_inUse=%d must be positive\n", _inUse); }

@@ -2173,6 +2173,15 @@ handleServerMessage(JITServer::ClientStream *client, TR_J9VM *fe, JITServer::Mes
          client->write(response, ptr);
          }
          break;
+      case MessageType::SharedCache_updateCacheHeader:
+         {
+         auto cacheDescriptor = fe->sharedCache()->getCacheDescriptorList();
+         auto cacheHeader = cacheDescriptor->cacheStartAddress;
+         auto segmentSRP = cacheHeader->segmentSRP;
+         auto updateSRP = cacheHeader->updateSRP;
+         client->write(response, segmentSRP, updateSRP);
+         }
+         break;
       case MessageType::runFEMacro_invokeILGenMacrosInvokeExactAndFixup:
          {
          auto recv = client->getRecvData<uintptr_t*, std::vector<uintptr_t> >();

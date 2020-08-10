@@ -364,6 +364,23 @@ ClientSessionData::ClassInfo::freeClassInfo()
    jitPersistentFree(_interfaces);
    }
 
+void
+ClientSessionData::updateCacheDescHeader(JITServer::ServerStream *stream)
+   {
+   VMInfo *vmInfo = _vmInfo;
+   if (!vmInfo)
+      vmInfo = getOrCacheVMInfo(stream);
+
+   stream->write(JITServer::MessageType::SharedCache_updateCacheHeader, JITServer::Void());
+   auto recv = stream->read<uintptr_t, uintptr_t>();
+   auto segmentSRP = std::get<0>(recv);
+   auto updateSRP = std::get<1>(recv);
+
+   J9SharedClassCacheDescriptor *cur = vmInfo->_j9SharedClassCacheDescriptorList;
+   cur->cacheStartAddress->segmentSRP = segmentSRP;
+   cur->cacheStartAddress->updateSRP = updateSRP;
+   }
+
 ClientSessionData::VMInfo *
 ClientSessionData::getOrCacheVMInfo(JITServer::ServerStream *stream)
    {
