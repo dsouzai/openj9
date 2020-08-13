@@ -977,6 +977,8 @@ TR_SharedCacheRelocationRuntime::checkAOTHeaderFlags(TR_AOTHeader *hdrInCache, i
       defaultMessage = generateError(J9NLS_RELOCATABLE_CODE_SW_READBAR_MISMATCH, "AOT header validation failed: Software Read Barrier feature mismatch.");
    if ((featureFlags & TR_FeatureFlag_UsesTM) != (hdrInCache->featureFlags & TR_FeatureFlag_UsesTM))
       defaultMessage = generateError(J9NLS_RELOCATABLE_CODE_TM_MISMATCH, "AOT header validation failed: TM feature mismatch.");
+   if ((featureFlags & TR_FeatureFlag_UsesClassChainSharing) != (hdrInCache->featureFlags & TR_FeatureFlag_UsesClassChainSharing))
+      defaultMessage = generateError(J9NLS_RELOCATABLE_CODE_CHAIN_SHARING_MISMATCH, "AOT header validation failed: Class Chain Sharing feature mismatch.");
 
    if ((featureFlags & TR_FeatureFlag_SanityCheckEnd) != (hdrInCache->featureFlags & TR_FeatureFlag_SanityCheckEnd))
       defaultMessage = generateError(J9NLS_RELOCATABLE_CODE_HEADER_END_SANITY_BIT_MANGLED, "AOT header validation failed: Trailing sanity bit mismatch.");
@@ -1315,6 +1317,9 @@ TR_SharedCacheRelocationRuntime::generateFeatureFlags(TR_FrontEnd *fe)
          featureFlags |= TR_FeatureFlag_UsesTM;
          }
       }
+
+   if (TR::Options::getAOTCmdLineOptions()->getOption(TR_EnableClassChainSharing))
+      featureFlags |= TR_FeatureFlag_UsesClassChainSharing;
 
    return featureFlags;
    }

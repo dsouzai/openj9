@@ -240,6 +240,13 @@ J9NLS_RELOCATABLE_CODE_CACHE_TOO_BIG.user_response=Destroy and recreate the AOT 
 J9NLS_RELOCATABLE_CODE_CACHE_TOO_BIG.link=dita:///diag/appendixes/cmdline/cmdline_x.dita#cmdline_x/xshareclasses-reset
 # END NON-TRANSLATABLE
 
+J9NLS_RELOCATABLE_CODE_CHAIN_SHARING_MISMATCH=Class Chain Sharing feature mismatch. Ignoring AOT code in shared class cache.
+# START NON-TRANSLATABLE
+J9NLS_RELOCATABLE_CODE_CHAIN_SHARING_MISMATCH.explanation=The JVM is not running in the same class chain sharing mode as the one that generated the code in the SCC.
+J9NLS_RELOCATABLE_CODE_CHAIN_SHARING_MISMATCH.system_action=The compiler will not generate AOT code. AOT code from the shared class cache will not be used.
+J9NLS_RELOCATABLE_CODE_CHAIN_SHARING_MISMATCH.user_response=Destroy and recreate the AOT code in the shared class cache for the current platform using the -Xshareclasses:reset option.
+J9NLS_RELOCATABLE_CODE_CHAIN_SHARING_MISMATCH.link=dita:///diag/appendixes/cmdline/cmdline_x.dita#cmdline_x/xshareclasses-reset
+# END NON-TRANSLATABLE
 
 J9NLS_RELOCATABLE_CODE_UNKNOWN_PROBLEM=Unknown Problem. Ignoring AOT code in shared class cache.
 # START NON-TRANSLATABLE

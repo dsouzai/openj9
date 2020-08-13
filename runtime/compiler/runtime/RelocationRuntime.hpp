@@ -77,6 +77,7 @@ typedef enum TR_AOTFeatureFlags
    TR_FeatureFlag_ConcurrentScavenge            = 0x00000800,
    TR_FeatureFlag_SoftwareReadBarrier           = 0x00001000,
    TR_FeatureFlag_UsesTM                        = 0x00002000,
+   TR_FeatureFlag_UsesClassChainSharing         = 0x00004000,
    TR_FeatureFlag_SanityCheckEnd                = 0x80000000
    } TR_AOTFeatureFlags;
 
