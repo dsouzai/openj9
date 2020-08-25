@@ -1021,6 +1021,18 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          }
          break;
 
+      case TR_AbsoluteMethodAddressOrderedPair:
+         {
+         TR_RelocationRecordMethodAddress *maRecord = reinterpret_cast<TR_RelocationRecordMethodAddress *>(reloRecord);
+
+         TR_RelocationRecordInformation *recordInfo = (TR_RelocationRecordInformation *) relocation->getTargetAddress();
+         uint8_t flags = reinterpret_cast<uint8_t>(recordInfo->data3);
+
+         TR_ASSERT((flags & RELOCATION_CROSS_PLATFORM_FLAGS_MASK) == 0,  "reloFlags bits overlap cross-platform flags bits\n");
+         maRecord->setReloFlags(reloTarget, flags);
+         }
+         break;
+
       default:
          return cursor;
       }
@@ -1092,6 +1104,7 @@ J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool isVerbose
       case TR_BodyInfoAddress:
       case TR_RamMethod:
       case TR_ClassUnloadAssumption:
+      case TR_AbsoluteMethodAddressOrderedPair:
          {
          self()->traceRelocationOffsets(startOfOffsets, offsetSize, endOfCurrentRecord, orderedPair);
          }
@@ -1901,11 +1914,6 @@ J9::AheadOfTimeCompile::dumpRelocationData()
                   traceMsg(self()->comp(), "\nInlined site index = %d, Constant pool = %x", *(uint32_t *)ep1, *(uint32_t *)(ep2));
                   }
                }
-            break;
-         case TR_AbsoluteMethodAddressOrderedPair:
-            // Reference to the current method, no other information
-            cursor++;
-            self()->traceRelocationOffsets(cursor, offsetSize, endOfCurrentRecord, orderedPair);
             break;
          case TR_FixedSequenceAddress:
             cursor++;        // unused field

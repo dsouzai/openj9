@@ -184,15 +184,6 @@ uint8_t *J9::Power::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::Iterat
          }
          break;
 
-      case TR_AbsoluteMethodAddressOrderedPair:
-         {
-         TR_RelocationRecordInformation *recordInfo = (TR_RelocationRecordInformation *) relocation->getTargetAddress();
-         uint8_t flags = (uint8_t) recordInfo->data3;
-         TR_ASSERT((flags & RELOCATION_CROSS_PLATFORM_FLAGS_MASK) == 0,  "reloFlags bits overlap cross-platform flags bits\n");
-         *flagsCursor |= (flags & RELOCATION_RELOC_FLAGS_MASK);
-         }
-         break;
-
       case TR_FixedSequenceAddress:
          {
          uint8_t flags = (uint8_t) ((uintptr_t) relocation->getTargetAddress2());
