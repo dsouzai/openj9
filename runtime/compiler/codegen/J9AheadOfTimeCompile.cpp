@@ -187,6 +187,7 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
    TR::SymbolValidationManager *symValManager = comp->getSymbolValidationManager();
    TR_J9VMBase *fej9 = comp->fej9();
    TR_SharedCache *sharedCache = fej9->sharedCache();
+   uint8_t * aotMethodCodeStart = reinterpret_cast<uint8_t *>(comp->getRelocatableMethodCodeStart());
 
    TR_ExternalRelocationTargetKind kind = relocation->getTargetKind();
 
@@ -1033,6 +1034,27 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          }
          break;
 
+      case TR_FixedSequenceAddress:
+         {
+         TR_RelocationRecordWithOffset *rwoRecord = reinterpret_cast<TR_RelocationRecordWithOffset *>(reloRecord);
+
+         TR::LabelSymbol *table = reinterpret_cast<TR::LabelSymbol *>(relocation->getTargetAddress());
+         uint8_t flags = reinterpret_cast<uint8_t>(relocation->getTargetAddress2());
+         uint8_t *codeLocation = table->getCodeLocation();
+
+         TR_ASSERT((flags & RELOCATION_CROSS_PLATFORM_FLAGS_MASK) == 0,  "reloFlags bits overlap cross-platform flags bits\n");
+         rwoRecord->setReloFlags(reloTarget, flags);
+         if (comp->target().is64Bit())
+            {
+            rwoRecord->setOffset(reloTarget, reinterpret_cast<uintptr_t>(codeLocation - aotMethodCodeStart));
+            }
+         else
+            {
+            TR_ASSERT_FATAL(false, "Creating TR_FixedSeqAddress/TR_FixedSeq2Address relo for 32-bit target");
+            }
+         }
+         break;
+
       default:
          return cursor;
       }
@@ -1752,6 +1774,18 @@ J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool isVerbose
          }
          break;
 
+      case TR_FixedSequenceAddress:
+         {
+         TR_RelocationRecordWithOffset *rwoRecord = reinterpret_cast<TR_RelocationRecordWithOffset *>(reloRecord);
+
+         self()->traceRelocationOffsets(cursor, offsetSize, endOfCurrentRecord, orderedPair);
+         if (isVerbose)
+            {
+            traceMsg(self()->comp(),"Fixed Sequence Relo: patch location offset = %p", (void *)rwoRecord->offset(reloTarget));
+            }
+         }
+         break;
+
       default:
          return cursor;
       }
@@ -1912,20 +1946,6 @@ J9::AheadOfTimeCompile::dumpRelocationData()
                   {
                   // ep1 is same as self()->comp()->getCurrentMethod()->constantPool())
                   traceMsg(self()->comp(), "\nInlined site index = %d, Constant pool = %x", *(uint32_t *)ep1, *(uint32_t *)(ep2));
-                  }
-               }
-            break;
-         case TR_FixedSequenceAddress:
-            cursor++;        // unused field
-            if (is64BitTarget)
-               {
-               cursor += 4;     // padding
-               ep1 = cursor;
-               cursor += 8;
-               self()->traceRelocationOffsets(cursor, offsetSize, endOfCurrentRecord, orderedPair);
-               if (isVerbose)
-                  {
-                  traceMsg(self()->comp(),"Fixed Sequence Relo: patch location offset = %p", *(uint64_t *)ep1);
                   }
                }
             break;
