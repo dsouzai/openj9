@@ -1093,6 +1093,19 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          }
          break;
 
+      case TR_GlobalValue:
+         {
+         TR_RelocationRecordGlobalValue *gvRecord = reinterpret_cast<TR_RelocationRecordGlobalValue *>(reloRecord);
+
+         uintptr_t gv = reinterpret_cast<uintptr_t>(relocation->getTargetAddress());
+         uint8_t flags = reinterpret_cast<uint8_t>(relocation->getTargetAddress2());
+
+         TR_ASSERT((flags & RELOCATION_CROSS_PLATFORM_FLAGS_MASK) == 0,  "reloFlags bits overlap cross-platform flags bits\n");
+         gvRecord->setReloFlags(reloTarget, flags);
+         gvRecord->setOffset(reloTarget, gv);
+         }
+         break;
+
       default:
          return cursor;
       }
@@ -1819,6 +1832,7 @@ J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool isVerbose
       case TR_FixedSequenceAddress:
       case TR_FixedSequenceAddress2:
       case TR_RamMethodSequence:
+      case TR_GlobalValue:
          {
          TR_RelocationRecordWithOffset *rwoRecord = reinterpret_cast<TR_RelocationRecordWithOffset *>(reloRecord);
 
@@ -1832,6 +1846,8 @@ J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool isVerbose
                recordType = "Load Address Relo";
             else if (kind == TR_RamMethodSequence)
                recordType = "Ram Method Sequence Relo";
+            else if (kind == TR_GlobalValue)
+               recordType = "Global Value";
             else
                TR_ASSERT_FATAL(false, "Unknown relokind %d!\n", kind);
 
@@ -2000,21 +2016,6 @@ J9::AheadOfTimeCompile::dumpRelocationData()
                }
             break;
 
-         case TR_GlobalValue:
-            cursor++;        //unused field
-            if (is64BitTarget)
-               cursor += 4;     // padding
-            ep1 = (uintptr_t *) cursor;
-            cursor += sizeof(uintptr_t);
-            self()->traceRelocationOffsets(cursor, offsetSize, endOfCurrentRecord, orderedPair);
-            if (isVerbose)
-               {
-               if (is64BitTarget)
-                  traceMsg(self()->comp(), "\nGlobal value: %s", TR::ExternalRelocation::nameOfGlobal(*(uint64_t *)ep1));
-               else
-                  traceMsg(self()->comp(), "\nGlobal value: %s", TR::ExternalRelocation::nameOfGlobal(*(uint32_t *)ep1));
-               }
-            break;
          case TR_J2IThunks:
             {
             cursor++;        //unused field

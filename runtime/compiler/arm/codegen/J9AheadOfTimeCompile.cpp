@@ -255,17 +255,6 @@ uint8_t *J9::ARM::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::Iterated
          }
          break;
 
-      case TR_GlobalValue:
-         {
-         uint8_t flags = (uint8_t) ((uintptr_t) relocation->getTargetAddress2());// sequence ID
-         TR_ASSERT((flags & RELOCATION_CROSS_PLATFORM_FLAGS_MASK) == 0,  "reloFlags bits overlap cross-platform flags bits\n");
-         *flagsCursor |= (flags & RELOCATION_RELOC_FLAGS_MASK);
-         *(uintptr_t*) cursor = (uintptr_t)relocation->getTargetAddress();
-
-         cursor += SIZEPOINTER;
-         break;
-         }
-
       case TR_ArbitraryClassAddress:
          {
          TR_RelocationRecordArbitraryClassAddress *acaRecord = reinterpret_cast<TR_RelocationRecordArbitraryClassAddress *>(reloRecord);
