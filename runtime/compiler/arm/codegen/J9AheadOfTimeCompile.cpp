@@ -279,19 +279,6 @@ uint8_t *J9::ARM::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::Iterated
          }
          break;
 
-      case TR_HCR:
-         {
-         flags = 0;
-         if (((TR_HCRAssumptionFlags)((uintptr_t)(relocation->getTargetAddress2()))) == needsFullSizeRuntimeAssumption)
-        	 flags = needsFullSizeRuntimeAssumption;
-         TR_ASSERT((flags & RELOCATION_CROSS_PLATFORM_FLAGS_MASK) == 0,  "reloFlags bits overlap cross-platform flags bits\n");
-         *flagsCursor |= (flags & RELOCATION_RELOC_FLAGS_MASK);
-
-         *(uintptr_t*) cursor = (uintptr_t) relocation->getTargetAddress();
-         cursor += SIZEPOINTER;
-         }
-         break;
-
       case TR_DebugCounter:
          {
          TR::DebugCounterBase *counter = (TR::DebugCounterBase *) relocation->getTargetAddress();
