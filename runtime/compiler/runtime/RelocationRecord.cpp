@@ -137,8 +137,6 @@ struct TR_RelocationRecordConstantPoolWithIndexBinaryTemplate : public TR_Reloca
    UDATA _index;
    };
 
-typedef TR_RelocationRecordConstantPoolWithIndexBinaryTemplate TR_RelocationRecordClassObjectBinaryTemplate;
-
 struct TR_RelocationRecordJ2IVirtualThunkPointerBinaryTemplate : public TR_RelocationRecordConstantPoolBinaryTemplate
    {
    IDATA _offsetToJ2IVirtualThunkPointer;
@@ -166,12 +164,6 @@ struct TR_RelocationRecordNopGuardBinaryTemplate : public TR_RelocationRecordInl
    UDATA _destinationAddress;
    };
 
-typedef TR_RelocationRecordNopGuardBinaryTemplate TR_RelocationRecordInlinedStaticMethodWithNopGuardBinaryTemplate;
-typedef TR_RelocationRecordNopGuardBinaryTemplate TR_RelocationRecordInlinedSpecialMethodWithNopGuardBinaryTemplate;
-typedef TR_RelocationRecordNopGuardBinaryTemplate TR_RelocationRecordInlinedVirtualMethodWithNopGuardBinaryTemplate;
-typedef TR_RelocationRecordNopGuardBinaryTemplate TR_RelocationRecordInlinedInterfaceMethodWithNopGuardBinaryTemplate;
-
-
 struct TR_RelocationRecordProfiledInlinedMethodBinaryTemplate : TR_RelocationRecordInlinedMethodBinaryTemplate
    {
    UDATA _classChainIdentifyingLoaderOffsetInSharedCache;
@@ -182,15 +174,6 @@ struct TR_RelocationRecordProfiledInlinedMethodBinaryTemplate : TR_RelocationRec
    // The inlined j9method's index into its defining class' array of j9methods
    UDATA _methodIndex;
    };
-
-typedef TR_RelocationRecordProfiledInlinedMethodBinaryTemplate TR_RelocationRecordProfiledGuardBinaryTemplate;
-typedef TR_RelocationRecordProfiledInlinedMethodBinaryTemplate TR_RelocationRecordProfiledClassGuardBinaryTemplate;
-typedef TR_RelocationRecordProfiledInlinedMethodBinaryTemplate TR_RelocationRecordProfiledMethodGuardBinaryTemplate;
-
-
-typedef TR_RelocationRecordBinaryTemplate TR_RelocationRecordRamMethodBinaryTemplate;
-
-typedef TR_RelocationRecordBinaryTemplate TR_RelocationRecordArrayCopyHelperTemplate;
 
 struct TR_RelocationRecordMethodTracingCheckBinaryTemplate : public TR_RelocationRecordBinaryTemplate
    {
@@ -215,7 +198,6 @@ struct TR_RelocationRecordPointerBinaryTemplate : TR_RelocationRecordWithInlined
    UDATA _classChainForInlinedMethod;
    };
 
-typedef TR_RelocationRecordPointerBinaryTemplate TR_RelocationRecordClassPointerBinaryTemplate;
 struct TR_RelocationRecordMethodPointerBinaryTemplate : TR_RelocationRecordPointerBinaryTemplate
    {
    UDATA _vTableSlot;
