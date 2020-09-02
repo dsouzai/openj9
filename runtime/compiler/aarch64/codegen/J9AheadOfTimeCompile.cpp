@@ -125,15 +125,14 @@ uint8_t *J9::ARM64::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::Iterat
 
          dsfmRecord->setSymbolID(reloTarget, symbolID);
          dsfmRecord->setSymbolType(reloTarget, symbolType);
-
-         cursor = relocation->getRelocationData() + TR_RelocationRecord::getSizeOfAOTRelocationHeader(targetKind);
          }
          break;
 
       default:
-         cursor = self()->initializeCommonAOTRelocationHeader(relocation, reloRecord);
+         self()->initializeCommonAOTRelocationHeader(relocation, reloRecord);
       }
 
+   cursor += self()->getSizeOfAOTRelocationHeader(targetKind);
    return cursor;
    }
 

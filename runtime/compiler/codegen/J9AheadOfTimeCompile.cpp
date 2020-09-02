@@ -168,11 +168,9 @@ static const char* getNameForMethodRelocation (int type)
    return NULL;
    }
 
-uint8_t *
+void
 J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternalRelocation *relocation, TR_RelocationRecord *reloRecord)
    {
-   uint8_t *cursor = relocation->getRelocationData();
-
    TR::Compilation *comp = TR::comp();
    TR_RelocationRuntime *reloRuntime = comp->reloRuntime();
    TR_RelocationTarget *reloTarget = reloRuntime->reloTarget();
@@ -182,11 +180,6 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
    uint8_t * aotMethodCodeStart = reinterpret_cast<uint8_t *>(comp->getRelocatableMethodCodeStart());
 
    TR_ExternalRelocationTargetKind kind = relocation->getTargetKind();
-
-   // initializeCommonAOTRelocationHeader is currently in the process
-   // of becoming the canonical place to initialize the platform agnostic
-   // relocation headers; new relocation records' header should be
-   // initialized here.
    switch (kind)
       {
       case TR_ConstantPool:
@@ -1124,12 +1117,8 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          break;
 
       default:
-         return cursor;
+         TR_ASSERT_FATAL(false, "Unknown relo type %d\n", kind);
       }
-
-   cursor += self()->getSizeOfAOTRelocationHeader(kind);
-
-   return cursor;
    }
 
 uint8_t *

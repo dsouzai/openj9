@@ -144,8 +144,6 @@ uint8_t *J9::Z::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::IteratedEx
    reloRecord->setType(reloTarget, kind);
    reloRecord->setFlag(reloTarget, wideOffsets);
 
-   cursor += sizeof(TR_RelocationRecordBinaryTemplate);
-
    switch (targetKind)
       {
       case TR_EmitClass:
@@ -158,15 +156,15 @@ uint8_t *J9::Z::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::IteratedEx
 
          ecRecord->setInlinedSiteIndex(reloTarget, inlinedSiteIndex);
          ecRecord->setBCIndex(reloTarget, bcIndex);
-
-         cursor = relocation->getRelocationData() + self()->getSizeOfAOTRelocationHeader(targetKind);
          }
          break;
 
       default:
-         cursor = self()->initializeCommonAOTRelocationHeader(relocation, reloRecord);
+         self()->initializeCommonAOTRelocationHeader(relocation, reloRecord);
 
       }
+
+   cursor += self()->getSizeOfAOTRelocationHeader(targetKind);
    return cursor;
    }
 
