@@ -73,6 +73,334 @@ extern "C" void _patchVirtualGuard(uint8_t *locationAddr, uint8_t *destinationAd
 extern "C" void ASM_CALL _patchVirtualGuard(uint8_t*, uint8_t*, uint32_t);
 #endif
 
+// These *BinaryTemplate structs describe the shape of the binary relocation records.
+struct TR_RelocationRecordBinaryTemplate
+   {
+   uint8_t type(TR_RelocationTarget *reloTarget);
+
+   uint16_t _size;
+   uint8_t _type;
+   uint8_t _flags;
+
+#if defined(TR_HOST_64BIT)
+   uint32_t _extra;
+#endif
+   };
+
+// Generating 32-bit code on a 64-bit machine or vice-versa won't work because the alignment won't
+// be right.  Relying on inheritance in the structures here means padding is automatically inserted
+// at each inheritance boundary: this inserted padding won't match across 32-bit and 64-bit platforms.
+// Making as many fields as possible UDATA should minimize the differences and gives the most freedom
+// in the hierarchy of binary relocation record structures, but the header definitely has an inheritance
+// boundary at offset 4B.
+
+struct TR_RelocationRecordHelperAddressBinaryTemplate
+   {
+   uint16_t _size;
+   uint8_t _type;
+   uint8_t _flags;
+   uint32_t _helperID;
+   };
+
+struct TR_RelocationRecordPicTrampolineBinaryTemplate
+   {
+   uint16_t _size;
+   uint8_t _type;
+   uint8_t _flags;
+   uint32_t _numTrampolines;
+   };
+
+struct TR_RelocationRecordWithInlinedSiteIndexBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   UDATA _inlinedSiteIndex;
+   };
+
+struct TR_RelocationRecordValidateArbitraryClassBinaryTemplate : public TR_RelocationRecordBinaryTemplate //public TR_RelocationRecordWithInlinedSiteIndexBinaryTemplate
+   {
+   UDATA _loaderClassChainOffset;
+   UDATA _classChainOffsetForClassBeingValidated;
+   };
+
+
+struct TR_RelocationRecordWithOffsetBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   UDATA _offset;
+   };
+
+struct TR_RelocationRecordConstantPoolBinaryTemplate : public TR_RelocationRecordWithInlinedSiteIndexBinaryTemplate
+   {
+   UDATA _constantPool;
+   };
+
+struct TR_RelocationRecordConstantPoolWithIndexBinaryTemplate : public TR_RelocationRecordConstantPoolBinaryTemplate
+   {
+   UDATA _index;
+   };
+
+typedef TR_RelocationRecordConstantPoolWithIndexBinaryTemplate TR_RelocationRecordClassObjectBinaryTemplate;
+
+struct TR_RelocationRecordJ2IVirtualThunkPointerBinaryTemplate : public TR_RelocationRecordConstantPoolBinaryTemplate
+   {
+   IDATA _offsetToJ2IVirtualThunkPointer;
+   };
+
+struct TR_RelocationRecordInlinedAllocationBinaryTemplate : public TR_RelocationRecordConstantPoolWithIndexBinaryTemplate
+   {
+   UDATA _branchOffset;
+   };
+
+struct TR_RelocationRecordVerifyClassObjectForAllocBinaryTemplate : public TR_RelocationRecordInlinedAllocationBinaryTemplate
+   {
+   UDATA _allocationSize;
+   };
+
+struct TR_RelocationRecordRomClassFromCPBinaryTemplate : public TR_RelocationRecordConstantPoolWithIndexBinaryTemplate
+   {
+   UDATA  _romClassOffsetInSharedCache;
+   };
+
+typedef TR_RelocationRecordRomClassFromCPBinaryTemplate TR_RelocationRecordInlinedMethodBinaryTemplate;
+
+struct TR_RelocationRecordNopGuardBinaryTemplate : public TR_RelocationRecordInlinedMethodBinaryTemplate
+   {
+   UDATA _destinationAddress;
+   };
+
+typedef TR_RelocationRecordNopGuardBinaryTemplate TR_RelocationRecordInlinedStaticMethodWithNopGuardBinaryTemplate;
+typedef TR_RelocationRecordNopGuardBinaryTemplate TR_RelocationRecordInlinedSpecialMethodWithNopGuardBinaryTemplate;
+typedef TR_RelocationRecordNopGuardBinaryTemplate TR_RelocationRecordInlinedVirtualMethodWithNopGuardBinaryTemplate;
+typedef TR_RelocationRecordNopGuardBinaryTemplate TR_RelocationRecordInlinedInterfaceMethodWithNopGuardBinaryTemplate;
+
+
+struct TR_RelocationRecordProfiledInlinedMethodBinaryTemplate : TR_RelocationRecordInlinedMethodBinaryTemplate
+   {
+   UDATA _classChainIdentifyingLoaderOffsetInSharedCache;
+
+   // Class chain of the defining class of the inlined method
+   UDATA _classChainForInlinedMethod;
+
+   // The inlined j9method's index into its defining class' array of j9methods
+   UDATA _methodIndex;
+   };
+
+typedef TR_RelocationRecordProfiledInlinedMethodBinaryTemplate TR_RelocationRecordProfiledGuardBinaryTemplate;
+typedef TR_RelocationRecordProfiledInlinedMethodBinaryTemplate TR_RelocationRecordProfiledClassGuardBinaryTemplate;
+typedef TR_RelocationRecordProfiledInlinedMethodBinaryTemplate TR_RelocationRecordProfiledMethodGuardBinaryTemplate;
+
+
+typedef TR_RelocationRecordBinaryTemplate TR_RelocationRecordRamMethodBinaryTemplate;
+
+typedef TR_RelocationRecordBinaryTemplate TR_RelocationRecordArrayCopyHelperTemplate;
+
+struct TR_RelocationRecordMethodTracingCheckBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   UDATA _destinationAddress;
+   };
+
+struct TR_RelocationRecordValidateClassBinaryTemplate : public TR_RelocationRecordConstantPoolWithIndexBinaryTemplate
+   {
+   UDATA _classChainOffsetInSharedCache;
+   };
+
+typedef TR_RelocationRecordRomClassFromCPBinaryTemplate TR_RelocationRecordValidateStaticFieldBinaryTemplate;
+
+struct TR_RelocationRecordDataAddressBinaryTemplate : public TR_RelocationRecordConstantPoolWithIndexBinaryTemplate
+   {
+   UDATA _offset;
+   };
+
+struct TR_RelocationRecordPointerBinaryTemplate : TR_RelocationRecordWithInlinedSiteIndexBinaryTemplate
+   {
+   UDATA _classChainIdentifyingLoaderOffsetInSharedCache;
+   UDATA _classChainForInlinedMethod;
+   };
+
+typedef TR_RelocationRecordPointerBinaryTemplate TR_RelocationRecordClassPointerBinaryTemplate;
+struct TR_RelocationRecordMethodPointerBinaryTemplate : TR_RelocationRecordPointerBinaryTemplate
+   {
+   UDATA _vTableSlot;
+   };
+struct TR_RelocationRecordEmitClassBinaryTemplate : public TR_RelocationRecordWithInlinedSiteIndexBinaryTemplate
+   {
+   int32_t _bcIndex;
+#if defined(TR_HOST_64BIT)
+   uint32_t _extra;
+#endif
+   };
+
+struct TR_RelocationRecordDebugCounterBinaryTemplate : public TR_RelocationRecordWithInlinedSiteIndexBinaryTemplate
+   {
+   int8_t _fidelity;
+   int32_t _bcIndex;
+   int32_t _delta;
+   int32_t _staticDelta;
+   UDATA _offsetOfNameString;
+   };
+
+typedef TR_RelocationRecordBinaryTemplate TR_RelocationRecordClassUnloadAssumptionBinaryTemplate;
+
+struct TR_RelocationRecordValidateClassByNameBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _classID;
+   uint16_t _beholderID;
+   UDATA _classChainOffsetInSCC;
+   };
+
+struct TR_RelocationRecordValidateProfiledClassBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _classID;
+   UDATA _classChainOffsetInSCC;
+   UDATA _classChainOffsetForCLInScc;
+   };
+
+struct TR_RelocationRecordValidateClassFromCPBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _classID;
+   uint16_t _beholderID;
+   uint32_t _cpIndex;
+   };
+
+struct TR_RelocationRecordValidateDefiningClassFromCPBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint8_t _isStatic;
+   uint16_t _classID;
+   uint16_t _beholderID;
+   uint32_t _cpIndex;
+   };
+
+struct TR_RelocationRecordValidateArrayFromCompBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _arrayClassID;
+   uint16_t _componentClassID;
+   };
+
+struct TR_RelocationRecordValidateSuperClassFromClassBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _superClassID;
+   uint16_t _childClassID;
+   };
+
+struct TR_RelocationRecordValidateClassInstanceOfClassBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint8_t _objectTypeIsFixed;
+   uint8_t _castTypeIsFixed;
+   uint8_t _isInstanceOf;
+   uint16_t _classOneID;
+   uint16_t _classTwoID;
+   };
+
+struct TR_RelocationRecordValidateSystemClassByNameBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _systemClassID;
+   UDATA _classChainOffsetInSCC;
+   };
+
+struct TR_RelocationRecordValidateClassChainBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _classID;
+   UDATA _classChainOffsetInSCC;
+   };
+
+struct TR_RelocationRecordValidateMethodFromClassBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _methodID;
+   uint16_t _beholderID;
+   uint32_t _index;
+   };
+
+struct TR_RelocationRecordValidateMethodFromCPBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _methodID;
+   uint16_t _definingClassID;
+   uint16_t _beholderID;
+   uint16_t _cpIndex; // constrained to 16 bits by the class file format
+   };
+
+struct TR_RelocationRecordValidateVirtualMethodFromOffsetBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _methodID;
+   uint16_t _definingClassID;
+   uint16_t _beholderID;
+
+   // Value is (offset | ignoreRtResolve); offset must be even
+   uint16_t _virtualCallOffsetAndIgnoreRtResolve;
+   };
+
+struct TR_RelocationRecordValidateInterfaceMethodFromCPBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _methodID;
+   uint16_t _definingClassID;
+   uint16_t _beholderID;
+   uint16_t _lookupID;
+   uint16_t _cpIndex; // constrained to 16 bits by the class file format
+   };
+
+struct TR_RelocationRecordValidateMethodFromClassAndSigBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _methodID;
+   uint16_t _definingClassID;
+   uint16_t _lookupClassID;
+   uint16_t _beholderID;
+   UDATA _romMethodOffsetInSCC;
+   };
+
+struct TR_RelocationRecordValidateMethodFromSingleImplBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _methodID;
+   uint16_t _definingClassID;
+   uint16_t _thisClassID;
+   int32_t _cpIndexOrVftSlot;
+   uint16_t _callerMethodID;
+   uint16_t _useGetResolvedInterfaceMethod;
+   };
+
+struct TR_RelocationRecordValidateMethodFromSingleInterfaceImplBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _methodID;
+   uint16_t _definingClassID;
+   uint16_t _thisClassID;
+   uint16_t _callerMethodID;
+   uint16_t _cpIndex; // constrained to 16 bits by the class file format
+   };
+
+struct TR_RelocationRecordValidateMethodFromSingleAbstractImplBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _methodID;
+   uint16_t _definingClassID;
+   uint16_t _thisClassID;
+   uint16_t _callerMethodID;
+   int32_t _vftSlot;
+   };
+
+struct TR_RelocationRecordValidateStackWalkerMaySkipFramesBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _methodID;
+   uint16_t _methodClassID;
+   bool _skipFrames;
+   };
+
+struct TR_RelocationRecordValidateClassInfoIsInitializedBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _classID;
+   bool _isInitialized;
+   };
+
+struct TR_RelocationRecordSymbolFromManagerBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _symbolID;
+   uint16_t _symbolType;
+   };
+
+struct TR_RelocationRecordMethodCallAddressBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   UDATA _methodAddress;
+   };
+
+struct TR_RelocationRecordResolvedTrampolinesBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _symbolID;
+   };
+
 uint8_t
 TR_RelocationRecordBinaryTemplate::type(TR_RelocationTarget *reloTarget)
    {
@@ -3340,6 +3668,12 @@ TR_RelocationRecordValidateArbitraryClass::applyRelocation(TR_RelocationRuntime 
    }
 
 int32_t
+TR_RelocationRecordValidateClassByName::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateClassByNameBinaryTemplate);
+   }
+
+int32_t
 TR_RelocationRecordValidateClassByName::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
    {
    uint16_t classID = this->classID(reloTarget);
@@ -3398,6 +3732,12 @@ uintptr_t
 TR_RelocationRecordValidateClassByName::classChainOffset(TR_RelocationTarget *reloTarget)
    {
    return reloTarget->loadRelocationRecordValue((uintptr_t *) &((TR_RelocationRecordValidateClassByNameBinaryTemplate *)_record)->_classChainOffsetInSCC);
+   }
+
+int32_t
+TR_RelocationRecordValidateProfiledClass::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateProfiledClassBinaryTemplate);
    }
 
 int32_t
@@ -3465,6 +3805,12 @@ TR_RelocationRecordValidateProfiledClass::classChainOffsetForClassLoader(TR_Relo
    }
 
 int32_t
+TR_RelocationRecordValidateClassFromCP::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateClassFromCPBinaryTemplate);
+   }
+
+int32_t
 TR_RelocationRecordValidateClassFromCP::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
    {
    uint16_t classID = this->classID(reloTarget);
@@ -3522,6 +3868,12 @@ uint32_t
 TR_RelocationRecordValidateClassFromCP::cpIndex(TR_RelocationTarget *reloTarget)
    {
    return reloTarget->loadUnsigned32b((uint8_t *) &((TR_RelocationRecordValidateClassFromCPBinaryTemplate *)_record)->_cpIndex);
+   }
+
+int32_t
+TR_RelocationRecordValidateDefiningClassFromCP::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateDefiningClassFromCPBinaryTemplate);
    }
 
 int32_t
@@ -3612,6 +3964,12 @@ TR_RelocationRecordValidateStaticClassFromCP::applyRelocation(TR_RelocationRunti
    }
 
 int32_t
+TR_RelocationRecordValidateArrayClassFromComponentClass::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateArrayFromCompBinaryTemplate);
+   }
+
+int32_t
 TR_RelocationRecordValidateArrayClassFromComponentClass::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
    {
    uint16_t arrayClassID = this->arrayClassID(reloTarget);
@@ -3658,6 +4016,12 @@ TR_RelocationRecordValidateArrayClassFromComponentClass::componentClassID(TR_Rel
    }
 
 int32_t
+TR_RelocationRecordValidateSuperClassFromClass::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateSuperClassFromClassBinaryTemplate);
+   }
+
+int32_t
 TR_RelocationRecordValidateSuperClassFromClass::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
    {
    uint16_t superClassID = this->superClassID(reloTarget);
@@ -3701,6 +4065,12 @@ uint16_t
 TR_RelocationRecordValidateSuperClassFromClass::childClassID(TR_RelocationTarget *reloTarget)
    {
    return reloTarget->loadUnsigned16b((uint8_t *) &((TR_RelocationRecordValidateSuperClassFromClassBinaryTemplate *)_record)->_childClassID);
+   }
+
+int32_t
+TR_RelocationRecordValidateClassInstanceOfClass::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateClassInstanceOfClassBinaryTemplate);
    }
 
 int32_t
@@ -3792,6 +4162,12 @@ TR_RelocationRecordValidateClassInstanceOfClass::classTwoID(TR_RelocationTarget 
    }
 
 int32_t
+TR_RelocationRecordValidateSystemClassByName::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateSystemClassByNameBinaryTemplate);
+   }
+
+int32_t
 TR_RelocationRecordValidateSystemClassByName::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
    {
    uint16_t systemClassID = this->systemClassID(reloTarget);
@@ -3877,6 +4253,12 @@ TR_RelocationRecordValidateConcreteSubClassFromClass::applyRelocation(TR_Relocat
    }
 
 int32_t
+TR_RelocationRecordValidateClassChain::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateClassChainBinaryTemplate);
+   }
+
+int32_t
 TR_RelocationRecordValidateClassChain::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
    {
    uint16_t classID = this->classID(reloTarget);
@@ -3921,6 +4303,12 @@ uintptr_t
 TR_RelocationRecordValidateClassChain::classChainOffset(TR_RelocationTarget *reloTarget)
    {
    return reloTarget->loadRelocationRecordValue((uintptr_t *) &((TR_RelocationRecordValidateClassChainBinaryTemplate *)_record)->_classChainOffsetInSCC);
+   }
+
+int32_t
+TR_RelocationRecordValidateMethodFromClass::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateMethodFromClassBinaryTemplate);
    }
 
 int32_t
@@ -3981,6 +4369,12 @@ uint32_t
 TR_RelocationRecordValidateMethodFromClass::index(TR_RelocationTarget *reloTarget)
    {
    return reloTarget->loadUnsigned32b((uint8_t *) &((TR_RelocationRecordValidateMethodFromClassBinaryTemplate *)_record)->_index);
+   }
+
+void
+TR_RelocationRecordValidateMethodFromCP::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateMethodFromCPBinaryTemplate);
    }
 
 void
@@ -4092,6 +4486,12 @@ TR_RelocationRecordValidateVirtualMethodFromCP::applyRelocation(TR_RelocationRun
    }
 
 int32_t
+TR_RelocationRecordValidateVirtualMethodFromOffset::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateVirtualMethodFromOffsetBinaryTemplate);
+   }
+
+int32_t
 TR_RelocationRecordValidateVirtualMethodFromOffset::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
    {
    uint16_t methodID = this->methodID(reloTarget);
@@ -4171,6 +4571,12 @@ uint16_t
 TR_RelocationRecordValidateVirtualMethodFromOffset::virtualCallOffsetAndIgnoreRtResolve(TR_RelocationTarget *reloTarget)
    {
    return reloTarget->loadUnsigned16b((uint8_t *) &((TR_RelocationRecordValidateVirtualMethodFromOffsetBinaryTemplate *)_record)->_virtualCallOffsetAndIgnoreRtResolve);
+   }
+
+int32_t
+TR_RelocationRecordValidateInterfaceMethodFromCP::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateInterfaceMethodFromCPBinaryTemplate);
    }
 
 int32_t
@@ -4274,6 +4680,12 @@ TR_RelocationRecordValidateImproperInterfaceMethodFromCP::applyRelocation(TR_Rel
       return 0;
    else
       return compilationAotClassReloFailure;
+   }
+
+int32_t
+TR_RelocationRecordValidateMethodFromClassAndSig::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateMethodFromClassAndSigBinaryTemplate);
    }
 
 int32_t
@@ -4426,6 +4838,11 @@ TR_RelocationRecordValidateStackWalkerMaySkipFrames::skipFrames(TR_RelocationTar
    return (bool)reloTarget->loadUnsigned8b((uint8_t *) &((TR_RelocationRecordValidateStackWalkerMaySkipFramesBinaryTemplate *)_record)->_skipFrames);
    }
 
+TR_RelocationRecordValidateStackWalkerMaySkipFrames::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateStackWalkerMaySkipFramesBinaryTemplate);
+   }
+
 int32_t
 TR_RelocationRecordValidateClassInfoIsInitialized::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
    {
@@ -4470,6 +4887,11 @@ bool
 TR_RelocationRecordValidateClassInfoIsInitialized::isInitialized(TR_RelocationTarget *reloTarget)
    {
    return (bool)reloTarget->loadUnsigned8b((uint8_t *) &((TR_RelocationRecordValidateClassInfoIsInitializedBinaryTemplate *)_record)->_isInitialized);
+   }
+
+TR_RelocationRecordValidateClassInfoIsInitialized::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateClassInfoIsInitializedBinaryTemplate);
    }
 
 int32_t
@@ -4591,6 +5013,11 @@ TR_RelocationRecordValidateMethodFromSingleImpl::useGetResolvedInterfaceMethod(T
    return (TR_YesNoMaybe)reloTarget->loadUnsigned16b((uint8_t *) &((TR_RelocationRecordValidateMethodFromSingleImplBinaryTemplate *)_record)->_useGetResolvedInterfaceMethod);
    }
 
+TR_RelocationRecordValidateMethodFromSingleImpl::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateMethodFromSingleImplBinaryTemplate);
+   }
+
 int32_t
 TR_RelocationRecordValidateMethodFromSingleInterfaceImpl::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
    {
@@ -4685,6 +5112,12 @@ TR_RelocationRecordValidateMethodFromSingleInterfaceImpl::cpIndex(TR_RelocationT
    }
 
 int32_t
+TR_RelocationRecordValidateMethodFromSingleInterfaceImpl::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateMethodFromSingleInterfaceImplBinaryTemplate);
+   }
+
+int32_t
 TR_RelocationRecordValidateMethodFromSingleAbstractImpl::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
    {
    uint16_t methodID = this->methodID(reloTarget);
@@ -4764,6 +5197,12 @@ TR_RelocationRecordValidateMethodFromSingleAbstractImpl::setCallerMethodID(TR_Re
    reloTarget->storeUnsigned16b(callerMethodID, (uint8_t *) &((TR_RelocationRecordValidateMethodFromSingleAbstractImplBinaryTemplate *)_record)->_callerMethodID);
    }
 
+int32_t
+TR_RelocationRecordValidateMethodFromSingleAbstractImpl::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordValidateMethodFromSingleAbstractImplBinaryTemplate);
+   }
+
 uint16_t
 TR_RelocationRecordValidateMethodFromSingleAbstractImpl::callerMethodID(TR_RelocationTarget *reloTarget)
    {
@@ -4826,6 +5265,12 @@ TR_RelocationRecordSymbolFromManager::preparePrivateData(TR_RelocationRuntime *r
 
    reloPrivateData->_symbol = reloRuntime->comp()->getSymbolValidationManager()->getSymbolFromID(symbolID, symbolType);
    reloPrivateData->_symbolType = symbolType;
+   }
+
+int32_t
+TR_RelocationRecordSymbolFromManager::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordSymbolFromManagerBinaryTemplate);
    }
 
 int32_t
@@ -4968,6 +5413,12 @@ TR_RelocationRecordResolvedTrampolines::preparePrivateData(TR_RelocationRuntime 
       }
 
    reloPrivateData->_method = reloRuntime->comp()->getSymbolValidationManager()->getMethodFromID(symbolID);
+   }
+
+int32_t
+TR_RelocationRecordResolvedTrampolines::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordResolvedTrampolinesBinaryTemplate);
    }
 
 int32_t
@@ -5579,7 +6030,14 @@ TR_RelocationRecordMethodCallAddress::setAddress(TR_RelocationTarget *reloTarget
    reloTarget->storeAddress(callTargetAddress, reinterpret_cast<uint8_t *>(&reloData->_methodAddress));
    }
 
-int32_t TR_RelocationRecordMethodCallAddress::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
+int32_t
+TR_RelocationRecordMethodCallAddress::bytesInHeaderAndPayload()
+   {
+   return sizeof(TR_RelocationRecordMethodCallAddressBinaryTemplate);
+   }
+
+int32_t
+TR_RelocationRecordMethodCallAddress::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
    {
    uint8_t *baseLocation = 0;
    if (eipRelative(reloTarget))
