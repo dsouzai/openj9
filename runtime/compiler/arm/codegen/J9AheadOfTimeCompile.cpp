@@ -142,7 +142,7 @@ uint8_t *J9::ARM::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::Iterated
          moRecord->setConstantPool(reloTarget, symRef->getOwningMethod(comp)->constantPool());
          moRecord->setReloFlags(reloTarget, flags);->setReloFlags(reloTarget, flags);
 
-         cursor = relocation->getRelocationData() + TR_RelocationRecord::getSizeOfAOTRelocationHeader(targetKind);
+         cursor = relocation->getRelocationData() + self()->getSizeOfAOTRelocationHeader(targetKind);
          }
          break;
 
@@ -164,7 +164,7 @@ uint8_t *J9::ARM::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::Iterated
          caRecord->setConstantPool(reloTarget, reinterpret_cast<uintptr_t>(constantPool));
          caRecord->setCpIndex(reloTarget, symRef->getCPIndex());
 
-         cursor = relocation->getRelocationData() + TR_RelocationRecord::getSizeOfAOTRelocationHeader(targetKind);
+         cursor = relocation->getRelocationData() + self()->getSizeOfAOTRelocationHeader(targetKind);
          }
          break;
 
@@ -187,7 +187,7 @@ uint8_t *J9::ARM::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::Iterated
          daRecord->setCpIndex(reloTarget, symRef->getCPIndex());
          daRecord->setOffset(reloTarget, symRef->getOffset());
 
-         cursor = relocation->getRelocationData() + TR_RelocationRecord::getSizeOfAOTRelocationHeader(targetKind);
+         cursor = relocation->getRelocationData() + self()->getSizeOfAOTRelocationHeader(targetKind);
          }
          break;
 
@@ -205,7 +205,7 @@ uint8_t *J9::ARM::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::Iterated
 
          rwoRecord->setOffset(reloTarget, offset);
 
-         cursor = relocation->getRelocationData() + TR_RelocationRecord::getSizeOfAOTRelocationHeader(targetKind);
+         cursor = relocation->getRelocationData() + self()->getSizeOfAOTRelocationHeader(targetKind);
          }
          break;
 
@@ -217,7 +217,7 @@ uint8_t *J9::ARM::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::Iterated
          TR_ASSERT((flags & RELOCATION_CROSS_PLATFORM_FLAGS_MASK) == 0,  "reloFlags bits overlap cross-platform flags bits\n");
          rRecord->setReloFlags(reloTarget, flags);
 
-         cursor = relocation->getRelocationData() + TR_RelocationRecord::getSizeOfAOTRelocationHeader(targetKind);
+         cursor = relocation->getRelocationData() + self()->getSizeOfAOTRelocationHeader(targetKind);
          }
          break;
 
@@ -231,7 +231,7 @@ uint8_t *J9::ARM::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::Iterated
 
          // Skip Offset
 
-         cursor = relocation->getRelocationData() + TR_RelocationRecord::getSizeOfAOTRelocationHeader(targetKind);
+         cursor = relocation->getRelocationData() + self()->getSizeOfAOTRelocationHeader(targetKind);
          }
          break;
 
@@ -255,7 +255,7 @@ uint8_t *J9::ARM::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::Iterated
          acaRecord->setClassChainIdentifyingLoaderOffsetInSharedCache(reloTarget, classChainIdentifyingLoaderOffsetInSharedCache);
          acaRecord->setClassChainForInlinedMethod(reloTarget, classChainOffsetInSharedCache);
 
-         cursor = relocation->getRelocationData() + TR_RelocationRecord::getSizeOfAOTRelocationHeader(targetKind);
+         cursor = relocation->getRelocationData() + self()->getSizeOfAOTRelocationHeader(targetKind);
          }
          break;
 

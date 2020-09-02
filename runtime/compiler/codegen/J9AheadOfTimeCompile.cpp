@@ -1135,7 +1135,7 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          return cursor;
       }
 
-   cursor += TR_RelocationRecord::getSizeOfAOTRelocationHeader(kind);
+   cursor += self()->getSizeOfAOTRelocationHeader(kind);
 
    return cursor;
    }
@@ -1154,7 +1154,7 @@ J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool isVerbose
 
    int32_t offsetSize = reloRecord->wideOffsets(reloTarget) ? 4 : 2;
 
-   uint8_t *startOfOffsets = cursor + TR_RelocationRecord::getSizeOfAOTRelocationHeader(kind);
+   uint8_t *startOfOffsets = cursor + self()->getSizeOfAOTRelocationHeader(kind);
    uint8_t *endOfCurrentRecord = cursor + reloRecord->size(reloTarget);
 
    bool orderedPair = isOrderedPair(kind);

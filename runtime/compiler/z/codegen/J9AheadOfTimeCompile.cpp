@@ -159,7 +159,7 @@ uint8_t *J9::Z::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::IteratedEx
          ecRecord->setInlinedSiteIndex(reloTarget, inlinedSiteIndex);
          ecRecord->setBCIndex(reloTarget, bcIndex);
 
-         cursor = relocation->getRelocationData() + TR_RelocationRecord::getSizeOfAOTRelocationHeader(targetKind);
+         cursor = relocation->getRelocationData() + self()->getSizeOfAOTRelocationHeader(targetKind);
          }
          break;
 

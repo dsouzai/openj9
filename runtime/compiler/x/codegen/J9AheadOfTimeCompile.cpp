@@ -149,7 +149,7 @@ uint8_t *J9::X86::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::Iterated
          uint32_t numTrampolines = reinterpret_cast<uint32_t>(relocation->getTargetAddress());
          ptRecord->setNumTrampolines(reloTarget, numTrampolines);
 
-         cursor = relocation->getRelocationData() + TR_RelocationRecord::getSizeOfAOTRelocationHeader(targetKind);
+         cursor = relocation->getRelocationData() + self()->getSizeOfAOTRelocationHeader(targetKind);
          }
         break;
 
