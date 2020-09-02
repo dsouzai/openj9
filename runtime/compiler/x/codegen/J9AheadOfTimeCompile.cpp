@@ -125,16 +125,13 @@ uint8_t *J9::X86::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::Iterated
    TR::Compilation *comp = _cg->comp();
    TR_RelocationRuntime *reloRuntime = comp->reloRuntime();
    TR_RelocationTarget *reloTarget = reloRuntime->reloTarget();
-   uintptr_t numTrampolines;
 
    uint8_t *cursor = relocation->getRelocationData();
    uint8_t targetKind = relocation->getTargetKind();
+   uint8_t wideOffsets = relocation->needsWideOffsets() ? RELOCATION_TYPE_WIDE_OFFSET : 0;
 
    TR_RelocationRecord storage;
    TR_RelocationRecord *reloRecord = TR_RelocationRecord::create(&storage, reloRuntime, targetKind, reinterpret_cast<TR_RelocationRecordBinaryTemplate *>(cursor));
-
-   uint8_t wideOffsets = relocation->needsWideOffsets() ? RELOCATION_TYPE_WIDE_OFFSET : 0;
-   uint32_t *wordAfterHeader = &reinterpret_cast<TR_RelocationRecordPicTrampolineBinaryTemplate *>(cursor)->_numTrampolines;
 
    reloRecord->setSize(reloTarget, relocation->getSizeOfRelocationData());
    reloRecord->setType(reloTarget, kind);
@@ -146,11 +143,13 @@ uint8_t *J9::X86::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::Iterated
       {
       case TR_PicTrampolines:
          {
+         TR_RelocationRecordPicTrampolines *ptRecord = reinterpret_cast<TR_RelocationRecordPicTrampolines *>(reloRecord);
+
          TR_ASSERT(comp->target().is64Bit(), "TR_PicTrampolines not supported on 32-bit");
-         numTrampolines = (uintptr_t)relocation->getTargetAddress();
-         *wordAfterHeader = numTrampolines;
-         cursor = (uint8_t*)wordAfterHeader;
-         cursor += 4;
+         uint32_t numTrampolines = reinterpret_cast<uint32_t>(relocation->getTargetAddress());
+         ptRecord->setNumTrampolines(reloTarget, numTrampolines);
+
+         cursor = relocation->getRelocationData() + TR_RelocationRecord::getSizeOfAOTRelocationHeader(targetKind);
          }
         break;
 
