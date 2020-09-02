@@ -206,7 +206,7 @@ class TR_RelocationRecord
       static TR_RelocationRecord *create(TR_RelocationRecord *storage, TR_RelocationRuntime *reloRuntime, uint8_t reloType, TR_RelocationRecordBinaryTemplate *record);
 
       virtual void clean(TR_RelocationTarget *reloTarget);
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
 
@@ -290,7 +290,7 @@ class TR_RelocationRecordWithOffset : public TR_RelocationRecord
       void setOffset(TR_RelocationTarget *reloTarget, uintptr_t offset);
       uintptr_t offset(TR_RelocationTarget *reloTarget);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
@@ -361,7 +361,7 @@ class TR_RelocationRecordWithInlinedSiteIndex : public TR_RelocationRecord
       void setInlinedSiteIndex(TR_RelocationTarget *reloTarget, uintptr_t inlinedSiteIndex);
       uintptr_t inlinedSiteIndex(TR_RelocationTarget *reloTarget);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       // This relocation record is not used directly, only via subclasses
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
@@ -393,7 +393,7 @@ class TR_RelocationRecordConstantPool : public TR_RelocationRecordWithInlinedSit
       void setConstantPool(TR_RelocationTarget *reloTarget, uintptr_t constantPool);
       uintptr_t constantPool(TR_RelocationTarget *reloTarget);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
@@ -421,7 +421,7 @@ class TR_RelocationRecordConstantPoolWithIndex : public TR_RelocationRecordConst
       TR_OpaqueMethodBlock *getInterfaceMethodFromCP(TR_RelocationRuntime *reloRuntime, void *void_cp, int32_t cpIndex, TR_OpaqueMethodBlock *callerMethod);
       TR_OpaqueMethodBlock *getAbstractMethodFromCP(TR_RelocationRuntime *reloRuntime, void *void_cp, int32_t cpIndex, TR_OpaqueMethodBlock *callerMethod);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
    };
 
 class TR_RelocationRecordHelperAddress : public TR_RelocationRecord
@@ -437,7 +437,7 @@ class TR_RelocationRecordHelperAddress : public TR_RelocationRecord
 
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
 
@@ -461,7 +461,7 @@ class TR_RelocationRecordDataAddress : public TR_RelocationRecordConstantPoolWit
       virtual char *name();
       virtual void print(TR_RelocationRuntime *reloRuntime);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       void setOffset(TR_RelocationTarget *reloTarget, uintptr_t offset);
       uintptr_t offset(TR_RelocationTarget *reloTarget);
@@ -634,7 +634,7 @@ class TR_RelocationRecordJ2IVirtualThunkPointer : public TR_RelocationRecordThun
          : TR_RelocationRecordThunks(reloRuntime, record) {}
 
       virtual char *name();
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       void setOffsetToJ2IVirtualThunkPointer(TR_RelocationTarget *reloTarget, uintptr_t j2iVirtualThunkPointer);
       uintptr_t getOffsetToJ2IVirtualThunkPointer(TR_RelocationTarget *reloTarget);
@@ -661,7 +661,7 @@ class TR_RelocationRecordPicTrampolines : public TR_RelocationRecord
       virtual char *name();
       virtual void print(TR_RelocationRuntime *reloRuntime);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       void setNumTrampolines(TR_RelocationTarget *reloTarget, uint32_t numTrampolines);
       uint32_t numTrampolines(TR_RelocationTarget *reloTarget);
@@ -676,7 +676,7 @@ class TR_RelocationRecordInlinedAllocation : public TR_RelocationRecordConstantP
       TR_RelocationRecordInlinedAllocation(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecordConstantPoolWithIndex(reloRuntime, record) {}
       virtual void print(TR_RelocationRuntime *reloRuntime);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       void setBranchOffset(TR_RelocationTarget *reloTarget, uintptr_t branchOffset);
       uintptr_t branchOffset(TR_RelocationTarget *reloTarget);
@@ -706,7 +706,7 @@ class TR_RelocationRecordVerifyClassObjectForAlloc : public TR_RelocationRecordI
       virtual char *name();
       virtual void print(TR_RelocationRuntime *reloRuntime);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       void setAllocationSize(TR_RelocationTarget *reloTarget, uintptr_t allocationSize);
       uintptr_t allocationSize(TR_RelocationTarget *reloTarget);
@@ -726,7 +726,7 @@ class TR_RelocationRecordInlinedMethod : public TR_RelocationRecordConstantPoolW
       void setRomClassOffsetInSharedCache(TR_RelocationTarget *reloTarget, uintptr_t romClassOffsetInSharedCache);
       uintptr_t romClassOffsetInSharedCache(TR_RelocationTarget *reloTarget);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
@@ -766,7 +766,7 @@ class TR_RelocationRecordNopGuard : public TR_RelocationRecordInlinedMethod
       void setDestinationAddress(TR_RelocationTarget *reloTarget, uintptr_t destinationAddress);
       uintptr_t destinationAddress(TR_RelocationTarget *reloTarget);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
    private:
@@ -879,7 +879,7 @@ class TR_RelocationRecordProfiledInlinedMethod : public TR_RelocationRecordInlin
 
       virtual void print(TR_RelocationRuntime *reloRuntime);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       void setClassChainIdentifyingLoaderOffsetInSharedCache(TR_RelocationTarget *reloTarget, uintptr_t classChainOffsetInSharedCache);
       uintptr_t classChainIdentifyingLoaderOffsetInSharedCache(TR_RelocationTarget *reloTarget);
@@ -950,7 +950,7 @@ class TR_RelocationRecordMethodTracingCheck : public TR_RelocationRecord
       TR_RelocationRecordMethodTracingCheck(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual void print(TR_RelocationRuntime *reloRuntime);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       void setDestinationAddress(TR_RelocationTarget *reloTarget, uintptr_t destinationAddress);
       uintptr_t destinationAddress(TR_RelocationTarget *reloTarget);
@@ -997,7 +997,7 @@ class TR_RelocationRecordValidateClass : public TR_RelocationRecordConstantPoolW
       virtual char *name();
       virtual void print(TR_RelocationRuntime *reloRuntime);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       virtual bool isStaticFieldValidation() { return false ; }
 
@@ -1033,7 +1033,7 @@ class TR_RelocationRecordValidateStaticField : public TR_RelocationRecordValidat
       virtual char *name();
       virtual void print(TR_RelocationRuntime *reloRuntime);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       virtual bool isStaticFieldValidation() { return true; }
 
@@ -1059,7 +1059,7 @@ class TR_RelocationRecordValidateArbitraryClass : public TR_RelocationRecord
       void setClassChainOffsetForClassBeingValidated(TR_RelocationTarget *reloTarget, uintptr_t classChainOffset);
       uintptr_t classChainOffsetForClassBeingValidated(TR_RelocationTarget *reloTarget);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
@@ -1074,7 +1074,7 @@ class TR_RelocationRecordValidateClassByName : public TR_RelocationRecord
       TR_RelocationRecordValidateClassByName(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateClassByName"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1097,7 +1097,7 @@ class TR_RelocationRecordValidateProfiledClass : public TR_RelocationRecord
       TR_RelocationRecordValidateProfiledClass(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateProfiledClass"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1120,7 +1120,7 @@ class TR_RelocationRecordValidateClassFromCP : public TR_RelocationRecord
       TR_RelocationRecordValidateClassFromCP(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateClassFromCP"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1143,7 +1143,7 @@ class TR_RelocationRecordValidateDefiningClassFromCP : public TR_RelocationRecor
       TR_RelocationRecordValidateDefiningClassFromCP(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateDefiningClassFromCP"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1178,7 +1178,7 @@ class TR_RelocationRecordValidateArrayClassFromComponentClass : public TR_Reloca
       TR_RelocationRecordValidateArrayClassFromComponentClass(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateArrayClassFromComponentClass"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1198,7 +1198,7 @@ class TR_RelocationRecordValidateSuperClassFromClass : public TR_RelocationRecor
       TR_RelocationRecordValidateSuperClassFromClass(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateSuperClassFromClass"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1218,7 +1218,7 @@ class TR_RelocationRecordValidateClassInstanceOfClass : public TR_RelocationReco
       TR_RelocationRecordValidateClassInstanceOfClass(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateClassInstanceOfClass"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1247,7 +1247,7 @@ class TR_RelocationRecordValidateSystemClassByName : public TR_RelocationRecord
       TR_RelocationRecordValidateSystemClassByName(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateSystemClassByName"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1295,7 +1295,7 @@ class TR_RelocationRecordValidateClassChain : public TR_RelocationRecord
       TR_RelocationRecordValidateClassChain(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateClassChain"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1315,7 +1315,7 @@ class TR_RelocationRecordValidateMethodFromClass : public TR_RelocationRecord
       TR_RelocationRecordValidateMethodFromClass(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateMethodFromClass"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1337,7 +1337,7 @@ class TR_RelocationRecordValidateMethodFromCP : public TR_RelocationRecord
       TR_RelocationRecordValidateMethodFromCP() {}
       TR_RelocationRecordValidateMethodFromCP(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
 
       virtual void print(TR_RelocationRuntime *reloRuntime);
@@ -1389,7 +1389,7 @@ class TR_RelocationRecordValidateVirtualMethodFromOffset : public TR_RelocationR
       TR_RelocationRecordValidateVirtualMethodFromOffset(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateVirtualMethodFromOffset"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1415,7 +1415,7 @@ class TR_RelocationRecordValidateInterfaceMethodFromCP : public TR_RelocationRec
       TR_RelocationRecordValidateInterfaceMethodFromCP(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateInterfaceMethodFromCP"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1453,7 +1453,7 @@ class TR_RelocationRecordValidateMethodFromClassAndSig : public TR_RelocationRec
       TR_RelocationRecordValidateMethodFromClassAndSig(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateMethodFromClassAndSig"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1482,7 +1482,7 @@ class TR_RelocationRecordValidateStackWalkerMaySkipFrames : public TR_Relocation
       TR_RelocationRecordValidateStackWalkerMaySkipFrames(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateStackWalkerMaySkipFrames"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1505,7 +1505,7 @@ class TR_RelocationRecordValidateClassInfoIsInitialized : public TR_RelocationRe
       TR_RelocationRecordValidateClassInfoIsInitialized(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateClassInfoIsInitialized"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1525,7 +1525,7 @@ class TR_RelocationRecordValidateMethodFromSingleImpl : public TR_RelocationReco
       TR_RelocationRecordValidateMethodFromSingleImpl(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateMethodFromSingleImpl"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1557,7 +1557,7 @@ class TR_RelocationRecordValidateMethodFromSingleInterfaceImpl : public TR_Reloc
       TR_RelocationRecordValidateMethodFromSingleInterfaceImpl(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateMethodFromSingleInterfaceImpl"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1586,7 +1586,7 @@ class TR_RelocationRecordValidateMethodFromSingleAbstractImpl : public TR_Reloca
       TR_RelocationRecordValidateMethodFromSingleAbstractImpl(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual bool isValidationRecord() { return true; }
       virtual char *name() { return "TR_RelocationRecordValidateMethodFromSingleAbstractImpl"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1614,7 +1614,7 @@ class TR_RelocationRecordSymbolFromManager : public TR_RelocationRecord
       TR_RelocationRecordSymbolFromManager() {}
       TR_RelocationRecordSymbolFromManager(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual char *name() { return "TR_RelocationRecordSymbolFromManager"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
       virtual void storePointer(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
@@ -1646,7 +1646,7 @@ class TR_RelocationRecordResolvedTrampolines : public TR_RelocationRecord
       TR_RelocationRecordResolvedTrampolines() {}
       TR_RelocationRecordResolvedTrampolines(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual char *name() { return "TR_RelocationRecordResolvedTrampolines"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -1679,7 +1679,7 @@ class TR_RelocationRecordPointer : public TR_RelocationRecordWithInlinedSiteInde
 
       virtual void print(TR_RelocationRuntime *reloRuntime);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       void setClassChainIdentifyingLoaderOffsetInSharedCache(TR_RelocationTarget *reloTarget, uintptr_t classChainOffsetInSharedCache);
       uintptr_t classChainIdentifyingLoaderOffsetInSharedCache(TR_RelocationTarget *reloTarget);
@@ -1740,7 +1740,7 @@ class TR_RelocationRecordMethodPointer : public TR_RelocationRecordPointer
       void setVTableSlot(TR_RelocationTarget *reloTarget, uintptr_t vTableSlot);
       uintptr_t vTableSlot(TR_RelocationTarget *reloTarget);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
    protected:
       virtual uintptr_t computePointer(TR_RelocationTarget *reloTarget, TR_OpaqueClassBlock *classPointer);
@@ -1756,7 +1756,7 @@ class TR_RelocationRecordEmitClass : public TR_RelocationRecordWithInlinedSiteIn
       void setBCIndex(TR_RelocationTarget *reloTarget, int32_t bcIndex);
       int32_t bcIndex(TR_RelocationTarget *reloTarget);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
 
@@ -1772,7 +1772,7 @@ class TR_RelocationRecordDebugCounter : public TR_RelocationRecordWithInlinedSit
 
       virtual void print(TR_RelocationRuntime *reloRuntime);
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
 
@@ -1806,7 +1806,7 @@ class TR_RelocationRecordClassUnloadAssumption : public TR_RelocationRecord
 
       virtual char *name();
 
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
 
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
    };
@@ -1818,7 +1818,7 @@ class TR_RelocationRecordMethodCallAddress : public TR_RelocationRecord
       TR_RelocationRecordMethodCallAddress(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
 
       virtual char *name() { return "TR_MethodCallAddress"; }
-      virtual int32_t bytesInHeaderAndPayload();
+      virtual int32_t bytesInHeader();
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
       uint8_t* address(TR_RelocationTarget *reloTarget);
