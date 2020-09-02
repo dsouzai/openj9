@@ -110,15 +110,14 @@ uint8_t *J9::ARM::AheadOfTimeCompile::initializeAOTRelocationHeader(TR::Iterated
    TR_RelocationTarget *reloTarget = reloRuntime->reloTarget();
 
    uint8_t * aotMethodCodeStart = (uint8_t *) comp->getRelocatableMethodCodeStart();
-   uint8_t flags = 0;
 
    uint8_t *cursor = relocation->getRelocationData();
    uint8_t targetKind = relocation->getTargetKind();
+   uint8_t wideOffsets = relocation->needsWideOffsets() ? RELOCATION_TYPE_WIDE_OFFSET : 0;
 
    TR_RelocationRecord storage;
    TR_RelocationRecord *reloRecord = TR_RelocationRecord::create(&storage, reloRuntime, targetKind, reinterpret_cast<TR_RelocationRecordBinaryTemplate *>(cursor));
 
-   uint8_t wideOffsets = relocation->needsWideOffsets() ? RELOCATION_TYPE_WIDE_OFFSET : 0;
    reloRecord->setSize(reloTarget, relocation->getSizeOfRelocationData());
    reloRecord->setType(reloTarget, kind);
    reloRecord->setFlag(reloTarget, wideOffsets);
