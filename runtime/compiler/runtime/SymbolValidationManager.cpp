@@ -601,7 +601,7 @@ TR::SymbolValidationManager::addMultipleArrayRecords(TR_OpaqueClassBlock *compon
 bool
 TR::SymbolValidationManager::addMethodRecord(TR::MethodValidationRecord *record)
    {
-   if (shouldNotDefineSymbol(record->_method))
+   if (shouldNotDefineSymbol(record->_method) || !isClassWorthRemembering((TR_OpaqueClassBlock *)J9_CLASS_FROM_METHOD((J9Method *)record->_method)))
       return abandonRecord(record);
 
    if (recordExists(record))
