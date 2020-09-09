@@ -1021,8 +1021,21 @@ TR::SymbolValidationManager::validateClassByNameRecord(uint16_t classID, uint16_
    char *className = reinterpret_cast<char *>(J9UTF8_DATA(classNameData));
    uint32_t classNameLength = J9UTF8_LENGTH(classNameData);
    TR_OpaqueClassBlock *clazz = _fej9->getClassFromSignature(className, classNameLength, beholderCP);
-   return validateSymbol(classID, clazz)
-      && _fej9->sharedCache()->classMatchesCachedVersion(clazz, classChain);
+
+   if (validateSymbol(classID, clazz) && _fej9->sharedCache()->classMatchesCachedVersion(clazz, classChain))
+      {
+      return true;
+      }
+   else
+      {
+      if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+         {
+         TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "validateClassByNameRecord failed for %.*s",
+                                        J9UTF8_LENGTH(classNameData), (char *) J9UTF8_DATA(classNameData));
+         }
+
+      return false;
+      }
    }
 
 bool
@@ -1033,7 +1046,22 @@ TR::SymbolValidationManager::validateProfiledClassRecord(uint16_t classID, void 
       return false;
 
    TR_OpaqueClassBlock *clazz = _fej9->sharedCache()->lookupClassFromChainAndLoader(static_cast<uintptr_t *>(classChainForClassBeingValidated), classLoader);
-   return validateSymbol(classID, clazz);
+   if (validateSymbol(classID, clazz))
+      {
+      return true;
+      }
+   else
+      {
+      J9ROMClass *romClass = _fej9->sharedCache()->startingROMClassOfClassChain((UDATA *)classChainForClassBeingValidated);
+      J9UTF8 * classNameData = J9ROMCLASS_CLASSNAME(romClass);
+      if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+         {
+         TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "validateProfiledClassRecord failed for %.*s",
+                                        J9UTF8_LENGTH(classNameData), (char *) J9UTF8_DATA(classNameData));
+         }
+
+      return false;
+      }
    }
 
 bool
@@ -1228,7 +1256,28 @@ TR::SymbolValidationManager::validateSpecialMethodFromCPRecord(uint16_t methodID
       ramMethod = jitResolveSpecialMethodRef(_vmThread, beholderCP, cpIndex, J9_RESOLVE_FLAG_JIT_COMPILE_TIME);
       }
 
-   return validateSymbol(methodID, definingClassID, ramMethod);
+   if (validateSymbol(methodID, definingClassID, ramMethod))
+      {
+      return true;
+      }
+   else
+      {
+      J9ROMClass *romClass = beholder->romClass;
+      J9ROMMethodRef * romRef = &J9ROM_CP_BASE(romClass, J9ROMMethodRef)[cpIndex];
+      J9ROMClassRef * classRef = &J9ROM_CP_BASE(romClass, J9ROMClassRef)[romRef->classRefCPIndex];
+      J9ROMNameAndSignature * nameAndSignature = J9ROMMETHODREF_NAMEANDSIGNATURE(romRef);
+      J9UTF8 * className = J9ROMCLASSREF_NAME(classRef);
+      J9UTF8 * name = J9ROMNAMEANDSIGNATURE_NAME(nameAndSignature);
+      J9UTF8 * signature = J9ROMNAMEANDSIGNATURE_SIGNATURE(nameAndSignature);
+      if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+         {
+         TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "validateSpecialMethodFromCPRecord failed for %.*s.%.*s%.*s",
+                                        J9UTF8_LENGTH(className), (char *) J9UTF8_DATA(className),
+                                        J9UTF8_LENGTH(name), (char *) J9UTF8_DATA(name),
+                                        J9UTF8_LENGTH(signature), (char *) J9UTF8_DATA(signature));
+         }
+      return false;
+      }
    }
 
 bool
@@ -1392,6 +1441,20 @@ TR::SymbolValidationManager::validateClassInfoIsInitializedRecord(uint16_t class
       initialized = classInfo->isInitialized(false);
 
    bool valid = (!wasInitialized || initialized);
+
+   if (!valid)
+      {
+      J9ROMClass *romClass = ((J9Class *)clazz)->romClass;
+      J9UTF8 * classNameData = J9ROMCLASS_CLASSNAME(romClass);
+      if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+         {
+         TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "validateClassInfoIsInitializedRecord failed for %.*s",
+                                        J9UTF8_LENGTH(classNameData), (char *) J9UTF8_DATA(classNameData));
+         }
+
+      return false;
+      }
+
    return valid;
    }
 
