@@ -830,6 +830,10 @@ void TR::CompilationInfoPerThread::freeAllResources()
       TR_Memory::jitPersistentFree(_classesThatShouldNotBeNewlyExtended);
       }
 #endif /* defined(J9VM_OPT_JITSERVER) */
+
+   PORT_ACCESS_FROM_JITCONFIG(getJitConfig());
+   j9mem_free_memory(_activeThreadName);
+   j9mem_free_memory(_suspendedThreadName);
    }
 
 #if defined(J9VM_OPT_JITSERVER)
@@ -3507,6 +3511,7 @@ void TR::CompilationInfo::stopCompilationThreads()
          waitOnCompMonitor(vmThread);
          }
       }
+
    // Remove the method pool entries
    //
    PORT_ACCESS_FROM_JAVAVM(_jitConfig->javaVM);
@@ -3775,9 +3780,13 @@ IDATA J9THREAD_PROC protectedCompilationThreadProc(J9PortLibrary *, TR::Compilat
       (* vm->javaOffloadSwitchOffWithReasonFunc)(compThread, J9_JNI_OFFLOAD_SWITCH_JIT_COMPILATION_THREAD);
 #endif
 
-
    // Release the monitor before calling DetachCurrentThread to avoid deadlock
    compInfo->releaseCompMonitor(compThread);
+
+   setVMThreadNameWithFlag(compInfoPT->getCompilationThread(),
+                           compInfoPT->getCompilationThread(),
+                           NULL, 1);
+
    if (compThread)
       vm->internalVMFunctions->DetachCurrentThread((JavaVM *) vm);
 

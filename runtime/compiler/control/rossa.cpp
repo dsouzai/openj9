@@ -619,6 +619,12 @@ freeJITConfig(J9JITConfig * jitConfig)
       // Tell the runtime to unload.
       //
       codert_OnUnload(javaVM);
+
+      if (::trPersistentMemory)
+         {
+         j9mem_free_memory(::trPersistentMemory);
+         ::trPersistentMemory = NULL;
+         }
       }
    }
 
