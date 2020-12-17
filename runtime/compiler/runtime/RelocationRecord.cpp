@@ -5656,6 +5656,48 @@ TR_RelocationRecordMethodPointer::vTableSlot(TR_RelocationTarget *reloTarget)
    return reloTarget->loadRelocationRecordValue((uintptr_t *) &((TR_RelocationRecordMethodPointerBinaryTemplate *)_record)->_vTableSlot);
    }
 
+void
+TR_RelocationRecordMethodPointer::preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget)
+   {
+   /* If the class chain is set, then the method pointer was not the same
+    * as the method at the inlined site index, so use the mechanism in
+    * TR_RelocationRecordPointer::preparePrivateData to materialize the
+    * method pointer.
+    */
+   if (classChainForInlinedMethod(reloTarget))
+      {
+      TR_RelocationRecordPointer::preparePrivateData(reloRuntime, reloTarget);
+      return;
+      }
+
+   TR_RelocationRecordPointerPrivateData *reloPrivateData = &(privateData()->pointer);
+   J9Method *inlinedMethod =
+         reinterpret_cast<J9Method *>(
+            getInlinedSiteMethod(reloRuntime, inlinedSiteIndex(reloTarget)));
+
+   if (inlinedMethod != reinterpret_cast<J9Method *>(-1))
+      {
+      reloPrivateData->_activatePointer = true;
+      reloPrivateData->_clazz = reinterpret_cast<TR_OpaqueClassBlock *>(J9_CLASS_FROM_METHOD(inlinedMethod));
+      reloPrivateData->_pointer = reinterpret_cast<uintptr_t>(inlinedMethod);
+      reloPrivateData->_needUnloadAssumption =
+            !reloRuntime->fej9()->sameClassLoaders(
+               reloPrivateData->_clazz,
+               reloRuntime->comp()->getCurrentMethod()->classOfMethod());
+
+      RELO_LOG(reloRuntime->reloLogger(), 6,"\tpreparePrivateData: pointer %p\n", reloPrivateData->_pointer);
+      }
+   else
+      {
+      reloPrivateData->_activatePointer = false;
+      reloPrivateData->_clazz = reinterpret_cast<TR_OpaqueClassBlock *>(-1);
+      reloPrivateData->_pointer = static_cast<uintptr_t>(-1);
+      reloPrivateData->_needUnloadAssumption = false;
+
+      RELO_LOG(reloRuntime->reloLogger(), 6,"\tpreparePrivateData: class or loader NULL, or invalid site\n");
+      }
+   }
+
 uintptr_t
 TR_RelocationRecordMethodPointer::computePointer(TR_RelocationTarget *reloTarget, TR_OpaqueClassBlock *classPointer)
    {

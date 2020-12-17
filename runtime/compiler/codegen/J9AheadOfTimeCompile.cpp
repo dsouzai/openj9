@@ -546,12 +546,27 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          if (aconstNode->getOpCodeValue() == TR::loadaddr)
             j9method = reinterpret_cast<TR_OpaqueMethodBlock *>(aconstNode->getSymbolReference()->getSymbol()->castToStaticSymbol()->getStaticAddress());
 
-         TR_OpaqueClassBlock *j9class = fej9->getClassFromMethodBlock(j9method);
+         TR_InlinedCallSite & ics = comp->getInlinedCallSite(inlinedSiteIndex);
+         TR_ResolvedMethod *inlinedMethod = ((TR_AOTMethodInfo *)ics._methodInfo)->resolvedMethod;
+         TR_OpaqueMethodBlock *inlinedJ9Method = inlinedMethod->getPersistentIdentifier();
 
-         uintptr_t classChainOffsetOfCLInSharedCache = sharedCache->getClassChainOffsetOfIdentifyingLoaderForClazzInSharedCache(j9class);
-         uintptr_t classChainForInlinedMethodOffsetInSharedCache = self()->getClassChainOffset(j9class);
+         uintptr_t classChainOffsetOfCLInSharedCache = 0;
+         uintptr_t classChainForInlinedMethodOffsetInSharedCache = 0;
+         uintptr_t vTableOffset = 0;
 
-         uintptr_t vTableOffset = static_cast<uintptr_t>(fej9->getInterpreterVTableSlot(j9method, j9class));
+         /* If the j9method from the aconst node is the same as the j9method at
+          * inlined call site at inlinedSiteIndex, don't set the remaining fields
+          * in the binary template; at relo time, the inlined site index is
+          * sufficient to materialize the j9method pointer
+          */
+         if (j9method != inlinedJ9Method)
+            {
+            TR_OpaqueClassBlock *j9class = fej9->getClassFromMethodBlock(j9method);
+
+            classChainOffsetOfCLInSharedCache = sharedCache->getClassChainOffsetOfIdentifyingLoaderForClazzInSharedCache(j9class);
+            classChainForInlinedMethodOffsetInSharedCache = self()->getClassChainOffset(j9class);
+            vTableOffset = static_cast<uintptr_t>(fej9->getInterpreterVTableSlot(j9method, j9class));
+            }
 
          mpRecord->setInlinedSiteIndex(reloTarget, inlinedSiteIndex);
          mpRecord->setClassChainForInlinedMethod(reloTarget, classChainForInlinedMethodOffsetInSharedCache);

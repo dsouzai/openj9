@@ -1760,6 +1760,8 @@ class TR_RelocationRecordMethodPointer : public TR_RelocationRecordPointer
       void setVTableSlot(TR_RelocationTarget *reloTarget, uintptr_t vTableSlot);
       uintptr_t vTableSlot(TR_RelocationTarget *reloTarget);
 
+      virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
+
    protected:
       virtual uintptr_t computePointer(TR_RelocationTarget *reloTarget, TR_OpaqueClassBlock *classPointer);
       virtual void activatePointer(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
