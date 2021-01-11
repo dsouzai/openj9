@@ -575,7 +575,10 @@ bool TR_J9VirtualCallSite::findCallSiteTarget(TR_CallStack *callStack, TR_Inline
    // the interface class. However, the class ref from cp will be resolved to the abstract
    // class, which is more concrete
    //
-   if (_cpIndex != -1 && _receiverClass && TR::Compiler->cls.isInterfaceClass(comp(), _receiverClass))
+   if (_cpIndex != -1
+       && _receiverClass
+       && TR::Compiler->cls.isInterfaceClass(comp(), _receiverClass)
+       && (!comp()->compileRelocatableCode() || comp()->getOption(TR_UseSymbolValidationManager)))
       {
       TR_ResolvedMethod* owningMethod = _initialCalleeMethod->owningMethod();
       int32_t classRefCPIndex = owningMethod->classCPIndexOfMethod(_cpIndex);
@@ -662,10 +665,8 @@ bool TR_J9InterfaceCallSite::findCallSiteTarget (TR_CallStack *callStack, TR_Inl
       _receiverClass = comp()->fej9()->getClassFromSignature(s, len, _callerResolvedMethod, true);
       }
 
-   //TR_OpaqueClassBlock* _receiverClass = NULL;
    tryToRefineReceiverClassBasedOnResolvedTypeArgInfo(inliner);
 
-   //TR_ResolvedMethod* calleeResolvedMethod = inliner->findInterfaceImplementationToInline(_interfaceMethod, _cpIndex, _callerResolvedMethod, _receiverClass);
    TR_ResolvedMethod* calleeResolvedMethod = comp()->getPersistentInfo()->getPersistentCHTable()->findSingleImplementer(_receiverClass, _cpIndex, _callerResolvedMethod, inliner->comp(), false, TR_yes);
 
    if (!comp()->performVirtualGuardNOPing() || (comp()->compileRelocatableCode() && !TR::Options::getCmdLineOptions()->allowRecompilation()))
