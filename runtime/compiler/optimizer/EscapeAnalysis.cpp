@@ -5175,9 +5175,10 @@ int32_t TR_EscapeAnalysis::sniffCall(TR::Node *callNode, TR::ResolvedMethodSymbo
          static char *disableHCRCallPeeking = feGetEnv("TR_disableEAHCRCallPeeking");
          if (!isPeekableCall
              && disableHCRCallPeeking == NULL
-             && comp()->getOSRMode() == TR::voluntaryOSR
              && comp()->getHCRMode() == TR::osr
+             && comp()->getOSRMode() == TR::voluntaryOSR
              && !_candidates.isEmpty()
+             && (!comp()->compileRelocatableCode() || comp()->getOption(TR_UseSymbolValidationManager))
              && !((TR_EscapeAnalysis::PersistentData*)manager()->getOptData())->_processedCalls->get(callNode->getGlobalIndex()))
             {
             dumpOptDetails(comp(), "%sAdding call [%p] n%dn to list of calls to protect for peeking to increase opportunities for stack allocation\n", OPT_DETAILS, callNode, callNode->getGlobalIndex());
