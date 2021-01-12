@@ -108,6 +108,15 @@ J9::ValuePropagation::transformCallToNodeWithHCRGuard(TR::TreeTop *callTree, TR:
    TR::Node * callNode = callTree->getNode()->getFirstChild();
    TR_ASSERT(callNode->getSymbol()->isResolvedMethod(), "Expecting resolved call in transformCallToNodeWithHCRGuard");
 
+   // It is not always possible to materialize the receiver class in tAOT, so if the SVM
+   // is disabled, do not do this transformation.
+   if (comp()->compileRelocatableCode() && !comp()->getOption(TR_UseSymbolValidationManager))
+      {
+      if (trace())
+         traceMsg(comp(), "AOT: Cannot inline call %p, quit transforming it into a constant\n", callNode);
+      return;
+      }
+
    TR::ResolvedMethodSymbol *calleeSymbol = callNode->getSymbol()->castToResolvedMethodSymbol();
 
    // Add the call to inlining table
