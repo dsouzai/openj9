@@ -181,7 +181,10 @@ struct TR_RelocationRecordRomClassFromCPBinaryTemplate : public TR_RelocationRec
    UDATA  _romClassOffsetInSharedCache;
    };
 
-typedef TR_RelocationRecordRomClassFromCPBinaryTemplate TR_RelocationRecordInlinedMethodBinaryTemplate;
+struct TR_RelocationRecordInlinedMethodBinaryTemplate : TR_RelocationRecordRomClassFromCPBinaryTemplate
+   {
+   bool _receiverForOSRRedefinition;
+   };
 
 struct TR_RelocationRecordNopGuardBinaryTemplate : public TR_RelocationRecordInlinedMethodBinaryTemplate
    {
@@ -197,6 +200,8 @@ struct TR_RelocationRecordProfiledInlinedMethodBinaryTemplate : TR_RelocationRec
 
    // The inlined j9method's index into its defining class' array of j9methods
    UDATA _methodIndex;
+
+   bool _receiverForOSRRedefinition;
    };
 
 struct TR_RelocationRecordMethodTracingCheckBinaryTemplate : public TR_RelocationRecordBinaryTemplate
@@ -2635,6 +2640,18 @@ TR_RelocationRecordInlinedMethod::romClassOffsetInSharedCache(TR_RelocationTarge
    }
 
 void
+TR_RelocationRecordInlinedMethod::setReceiverForOSRRedefinition(TR_RelocationTarget *reloTarget, bool receiverForOSRRedefinition)
+   {
+   reloTarget->storeUnsigned8b((uint8_t)receiverForOSRRedefinition, (uint8_t *) &((TR_RelocationRecordInlinedMethodBinaryTemplate *)_record)->_receiverForOSRRedefinition);
+   }
+
+bool
+TR_RelocationRecordInlinedMethod::receiverForOSRRedefinition(TR_RelocationTarget *reloTarget)
+   {
+   return (bool)reloTarget->loadUnsigned8b((uint8_t *) &((TR_RelocationRecordInlinedMethodBinaryTemplate *)_record)->_receiverForOSRRedefinition);
+   }
+
+void
 TR_RelocationRecordInlinedMethod::fixInlinedSiteInfo(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, TR_OpaqueMethodBlock *inlinedMethod)
    {
    TR_InlinedCallSite *inlinedCallSite = (TR_InlinedCallSite *)getInlinedCallSiteArrayElement(reloRuntime->exceptionTable(), inlinedSiteIndex(reloTarget));
@@ -3187,6 +3204,18 @@ uintptr_t
 TR_RelocationRecordProfiledInlinedMethod::methodIndex(TR_RelocationTarget *reloTarget)
    {
    return reloTarget->loadRelocationRecordValue((uintptr_t *) &((TR_RelocationRecordProfiledInlinedMethodBinaryTemplate *)_record)->_methodIndex);
+   }
+
+void
+TR_RelocationRecordProfiledInlinedMethod::setReceiverForOSRRedefinition(TR_RelocationTarget *reloTarget, bool receiverForOSRRedefinition)
+   {
+   reloTarget->storeUnsigned8b((uint8_t)receiverForOSRRedefinition, (uint8_t *) &((TR_RelocationRecordProfiledInlinedMethodBinaryTemplate *)_record)->_receiverForOSRRedefinition);
+   }
+
+bool
+TR_RelocationRecordProfiledInlinedMethod::receiverForOSRRedefinition(TR_RelocationTarget *reloTarget)
+   {
+   return (bool)reloTarget->loadUnsigned8b((uint8_t *) &((TR_RelocationRecordProfiledInlinedMethodBinaryTemplate *)_record)->_receiverForOSRRedefinition);
    }
 
 

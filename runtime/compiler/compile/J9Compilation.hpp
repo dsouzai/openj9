@@ -318,6 +318,7 @@ class OMR_EXTENSIBLE Compilation : public OMR::CompilationConnector
 
    // OSR Guard Redefinition Classes
    void addClassForOSRRedefinition(TR_OpaqueClassBlock *clazz);
+   bool isClassNeededForOSRRedefinition(TR_OpaqueClassBlock *clazz);
    TR_Array<TR_OpaqueClassBlock*> *getClassesForOSRRedefinition() { return &_classForOSRRedefinition; }
 
    void addClassForStaticFinalFieldModification(TR_OpaqueClassBlock *clazz);

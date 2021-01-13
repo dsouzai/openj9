@@ -765,6 +765,9 @@ class TR_RelocationRecordInlinedMethod : public TR_RelocationRecordConstantPoolW
       void setRomClassOffsetInSharedCache(TR_RelocationTarget *reloTarget, uintptr_t romClassOffsetInSharedCache);
       uintptr_t romClassOffsetInSharedCache(TR_RelocationTarget *reloTarget);
 
+      void setReceiverForOSRRedefinition(TR_RelocationTarget *reloTarget, bool receiverForOSRRedefinition);
+      bool receiverForOSRRedefinition(TR_RelocationTarget *reloTarget);
+
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
@@ -947,6 +950,9 @@ class TR_RelocationRecordProfiledInlinedMethod : public TR_RelocationRecordInlin
 
       void setMethodIndex(TR_RelocationTarget *reloTarget, uintptr_t methodIndex);
       uintptr_t methodIndex(TR_RelocationTarget *reloTarget);
+
+      void setReceiverForOSRRedefinition(TR_RelocationTarget *reloTarget, bool receiverForOSRRedefinition);
+      bool receiverForOSRRedefinition(TR_RelocationTarget *reloTarget);
 
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
 

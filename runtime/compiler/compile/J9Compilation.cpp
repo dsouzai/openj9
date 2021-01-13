@@ -1460,6 +1460,16 @@ J9::Compilation::addClassForOSRRedefinition(TR_OpaqueClassBlock *clazz)
    _classForOSRRedefinition.add(clazz);
    }
 
+bool
+J9::Compilation::isClassNeededForOSRRedefinition(TR_OpaqueClassBlock *clazz)
+   {
+   for (uint32_t i = 0; i < _classForOSRRedefinition.size(); ++i)
+      if (_classForOSRRedefinition[i] == clazz)
+         return true;
+
+   return false;
+   }
+
 /*
  * Adds the provided TR_OpaqueClassBlock to the set of those to trigger OSR Guard patching
  * on a static final field modification.

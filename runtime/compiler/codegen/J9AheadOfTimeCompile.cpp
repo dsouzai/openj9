@@ -417,6 +417,8 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
             resolvedMethod = callSymRef->getSymbol()->getResolvedMethodSymbol()->getResolvedMethod();
             }
 
+         bool receiverForOSRRedefinition = false;
+
          // Ugly; this will be cleaned up in a future PR
          uintptr_t cpIndexOrData = 0;
          if (comp->getOption(TR_UseSymbolValidationManager))
@@ -430,6 +432,12 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          else
             {
             cpIndexOrData = static_cast<uintptr_t>(callSymRef->getCPIndex());
+
+            if (comp->getHCRMode() == TR::osr && comp->getOSRMode() == TR::voluntaryOSR)
+               {
+               // If the SVM is enabled, we just store a list of IDs
+               receiverForOSRRedefinition = comp->isClassNeededForOSRRedefinition(thisClass);
+               }
             }
 
          TR_OpaqueClassBlock *inlinedMethodClass = resolvedMethod->containingClass();
@@ -441,6 +449,7 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          imRecord->setConstantPool(reloTarget, reinterpret_cast<uintptr_t>(callSymRef->getOwningMethod(comp)->constantPool()));
          imRecord->setCpIndex(reloTarget, cpIndexOrData);
          imRecord->setRomClassOffsetInSharedCache(reloTarget, romClassOffsetInSharedCache);
+         imRecord->setReceiverForOSRRedefinition(reloTarget, receiverForOSRRedefinition);
 
          if (kind != TR_InlinedInterfaceMethod
              && kind != TR_InlinedVirtualMethod
@@ -496,6 +505,7 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
 
          int32_t inlinedSiteIndex        = static_cast<int32_t>(info->data1);
          TR::SymbolReference *callSymRef = reinterpret_cast<TR::SymbolReference *>(info->data2);
+         TR_OpaqueClassBlock *thisClass  = reinterpret_cast<TR_OpaqueClassBlock *>(info->data3);
 
          TR_ResolvedMethod *owningMethod = callSymRef->getOwningMethod(comp);
 
@@ -513,6 +523,8 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
 
          uintptr_t methodIndex = fej9->getMethodIndexInClass(inlinedCodeClass, inlinedMethod->getNonPersistentIdentifier());
 
+         bool receiverForOSRRedefinition = false;
+
          // Ugly; this will be cleaned up in a future PR
          uintptr_t cpIndexOrData = 0;
          if (comp->getOption(TR_UseSymbolValidationManager))
@@ -523,6 +535,12 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          else
             {
             cpIndexOrData = static_cast<uintptr_t>(callSymRef->getCPIndex());
+
+            if (comp->getHCRMode() == TR::osr && comp->getOSRMode() == TR::voluntaryOSR)
+               {
+               // If the SVM is enabled, we just store a list of IDs
+               receiverForOSRRedefinition = comp->isClassNeededForOSRRedefinition(thisClass);
+               }
             }
 
          pRecord->setInlinedSiteIndex(reloTarget, inlinedSiteIndex);
@@ -532,6 +550,7 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          pRecord->setClassChainIdentifyingLoaderOffsetInSharedCache(reloTarget, classChainIdentifyingLoaderOffsetInSharedCache);
          pRecord->setClassChainForInlinedMethod(reloTarget, classChainOffsetInSharedCache);
          pRecord->setMethodIndex(reloTarget, methodIndex);
+         pRecord->setReceiverForOSRRedefinition(reloTarget, receiverForOSRRedefinition);
          }
          break;
 
