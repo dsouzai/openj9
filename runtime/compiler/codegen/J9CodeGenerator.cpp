@@ -2965,19 +2965,9 @@ static TR_ExternalRelocationTargetKind getReloKindFromGuardSite(TR::CodeGenerato
          break;
 
       case TR_HCRGuard:
-         // devinmp: TODO/FIXME this should arrange to create an AOT
-         // relocation which, when loaded, creates a
-         // TR_PatchNOPedGuardSiteOnClassRedefinition or similar.
-         // Here we would previously create a TR_HCR relocation,
-         // which is for replacing J9Class or J9Method pointers.
-         // These would be the 'unresolved' variant
-         // (TR_RedefinedClassUPicSite), which would (hopefully) never
-         // get patched. If it were patched, it seems like it would
-         // replace code with a J9Method pointer.
-         if (!cg->comp()->getOption(TR_UseOldHCRGuardAOTRelocations))
-            type = TR_NoRelocation;
-         else
-            type = TR_HCR;
+         TR_ASSERT_FATAL(cg->comp()->getOption(TR_UseSymbolValidationManager),
+                         "TR_HCRGuard should not be generated if SVM is not enabled!");
+         type = TR_HCRGuard;
          break;
 
       case TR_MethodEnterExitGuard:
@@ -3080,6 +3070,14 @@ static void processAOTGuardSites(TR::CodeGenerator *cg, uint32_t inlinedCallSize
          case TR_Breakpoint:
             cg->addExternalRelocation(new (cg->trHeapMemory()) TR::ExternalRelocation((uint8_t *)(*it)->getLocation(),
                                                                              (uint8_t *)(*it)->getGuard()->getCurrentInlinedSiteIndex(),
+                                                                             (uint8_t *)(*it)->getDestination(),
+                                                                             type, cg),
+                             __FILE__, __LINE__, NULL);
+            break;
+
+         case TR_HCRGuard:
+            cg->addExternalRelocation(new (cg->trHeapMemory()) TR::ExternalRelocation((uint8_t *)(*it)->getLocation(),
+                                                                             (uint8_t *)(*it)->getGuard()->getThisClass(),
                                                                              (uint8_t *)(*it)->getDestination(),
                                                                              type, cg),
                              __FILE__, __LINE__, NULL);

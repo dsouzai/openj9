@@ -170,6 +170,12 @@ struct TR_RelocationRecordBreakpointGuardPrivateData
    uint8_t *_destinationAddress;
    };
 
+struct TR_RelocationRecordHCRGuardPrivateData
+   {
+   TR_OpaqueClassBlock *_receiver;
+   uint8_t *_destinationAddress;
+   };
+
 union TR_RelocationRecordPrivateData
    {
    TR_RelocationRecordHelperAddressPrivateData helperAddress;
@@ -188,6 +194,7 @@ union TR_RelocationRecordPrivateData
    TR_RelocationRecordBlockFrequencyPrivateData blockFrequency;
    TR_RelocationRecordRecompQueuedFlagPrivateData recompQueuedFlag;
    TR_RelocationRecordBreakpointGuardPrivateData breakpointGuard;
+   TR_RelocationRecordHCRGuardPrivateData hcrGuard;
    };
 
 enum TR_RelocationRecordAction
@@ -1853,6 +1860,26 @@ class TR_RelocationRecordBreakpointGuard : public TR_RelocationRecordWithInlined
 
       virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
+
+      void setDestinationAddress(TR_RelocationTarget *reloTarget, uintptr_t destinationAddress);
+      uintptr_t destinationAddress(TR_RelocationTarget *reloTarget);
+   };
+
+class TR_RelocationRecordHCRGuard : public TR_RelocationRecord
+   {
+   public:
+      TR_RelocationRecordHCRGuard() {}
+      TR_RelocationRecordHCRGuard(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record)
+         : TR_RelocationRecord(reloRuntime, record) {}
+
+      virtual char *name() { return "TR_HCRGuard"; }
+      virtual void print(TR_RelocationRuntime *reloRuntime);
+
+      virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
+      virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
+
+      void setReceiverClassID(TR_RelocationTarget *reloTarget, uint16_t receiverClassID);
+      uint16_t receiverClassID(TR_RelocationTarget *reloTarget);
 
       void setDestinationAddress(TR_RelocationTarget *reloTarget, uintptr_t destinationAddress);
       uintptr_t destinationAddress(TR_RelocationTarget *reloTarget);

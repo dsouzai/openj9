@@ -417,6 +417,12 @@ struct TR_RelocationRecordBreapointGuardBinaryTemplate : public TR_RelocationRec
    UDATA _destinationAddress;
    };
 
+struct TR_RelocationRecordHCRGuardBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _receiverClassID;
+   UDATA _destinationAddress;
+   };
+
 // END OF BINARY TEMPLATES
 
 uint8_t
@@ -6075,6 +6081,66 @@ TR_RelocationRecordBreakpointGuard::applyRelocation(TR_RelocationRuntime *reloRu
    return 0;
    }
 
+void
+TR_RelocationRecordHCRGuard::print(TR_RelocationRuntime *reloRuntime)
+   {
+   TR_RelocationTarget *reloTarget = reloRuntime->reloTarget();
+   TR_RelocationRuntimeLogger *reloLogger = reloRuntime->reloLogger();
+   TR_RelocationRecord::print(reloRuntime);
+   reloLogger->printf("\treceiverClassID %d\n", receiverClassID(reloTarget));
+   reloLogger->printf("\tdestinationAddress %p\n", destinationAddress(reloTarget));
+   }
+
+void
+TR_RelocationRecordHCRGuard::preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget)
+   {
+   TR_RelocationRecordHCRGuardPrivateData *reloPrivateData = &(privateData()->hcrGuard);
+
+   reloPrivateData->_receiver = receiverClassID(reloTarget);
+   reloPrivateData->_destinationAddress = reinterpret_cast<uint8_t *>(destinationAddress(reloTarget)
+                                                                      - reloRuntime->aotMethodHeaderEntry()->compileMethodCodeStartPC
+                                                                      + reinterpret_cast<uintptr_t>(reloRuntime->newMethodCodeStart()));
+   }
+
+void
+TR_RelocationRecordHCRGuard::setReceiverClassID(TR_RelocationTarget *reloTarget, uint16_t receiverClassID)
+   {
+   reloTarget->storeUnsigned16b(classID, (uint8_t *) &((TR_RelocationRecordHCRGuardBinaryTemplate *)_record)->_receiverClassID);
+   }
+
+uint16_t
+TR_RelocationRecordHCRGuard::receiverClassID(TR_RelocationTarget *reloTarget)
+   {
+   return reloTarget->loadUnsigned16b((uint8_t *) &((TR_RelocationRecordHCRGuardBinaryTemplate *)_record)->_receiverClassID);
+   }
+
+void
+TR_RelocationRecordHCRGuard::setDestinationAddress(TR_RelocationTarget *reloTarget, uintptr_t destinationAddress)
+   {
+   reloTarget->storeRelocationRecordValue(destinationAddress, (uintptr_t *) &((TR_RelocationRecordHCRGuardBinaryTemplate *)_record)->_destinationAddress);
+   }
+
+uintptr_t
+TR_RelocationRecordHCRGuard::destinationAddress(TR_RelocationTarget *reloTarget)
+   {
+   return reloTarget->loadRelocationRecordValue((uintptr_t *) &((TR_RelocationRecordHCRGuardBinaryTemplate *)_record)->_destinationAddress);
+   }
+
+int32_t
+TR_RelocationRecordHCRGuard::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
+   {
+   if (reloRuntime->options()->getOption(TR_EnableHCR))
+      {
+      TR_RelocationRecordHCRGuardPrivateData *reloPrivateData = &(privateData()->hcrGuard);
+      TR_PatchNOPedGuardSiteOnClassRedefinition::make(reloRuntime->fej9(),
+                                                      reloRuntime->trMemory()->trPersistentMemory(),
+                                                      reloPrivateData->_receiver,
+                                                      reloLocation,
+                                                      reloPrivateData->_destinationAddress,
+                                                      getMetadataAssumptionList(reloRuntime->exceptionTable()));
+      }
+   }
+
 uint32_t TR_RelocationRecord::_relocationRecordHeaderSizeTable[TR_NumExternalRelocationKinds] =
    {
    sizeof(TR_RelocationRecordConstantPoolBinaryTemplate),                            // TR_ConstantPool                                 = 0
@@ -6185,4 +6251,5 @@ uint32_t TR_RelocationRecord::_relocationRecordHeaderSizeTable[TR_NumExternalRel
    sizeof(TR_RelocationRecordInlinedMethodBinaryTemplate),                           // TR_InlinedSpecialMethod                         = 105
    sizeof(TR_RelocationRecordInlinedMethodBinaryTemplate),                           // TR_InlinedAbstractMethod                        = 106
    sizeof(TR_RelocationRecordBreapointGuardBinaryTemplate),                          // TR_Breakpoint                                   = 107
+   sizeof(TR_RelocationRecordHCRGuardBinaryTemplate),                                // TR_HCRGuard                                     = 108
    };

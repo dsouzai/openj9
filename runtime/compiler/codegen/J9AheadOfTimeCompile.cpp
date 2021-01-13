@@ -1177,6 +1177,18 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          }
          break;
 
+      case TR_HCRGuard:
+         {
+         TR_RelocationRecordHCRGuard *hcrgRecord = reinterpret_cast<TR_RelocationRecordHCRGuard *>(reloRecord);
+
+         TR_OpaqueClassBlock *receiver = reinterpret_cast<TR_OpaqueClassBlock *>(relocation->getTargetAddress());
+         uintptr_t destinationAddress = reinterpret_cast<uintptr_t>(relocation->getTargetAddress2());
+
+         hcrgRecord->setReceiverClassID(reloTarget, symValManager->getIDFromSymbol(receiver));
+         hcrgRecord->setDestinationAddress(reloTarget, destinationAddress);
+         }
+         break;
+
       default:
          TR_ASSERT(false, "Unknown relo type %d!\n", kind);
          comp->failCompilation<J9::AOTRelocationRecordGenerationFailure>("Unknown relo type %d!\n", kind);
@@ -2033,6 +2045,20 @@ J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool isVerbose
             traceMsg(self()->comp(), "\n Breakpoint Guard: Inlined site index = %d, destinationAddress = %p",
                      bpgRecord->inlinedSiteIndex(reloTarget),
                      bpgRecord->destinationAddress(reloTarget));
+            }
+         }
+         break;
+
+      case TR_HCRGuard:
+         {
+         TR_RelocationRecordHCRGuard *hcrgRecord = reinterpret_cast<TR_RelocationRecordHCRGuard *>(reloRecord);
+
+         self()->traceRelocationOffsets(cursor, offsetSize, endOfCurrentRecord, orderedPair);
+         if (isVerbose)
+            {
+            traceMsg(self()->comp(), "\n HCR Guard: receiverClassID = %d, destinationAddress = %p",
+                     hcrgRecord->receiverClassID(reloTarget),
+                     hcrgRecord->destinationAddress(reloTarget));
             }
          }
          break;
