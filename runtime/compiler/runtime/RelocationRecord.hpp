@@ -176,6 +176,11 @@ struct TR_RelocationRecordHCRGuardPrivateData
    uint8_t *_destinationAddress;
    };
 
+struct TR_RelocationRecordOSRGuardPrivateData
+   {
+   uint8_t *_destinationAddress;
+   };
+
 union TR_RelocationRecordPrivateData
    {
    TR_RelocationRecordHelperAddressPrivateData helperAddress;
@@ -195,6 +200,7 @@ union TR_RelocationRecordPrivateData
    TR_RelocationRecordRecompQueuedFlagPrivateData recompQueuedFlag;
    TR_RelocationRecordBreakpointGuardPrivateData breakpointGuard;
    TR_RelocationRecordHCRGuardPrivateData hcrGuard;
+   TR_RelocationRecordOSRGuardPrivateData osrGuard;
    };
 
 enum TR_RelocationRecordAction
@@ -1886,6 +1892,23 @@ class TR_RelocationRecordHCRGuard : public TR_RelocationRecord
 
       void setReceiverClassID(TR_RelocationTarget *reloTarget, uint16_t receiverClassID);
       uint16_t receiverClassID(TR_RelocationTarget *reloTarget);
+
+      void setDestinationAddress(TR_RelocationTarget *reloTarget, uintptr_t destinationAddress);
+      uintptr_t destinationAddress(TR_RelocationTarget *reloTarget);
+   };
+
+class TR_RelocationRecordOSRGuard : public TR_RelocationRecord
+   {
+   public:
+      TR_RelocationRecordOSRGuard() {}
+      TR_RelocationRecordOSRGuard(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record)
+         : TR_RelocationRecord(reloRuntime, record) {}
+
+      virtual char *name() { return "TR_HCRGuard"; }
+      virtual void print(TR_RelocationRuntime *reloRuntime);
+
+      virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
+      virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
 
       void setDestinationAddress(TR_RelocationTarget *reloTarget, uintptr_t destinationAddress);
       uintptr_t destinationAddress(TR_RelocationTarget *reloTarget);
