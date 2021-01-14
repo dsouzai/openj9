@@ -2820,13 +2820,18 @@ TR_RelocationRecordInlinedMethod::inlinedSiteValid(TR_RelocationRuntime *reloRun
          }
       }
 
+   J9Method *inlinedMethod = reinterpret_cast<TR_OpaqueMethodBlock *>(currentMethod);
+
    if (!inlinedSiteIsValid)
       RELO_LOG(reloRuntime->reloLogger(), 6, "\tinlinedSiteValid: not valid\n");
 
    /* Even if the inlined site is disabled, the inlined site table in the metadata
     * should still be populated under AOT w/ SVM
     */
-   *theMethod = reinterpret_cast<TR_OpaqueMethodBlock *>(currentMethod);
+   *theMethod = inlinedMethod;
+
+   if (inlinedMethod && !reloRuntime->comp()->getOption(TR_UseSymbolValidationManager))
+      reloRuntime->comp()->addClassForOSRRedefinition(J9_CLASS_FROM_METHOD(inlinedMethod));
 
    return inlinedSiteIsValid;
    }
@@ -3262,6 +3267,7 @@ TR_RelocationRecordProfiledInlinedMethod::preparePrivateData(TR_RelocationRuntim
    reloPrivateData->_guardValue = 0;
    bool failValidation = true;
    TR_OpaqueClassBlock *inlinedCodeClass = NULL;
+   TR_OpaqueMethodBlock *inlinedMethod = NULL;
 
    if (reloRuntime->comp()->getOption(TR_UseSymbolValidationManager))
       {
@@ -3296,7 +3302,6 @@ TR_RelocationRecordProfiledInlinedMethod::preparePrivateData(TR_RelocationRuntim
       reloPrivateData->_inlinedCodeClass = inlinedCodeClass;
 
       bool inlinedSiteIsValid = true;
-      TR_OpaqueMethodBlock *inlinedMethod = NULL;
 
       uintptr_t *chainData = (uintptr_t *) reloRuntime->fej9()->sharedCache()->pointerFromOffsetInSharedCache(classChainForInlinedMethod(reloTarget));
       if (!reloRuntime->fej9()->sharedCache()->classMatchesCachedVersion(inlinedCodeClass, chainData))
@@ -3333,6 +3338,9 @@ TR_RelocationRecordProfiledInlinedMethod::preparePrivateData(TR_RelocationRuntim
    RELO_LOG(reloRuntime->reloLogger(), 6,"\tpreparePrivateData: needUnloadAssumption %d\n", reloPrivateData->_needUnloadAssumption);
    RELO_LOG(reloRuntime->reloLogger(), 6,"\tpreparePrivateData: guardValue %p\n", reloPrivateData->_guardValue);
    RELO_LOG(reloRuntime->reloLogger(), 6,"\tpreparePrivateData: failValidation %d\n", failValidation);
+
+   if (inlinedMethod && !reloRuntime->comp()->getOption(TR_UseSymbolValidationManager))
+      reloRuntime->comp()->addClassForOSRRedefinition(J9_CLASS_FROM_METHOD(reinterpret_cast<TR_OpaqueMethodBlock *>(inlinedMethod)));
    }
 
 void
