@@ -8205,8 +8205,7 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
             // In this scenario, startup is dominated by the number of AOT loads can that be
             // performed rather than code quality. Therefore, disabling AOT Warm during startup
             // disables inlining, thus dramatically reducing the code & data size.
-            if (that->_methodBeingCompiled->_useAotCompilation
-                && !TR::Options::getCmdLineOptions()->getOption(TR_FullSpeedDebug))
+            if (that->_methodBeingCompiled->_useAotCompilation)
                {
                // In some circumstances AOT compilations are performed at warm
                if ((TR::Options::getCmdLineOptions()->getAggressivityLevel() == TR::Options::AGGRESSIVE_AOT ||
