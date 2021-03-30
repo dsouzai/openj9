@@ -1266,7 +1266,9 @@ void J9::ARM64::PrivateLinkage::buildDirectCall(TR::Node *callNode,
       TR::LabelSymbol *label = generateLabelSymbol(cg());
       TR::Snippet *snippet;
 
-      if (callSymRef->isUnresolved() || comp()->compileRelocatableCode())
+      bool forceUnresolvedDispatch = comp()->fej9()->forceUnresolvedDispatch() && !comp()->genRelocatableResolvedDispatchSnippet(callSymbol);
+
+      if (callSymRef->isUnresolved() || forceUnresolvedDispatch)
          {
          snippet = new (trHeapMemory()) TR::ARM64UnresolvedCallSnippet(cg(), callNode, label, argSize);
          }
