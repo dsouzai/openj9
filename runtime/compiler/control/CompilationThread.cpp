@@ -2108,6 +2108,7 @@ bool TR::CompilationInfo::shouldRetryCompilation(TR_MethodToBeCompiled *entry, T
             case compilationAotBlockFrequencyReloFailure:
             case compilationAotRecompQueuedFlagReloFailure:
             case compilationAOTValidateOSRFailure:
+            case compilationFailedToAcquireVMINLMethod:
                // switch to JIT for these cases (we don't want to relocate again)
                entry->_doNotUseAotCodeFromSharedCache = true;
                tryCompilingAgain = true;
@@ -10671,6 +10672,10 @@ TR::CompilationInfoPerThreadBase::processException(
    catch (const J9::AOTRelocationRecordGenerationFailure &e)
       {
       _methodBeingCompiled->_compErrCode = compilationAOTRelocationRecordGenerationFailure;
+      }
+   catch (const J9::VMINLMethodFailure &e)
+      {
+      _methodBeingCompiled->_compErrCode = compilationFailedToAcquireVMINLMethod;
       }
    catch (const J9::ClassChainPersistenceFailure &e)
       {
