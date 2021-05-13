@@ -1316,24 +1316,40 @@ TR_ResolvedRelocatableJ9Method::isUnresolvedMethodHandle(I_32 cpIndex)
 bool
 TR_ResolvedRelocatableJ9Method::isUnresolvedCallSiteTableEntry(int32_t callSiteIndex)
    {
+#if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
+   if (TR::comp() && TR::comp()->getOption(TR_UseSymbolValidationManager))
+      return TR_ResolvedJ9Method::isUnresolvedCallSiteTableEntry(callSiteIndex);
+#endif
    return true;
    }
 
 void *
 TR_ResolvedRelocatableJ9Method::callSiteTableEntryAddress(int32_t callSiteIndex)
    {
+#if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
+   if (TR::comp() && TR::comp()->getOption(TR_UseSymbolValidationManager))
+      return TR_ResolvedJ9Method::callSiteTableEntryAddress(callSiteIndex);
+#endif
    return NULL;
    }
 
 bool
 TR_ResolvedRelocatableJ9Method::isUnresolvedMethodTypeTableEntry(int32_t cpIndex)
    {
+#if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
+   if (TR::comp() && TR::comp()->getOption(TR_UseSymbolValidationManager))
+      return TR_ResolvedJ9Method::isUnresolvedMethodTypeTableEntry(cpIndex);
+#endif
    return true;
    }
 
 void *
 TR_ResolvedRelocatableJ9Method::methodTypeTableEntryAddress(int32_t cpIndex)
    {
+#if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
+   if (TR::comp() && TR::comp()->getOption(TR_UseSymbolValidationManager))
+      return TR_ResolvedJ9Method::methodTypeTableEntryAddress(cpIndex);
+#endif
    return NULL;
    }
 
@@ -6662,6 +6678,17 @@ TR_ResolvedJ9Method::getResolvedDynamicMethod(TR::Compilation * comp, I_32 callS
          TR::VMAccessCriticalSection getResolvedDynamicMethod(fej9());
          targetJ9MethodBlock = fej9()->targetMethodFromMemberName((uintptr_t) fej9()->getReferenceElement(*invokeCacheArray, JSR292_invokeCacheArrayMemberNameIndex)); // this will not work in AOT or JITServer
          }
+
+      // Validation has to be added before the resolved method is created
+      if (comp->compileRelocatableCode())
+         {
+         TR_ASSERT_FATAL(comp->getOption(TR_UseSymbolValidationManager),
+                         "Resolved Dynamic Method not supported on AOT without SVM!\n");
+
+         if (!comp->getSymbolValidationManager()->addDynamicMethodFromCSTableRecord(targetJ9MethodBlock, getNonPersistentIdentifier(), callSiteIndex))
+            comp->failCompilation<J9::AOTRelocationRecordGenerationFailure>("Failed to create validation record for Dynamic Method!");
+         }
+
       result = fej9()->createResolvedMethod(comp->trMemory(), targetJ9MethodBlock, this);
       }
    else
@@ -6720,6 +6747,17 @@ TR_ResolvedJ9Method::getResolvedHandleMethod(TR::Compilation * comp, I_32 cpInde
          TR::VMAccessCriticalSection getResolvedHandleMethod(fej9());
          targetJ9MethodBlock = fej9()->targetMethodFromMemberName((uintptr_t) fej9()->getReferenceElement(*invokeCacheArray, JSR292_invokeCacheArrayMemberNameIndex)); // this will not work in AOT or JITServer
          }
+
+      // Validation has to be added before the resolved method is created
+      if (comp->compileRelocatableCode())
+         {
+         TR_ASSERT_FATAL(comp->getOption(TR_UseSymbolValidationManager),
+                         "Resolved Handle Method not supported on AOT without SVM!\n");
+
+         if (!comp->getSymbolValidationManager()->addHandleMethodFromCPRecord(targetJ9MethodBlock, getNonPersistentIdentifier(), cpIndex))
+            comp->failCompilation<J9::AOTRelocationRecordGenerationFailure>("Failed to create validation record for Dynamic Method!");
+         }
+
       result = fej9()->createResolvedMethod(comp->trMemory(), targetJ9MethodBlock, this);
       }
    else
