@@ -910,6 +910,32 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          }
          break;
 
+      case TR_ValidateDynamicMethodFromCSTable:
+         {
+         TR_RelocationRecordValidateDynamicMethodFromCSTable *dmfcstRecord = reinterpret_cast<TR_RelocationRecordValidateDynamicMethodFromCSTable *>(reloRecord);
+
+         TR::DynamicMethodFromCSTableRecord *svmRecord = reinterpret_cast<TR::DynamicMethodFromCSTableRecord *>(relocation->getTargetAddress());
+
+         dmfcstRecord->setMethodID(reloTarget, symValManager->getIDFromSymbol(svmRecord->_method));
+         dmfcstRecord->setDefiningClassID(reloTarget, symValManager->getIDFromSymbol(svmRecord->_definingClass));
+         dmfcstRecord->setBeholderID(reloTarget, symValManager->getIDFromSymbol(svmRecord->_beholder));
+         dmfcstRecord->setCallSiteIndex(reloTarget, static_cast<uint16_t>(svmRecord->_callSiteIndex));
+         }
+         break;
+
+      case TR_ValidateHandleMethodFromCP:
+         {
+         TR_RelocationRecordValidateHandleMethodFromCP *hmfcpRecord = reinterpret_cast<TR_RelocationRecordValidateHandleMethodFromCP *>(reloRecord);
+
+         TR::HandleMethodFromCPRecord *svmRecord = reinterpret_cast<TR::HandleMethodFromCPRecord *>(relocation->getTargetAddress());
+
+         hmfcpRecord->setMethodID(reloTarget, symValManager->getIDFromSymbol(svmRecord->_method));
+         hmfcpRecord->setDefiningClassID(reloTarget, symValManager->getIDFromSymbol(svmRecord->_definingClass));
+         hmfcpRecord->setBeholderID(reloTarget, symValManager->getIDFromSymbol(svmRecord->_beholder));
+         hmfcpRecord->setCpIndex(reloTarget, static_cast<uint16_t>(svmRecord->_cpIndex));
+         }
+         break;
+
       case TR_ValidateMethodFromClassAndSig:
          {
          TR_RelocationRecordValidateMethodFromClassAndSig *mfcsRecord = reinterpret_cast<TR_RelocationRecordValidateMethodFromClassAndSig *>(reloRecord);
@@ -1745,6 +1771,7 @@ J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool isVerbose
       case TR_ValidateSpecialMethodFromCP:
       case TR_ValidateVirtualMethodFromCP:
       case TR_ValidateImproperInterfaceMethodFromCP:
+      case TR_ValidateHandleMethodFromCP:
          {
          TR_RelocationRecordValidateMethodFromCP *mfcpRecord = reinterpret_cast<TR_RelocationRecordValidateMethodFromCP *>(reloRecord);
 
@@ -1760,6 +1787,8 @@ J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool isVerbose
                recordType = "Virtual";
             else if (kind == TR_ValidateImproperInterfaceMethodFromCP)
                recordType = "Improper Interface";
+            else if (kind == TR_ValidateHandleMethodFromCP)
+               recordType = "Handle";
             else
                TR_ASSERT_FATAL(false, "Unknown relokind %d!\n", kind);
 
@@ -1769,6 +1798,23 @@ J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool isVerbose
                      (uint32_t)mfcpRecord->definingClassID(reloTarget),
                      (uint32_t)mfcpRecord->beholderID(reloTarget),
                      (uint32_t)mfcpRecord->cpIndex(reloTarget));
+            }
+         }
+         break;
+
+      case TR_ValidateDynamicMethodFromCSTable:
+         {
+         TR_RelocationRecordValidateDynamicMethodFromCSTable *dmfcstRecord = reinterpret_cast<TR_RelocationRecordValidateDynamicMethodFromCSTable *>(reloRecord);
+
+         self()->traceRelocationOffsets(cursor, offsetSize, endOfCurrentRecord, orderedPair);
+         if (isVerbose)
+            {
+            traceMsg(self()->comp(), "\n Validate Dynamic Method From Call Site Table: methodID=%d, definingClassID=%d, beholderID=%d, callSiteIndex=%d ",
+                     recordType,
+                     (uint32_t)dmfcstRecord->methodID(reloTarget),
+                     (uint32_t)dmfcstRecord->definingClassID(reloTarget),
+                     (uint32_t)dmfcstRecord->beholderID(reloTarget),
+                     dmfcstRecord->callSiteIndex(reloTarget));
             }
          }
          break;

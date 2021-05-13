@@ -23,6 +23,7 @@
 #include <string.h>
 #include "env/VMJ9.h"
 #include "env/ClassLoaderTable.hpp"
+#include "env/JSR292Methods.h"
 #include "env/PersistentCHTable.hpp"
 #include "env/VMAccessCriticalSection.hpp"
 #include "exceptions/AOTFailure.hpp"
@@ -978,6 +979,20 @@ TR::SymbolValidationManager::addImproperInterfaceMethodFromCPRecord(TR_OpaqueMet
    }
 
 bool
+TR::SymbolValidationManager::addDynamicMethodFromCSTableRecord(TR_OpaqueMethodBlock *method, TR_OpaqueMethodBlock *beholder, int32_t callSiteIndex)
+   {
+   SVM_ASSERT_ALREADY_VALIDATED(this, beholder);
+   return addMethodRecord(new (_region) DynamicMethodFromCSTableRecord(method, beholder, callSiteIndex));
+   }
+
+bool
+TR::SymbolValidationManager::addHandleMethodFromCPRecord(TR_OpaqueMethodBlock *method, TR_OpaqueMethodBlock *beholder, int32_t cpIndex)
+   {
+   SVM_ASSERT_ALREADY_VALIDATED(this, beholder);
+   return addMethodRecord(new (_region) HandleMethodFromCPRecord(method, beholder, cpIndex));
+   }
+
+bool
 TR::SymbolValidationManager::addMethodFromClassAndSignatureRecord(TR_OpaqueMethodBlock *method, TR_OpaqueClassBlock *lookupClass, TR_OpaqueClassBlock *beholder)
    {
    // Check that method is non-null up front, since we need its class.
@@ -1365,6 +1380,40 @@ TR::SymbolValidationManager::validateImproperInterfaceMethodFromCPRecord(uint16_
       {
       TR::VMAccessCriticalSection resolveImproperMethodRef(_fej9);
       ramMethod = jitGetImproperInterfaceMethodFromCP(_vmThread, beholderCP, cpIndex, NULL);
+      }
+
+   return validateSymbol(methodID, definingClassID, ramMethod);
+   }
+
+bool
+TR::SymbolValidationManager::validateDynamicMethodFromCSTableRecord(uint16_t methodID, uint16_t definingClassID, uint16_t beholderID, int32_t callSiteIndex)
+   {
+   TR_OpaqueMethodBlock *beholder = getMethodFromID(beholderID);
+   TR_ResolvedMethod *beholderResolvedMethod = _fej9->createResolvedMethod(_trMemory, beholder, NULL);
+   TR_OpaqueMethodBlock *ramMethod = NULL;
+
+   if (!beholderResolvedMethod->isUnresolvedCallSiteTableEntry(callSiteIndex))
+      {
+      TR::VMAccessCriticalSection getResolvedDynamicMethod(_fej9);
+      uintptr_t * invokeCacheArray = reinterpret_cast<uintptr_t *>(beholderResolvedMethod->callSiteTableEntryAddress(callSiteIndex));
+      ramMethod = _fej9->targetMethodFromMemberName(_fej9->getReferenceElement(*invokeCacheArray, JSR292_invokeCacheArrayMemberNameIndex));
+      }
+
+   return validateSymbol(methodID, definingClassID, ramMethod);
+   }
+
+bool
+TR::SymbolValidationManager::validateHandleMethodFromCPRecord(uint16_t methodID, uint16_t definingClassID, uint16_t beholderID, int32_t cpIndex)
+   {
+   TR_OpaqueMethodBlock *beholder = getMethodFromID(beholderID);
+   TR_ResolvedMethod *beholderResolvedMethod = _fej9->createResolvedMethod(_trMemory, beholder, NULL);
+   TR_OpaqueMethodBlock *ramMethod = NULL;
+
+   if (!beholderResolvedMethod->isUnresolvedMethodTypeTableEntry(cpIndex))
+      {
+      TR::VMAccessCriticalSection getResolvedHandleMethod(_fej9);
+      uintptr_t * invokeCacheArray = reinterpret_cast<uintptr_t *>(beholderResolvedMethod->methodTypeTableEntryAddress(cpIndex));
+      ramMethod = _fej9->targetMethodFromMemberName(_fej9->getReferenceElement(*invokeCacheArray, JSR292_invokeCacheArrayMemberNameIndex));
       }
 
    return validateSymbol(methodID, definingClassID, ramMethod);
@@ -1923,6 +1972,40 @@ void TR::InterfaceMethodFromCPRecord::printFields()
    printClass(_beholder);
    traceMsg(TR::comp(), "\t_lookup=0x%p\n", _lookup);
    printClass(_lookup);
+   traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
+   }
+
+bool TR::DynamicMethodFromCSTableRecord::isLessThanWithinKind(
+   SymbolValidationRecord *other)
+   {
+   TR::DynamicMethodFromCSTableRecord *rhs = downcast(this, other);
+   return LexicalOrder::by(_method, rhs->_method)
+      .thenBy(_beholder, rhs->_beholder)
+      .thenBy(_callSiteIndex, rhs->_callSiteIndex);
+   }
+
+void TR::DynamicMethodFromCSTableRecord::printFields()
+   {
+   traceMsg(TR::comp(), "DynamicMethodFromCSTableRecord\n");
+   traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
+   traceMsg(TR::comp(), "\t_callSiteIndex=%d\n", _callSiteIndex);
+   }
+
+bool TR::HandleMethodFromCPRecord::isLessThanWithinKind(
+   SymbolValidationRecord *other)
+   {
+   TR::HandleMethodFromCPRecord *rhs = downcast(this, other);
+   return LexicalOrder::by(_method, rhs->_method)
+      .thenBy(_beholder, rhs->_beholder)
+      .thenBy(_cpIndex, rhs->_cpIndex).less();
+   }
+
+void TR::HandleMethodFromCPRecord::printFields()
+   {
+   traceMsg(TR::comp(), "HandleMethodFromCPRecord\n");
+   traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
    traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
    }
 

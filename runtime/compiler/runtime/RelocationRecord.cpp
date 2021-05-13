@@ -341,6 +341,14 @@ struct TR_RelocationRecordValidateInterfaceMethodFromCPBinaryTemplate : public T
    uint16_t _cpIndex; // constrained to 16 bits by the class file format
    };
 
+struct TR_RelocationRecordValidateDynamicMethodFromCSTableBinaryTemplate : public TR_RelocationRecordBinaryTemplate
+   {
+   uint16_t _methodID;
+   uint16_t _definingClassID;
+   uint16_t _beholderID;
+   uint32_t _callSiteIndex;
+   };
+
 struct TR_RelocationRecordValidateMethodFromClassAndSigBinaryTemplate : public TR_RelocationRecordBinaryTemplate
    {
    uint16_t _methodID;
@@ -804,6 +812,12 @@ TR_RelocationRecord::create(TR_RelocationRecord *storage, TR_RelocationRuntime *
          break;
       case TR_ValidateImproperInterfaceMethodFromCP:
          reloRecord = new (storage) TR_RelocationRecordValidateImproperInterfaceMethodFromCP(reloRuntime, record);
+         break;
+      case TR_ValidateDynamicMethodFromCSTable:
+         reloRecord = new (storage) TR_RelocationRecordValidateDynamicMethodFromCSTable(reloRuntime, record);
+         break;
+      case TR_ValidateHandleMethodFromCP:
+         reloRecord = new (storage) TR_RelocationRecordValidateHandleMethodFromCP(reloRuntime, record);
          break;
       case TR_ValidateMethodFromClassAndSig:
          reloRecord = new (storage) TR_RelocationRecordValidateMethodFromClassAndSig(reloRuntime, record);
@@ -4687,6 +4701,94 @@ TR_RelocationRecordValidateImproperInterfaceMethodFromCP::applyRelocation(TR_Rel
       return compilationAotClassReloFailure;
    }
 
+void
+TR_RelocationRecordValidateDynamicMethodFromCSTable::print(TR_RelocationRuntime *reloRuntime)
+   {
+   TR_RelocationTarget *reloTarget = reloRuntime->reloTarget();
+   TR_RelocationRuntimeLogger *reloLogger = reloRuntime->reloLogger();
+   TR_RelocationRecord::print(reloRuntime);
+   reloLogger->printf("\tmethodID %d\n", methodID(reloTarget));
+   reloLogger->printf("\tdefiningClassID %d\n", definingClassID(reloTarget));
+   reloLogger->printf("\tbeholderID %d\n", beholderID(reloTarget));
+   reloLogger->printf("\tcallSiteIndex %d\n", callSiteIndex(reloTarget));
+   }
+
+void
+TR_RelocationRecordValidateDynamicMethodFromCSTable::setMethodID(TR_RelocationTarget *reloTarget, uint16_t methodID)
+   {
+   reloTarget->storeUnsigned16b(methodID, (uint8_t *) &((TR_RelocationRecordValidateDynamicMethodFromCSTableBinaryTemplate *)_record)->_methodID);
+   }
+
+uint16_t
+TR_RelocationRecordValidateDynamicMethodFromCSTable::methodID(TR_RelocationTarget *reloTarget)
+   {
+   return reloTarget->loadUnsigned16b((uint8_t *) &((TR_RelocationRecordValidateDynamicMethodFromCSTableBinaryTemplate *)_record)->_methodID);
+   }
+
+void
+TR_RelocationRecordValidateDynamicMethodFromCSTable::setDefiningClassID(TR_RelocationTarget *reloTarget, uint16_t definingClassID)
+   {
+   reloTarget->storeUnsigned16b(definingClassID, (uint8_t *) &((TR_RelocationRecordValidateDynamicMethodFromCSTableBinaryTemplate *)_record)->_definingClassID);
+   }
+
+uint16_t
+TR_RelocationRecordValidateDynamicMethodFromCSTable::definingClassID(TR_RelocationTarget *reloTarget)
+   {
+   return reloTarget->loadUnsigned16b((uint8_t *) &((TR_RelocationRecordValidateDynamicMethodFromCSTableBinaryTemplate *)_record)->_definingClassID);
+   }
+
+void
+TR_RelocationRecordValidateDynamicMethodFromCSTable::setBeholderID(TR_RelocationTarget *reloTarget, uint16_t beholderID)
+   {
+   reloTarget->storeUnsigned16b(beholderID, (uint8_t *) &((TR_RelocationRecordValidateDynamicMethodFromCSTableBinaryTemplate *)_record)->_beholderID);
+   }
+
+uint16_t
+TR_RelocationRecordValidateDynamicMethodFromCSTable::beholderID(TR_RelocationTarget *reloTarget)
+   {
+   return reloTarget->loadUnsigned16b((uint8_t *) &((TR_RelocationRecordValidateDynamicMethodFromCSTableBinaryTemplate *)_record)->_beholderID);
+   }
+
+void
+TR_RelocationRecordValidateDynamicMethodFromCSTable::setCallSiteIndex(TR_RelocationTarget *reloTarget, uint32_t callSiteIndex)
+   {
+   reloTarget->storeUnsigned32b(beholderID, (uint8_t *) &((TR_RelocationRecordValidateDynamicMethodFromCSTableBinaryTemplate *)_record)->_callSiteIndex);
+   }
+
+uint32_t
+TR_RelocationRecordValidateDynamicMethodFromCSTable::callSiteIndex(TR_RelocationTarget *reloTarget)
+   {
+   return reloTarget->loadUnsigned32b((uint8_t *) &((TR_RelocationRecordValidateDynamicMethodFromCSTableBinaryTemplate *)_record)->_callSiteIndex);
+   }
+
+int32_t
+TR_RelocationRecordValidateDynamicMethodFromCSTable::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
+   {
+   uint16_t methodID = this->methodID(reloTarget);
+   uint16_t definingClassID = this->definingClassID(reloTarget);
+   uint16_t beholderID = this->beholderID(reloTarget);
+   uint32_t callSiteIndex = this->callSiteIndex(reloTarget);
+
+   if (reloRuntime->comp()->getSymbolValidationManager()->validateDynamicMethodFromCSTableRecord(methodID, definingClassID, beholderID, callSiteIndex))
+      return 0;
+   else
+      return compilationAotClassReloFailure;
+   }
+
+int32_t
+TR_RelocationRecordValidateHandleMethodFromCP::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
+   {
+   uint16_t methodID = this->methodID(reloTarget);
+   uint16_t definingClassID = this->definingClassID(reloTarget);
+   uint16_t beholderID = this->beholderID(reloTarget);
+   uint32_t cpIndex = this->cpIndex(reloTarget);
+
+   if (reloRuntime->comp()->getSymbolValidationManager()->validateHandleMethodFromCPRecord(methodID, definingClassID, beholderID, cpIndex))
+      return 0;
+   else
+      return compilationAotClassReloFailure;
+   }
+
 int32_t
 TR_RelocationRecordValidateMethodFromClassAndSig::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
    {
@@ -6318,4 +6420,6 @@ uint32_t TR_RelocationRecord::_relocationRecordHeaderSizeTable[TR_NumExternalRel
    sizeof(TR_RelocationRecordBreapointGuardBinaryTemplate),                          // TR_Breakpoint                                   = 107
    sizeof(TR_RelocationRecordWithInlinedSiteIndexBinaryTemplate),                    // TR_InlinedMethodPointer                         = 108
    sizeof(TR_RelocationRecordVMINLMethodBinaryTemplate),                             // TR_VMINLMethod                                  = 109
+   sizeof(TR_RelocationRecordValidateDynamicMethodFromCSTableBinaryTemplate),        // TR_ValidateDynamicMethodFromCSTable             = 110
+   sizeof(TR_RelocationRecordValidateMethodFromCPBinaryTemplate),                    // TR_ValidateHandleMethodFromCP                   = 111
    };

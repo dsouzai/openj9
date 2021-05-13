@@ -1478,8 +1478,45 @@ class TR_RelocationRecordValidateImproperInterfaceMethodFromCP : public TR_Reloc
    {
    public:
       TR_RelocationRecordValidateImproperInterfaceMethodFromCP() {}
-      TR_RelocationRecordValidateImproperInterfaceMethodFromCP(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecordValidateMethodFromCP(reloRuntime, record) {}
+      TR_RelocationRecordValidateImproperInterfaceMethodFromCP(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record)
+         : TR_RelocationRecordValidateMethodFromCP(reloRuntime, record) {}
       virtual char *name() { return "TR_RelocationRecordValidateImproperInterfaceMethodFromCP"; }
+      virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
+   };
+
+class TR_RelocationRecordValidateDynamicMethodFromCSTable : public TR_RelocationRecord
+   {
+   public:
+      TR_RelocationRecordValidateDynamicMethodFromCSTable() {}
+      TR_RelocationRecordValidateDynamicMethodFromCSTable(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record)
+         : TR_RelocationRecord(reloRuntime, record) {}
+   virtual bool isValidationRecord() { return true; }
+   virtual char *name() { return "TR_RelocationRecordValidateDynamicMethodFromCSTable"; }
+   virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
+   virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
+
+   virtual void print(TR_RelocationRuntime *reloRuntime);
+
+   void setMethodID(TR_RelocationTarget *reloTarget, uint16_t methodID);
+   uint16_t methodID(TR_RelocationTarget *reloTarget);
+
+   void setDefiningClassID(TR_RelocationTarget *reloTarget, uint16_t definingClassID);
+   uint16_t definingClassID(TR_RelocationTarget *reloTarget);
+
+   void setBeholderID(TR_RelocationTarget *reloTarget, uint16_t beholderID);
+   uint16_t beholderID(TR_RelocationTarget *reloTarget);
+
+   void setCallSiteIndex(TR_RelocationTarget *reloTarget, uint32_t callSiteIndex);
+   uint32_t callSiteIndex(TR_RelocationTarget *reloTarget);
+   };
+
+class TR_RelocationRecordValidateHandleMethodFromCP : public TR_RelocationRecordValidateMethodFromCP
+   {
+   public:
+      TR_RelocationRecordValidateHandleMethodFromCP() {}
+      TR_RelocationRecordValidateHandleMethodFromCP(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record)
+         : TR_RelocationRecordValidateMethodFromCP(reloRuntime, record) {}
+      virtual char *name() { return "TR_RelocationRecordValidateHandleMethodFromCP"; }
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
    };
 
