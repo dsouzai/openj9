@@ -501,6 +501,40 @@ struct InterfaceMethodFromCPRecord : public MethodValidationRecord
    int32_t _cpIndex;
    };
 
+struct DynamicMethodFromCSTableRecord : public MethodValidationRecord
+   {
+   DynamicMethodFromCSTableRecord(TR_OpaqueMethodBlock *method,
+                                  TR_OpaqueMethodBlock *beholder,
+                                  int32_t callSiteIndex)
+      : MethodValidationRecord(TR_ValidateDynamicMethodFromCSTable, method),
+        _beholder(beholder),
+        _callSiteIndex(callSiteIndex)
+      {}
+
+   virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
+   virtual void printFields();
+
+   TR_OpaqueMethodBlock *_beholder;
+   int32_t _callSiteIndex;
+   };
+
+struct HandleMethodFromCPRecord : public MethodValidationRecord
+   {
+   HandleMethodFromCPRecord(TR_OpaqueMethodBlock *method,
+                            TR_OpaqueMethodBlock *beholder,
+                            int32_t cpIndex)
+      : MethodValidationRecord(TR_ValidateHandleMethodFromCP, method),
+        _beholder(beholder),
+        _cpIndex(cpIndex)
+      {}
+
+   virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
+   virtual void printFields();
+
+   TR_OpaqueMethodBlock *_beholder;
+   int32_t _cpIndex;
+   };
+
 struct MethodFromClassAndSigRecord : public MethodValidationRecord
    {
    MethodFromClassAndSigRecord(TR_OpaqueMethodBlock *method,
@@ -695,6 +729,8 @@ public:
    bool addVirtualMethodFromOffsetRecord(TR_OpaqueMethodBlock *method, TR_OpaqueClassBlock *beholder, int32_t virtualCallOffset, bool ignoreRtResolve);
    bool addInterfaceMethodFromCPRecord(TR_OpaqueMethodBlock *method, TR_OpaqueClassBlock *beholder, TR_OpaqueClassBlock *lookup, int32_t cpIndex);
    bool addImproperInterfaceMethodFromCPRecord(TR_OpaqueMethodBlock *method, J9ConstantPool *cp, int32_t cpIndex);
+   bool addDynamicMethodFromCSTableRecord(TR_OpaqueMethodBlock *method, TR_OpaqueMethodBlock *beholder, int32_t callSiteIndex);
+   bool addHandleMethodFromCPRecord(TR_OpaqueMethodBlock *method, TR_OpaqueMethodBlock *beholder, int32_t cpIndex);
    bool addMethodFromClassAndSignatureRecord(TR_OpaqueMethodBlock *method, TR_OpaqueClassBlock *methodClass, TR_OpaqueClassBlock *beholder);
    bool addMethodFromSingleImplementerRecord(TR_OpaqueMethodBlock *method,
                                              TR_OpaqueClassBlock *thisClass,
@@ -737,6 +773,8 @@ public:
    bool validateVirtualMethodFromOffsetRecord(uint16_t methodID, uint16_t definingClassID, uint16_t beholderID, int32_t virtualCallOffset, bool ignoreRtResolve);
    bool validateInterfaceMethodFromCPRecord(uint16_t methodID, uint16_t definingClassID, uint16_t beholderID, uint16_t lookupID, int32_t cpIndex);
    bool validateImproperInterfaceMethodFromCPRecord(uint16_t methodID, uint16_t definingClassID, uint16_t beholderID, int32_t cpIndex);
+   bool validateDynamicMethodFromCSTableRecord(uint16_t methodID, uint16_t definingClassID, uint16_t beholderID, int32_t callSiteIndex);
+   bool validateHandleMethodFromCPRecord(uint16_t methodID, uint16_t definingClassID, uint16_t beholderID, int32_t cpIndex);
    bool validateMethodFromClassAndSignatureRecord(uint16_t methodID, uint16_t definingClassID, uint16_t lookupClassID, uint16_t beholderID, J9ROMMethod *romMethod);
    bool validateMethodFromSingleImplementerRecord(uint16_t methodID,
                                                   uint16_t definingClassID,
