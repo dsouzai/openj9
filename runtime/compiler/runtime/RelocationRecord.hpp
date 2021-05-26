@@ -175,6 +175,11 @@ struct TR_RelocationRecordVMINLMethodPrivateData
    TR_OpaqueMethodBlock *_vminlMethod;
    };
 
+struct TR_RelocationRecordTableAddressPrivateData
+   {
+   void *_tableAddress;
+   };
+
 union TR_RelocationRecordPrivateData
    {
    TR_RelocationRecordHelperAddressPrivateData helperAddress;
@@ -194,6 +199,7 @@ union TR_RelocationRecordPrivateData
    TR_RelocationRecordRecompQueuedFlagPrivateData recompQueuedFlag;
    TR_RelocationRecordBreakpointGuardPrivateData breakpointGuard;
    TR_RelocationRecordVMINLMethodPrivateData vminlMethod;
+   TR_RelocationRecordTableAddressPrivateData tableAddress;
    };
 
 enum TR_RelocationRecordAction
@@ -1721,6 +1727,45 @@ class TR_RelocationRecordResolvedTrampolines : public TR_RelocationRecord
       void setSymbolID(TR_RelocationTarget *reloTarget, uint16_t symbolID);
       uint16_t symbolID(TR_RelocationTarget *reloTarget);
    };
+
+class TR_RelocationRecordCallSiteTableEntryAddress : public TR_RelocationRecord
+   {
+   public:
+      TR_RelocationRecordCallSiteTableEntryAddress() {}
+      TR_RelocationRecordCallSiteTableEntryAddress(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
+      virtual char *name() { return "TR_RelocationRecordCallSiteTableEntryAddress"; }
+      virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
+      virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
+      virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
+
+      virtual void print(TR_RelocationRuntime *reloRuntime);
+
+      void setMethodID(TR_RelocationTarget *reloTarget, uint16_t methodID);
+      uint16_t methodID(TR_RelocationTarget *reloTarget);
+
+      void setCallSiteIndex(TR_RelocationTarget *reloTarget, uint32_t callSiteIndex);
+      uint32_t callSiteIndex(TR_RelocationTarget *reloTarget);
+   };
+
+class TR_RelocationRecordMethodTypeTableEntryAddress : public TR_RelocationRecord
+   {
+   public:
+      TR_RelocationRecordMethodTypeTableEntryAddress() {}
+      TR_RelocationRecordMethodTypeTableEntryAddress(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
+      virtual char *name() { return "TR_RelocationRecordMethodTypeTableEntryAddress"; }
+      virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
+      virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
+      virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
+
+      virtual void print(TR_RelocationRuntime *reloRuntime);
+
+      void setMethodID(TR_RelocationTarget *reloTarget, uint16_t methodID);
+      uint16_t methodID(TR_RelocationTarget *reloTarget);
+
+      void setCpIndex(TR_RelocationTarget *reloTarget, uint32_t cpIndex);
+      uint32_t cpIndex(TR_RelocationTarget *reloTarget);
+   };
+
 /* SYMBOL VALIDATION MANAGER */
 
 class TR_RelocationRecordHCR : public TR_RelocationRecordWithOffset
