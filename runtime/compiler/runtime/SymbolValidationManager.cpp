@@ -1981,7 +1981,7 @@ bool TR::DynamicMethodFromCSTableRecord::isLessThanWithinKind(
    TR::DynamicMethodFromCSTableRecord *rhs = downcast(this, other);
    return LexicalOrder::by(_method, rhs->_method)
       .thenBy(_beholder, rhs->_beholder)
-      .thenBy(_callSiteIndex, rhs->_callSiteIndex);
+      .thenBy(_callSiteIndex, rhs->_callSiteIndex).less();
    }
 
 void TR::DynamicMethodFromCSTableRecord::printFields()

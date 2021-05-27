@@ -1268,9 +1268,9 @@ InterpreterEmulator::visitInvokedynamic()
    TR_ResolvedJ9Method * owningMethod = static_cast<TR_ResolvedJ9Method*>(_methodSymbol->getResolvedMethod());
    int32_t callSiteIndex = next2Bytes();
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
-   if (owningMethod->isUnresolvedCallSiteTableEntry(callSiteIndex)
-         || (comp()->compileRelocatableCode() && !comp()->getOption(TR_UseSymbolValidationManager))
-      ) return; // do nothing if unresolved, is AOT or JITServer compilation
+   // do nothing if unresolved, is AOT or JITServer compilation
+   if (owningMethod->isUnresolvedCallSiteTableEntry(callSiteIndex) || comp()->compileRelocatableCode())
+      return;
    uintptr_t * invokeCacheArray = (uintptr_t *) owningMethod->callSiteTableEntryAddress(callSiteIndex);
    updateKnotAndCreateCallSiteUsingInvokeCacheArray(owningMethod, invokeCacheArray, -1);
 #else
