@@ -1052,7 +1052,7 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          TR_RelocationRecordInformation *recordInfo = reinterpret_cast<TR_RelocationRecordInformation *>(relocation->getTargetAddress());
 
          TR::SymbolReference *symRef = reinterpret_cast<TR::SymbolReference *>(recordInfo->data1);
-         uint16_t methodID = comp->getSymbolValidationManager()->getIDFromSymbol(static_cast<void *>(recordInfo->data2));
+         uint16_t methodID = comp->getSymbolValidationManager()->getIDFromSymbol(reinterpret_cast<void *>(recordInfo->data2));
          uint8_t flags = static_cast<uint8_t>(recordInfo->data3);
 
          TR_ASSERT_FATAL((flags & RELOCATION_CROSS_PLATFORM_FLAGS_MASK) == 0,  "reloFlags bits overlap cross-platform flags bits\n");
@@ -1068,7 +1068,7 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          TR_RelocationRecordInformation *recordInfo = reinterpret_cast<TR_RelocationRecordInformation *>(relocation->getTargetAddress());
 
          TR::SymbolReference *symRef = reinterpret_cast<TR::SymbolReference *>(recordInfo->data1);
-         uint16_t methodID = comp->getSymbolValidationManager()->getIDFromSymbol(static_cast<void *>(recordInfo->data2));
+         uint16_t methodID = comp->getSymbolValidationManager()->getIDFromSymbol(reinterpret_cast<void *>(recordInfo->data2));
          uint8_t flags = static_cast<uint8_t>(recordInfo->data3);
 
          TR_ASSERT_FATAL((flags & RELOCATION_CROSS_PLATFORM_FLAGS_MASK) == 0,  "reloFlags bits overlap cross-platform flags bits\n");
@@ -1842,7 +1842,6 @@ J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool isVerbose
          if (isVerbose)
             {
             traceMsg(self()->comp(), "\n Validate Dynamic Method From Call Site Table: methodID=%d, definingClassID=%d, beholderID=%d, callSiteIndex=%d ",
-                     recordType,
                      (uint32_t)dmfcstRecord->methodID(reloTarget),
                      (uint32_t)dmfcstRecord->definingClassID(reloTarget),
                      (uint32_t)dmfcstRecord->beholderID(reloTarget),

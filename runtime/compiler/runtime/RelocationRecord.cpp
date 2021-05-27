@@ -4770,7 +4770,7 @@ TR_RelocationRecordValidateDynamicMethodFromCSTable::beholderID(TR_RelocationTar
 void
 TR_RelocationRecordValidateDynamicMethodFromCSTable::setCallSiteIndex(TR_RelocationTarget *reloTarget, uint32_t callSiteIndex)
    {
-   reloTarget->storeUnsigned32b(beholderID, (uint8_t *) &((TR_RelocationRecordValidateDynamicMethodFromCSTableBinaryTemplate *)_record)->_callSiteIndex);
+   reloTarget->storeUnsigned32b(callSiteIndex, (uint8_t *) &((TR_RelocationRecordValidateDynamicMethodFromCSTableBinaryTemplate *)_record)->_callSiteIndex);
    }
 
 uint32_t
@@ -5591,7 +5591,7 @@ TR_RelocationRecordCallSiteTableEntryAddress::applyRelocation(TR_RelocationRunti
    void *tableAddress = reloPrivateData->_tableAddress;
    if (!tableAddress)
       return compilationAotClassReloFailure;
-   reloTarget->storeAddressSequence(tableAddress, reloLocation, reloFlags(reloTarget));
+   reloTarget->storeAddressSequence(reinterpret_cast<uint8_t *>(tableAddress), reloLocation, reloFlags(reloTarget));
    return 0;
    }
 
@@ -5603,7 +5603,7 @@ TR_RelocationRecordCallSiteTableEntryAddress::applyRelocation(TR_RelocationRunti
    void *tableAddress = reloPrivateData->_tableAddress;
    if (!tableAddress)
       return compilationAotClassReloFailure;
-   reloTarget->storeAddress(tableAddress, reloLocationHigh, reloLocationLow, reloFlags(reloTarget));
+   reloTarget->storeAddress(reinterpret_cast<uint8_t *>(tableAddress), reloLocationHigh, reloLocationLow, reloFlags(reloTarget));
    return 0;
    }
 
@@ -5663,7 +5663,7 @@ TR_RelocationRecordMethodTypeTableEntryAddress::applyRelocation(TR_RelocationRun
    void *tableAddress = reloPrivateData->_tableAddress;
    if (!tableAddress)
       return compilationAotClassReloFailure;
-   reloTarget->storeAddressSequence(tableAddress, reloLocation, reloFlags(reloTarget));
+   reloTarget->storeAddressSequence(reinterpret_cast<uint8_t *>(tableAddress), reloLocation, reloFlags(reloTarget));
    return 0;
    }
 
@@ -5675,7 +5675,7 @@ TR_RelocationRecordMethodTypeTableEntryAddress::applyRelocation(TR_RelocationRun
    void *tableAddress = reloPrivateData->_tableAddress;
    if (!tableAddress)
       return compilationAotClassReloFailure;
-   reloTarget->storeAddress(tableAddress, reloLocationHigh, reloLocationLow, reloFlags(reloTarget));
+   reloTarget->storeAddress(reinterpret_cast<uint8_t *>(tableAddress), reloLocationHigh, reloLocationLow, reloFlags(reloTarget));
    return 0;
    }
 
