@@ -5580,7 +5580,10 @@ TR_RelocationRecordCallSiteTableEntryAddress::preparePrivateData(TR_RelocationRu
    TR_OpaqueMethodBlock *method = reloRuntime->comp()->getSymbolValidationManager()->getMethodFromID(methodID);
    TR_ResolvedMethod *resolvedMethod = reloRuntime->fej9()->createResolvedMethod(reloRuntime->trMemory(), method, NULL);
 
-   reloPrivateData->_tableAddress = resolvedMethod->callSiteTableEntryAddress(callSiteIndex);
+   reloPrivateData->_tableAddress
+         = !resolvedMethod->isUnresolvedCallSiteTableEntry(callSiteIndex)
+           ? resolvedMethod->callSiteTableEntryAddress(callSiteIndex)
+           : NULL;
    }
 
 int32_t
@@ -5652,7 +5655,10 @@ TR_RelocationRecordMethodTypeTableEntryAddress::preparePrivateData(TR_Relocation
    TR_OpaqueMethodBlock *method = reloRuntime->comp()->getSymbolValidationManager()->getMethodFromID(methodID);
    TR_ResolvedMethod *resolvedMethod = reloRuntime->fej9()->createResolvedMethod(reloRuntime->trMemory(), method, NULL);
 
-   reloPrivateData->_tableAddress = resolvedMethod->methodTypeTableEntryAddress(cpIndex);
+   reloPrivateData->_tableAddress
+         = !resolvedMethod->isUnresolvedMethodTypeTableEntry(cpIndex)
+           ? resolvedMethod->methodTypeTableEntryAddress(cpIndex)
+           : NULL;
    }
 
 int32_t
