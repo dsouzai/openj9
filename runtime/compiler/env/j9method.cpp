@@ -1248,6 +1248,11 @@ TR_ResolvedRelocatableJ9Method::stringConstant(I_32 cpIndex)
    {
    TR_ASSERT(cpIndex != -1, "cpIndex shouldn't be -1");
 
+#if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
+   if (TR::comp() && TR::comp()->getOption(TR_UseSymbolValidationManager))
+      return TR_ResolvedJ9Method::stringConstant(cpIndex);
+#endif
+
    return (void *) ((U_8 *)&(((J9RAMStringRef *) romLiterals())[cpIndex].stringObject));
    }
 
@@ -1255,6 +1260,11 @@ bool
 TR_ResolvedRelocatableJ9Method::isUnresolvedString(I_32 cpIndex, bool optimizeForAOT)
    {
    TR_ASSERT(cpIndex != -1, "cpIndex shouldn't be -1");
+
+#if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
+   if (TR::comp() && TR::comp()->getOption(TR_UseSymbolValidationManager))
+      return TR_ResolvedJ9Method::isUnresolvedString(cpIndex);
+#endif
 
    if (optimizeForAOT)
       return TR_ResolvedJ9Method::isUnresolvedString(cpIndex);
