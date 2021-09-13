@@ -665,6 +665,18 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          }
          break;
 
+      case TR_ValidateArbObjectConstant:
+         {
+         TR_RelocationRecordValidateArbObjectConstant *aocpRecord = reinterpret_cast<TR_RelocationRecordValidateArbObjectConstant *>(reloRecord);
+
+         TR::ArbitraryObjectConstantRecord *svmRecord = reinterpret_cast<TR::ArbitraryObjectConstantRecord *>(relocation->getTargetAddress());
+
+         aocpRecord->setClassID(reloTarget, symValManager->getIDFromSymbol(svmRecord->_class));
+         aocpRecord->setBeholderID(reloTarget, symValManager->getIDFromSymbol(svmRecord->_beholderMethod));
+         aocpRecord->setCpIndex(reloTarget, svmRecord->_cpIndex);
+         }
+         break;
+
       case TR_ValidateDefiningClassFromCP:
          {
          TR_RelocationRecordValidateDefiningClassFromCP *dcpRecord = reinterpret_cast<TR_RelocationRecordValidateDefiningClassFromCP *>(reloRecord);
@@ -1658,6 +1670,7 @@ J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool isVerbose
       case TR_ValidateStaticClassFromCP:
       case TR_ValidateClassFromITableIndexCP:
       case TR_ValidateDeclaringClassFromFieldOrStatic:
+      case TR_ValidateArbObjectConstant:
          {
          TR_RelocationRecordValidateClassFromCP *cpRecord = reinterpret_cast<TR_RelocationRecordValidateClassFromCP *>(reloRecord);
 
@@ -1673,6 +1686,8 @@ J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool isVerbose
                recordType = "Class From ITable Index CP";
             else if (kind == TR_ValidateDeclaringClassFromFieldOrStatic)
                recordType = "Declaring Class From Field or Static";
+            else if (kind == TR_ValidateArbObjectConstant)
+               recordType = "Arbitrary Object Constant";
             else
                TR_ASSERT_FATAL(false, "Unknown relokind %d!\n", kind);
 

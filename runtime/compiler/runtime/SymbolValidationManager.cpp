@@ -895,6 +895,13 @@ TR::SymbolValidationManager::addConcreteSubClassFromClassRecord(TR_OpaqueClassBl
    }
 
 bool
+TR::SymbolValidationManager::addArbObjectConstantRecord(TR_OpaqueClassBlock *clazz, J9Method *beholderMethod, uint32_t cpIndex)
+   {
+   SVM_ASSERT_ALREADY_VALIDATED(this, beholderMethod);
+   return addClassRecord(clazz, new (_region) ArbitraryObjectConstantRecord(clazz, beholderMethod, cpIndex));
+   }
+
+bool
 TR::SymbolValidationManager::addMethodFromClassRecord(TR_OpaqueMethodBlock *method, TR_OpaqueClassBlock *beholder, uint32_t index)
    {
    // In case index == -1, check that method is non-null up front, before searching.
@@ -1277,6 +1284,30 @@ TR::SymbolValidationManager::validateConcreteSubClassFromClassRecord(uint16_t ch
    TR_OpaqueClassBlock *superClass = getClassFromID(superClassID);
    TR_OpaqueClassBlock *childClass = _chTable->findSingleConcreteSubClass(superClass, _comp, false);
    return validateSymbol(childClassID, childClass);
+   }
+
+bool
+TR::SymbolValidationManager::validateArbObjectConstantRecord(uint16_t classID, uint16_t beholderMethodID, uint32_t cpIndex)
+   {
+   TR_OpaqueMethodBlock *beholderMethod = getMethodFromID(beholderMethodID);
+
+   TR_ResolvedJ9Method *resolvedMethod =
+         reinterpret_cast<TR_ResolvedJ9Method *>(
+            _fej9->createResolvedMethod(_trMemory, beholderMethod, NULL));
+
+   bool isString = true;
+   TR_OpaqueClassBlock *clazz = NULL;
+   void * arbitraryObject = resolvedMethod->stringConstant(cpIndex);
+   if (!resolvedMethod->isUnresolvedString(cpIndex))
+      {
+      TR::VMAccessCriticalSection constantCriticalSection(comp()->fej9());
+      clazz = _fej9->getObjectClassAt(reinterpret_cast<uintptr_t>(arbitraryObject));
+      isString = clazz && _fej9->isString(clazz);
+      }
+
+   // If isString is true then we already know the validation failed, because this record
+   // is only created for objects that are not const strings.
+   return (!isString && validateSymbol(classID, clazz));
    }
 
 bool
@@ -1845,6 +1876,24 @@ void TR::ConcreteSubClassFromClassRecord::printFields()
    traceMsg(TR::comp(), "ConcreteSubClassFromClassRecord\n");
    traceMsg(TR::comp(), "\t_childClass=0x%p\n", _childClass);
    traceMsg(TR::comp(), "\t_superClass=0x%p\n", _superClass);
+   }
+
+bool TR::ArbitraryObjectConstantRecord::isLessThanWithinKind(
+   SymbolValidationRecord *other)
+   {
+   TR::ArbitraryObjectConstantRecord *rhs = downcast(this, other);
+   return LexicalOrder::by(_class, rhs->_class)
+      .thenBy(_beholderMethod, rhs->_beholderMethod)
+      .thenBy(_cpIndex, rhs->_cpIndex).less();
+   }
+
+void TR::ArbitraryObjectConstantRecord::printFields()
+   {
+   traceMsg(TR::comp(), "ArbitraryObjectClassFromCPRecord\n");
+   traceMsg(TR::comp(), "\t_class=0x%p\n", _class);
+   printClass(_class);
+   traceMsg(TR::comp(), "\t_beholderMethod=0x%p\n", _beholderMethod);
+   traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
    }
 
 bool TR::ClassChainRecord::isLessThanWithinKind(SymbolValidationRecord *other)

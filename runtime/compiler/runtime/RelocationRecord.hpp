@@ -1336,6 +1336,15 @@ class TR_RelocationRecordValidateConcreteSubClassFromClass : public TR_Relocatio
       virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
    };
 
+class TR_RelocationRecordValidateArbObjectConstant : public TR_RelocationRecordValidateClassFromCP
+   {
+   public:
+   TR_RelocationRecordValidateArbObjectConstant() {}
+   TR_RelocationRecordValidateArbObjectConstant(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
+   virtual char *name() { return "TR_RelocationRecordValidateArbObjectConstant"; }
+   virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
+   };
+
 class TR_RelocationRecordValidateClassChain : public TR_RelocationRecord
    {
    public:

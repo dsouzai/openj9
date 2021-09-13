@@ -356,6 +356,23 @@ struct ConcreteSubClassFromClassRecord : public ClassValidationRecord
    TR_OpaqueClassBlock *_superClass;
    };
 
+struct ArbitraryObjectConstantRecord : public ClassValidationRecord
+   {
+   ArbitraryObjectConstantRecord(TR_OpaqueClassBlock *clazz, TR_OpaqueMethodBlock *beholderMethod, uint32_t cpIndex)
+      : ClassValidationRecord(TR_ValidateArbObjectConstant, clazz),
+        _class(clazz),
+        _beholderMethod(beholderMethod),
+        _cpIndex(cpIndex)
+      {}
+
+   virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
+   virtual void printFields();
+
+   TR_OpaqueClassBlock  * _class;
+   TR_OpaqueMethodBlock * _beholderMethod;
+   uint32_t  _cpIndex;
+   };
+
 struct ClassChainRecord : public SymbolValidationRecord
    {
    ClassChainRecord(TR_OpaqueClassBlock *clazz, void *classChain)
@@ -721,6 +738,7 @@ public:
    bool addClassFromITableIndexCPRecord(TR_OpaqueClassBlock *clazz, J9ConstantPool *constantPoolOfBeholder, int32_t cpIndex);
    bool addDeclaringClassFromFieldOrStaticRecord(TR_OpaqueClassBlock *clazz, J9ConstantPool *constantPoolOfBeholder, int32_t cpIndex);
    bool addConcreteSubClassFromClassRecord(TR_OpaqueClassBlock *childClass, TR_OpaqueClassBlock *superClass);
+   bool addArbObjectConstantRecord(TR_OpaqueClassBlock *clazz, J9Method *beholderMethod, uint32_t cpIndex);
 
    bool addMethodFromClassRecord(TR_OpaqueMethodBlock *method, TR_OpaqueClassBlock *beholder, uint32_t index);
    bool addStaticMethodFromCPRecord(TR_OpaqueMethodBlock *method, J9ConstantPool *cp, int32_t cpIndex);
@@ -763,6 +781,7 @@ public:
    bool validateClassFromITableIndexCPRecord(uint16_t classID, uint16_t beholderID, uint32_t cpIndex);
    bool validateDeclaringClassFromFieldOrStaticRecord(uint16_t definingClassID, uint16_t beholderID, int32_t cpIndex);
    bool validateConcreteSubClassFromClassRecord(uint16_t childClassID, uint16_t superClassID);
+   bool validateArbObjectConstantRecord(uint16_t classID, uint16_t beholderMethodID, uint32_t cpIndex);
 
    bool validateClassChainRecord(uint16_t classID, void *classChain);
 

@@ -801,6 +801,9 @@ TR_RelocationRecord::create(TR_RelocationRecord *storage, TR_RelocationRuntime *
       case TR_ValidateConcreteSubClassFromClass:
          reloRecord = new (storage) TR_RelocationRecordValidateConcreteSubClassFromClass(reloRuntime, record);
          break;
+      case TR_ValidateArbObjectConstant:
+         reloRecord = new (storage) TR_RelocationRecordValidateArbObjectConstant(reloRuntime, record);
+         break;
       case TR_ValidateClassChain:
          reloRecord = new (storage) TR_RelocationRecordValidateClassChain(reloRuntime, record);
          break;
@@ -4320,6 +4323,19 @@ TR_RelocationRecordValidateConcreteSubClassFromClass::applyRelocation(TR_Relocat
    }
 
 int32_t
+TR_RelocationRecordValidateArbObjectConstant::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
+   {
+   uint16_t classID = this->classID(reloTarget);
+   uint16_t methodBeholderID = this->beholderID(reloTarget);
+   uint32_t cpIndex = this->cpIndex(reloTarget);
+
+   if (reloRuntime->comp()->getSymbolValidationManager()->validateArbObjectConstantRecord(classID, methodBeholderID, cpIndex))
+      return 0;
+   else
+      return compilationAotClassReloFailure;
+   }
+
+int32_t
 TR_RelocationRecordValidateClassChain::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
    {
    uint16_t classID = this->classID(reloTarget);
@@ -6591,4 +6607,5 @@ uint32_t TR_RelocationRecord::_relocationRecordHeaderSizeTable[TR_NumExternalRel
    sizeof(TR_RelocationRecordValidateMethodFromCPBinaryTemplate),                    // TR_ValidateHandleMethodFromCP                   = 111
    sizeof(TR_RelocationRecordCallSiteTableEntryAddressBinaryTemplate),               // TR_CallSiteTableEntryAddress                    = 112
    sizeof(TR_RelocationRecordMethodTypeTableEntryAddressBinaryTemplate),             // TR_MethodTypeTableEntryAddress                  = 113
+   sizeof(TR_RelocationRecordValidateClassFromCPBinaryTemplate),                     // TR_ValidateArbObjectConstant                    = 114
    };
