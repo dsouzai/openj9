@@ -180,6 +180,11 @@ struct TR_RelocationRecordTableAddressPrivateData
    void *_tableAddress;
    };
 
+struct TR_RelocationRecordArbObjectConstantPrivateData
+   {
+   void *_arbObjConst;
+   };
+
 union TR_RelocationRecordPrivateData
    {
    TR_RelocationRecordHelperAddressPrivateData helperAddress;
@@ -200,6 +205,7 @@ union TR_RelocationRecordPrivateData
    TR_RelocationRecordBreakpointGuardPrivateData breakpointGuard;
    TR_RelocationRecordVMINLMethodPrivateData vminlMethod;
    TR_RelocationRecordTableAddressPrivateData tableAddress;
+   TR_RelocationRecordArbObjectConstantPrivateData arbObjConst;
    };
 
 enum TR_RelocationRecordAction
@@ -1340,7 +1346,7 @@ class TR_RelocationRecordValidateArbObjectConstant : public TR_RelocationRecordV
    {
    public:
    TR_RelocationRecordValidateArbObjectConstant() {}
-   TR_RelocationRecordValidateArbObjectConstant(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
+   TR_RelocationRecordValidateArbObjectConstant(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecordValidateClassFromCP(reloRuntime, record) {}
    virtual char *name() { return "TR_RelocationRecordValidateArbObjectConstant"; }
    virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
    };
@@ -1983,6 +1989,21 @@ class TR_RelocationRecordVMINLMethod : public TR_RelocationRecord
 
       void setRomMethodOffsetInSCC(TR_RelocationTarget *reloTarget, uintptr_t romMethodOffsetInSCC);
       uintptr_t romMethodOffsetInSCC(TR_RelocationTarget *reloTarget);
+   };
+
+class TR_RelocationRecordArbObjectConstant : public TR_RelocationRecordConstantPoolWithIndex
+   {
+   public:
+      TR_RelocationRecordArbObjectConstant() {}
+      TR_RelocationRecordArbObjectConstant(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record)
+      : TR_RelocationRecordConstantPoolWithIndex(reloRuntime, record) {}
+
+      virtual char *name() { return "TR_RelocationRecordArbObjectConstant"; }
+
+      virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget);
+
+      virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation);
+      virtual int32_t applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
    };
 
 #endif   // RELOCATION_RECORD_INCL

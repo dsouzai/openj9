@@ -876,6 +876,9 @@ TR_RelocationRecord::create(TR_RelocationRecord *storage, TR_RelocationRuntime *
       case TR_VMINLMethod:
          reloRecord = new (storage) TR_RelocationRecordVMINLMethod(reloRuntime, record);
          break;
+      case TR_ArbObjectConstantAddress:
+         reloRecord = new (storage) TR_RelocationRecordArbObjectConstant(reloRuntime, record);
+         break;
       default:
          // TODO: error condition
          printf("Unexpected relo record: %d\n", reloType);fflush(stdout);
@@ -6491,6 +6494,49 @@ TR_RelocationRecordVMINLMethod::romMethodOffsetInSCC(TR_RelocationTarget *reloTa
    return reloTarget->loadRelocationRecordValue((uintptr_t *) &((TR_RelocationRecordVMINLMethodBinaryTemplate *)_record)->_romMethodOffsetInSCC);
    }
 
+void
+TR_RelocationRecordArbObjectConstant::preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget)
+   {
+   TR_RelocationRecordArbObjectConstantPrivateData *reloPrivateData = &(privateData()->arbObjConst);
+
+   TR_OpaqueMethodBlock *owningMethod = getInlinedSiteMethod(reloRuntime);
+   int32_t cpIndex = this->cpIndex(reloTarget);
+
+   TR_J9VMBase *fe = reloRuntime->fej9();
+   TR_Memory *trMemory = reloRuntime->trMemory();
+   TR_ResolvedMethod *owningResolvedMethod = fe->createResolvedMethod(trMemory, owningMethod, NULL);
+
+   void *arbObjConst = NULL;
+   if (!owningResolvedMethod->isUnresolvedString(cpIndex))
+      arbObjConst = owningResolvedMethod->stringConstant(cpIndex);
+
+   reloPrivateData->_arbObjConst = arbObjConst;
+   }
+
+int32_t
+TR_RelocationRecordArbObjectConstant::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
+   {
+   TR_RelocationRecordArbObjectConstantPrivateData *reloPrivateData = &(privateData()->arbObjConst);
+   uint8_t *arbObjConst = reinterpret_cast<uint8_t *>(reloPrivateData->_arbObjConst);
+   if (!arbObjConst)
+      return compilationAotClassReloFailure;
+
+   reloTarget->storeAddressSequence(arbObjConst, reloLocation, reloFlags(reloTarget));
+   return 0;
+   }
+
+int32_t
+TR_RelocationRecordArbObjectConstant::applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget, uint8_t *reloLocationHigh, uint8_t *reloLocationLow)
+   {
+   TR_RelocationRecordArbObjectConstantPrivateData *reloPrivateData = &(privateData()->arbObjConst);
+   uint8_t *arbObjConst = reinterpret_cast<uint8_t *>(reloPrivateData->_arbObjConst);
+   if (!arbObjConst)
+      return compilationAotClassReloFailure;
+
+   reloTarget->storeAddress(arbObjConst, reloLocationHigh, reloLocationLow, reloFlags(reloTarget));
+   return 0;
+   }
+
 uint32_t TR_RelocationRecord::_relocationRecordHeaderSizeTable[TR_NumExternalRelocationKinds] =
    {
    sizeof(TR_RelocationRecordConstantPoolBinaryTemplate),                            // TR_ConstantPool                                 = 0
@@ -6608,4 +6654,5 @@ uint32_t TR_RelocationRecord::_relocationRecordHeaderSizeTable[TR_NumExternalRel
    sizeof(TR_RelocationRecordCallSiteTableEntryAddressBinaryTemplate),               // TR_CallSiteTableEntryAddress                    = 112
    sizeof(TR_RelocationRecordMethodTypeTableEntryAddressBinaryTemplate),             // TR_MethodTypeTableEntryAddress                  = 113
    sizeof(TR_RelocationRecordValidateClassFromCPBinaryTemplate),                     // TR_ValidateArbObjectConstant                    = 114
+   sizeof(TR_RelocationRecordConstantPoolWithIndexBinaryTemplate),                   // TR_ArbObjectConstantAddress                     = 115
    };

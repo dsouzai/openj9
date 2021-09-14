@@ -271,6 +271,7 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
       case TR_SpecialRamMethodConst:
       case TR_VirtualRamMethodConst:
       case TR_ClassAddress:
+      case TR_ArbObjectConstantAddress:
          {
          TR_RelocationRecordConstantPoolWithIndex *cpiRecord = reinterpret_cast<TR_RelocationRecordConstantPoolWithIndex *>(reloRecord);
          TR::SymbolReference *symRef = reinterpret_cast<TR::SymbolReference *>(relocation->getTargetAddress());
@@ -1396,13 +1397,23 @@ J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool isVerbose
          break;
 
       case TR_ClassAddress:
+      case TR_ArbObjectConstantAddress:
          {
          TR_RelocationRecordConstantPoolWithIndex *cpiRecord = reinterpret_cast<TR_RelocationRecordConstantPoolWithIndex *>(reloRecord);
 
          self()->traceRelocationOffsets(cursor, offsetSize, endOfCurrentRecord, orderedPair);
          if (isVerbose)
             {
-            traceMsg(self()->comp(), "\n Address Relocation (TR_ClassAddress): inlinedIndex = %d, constantPool = %p, CPI = %d, flags = %x",
+            const char *recordType;
+            if (kind == TR_ClassAddress)
+               recordType = "TR_ClassAddress";
+            else if (kind == TR_ArbObjectConstantAddress)
+               recordType = "TR_ArbObjectConstantAddress";
+            else
+               TR_ASSERT_FATAL(false, "Unknown relokind %d!\n", kind);
+
+            traceMsg(self()->comp(), "\n Address Relocation (%s): inlinedIndex = %d, constantPool = %p, CPI = %d, flags = %x",
+                                     recordType,
                                      cpiRecord->inlinedSiteIndex(reloTarget),
                                      cpiRecord->constantPool(reloTarget),
                                      cpiRecord->cpIndex(reloTarget),
