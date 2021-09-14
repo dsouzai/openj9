@@ -359,7 +359,7 @@ struct ConcreteSubClassFromClassRecord : public ClassValidationRecord
 struct ArbitraryObjectConstantRecord : public ClassValidationRecord
    {
    ArbitraryObjectConstantRecord(TR_OpaqueClassBlock *clazz, TR_OpaqueMethodBlock *beholderMethod, uint32_t cpIndex)
-      : ClassValidationRecord(TR_ValidateArbObjectConstant, clazz),
+      : ClassValidationRecord(TR_ValidateArbObjectConstant),
         _class(clazz),
         _beholderMethod(beholderMethod),
         _cpIndex(cpIndex)
@@ -738,7 +738,7 @@ public:
    bool addClassFromITableIndexCPRecord(TR_OpaqueClassBlock *clazz, J9ConstantPool *constantPoolOfBeholder, int32_t cpIndex);
    bool addDeclaringClassFromFieldOrStaticRecord(TR_OpaqueClassBlock *clazz, J9ConstantPool *constantPoolOfBeholder, int32_t cpIndex);
    bool addConcreteSubClassFromClassRecord(TR_OpaqueClassBlock *childClass, TR_OpaqueClassBlock *superClass);
-   bool addArbObjectConstantRecord(TR_OpaqueClassBlock *clazz, J9Method *beholderMethod, uint32_t cpIndex);
+   bool addArbObjectConstantRecord(TR_OpaqueClassBlock *clazz, TR_OpaqueMethodBlock *beholderMethod, uint32_t cpIndex);
 
    bool addMethodFromClassRecord(TR_OpaqueMethodBlock *method, TR_OpaqueClassBlock *beholder, uint32_t index);
    bool addStaticMethodFromCPRecord(TR_OpaqueMethodBlock *method, J9ConstantPool *cp, int32_t cpIndex);

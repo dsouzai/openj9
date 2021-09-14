@@ -895,7 +895,7 @@ TR::SymbolValidationManager::addConcreteSubClassFromClassRecord(TR_OpaqueClassBl
    }
 
 bool
-TR::SymbolValidationManager::addArbObjectConstantRecord(TR_OpaqueClassBlock *clazz, J9Method *beholderMethod, uint32_t cpIndex)
+TR::SymbolValidationManager::addArbObjectConstantRecord(TR_OpaqueClassBlock *clazz, TR_OpaqueMethodBlock *beholderMethod, uint32_t cpIndex)
    {
    SVM_ASSERT_ALREADY_VALIDATED(this, beholderMethod);
    return addClassRecord(clazz, new (_region) ArbitraryObjectConstantRecord(clazz, beholderMethod, cpIndex));
@@ -1289,14 +1289,12 @@ TR::SymbolValidationManager::validateConcreteSubClassFromClassRecord(uint16_t ch
 bool
 TR::SymbolValidationManager::validateArbObjectConstantRecord(uint16_t classID, uint16_t beholderMethodID, uint32_t cpIndex)
    {
-   TR_OpaqueMethodBlock *beholderMethod = getMethodFromID(beholderMethodID);
-
-   TR_ResolvedJ9Method *resolvedMethod =
-         reinterpret_cast<TR_ResolvedJ9Method *>(
-            _fej9->createResolvedMethod(_trMemory, beholderMethod, NULL));
-
    bool isString = true;
    TR_OpaqueClassBlock *clazz = NULL;
+
+   TR_OpaqueMethodBlock *beholderMethod = getMethodFromID(beholderMethodID);
+   TR_ResolvedMethod *resolvedMethod = _fej9->createResolvedMethod(_trMemory, beholderMethod, NULL);
+
    void * arbitraryObject = resolvedMethod->stringConstant(cpIndex);
    if (!resolvedMethod->isUnresolvedString(cpIndex))
       {
