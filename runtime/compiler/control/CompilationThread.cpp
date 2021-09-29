@@ -8396,7 +8396,22 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
                   {
                   static char *dontDisableSVMDuringStartup = feGetEnv("TR_DontDisableSVMDuringStartup");
                   if (!dontDisableSVMDuringStartup)
-                     options->setOption(TR_UseSymbolValidationManager, false);
+                     {
+                     const J9ROMClass *romClass = J9_CLASS_FROM_METHOD(method)->romClass;
+                     J9UTF8 *className = J9ROMCLASS_CLASSNAME(romClass);
+
+                     if (strncmp(utf8Data(className), "java/lang/invoke/", sizeof("java/lang/invoke/") - 1) != 0)
+                        {
+                        if (TR::Options::isAnyVerboseOptionSet(TR_VerbosePerformance))
+                           TR_VerboseLog::writeLineLocked(TR_Vlog_PERF,"0x%p: NO SVM", details.getMethod());
+                        options->setOption(TR_UseSymbolValidationManager, false);
+                        }
+                     else
+                        {
+                        if (TR::Options::isAnyVerboseOptionSet(TR_VerbosePerformance))
+                           TR_VerboseLog::writeLineLocked(TR_Vlog_PERF,"0x%p: SVM", details.getMethod());
+                        }
+                     }
                   }
 
                // See if we need to insert GCR trees
