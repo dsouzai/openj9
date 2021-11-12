@@ -190,7 +190,16 @@ TR_J9VMBase::getCompThreadIDForVMThread(void *vmThread)
          else if (_vmThreadIsCompilationThread == TR_maybe) // Let's find out the compilation thread and cache it
             {
             _compInfoPT = _compInfo->getCompInfoForThread((J9VMThread*)vmThread);
-            id = _compInfoPT ? _compInfoPT->getCompThreadId() : -1;
+            if (_compInfoPT)
+               {
+               _vmThreadIsCompilationThread = TR_yes;
+               id = _compInfoPT->getCompThreadId();
+               }
+            else
+               {
+               _vmThreadIsCompilationThread = TR_no;
+               id = -1;
+               }
             }
          }
       else // Thread given as parameter is unrelated to this frontEnd
