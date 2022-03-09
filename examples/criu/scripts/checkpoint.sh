@@ -1,5 +1,11 @@
 #!/bin/sh
 
+if [ -z "$1" ]
+then
+  echo "Specify application to checkpoint/restore"
+  exit 1
+fi
+
 echo "Building initial application image as app-temp"
 docker build -f Dockerfile -t app-temp . || exit 1
 

@@ -10,5 +10,5 @@ else
   done
 
   mkdir -p "/opt/imageDir"
-  java -XX:+EnableCRIUSupport -cp /opt/simpleExample/build/classes/java/main simpleExample.SimpleExample
+  java -XX:+EnableCRIUSupport -cp /opt/$1/build/classes/java/main $1.$1
 fi

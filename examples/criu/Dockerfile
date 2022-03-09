@@ -53,9 +53,9 @@ ENV PATH="$PATH:/opt/gradle/gradle-7.4.1/bin"
 
 # Copy and build application
 
-ARG APP=simpleExample
+ARG APP=SimpleExample
 
-COPY $APP /opt/$APP
+COPY $APP /opt/app
 
 RUN cd /opt/$APP \
     && gradle build \
