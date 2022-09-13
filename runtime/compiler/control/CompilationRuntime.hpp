@@ -906,15 +906,19 @@ public:
     *       - Hook Thread remains waiting on CR Monitor
     *       - Shutdown Thread blocks on the Comp Monitor
     *       - Comp Thread returns to VM and terminates the process
+    *
+    * @param vmThread The current J9VMThread
     */
-   void prepareForCheckpoint();
+   void prepareForCheckpoint(J9VMThread *vmThread);
 
    /**
     * @brief Work that is necessary after the JVM has been restored. This includes:
     *        - Resetting the _checkpointStatus state.
     *        - Resuming all suspended compilation threads.
+    *
+    * @param vmThread The current J9VMThread
     */
-   void prepareForRestore();
+   void prepareForRestore(J9VMThread *vmThread);
 #endif
 
    void purgeMethodQueue(TR_CompilationErrorCode errorCode);

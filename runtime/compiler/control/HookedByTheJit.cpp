@@ -1837,7 +1837,7 @@ static void jitHookPrepareCheckpoint(J9HookInterface * * hookInterface, UDATA ev
    J9JITConfig * jitConfig = javaVM->jitConfig;
 
    TR::CompilationInfo * compInfo = TR::CompilationInfo::get(jitConfig);
-   compInfo->prepareForCheckpoint();
+   compInfo->prepareForCheckpoint(vmThread);
    }
 
 static void jitHookPrepareRestore(J9HookInterface * * hookInterface, UDATA eventNum, void * eventData, void * userData)
@@ -1847,21 +1847,8 @@ static void jitHookPrepareRestore(J9HookInterface * * hookInterface, UDATA event
    J9JavaVM * javaVM = vmThread->javaVM;
    J9JITConfig * jitConfig = javaVM->jitConfig;
 
-   /* If the restored run does not allow further checkpoints, then
-    * remove the portability restrictions on the target CPU (used
-    * for JIT compiles) to allow optimal code generation
-    */
-   if (!javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
-      {
-      TR::Compiler->target.cpu = TR::CPU::detect(TR::Compiler->omrPortLib);
-      jitConfig->targetProcessor = TR::Compiler->target.cpu.getProcessorDescription();
-
-      /* Reinitialize the (technically unused) targetProcesssorInfo on x86 to prevent asserts */
-      TR::Compiler->target.cpu.initializeTargetProcessorInfo(true);
-      }
-
    TR::CompilationInfo * compInfo = TR::CompilationInfo::get(jitConfig);
-   compInfo->prepareForRestore();
+   compInfo->prepareForRestore(vmThread);
    }
 #endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
 

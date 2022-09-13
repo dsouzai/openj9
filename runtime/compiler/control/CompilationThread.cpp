@@ -41,6 +41,9 @@
 #include "j9protos.h"
 #include "vmaccess.h"
 #include "objhelp.h"
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+#include "criusupport/criusupport.hpp"
+#endif
 #include "codegen/CodeGenerator.hpp"
 #include "codegen/Instruction.hpp"
 #include "codegen/PrivateLinkage.hpp"
@@ -2641,10 +2644,9 @@ class ReleaseVMAccessAndAcquireMonitor
    TR::Monitor *_monitor;
    };
 
-void TR::CompilationInfo::prepareForCheckpoint()
+void TR::CompilationInfo::prepareForCheckpoint(J9VMThread *vmThread)
    {
-   J9JavaVM   *vm       = _jitConfig->javaVM;
-   J9VMThread *vmThread = vm->internalVMFunctions->currentVMThread(vm);
+   J9JavaVM *vm = _jitConfig->javaVM;
 
    if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCheckpointRestore))
       TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Preparing for checkpoint");
@@ -2731,10 +2733,42 @@ void TR::CompilationInfo::prepareForCheckpoint()
       TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Ready for checkpoint");
    }
 
-void TR::CompilationInfo::prepareForRestore()
+void TR::CompilationInfo::prepareForRestore(J9VMThread *vmThread)
    {
+   J9JavaVM *vm = _jitConfig->javaVM;
+
    if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCheckpointRestore))
       TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Preparing for restore");
+
+   TR::CPU currentCPU;
+   if (vm->internalVMFunctions->isCheckpointAllowed(vmThread))
+      currentCPU = TR::CPU::detectRelocatable(TR::Compiler->omrPortLib);
+   else
+      currentCPU = TR::CPU::detect(TR::Compiler->omrPortLib);
+
+   /* Abort restore if there is a mismatch in CPU features */
+   if (!TR::Compiler->target.cpu.isCompatible(currentCPU.getProcessorDescription()))
+      {
+      if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCheckpointRestore))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Code generated prior to checkpoint is not compatible with the current CPU; aborting restore!");
+
+      _jitConfig->checkpointRestoreErrorCode = J9_JIT_CHECKPOINT_RESTORE_CPU_FEATURES_MISMATCH;
+
+      return;
+      }
+
+   /* If the restored run does not allow further checkpoints, then
+    * remove the portability restrictions on the target CPU (used
+    * for JIT compiles) to allow optimal code generation
+    */
+   if (!vm->internalVMFunctions->isCheckpointAllowed(vmThread))
+      {
+      TR::Compiler->target.cpu = currentCPU;
+      jitConfig->targetProcessor = TR::Compiler->target.cpu.getProcessorDescription();
+
+      /* Reinitialize the (technically unused) targetProcesssorInfo on x86 to prevent asserts */
+      TR::Compiler->target.cpu.initializeTargetProcessorInfo(true);
+      }
 
    {
    OMR::CriticalSection resumeCompThreadsForRestore(getCompilationMonitor());
