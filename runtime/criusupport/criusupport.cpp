@@ -600,6 +600,20 @@ Java_org_eclipse_openj9_criu_CRIUSupport_checkpointJVMImpl(JNIEnv *env,
 			goto wakeJavaThreads;
 		}
 
+		/* Check for a fatal error when preparing the JIT for restore */
+		systemReturnCode = vm->jitConfig->checkpointRestoreErrorCode;
+		switch (systemReturnCode) {
+		case J9_JIT_CHECKPOINT_RESTORE_NO_ERROR:
+			break;
+		case J9_JIT_CHECKPOINT_RESTORE_CPU_FEATURES_MISMATCH:
+			currentExceptionClass = vm->criuRestoreExceptionClass;
+			nlsMsgFormat = j9nls_lookup_message(J9NLS_DO_NOT_PRINT_MESSAGE_TAG | J9NLS_DO_NOT_APPEND_NEWLINE,
+					J9NLS_JCL_CRIU_FAILED_DELAY_LOCK_RELATED_OPS, NULL);
+			goto wakeJavaThreads;
+		default:
+			Assert_CRIU_true(false);
+		}
+
 		if (FALSE == vmFuncs->runDelayedLockRelatedOperations(currentThread)) {
 			currentExceptionClass = vm->criuRestoreExceptionClass;
 			systemReturnCode = 0;

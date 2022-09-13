@@ -4078,6 +4078,9 @@ typedef struct J9JITConfig {
 	uint64_t clientUID;
 	uint64_t serverUID;
 #endif /* J9VM_OPT_JITSERVER */
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+	IDATA checkpointRestoreErrorCode;
+#endif
 } J9JITConfig;
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)

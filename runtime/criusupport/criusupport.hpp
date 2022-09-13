@@ -33,4 +33,7 @@ Java_org_eclipse_openj9_criu_CRIUSupport_checkpointJVMImpl(JNIEnv *env, jclass u
 
 } /* extern "C" */
 
+#define J9_JIT_CHECKPOINT_RESTORE_NO_ERROR 0
+#define J9_JIT_CHECKPOINT_RESTORE_CPU_FEATURES_MISMATCH (-1)
+
 #endif
