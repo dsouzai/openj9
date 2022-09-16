@@ -33,6 +33,7 @@
 #include "env/Region.hpp"
 #include "env/VerboseLog.hpp"
 #include "env/VMJ9.h"
+#include "ilgen/IlGeneratorMethodDetails.hpp"
 #include "infra/MonitorTable.hpp"
 #include "infra/RWMonitor.hpp"
 
@@ -94,7 +95,13 @@ TR::CompileBeforeCheckpoint::queueMethodsForCompilationBeforeCheckpoint()
          if (plan)
             {
             bool queued = false;
-            _fej9->startAsyncCompile(method, 0, &queued, plan);
+
+               // scope for details
+               {
+               TR::IlGeneratorMethodDetails details(j9method);
+               IDATA result = (IDATA)_compInfo->compileMethod(_vmThread, details, NULL, TR_maybe, NULL, &queued, plan);
+               }
+
             if (!queued && newPlanCreated)
                TR_OptimizationPlan::freeOptimizationPlan(plan);
             }
