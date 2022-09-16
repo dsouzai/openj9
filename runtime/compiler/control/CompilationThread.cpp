@@ -2653,7 +2653,7 @@ class ReleaseVMAccessAndAcquireMonitor
  */
 void TR::CompilationInfo::releaseCompMonitorUntilNotifiedOnCRMonitor(J9VMThread *vmThread) throw()
    {
-   TR_ASSERT_FATAL(getCompilationMonitor().owned_by_self(),
+   TR_ASSERT_FATAL(getCompilationMonitor()->owned_by_self(),
                    "releaseCompMonitorUntilNotifiedOnCRMonitor should not be called without the Comp Monitor!\n");
 
    /* Acquire the CR monitor */
