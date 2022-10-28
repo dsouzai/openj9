@@ -25,4 +25,5 @@ j9jit_files(
 	infra/J9Monitor.cpp
 	infra/J9MonitorTable.cpp
 	infra/RWMonitor.cpp
+	infra/UnitTestInfrastructure.cpp
 )

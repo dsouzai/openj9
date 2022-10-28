@@ -59,6 +59,7 @@
 #include "infra/Monitor.hpp"
 #include "infra/MonitorTable.hpp"
 #include "infra/CriticalSection.hpp"
+#include "infra/UnitTestInfrastructure.hpp"
 #include "optimizer/DebuggingCounters.hpp"
 #include "optimizer/JProfilingBlock.hpp"
 #include "runtime/CodeCacheManager.hpp"
@@ -6039,6 +6040,8 @@ static int32_t J9THREAD_PROC samplerThreadProc(void * entryarg)
 
    TR_J9VMBase *fe = TR_J9VMBase::get(jitConfig, 0);
 
+   bool ranUnitTests = false;
+
    j9thread_set_name(j9thread_self(), "JIT Sampler");
    while (!shutdownSamplerThread)
       {
@@ -6049,6 +6052,19 @@ static int32_t J9THREAD_PROC samplerThreadProc(void * entryarg)
 
          persistentInfo->updateElapsedTime(samplingPeriod);
          crtTime += samplingPeriod;
+
+         if (TR::Options::getCmdLineOptions()->getOption(TR_RunUnitTests) && !ranUnitTests)
+            {
+            if (jitConfig->javaVM->phase == J9VM_PHASE_NOT_STARTUP)
+               {
+               acquireVMAccess(samplerThread);
+               fprintf(stderr, "Starting Unit Tests!\n");
+               TR_UnitTestInfrastructure testInfra(jitConfig);
+               testInfra.run();
+               ranUnitTests = true;
+               releaseVMAccess(samplerThread);
+               }
+            }
 
          // periodic chores
          // FIXME: make a constant/macro for the period, and make it 100
