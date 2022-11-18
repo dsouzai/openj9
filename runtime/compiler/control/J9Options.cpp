@@ -286,6 +286,8 @@ int32_t J9::Options::_jProfilingEnablementSampleThreshold = 10000;
 
 bool J9::Options::_aggressiveLockReservation = false;
 
+bool J9::Options::_unitTestingMode = false;
+
 //************************************************************************
 //
 // Options handling - the following code implements the VM-specific

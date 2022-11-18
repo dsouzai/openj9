@@ -236,6 +236,8 @@ IDATA J9VMDllMain(J9JavaVM* vm, IDATA stage, void * reserved)
    IDATA argIndexMergeOptionsEnabled = 0;
    IDATA argIndexMergeOptionsDisabled = 0;
 
+   IDATA unitTestingMode = 0;
+
    static bool isJIT = false;
    static bool isAOT = false;
 
@@ -302,6 +304,10 @@ IDATA J9VMDllMain(J9JavaVM* vm, IDATA stage, void * reserved)
          TR::Options::_doNotProcessEnvVars = (FIND_AND_CONSUME_ARG(EXACT_MATCH, "-XX:doNotProcessJitEnvVars", 0) >= 0);
 
          isQuickstart = J9_ARE_ANY_BITS_SET(vm->extendedRuntimeFlags2, J9_EXTENDED_RUNTIME2_TUNE_QUICKSTART);
+
+         unitTestingMode = FIND_AND_CONSUME_ARG(EXACT_MATCH, "-XunitTestingMode", 0);
+         if (unitTestingMode >= 0)
+            TR::Options::_unitTestingMode = true;
 
 #ifdef TR_HOST_X86
          // By default, disallow reservation of objects' monitors for which a

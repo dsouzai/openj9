@@ -340,6 +340,8 @@ class OMR_EXTENSIBLE Options : public OMR::OptionsConnector
 
    static bool _aggressiveLockReservation;
 
+   static bool _unitTestingMode;
+
    static void  printPID();
 
 
