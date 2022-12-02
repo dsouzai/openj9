@@ -40,6 +40,8 @@ class TR_UnitTester
    static TR_UnitTester *init(J9JITConfig *);
    static TR_UnitTester * getInstance() { return _instance; }
 
+   void run();
+
    J9VMThread* getUnitTesterThread() { return _unitTesterThread; }
    void setUnitTesterThread(J9VMThread* thread) { _unitTesterThread = thread; }
    j9thread_t getUnitTesterOSThread() { return _unitTesterOSThread; }
@@ -53,6 +55,9 @@ class TR_UnitTester
    void startUnitTesterThread(J9JavaVM *javaVM);
    void stopUnitTesterThread();
 
+   J9Class *getMainClass() { return _mainClass; }
+   void setMainClass(J9Class *mainClass) { _mainClass = mainClass; }
+
    private:
    static TR_UnitTester *_instance;
 
@@ -65,6 +70,8 @@ class TR_UnitTester
    J9PortLibrary *_portLib;
    TR_J9VMBase *_vm;
    TR::CompilationInfo *_compInfo;
+
+   J9Class *_mainClass;
    };
 
 int32_t initializeUnitTester(J9JITConfig *jitConfig);

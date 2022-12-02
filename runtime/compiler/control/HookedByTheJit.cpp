@@ -78,6 +78,7 @@
 #include "runtime/IProfiler.hpp"
 #include "runtime/HWProfiler.hpp"
 #include "env/SystemSegmentProvider.hpp"
+#include "unittests/UnitTester.hpp"
 #if defined(J9VM_OPT_JITSERVER)
 #include "control/JITServerHelpers.hpp"
 #include "runtime/JITServerAOTDeserializer.hpp"
@@ -4139,12 +4140,46 @@ static void jitHookBytecodeProfiling(J9HookInterface * * hook, UDATA eventNum, v
 
 extern IDATA compileClasses(J9VMThread *, const char * pattern);
 
+static void jitHookAboutToRunMainUnitTest(J9HookInterface * * hook, UDATA eventNum, void * eventData, void * userData)
+   {
+   J9VMLookupJNIIDEvent * event = (J9VMLookupJNIIDEvent *)eventData;
+   J9VMThread * vmThread = event->currentThread;
+   J9JavaVM * javaVM = vmThread->javaVM;
+   J9JITConfig * jitConfig = javaVM->jitConfig;
+
+   if (jitConfig == 0)
+      return; // if a hook gets called after freeJitConfig then not much else we can do
+
+   if (!event->isStatic || event->isField || strncmp(event->name, "main", 4) || strncmp(event->signature, "([Ljava/lang/String;)V", 22))
+      return;
+
+   J9HookInterface * * vmHooks = vmThread->javaVM->internalVMFunctions->getVMHookInterface(vmThread->javaVM);
+   (*vmHooks)->J9HookUnregister(vmHooks, J9HOOK_VM_LOOKUP_JNI_ID, jitHookAboutToRunMainUnitTest, NULL);
+
+   bool alreadyHaveVMAccess = ((vmThread->publicFlags & J9_PUBLIC_FLAGS_VM_ACCESS) != 0);
+   if (!alreadyHaveVMAccess)
+      javaVM->internalVMFunctions->internalAcquireVMAccess(vmThread);
+   J9Class *mainClass = J9VM_J9CLASS_FROM_JCLASS(vmThread, event->clazz);
+   if (!alreadyHaveVMAccess)
+      javaVM->internalVMFunctions->internalReleaseVMAccess(vmThread);
+
+   if (TR::Options::_unitTestingMode)
+      {
+      TR_UnitTester *unitTester = TR_UnitTester::getInstance();
+      unitTester->getUnitTesterMonitor()->enter();
+      unitTester->setMainClass(mainClass);
+      unitTester->getUnitTesterMonitor()->notify();
+      unitTester->getUnitTesterMonitor()->exit();
+      }
+   }
+
 static void jitHookAboutToRunMain(J9HookInterface * * hook, UDATA eventNum, void * eventData, void * userData)
    {
    J9VMLookupJNIIDEvent * event = (J9VMLookupJNIIDEvent *)eventData;
    J9VMThread * vmThread = event->currentThread;
    J9JavaVM * javaVM = vmThread->javaVM;
    J9JITConfig * jitConfig = javaVM->jitConfig;
+
    if (jitConfig == 0)
       return; // if a hook gets called after freeJitConfig then not much else we can do
 
@@ -6656,6 +6691,14 @@ int32_t setUpHooks(J9JavaVM * javaVM, J9JITConfig * jitConfig, TR_FrontEnd * vm)
 #ifdef J9VM_JIT_SUPPORTS_DIRECT_JNI
       initializeDirectJNI(javaVM);
 #endif
+      if (TR::Options::_unitTestingMode)
+         {
+         if ((*vmHooks)->J9HookRegisterWithCallSite(vmHooks, J9HOOK_VM_LOOKUP_JNI_ID, jitHookAboutToRunMainUnitTest, OMR_GET_CALLSITE(), NULL))
+            {
+            j9tty_printf(PORTLIB, "Error: Unable to install J9HOOK_VM_LOOKUP_JNI_ID hook\n");
+            return -1;
+            }
+         }
       }
 
    // sync the two places for sampling frequency
@@ -6804,6 +6847,11 @@ int32_t setUpHooks(J9JavaVM * javaVM, J9JITConfig * jitConfig, TR_FrontEnd * vm)
          {
          TR_JProfilerThread *jProfiler = ((TR_JitPrivateConfig*)(jitConfig->privateConfig))->jProfiler;
          jProfiler->start(javaVM);
+         }
+
+      if (TR::Options::_unitTestingMode)
+         {
+         initializeUnitTester(jitConfig);
          }
       }
 

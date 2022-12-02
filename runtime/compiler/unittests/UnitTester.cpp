@@ -24,6 +24,7 @@
 #include "j9cfg.h"
 #include "control/Options.hpp"
 #include "env/TRMemory.hpp"
+#include "env/VerboseLog.hpp"
 #include "env/VMJ9.h"
 #include "unittests/UnitTester.hpp"
 
@@ -53,7 +54,7 @@ static int32_t J9THREAD_PROC testerThreadProc(void * entryarg)
 
    j9thread_set_name(j9thread_self(), "JIT Unit Tester");
 
-   // Run Tests Here
+   unitTester->run();
 
    vm->internalVMFunctions->DetachCurrentThread((JavaVM *) vm);
    unitTester->setUnitTesterThread(NULL);
@@ -81,7 +82,8 @@ int32_t initializeUnitTester(J9JITConfig *jitConfig)
 TR_UnitTester::TR_UnitTester(J9JITConfig *jitConfig)
    : _unitTesterMonitor(NULL),
      _unitTesterThreadExitFlag(0),
-     _unitTesterThreadAttachAttempted(false)
+     _unitTesterThreadAttachAttempted(false),
+     _mainClass(NULL)
    {
    PORT_ACCESS_FROM_JITCONFIG(jitConfig);
 
@@ -128,4 +130,14 @@ TR_UnitTester::startUnitTesterThread(J9JavaVM *javaVM)
       {
       j9tty_printf(PORTLIB, "Error: Unable to create JIT-unitTesterMonitor\n");
       }
+   }
+
+void
+TR_UnitTester::run()
+   {
+   getUnitTesterMonitor()->enter();
+   getUnitTesterMonitor()->wait();
+   if (TR::Options::getVerboseOption(TR_VerbosePerformance))
+      TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Main Class is %p", getMainClass());
+   getUnitTesterMonitor()->exit();
    }

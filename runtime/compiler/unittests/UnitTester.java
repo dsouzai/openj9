@@ -1,14 +1,13 @@
 public class UnitTester {
 
-	enum State {
-		INITIALIZED,
-		WAITING,
-		RUNMETHOD,
-		EXIT
-	}
+	final static int INITIALIZED = 0;
+	final static int WAITING = 1;
+	final static int RUNMETHOD = 2;
+	final static int EXIT = 3;
 
-	volatile static State state = State.INITIALIZED;
 	final int SLEEP_SECONDS = 5;
+
+	volatile static int state = INITIALIZED;
 
 	public UnitTester() {
 	}
@@ -17,8 +16,8 @@ public class UnitTester {
 	}
 
 	public void runTests() throws Throwable {
-		state = State.WAITING;
-		while (state != State.EXIT) {
+		state = WAITING;
+		while (state != EXIT) {
 			switch (state) {
 				case RUNMETHOD:
 					emptyMethod();
