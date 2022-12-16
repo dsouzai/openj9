@@ -141,6 +141,8 @@ add_subdirectory(infra)
 add_subdirectory(optimizer)
 add_subdirectory(ras)
 add_subdirectory(runtime)
+add_subdirectory(unittests)
+
 
 if(J9VM_OPT_JITSERVER)
 	add_subdirectory(net)

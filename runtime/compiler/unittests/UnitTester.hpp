@@ -36,8 +36,16 @@ class TR_UnitTester
    public:
    TR_PERSISTENT_ALLOC(TR_Memory::FrontEnd);
 
+   enum State
+      {
+      NATIVE_INITIALIZED = 0,
+      JAVA_INITIALIZED = 1,
+      RUNMETHOD = 2,
+      EXIT = 3,
+      };
+
    TR_UnitTester(J9JITConfig *);
-   static TR_UnitTester *init(J9JITConfig *);
+   static void init(J9JITConfig *);
    static TR_UnitTester * getInstance() { return _instance; }
 
    void run();
@@ -58,6 +66,9 @@ class TR_UnitTester
    J9Class *getMainClass() { return _mainClass; }
    void setMainClass(J9Class *mainClass) { _mainClass = mainClass; }
 
+   State getState() { return _state; }
+   void setState(State state) { _state = state; }
+
    private:
    static TR_UnitTester *_instance;
 
@@ -72,6 +83,8 @@ class TR_UnitTester
    TR::CompilationInfo *_compInfo;
 
    J9Class *_mainClass;
+
+   State _state;
    };
 
 int32_t initializeUnitTester(J9JITConfig *jitConfig);

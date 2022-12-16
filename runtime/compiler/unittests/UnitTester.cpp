@@ -23,9 +23,12 @@
 #include "j9.h"
 #include "j9cfg.h"
 #include "control/Options.hpp"
+#include "control/CompilationRuntime.hpp"
+#include "env/exports.h"
 #include "env/TRMemory.hpp"
 #include "env/VerboseLog.hpp"
 #include "env/VMJ9.h"
+#include "infra/Assert.hpp"
 #include "unittests/UnitTester.hpp"
 
 TR_UnitTester * TR_UnitTester::_instance = NULL;
@@ -83,7 +86,8 @@ TR_UnitTester::TR_UnitTester(J9JITConfig *jitConfig)
    : _unitTesterMonitor(NULL),
      _unitTesterThreadExitFlag(0),
      _unitTesterThreadAttachAttempted(false),
-     _mainClass(NULL)
+     _mainClass(NULL),
+     _state(NATIVE_INITIALIZED)
    {
    PORT_ACCESS_FROM_JITCONFIG(jitConfig);
 
@@ -137,7 +141,15 @@ TR_UnitTester::run()
    {
    getUnitTesterMonitor()->enter();
    getUnitTesterMonitor()->wait();
-   if (TR::Options::getVerboseOption(TR_VerbosePerformance))
-      TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Main Class is %p", getMainClass());
+
+   J9Class *mainClass = getMainClass();
+   J9UTF8 * className = J9ROMCLASS_CLASSNAME(mainClass->romClass);
+   printf("Main Class is %p %.*s\n", mainClass, J9UTF8_LENGTH(className), (char *) J9UTF8_DATA(className));
+
+   getUnitTesterMonitor()->wait();
+   TR_ASSERT_FATAL(getState() == JAVA_INITIALIZED, "_state=%d\n", getState());
+
+   printf("Setting state to EXIT\n");
+   setState(EXIT);
    getUnitTesterMonitor()->exit();
    }

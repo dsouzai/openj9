@@ -1,13 +1,11 @@
 public class UnitTester {
 
-	final static int INITIALIZED = 0;
-	final static int WAITING = 1;
+	final static int NATIVE_INITIALIZED = 0;
+	final static int JAVA_INITIALIZED = 1;
 	final static int RUNMETHOD = 2;
 	final static int EXIT = 3;
 
 	final int SLEEP_SECONDS = 5;
-
-	volatile static int state = INITIALIZED;
 
 	public UnitTester() {
 	}
@@ -16,7 +14,11 @@ public class UnitTester {
 	}
 
 	public void runTests() throws Throwable {
-		state = WAITING;
+		System.out.println("Starting");
+
+		informReady();
+
+		int state = getState();
 		while (state != EXIT) {
 			switch (state) {
 				case RUNMETHOD:
@@ -26,6 +28,8 @@ public class UnitTester {
 					Thread.sleep(SLEEP_SECONDS);
 			}
 		}
+
+		System.out.println("Exiting");
 	}
 	
 	public static void main(String args[]) throws Throwable {
@@ -36,4 +40,8 @@ public class UnitTester {
 			System.out.println("Failed to run tests");
 		}
 	}
+
+	private native void informReady();
+
+	private native int getState();
 }

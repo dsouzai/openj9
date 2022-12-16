@@ -5,5 +5,7 @@
 		Java_java_lang_invoke_ThunkTuple_initialInvokeExactThunk;
 		Java_java_lang_invoke_InterfaceHandle_convertITableIndexToVTableIndex;
 		Java_java_lang_invoke_MutableCallSite_invalidate;
+		Java_UnitTester_informReady;
+		Java_UnitTester_getState;
 	local : *;
 };

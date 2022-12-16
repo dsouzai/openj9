@@ -38,6 +38,12 @@ JNIEXPORT void JNICALL Java_java_lang_invoke_MutableCallSite_invalidate
 JNIEXPORT jlong JNICALL Java_java_lang_invoke_ThunkTuple_initialInvokeExactThunk
   (JNIEnv *, jclass);
 
+JNIEXPORT void JNICALL Java_UnitTester_informReady
+  (JNIEnv *, jobject);
+
+JNIEXPORT jint JNICALL Java_UnitTester_getState
+  (JNIEnv *, jobject);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

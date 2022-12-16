@@ -127,6 +127,7 @@
 #include "VMHelpers.hpp"
 #include "env/JSR292Methods.h"
 #include "infra/String.hpp"
+#include "unittests/UnitTester.hpp"
 
 #ifdef LINUX
 #include <signal.h>
@@ -9359,6 +9360,30 @@ JIT_HELPER(initialInvokeExactThunkGlue);
 #else
 JIT_HELPER(_initialInvokeExactThunkGlue);
 #endif
+
+void JNICALL Java_UnitTester_informReady
+  (JNIEnv *, jobject)
+   {
+   printf("Java_UnitTester_informReady\n");
+   TR_UnitTester *unitTester = TR_UnitTester::getInstance();
+   unitTester->getUnitTesterMonitor()->enter();
+   TR_ASSERT_FATAL(unitTester->getState() == TR_UnitTester::NATIVE_INITIALIZED, "_state=%d\n", unitTester->getState());
+   unitTester->setState(TR_UnitTester::JAVA_INITIALIZED);
+   unitTester->getUnitTesterMonitor()->notify();
+   unitTester->getUnitTesterMonitor()->exit();
+   }
+
+jint JNICALL Java_UnitTester_getState
+  (JNIEnv *, jobject)
+   {
+   printf("Java_UnitTester_getState\n");
+   TR_UnitTester *unitTester = TR_UnitTester::getInstance();
+   jint state;
+   unitTester->getUnitTesterMonitor()->enter();
+   state = (jint)unitTester->getState();
+   unitTester->getUnitTesterMonitor()->exit();
+   return state;
+   }
 
 jlong JNICALL Java_java_lang_invoke_ThunkTuple_initialInvokeExactThunk
    (JNIEnv *env, jclass clazz)
