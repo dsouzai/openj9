@@ -1588,16 +1588,19 @@ createMethodMetaData(
 
       // Set some flags in the AOTMethodHeader
       //
-      if (!vm->isMethodTracingEnabled(vmMethod->getPersistentIdentifier()) &&
-          !vm->canMethodExitEventBeHooked())
+      if (vm->canMethodEnterEventBeHooked())
          {
-         aotMethodHeaderEntry->flags |= TR_AOTMethodHeader_IsNotCapableOfMethodExitTracing;
+         aotMethodHeaderEntry->flags |= TR_AOTMethodHeader_MethodEnterEventCanBeHooked;
          }
 
-      if (!vm->isMethodTracingEnabled(vmMethod->getPersistentIdentifier()) &&
-          !vm->canMethodEnterEventBeHooked())
+      if (vm->canMethodExitEventBeHooked())
          {
-         aotMethodHeaderEntry->flags |= TR_AOTMethodHeader_IsNotCapableOfMethodEnterTracing;
+         aotMethodHeaderEntry->flags |= TR_AOTMethodHeader_MethodExitEventCanBeHooked;
+         }
+
+      if (vm->isMethodTracingEnabled(vmMethod->getNonPersistentIdentifier()))
+         {
+         aotMethodHeaderEntry->flags |= TR_AOTMethodHeader_MethodTracingEnabled;
          }
 
       if (!vm->canExceptionEventBeHooked())
