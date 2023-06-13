@@ -1197,6 +1197,8 @@ public:
    virtual U_8 * fetchMethodExtendedFlagsPointer(J9Method *method); // wrapper method of fetchMethodExtendedFlagsPointer in util/extendedmethodblockaccess.c, for JITServer override purpose
    virtual void * getStaticHookAddress(int32_t event);
 
+   TR::TreeTop * lowerMethodHookPortableCode(TR::Compilation *, TR::Node * root,  TR::TreeTop * treeTop);
+
    TR::Node * initializeLocalObjectFlags(TR::Compilation *, TR::Node * allocationNode, TR_OpaqueClassBlock * ramClass);
 
    /**

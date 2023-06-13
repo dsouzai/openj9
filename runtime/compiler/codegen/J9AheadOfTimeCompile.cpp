@@ -546,7 +546,7 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          else if (callSymRef->getSymbol()->getMethodSymbol()->isVirtual())
             flags = inlinedMethodIsVirtual;
 
-         if (fej9->isMethodTracingEnabled(reinterpret_cast<J9Method *>(method)))
+         if (comp->compilePortableCode() || fej9->isMethodTracingEnabled(reinterpret_cast<J9Method *>(method)))
             flags |= methodTracingEnabled;
 
          TR_ASSERT((flags & RELOCATION_CROSS_PLATFORM_FLAGS_MASK) == 0,  "reloFlags bits overlap cross-platform flags bits\n");
@@ -636,7 +636,7 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
 
          uint8_t flags = 0;
          TR_OpaqueMethodBlock *method = inlinedMethod->getPersistentIdentifier();
-         if (fej9->isMethodTracingEnabled(reinterpret_cast<J9Method *>(method)))
+         if (comp->compilePortableCode() || fej9->isMethodTracingEnabled(reinterpret_cast<J9Method *>(method)))
             flags = methodTracingEnabled;
          TR_ASSERT((flags & RELOCATION_CROSS_PLATFORM_FLAGS_MASK) == 0,  "reloFlags bits overlap cross-platform flags bits\n");
 

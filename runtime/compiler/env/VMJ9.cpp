@@ -2986,10 +2986,105 @@ TR_J9VMBase::canExceptionEventBeHooked()
    return (catchCanBeHooked || throwCanBeHooked);
    }
 
+TR::TreeTop *
+TR_J9VMBase::lowerMethodHookPortableCode(TR::Compilation *comp, TR::Node * root,  TR::TreeTop * treeTop)
+   {
+   if (!performTransformation(comp, "O^O LOWER METHOD HOOK: lowerMethodHookPortableCode\n"))
+      {
+      comp->failCompilation<TR::CompilationException>("Unable to lower method hook for portable code!");
+      return NULL;
+      }
+
+   J9Method * j9method = (J9Method *) root->getOwningMethod();
+   TR::Node * ramMethod = TR::Node::aconst(root, (uintptr_t)j9method);
+   ramMethod->setIsMethodPointerConstant(true);
+
+   bool isTrace = isMethodTracingEnabled(j9method);
+
+   TR::Node * methodCall;
+   if (root->getNumChildren() == 0)
+      {
+      methodCall = TR::Node::createWithSymRef(TR::call, 1, 1, ramMethod, root->getSymbolReference());
+      }
+   else
+      {
+      TR::Node * child = root->getChild(0);
+      if (!isTrace && comp->cg()->getSupportsPartialInlineOfMethodHooks())
+         child = child->duplicateTree();
+
+      methodCall = TR::Node::createWithSymRef(TR::call, 2, 2, child, ramMethod, root->getSymbolReference());
+      root->getChild(0)->recursivelyDecReferenceCount();
+      }
+
+   TR::TreeTop * returnTT = treeTop;
+
+   if (!isTrace && comp->cg()->getSupportsPartialInlineOfMethodHooks())
+      {
+      // The method enter and exit hooks must be modified to check to see if the event is hooked
+      // in the new interface rather than the old. This is a simple bit test at a known address.
+      // The JIT should check the status of the J9HOOK_FLAG_HOOKED bit in the hook interface,
+      // rather than the vmThread->eventFlags field.
+      //
+      // create
+      // iand
+      //    bu2i
+      //      bload &vmThread()->javaVM->hookInterface->flags[J9HOOK_VM_METHOD_ENTER/J9HOOK_VM_METHOD_RETURN];
+      //    iconst J9HOOK_FLAG_HOOKED
+      //
+      TR::StaticSymbol * addressSym = TR::StaticSymbol::create(comp->trHeapMemory(),TR::Address);
+      addressSym->setNotDataAddress();
+      if (root->getOpCodeValue() == TR::MethodEnterHook)
+         {
+         addressSym->setStaticAddress(getStaticHookAddress(J9HOOK_VM_METHOD_ENTER));
+         addressSym->setIsEnterEventHookAddress();
+         }
+      else
+         {
+         addressSym->setStaticAddress(getStaticHookAddress(J9HOOK_VM_METHOD_RETURN));
+         addressSym->setIsExitEventHookAddress();
+         }
+
+      TR::TreeTop * hookedTest =  TR::TreeTop::create(comp,
+         TR::Node::createif(TR::ificmpne,
+            TR::Node::create(TR::iand, 2,
+               TR::Node::create(TR::bu2i, 1,
+                  TR::Node::createWithSymRef(root, TR::bload, 0, new (comp->trHeapMemory()) TR::SymbolReference(comp->getSymRefTab(), addressSym))),
+               TR::Node::create(root, TR::iconst, 0, J9HOOK_FLAG_HOOKED)),
+            TR::Node::create(root, TR::iconst, 0, 0)));
+
+      returnTT = hookedTest;
+
+      TR::TreeTop *callTree = TR::TreeTop::create(comp, TR::Node::create(TR::treetop, 1, methodCall));
+
+      root->setNumChildren(0);
+
+      TR::Block *enclosingBlock = treeTop->getEnclosingBlock();
+      TR::Block *remainderBlock = enclosingBlock->createConditionalBlocksBeforeTree(treeTop, hookedTest, callTree, 0, comp->getFlowGraph());
+      TR::Block *callBlock      = callTree->getEnclosingBlock();
+
+      TR::Node *cmp = comp->createPermanentGuard(comp, methodCall->getInlinedSiteIndex(), root, 0, TR_MethodEnterExitGuard);
+      TR::TreeTop *guard = TR::TreeTop::create(comp, cmp);
+      guard->getNode()->setBranchDestination(callBlock->getEntry());
+
+      hookedTest->insertBefore(guard);
+      TR::Block *hookedTestBlock = enclosingBlock->split(hookedTest, comp->getFlowGraph());
+      comp->getFlowGraph()->addEdge(enclosingBlock, callBlock);
+      }
+   else
+      {
+      // replace mainline Hook node with straight call to the helper
+      treeTop->setNode(methodCall);
+      }
+
+   return returnTT;
+   }
 
 TR::TreeTop *
 TR_J9VMBase::lowerMethodHook(TR::Compilation * comp, TR::Node * root, TR::TreeTop * treeTop)
    {
+   if (comp->compilePortableCode())
+      return lowerMethodHookPortableCode(comp, root, treeTop);
+
    J9Method * j9method = (J9Method *) root->getOwningMethod();
    TR::Node * ramMethod = TR::Node::aconst(root, (uintptr_t)j9method);
    ramMethod->setIsMethodPointerConstant(true);
@@ -3086,8 +3181,6 @@ TR_J9VMBase::lowerMethodHook(TR::Compilation * comp, TR::Node * root, TR::TreeTo
 
       if (methodCall->getNumChildren() != 0)
          {
-         //enclosingBlock->getNextBlock()->setIsExtensionOfPreviousBlock();
-
          TR::Node *child = methodCall->getChild(0);
          if (child->getOpCodeValue() == TR::aRegLoad)
             {
