@@ -2692,13 +2692,15 @@ static TR_ExternalRelocationTargetKind getReloKindFromGuardSite(TR::CodeGenerato
          break;
 
       case TR_MethodEnterExitGuard:
+      case TR_MethodTraceGuard:
          if (site->getGuard()->getCallNode()->getOpCodeValue() == TR::MethodEnterHook)
             type = TR_CheckMethodEnter;
          else if (site->getGuard()->getCallNode()->getOpCodeValue() == TR::MethodExitHook)
             type = TR_CheckMethodExit;
          else
-            TR_ASSERT(0,"Unexpected TR_MethodEnterExitGuard at site %p guard %p node %p\n",
-                              site, site->getGuard(), site->getGuard()->getCallNode());
+            TR_ASSERT_FATAL(false,"Unexpected %s at site %p guard %p node %p\n",
+                            site->getType() == TR_MethodEnterExitGuard ? "TR_MethodEnterExitGuard" : "TR_MethodTraceGuard",
+                            site, site->getGuard(), site->getGuard()->getCallNode());
          break;
 
       case TR_RemovedProfiledGuard:
