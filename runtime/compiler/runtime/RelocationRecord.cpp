@@ -168,6 +168,7 @@ struct TR_RelocationRecordProfiledInlinedMethodBinaryTemplate : TR_RelocationRec
 
 struct TR_RelocationRecordMethodTracingCheckBinaryTemplate : public TR_RelocationRecordBinaryTemplate
    {
+   uint8_t _methodTraceCheck;
    UDATA _destinationAddress;
    };
 
@@ -3478,6 +3479,18 @@ TR_RelocationRecordMethodTracingCheck::print(TR_RelocationRuntime *reloRuntime)
    }
 
 void
+TR_RelocationRecordMethodTracingCheck::setMethodTraceCheck(TR_RelocationTarget *reloTarget, bool methodTraceCheck)
+   {
+   reloTarget->storeUnsigned8b((uint8_t)methodTraceCheck, (uint8_t *) &((TR_RelocationRecordMethodTracingCheckBinaryTemplate *)_record)->_methodTraceCheck);
+   }
+
+bool
+TR_RelocationRecordMethodTracingCheck::methodTraceCheck(TR_RelocationTarget *reloTarget)
+   {
+   return (bool)reloTarget->loadUnsigned8b((uint8_t *) &((TR_RelocationRecordMethodTracingCheckBinaryTemplate *)_record)->_methodTraceCheck);
+   }
+
+void
 TR_RelocationRecordMethodTracingCheck::setDestinationAddress(TR_RelocationTarget *reloTarget, uintptr_t destinationAddress)
    {
    reloTarget->storeRelocationRecordValue(destinationAddress, (uintptr_t *) &((TR_RelocationRecordMethodTracingCheckBinaryTemplate *)_record)->_destinationAddress);
@@ -3494,9 +3507,15 @@ TR_RelocationRecordMethodTracingCheck::preparePrivateData(TR_RelocationRuntime *
    {
    TR_RelocationRecordMethodTracingCheckPrivateData *reloPrivateData = &(privateData()->methodTracingCheck);
 
+   reloPrivateData->_methodTraceCheck = methodTraceCheck(reloTarget);
+
    uintptr_t destination = destinationAddress(reloTarget);
    reloPrivateData->_destinationAddress = (uint8_t *) (destinationAddress(reloTarget) - (UDATA) reloRuntime->aotMethodHeaderEntry()->compileMethodCodeStartPC + (UDATA)(reloRuntime->newMethodCodeStart()));
-   RELO_LOG(reloRuntime->reloLogger(), 6,"\tpreparePrivateData: check destination %p\n", reloPrivateData->_destinationAddress);
+
+   RELO_LOG(reloRuntime->reloLogger(), 6,
+            "\tpreparePrivateData: methodTraceCheck = %s, destination %p\n",
+            (reloPrivateData->_methodTraceCheck ? "true" : "false"),
+            reloPrivateData->_destinationAddress);
    }
 
 TR_RelocationErrorCode
@@ -3518,7 +3537,12 @@ TR_RelocationRecordMethodEnterCheck::name()
 TR_RelocationRecordAction
 TR_RelocationRecordMethodEnterCheck::action(TR_RelocationRuntime *reloRuntime)
    {
-   bool reportMethodEnter = reloRuntime->fej9()->isMethodTracingEnabled((TR_OpaqueMethodBlock *) reloRuntime->method()) || reloRuntime->fej9()->canMethodEnterEventBeHooked();
+   TR_RelocationRecordMethodTracingCheckPrivateData *reloPrivateData = &(privateData()->methodTracingCheck);
+
+   bool reportMethodEnter = reloRuntime->fej9()->isMethodTracingEnabled((TR_OpaqueMethodBlock *)reloRuntime->method());
+   if (!reloPrivateData->_methodTraceCheck)
+      reportMethodEnter = reportMethodEnter || reloRuntime->fej9()->canMethodEnterEventBeHooked();
+
    RELO_LOG(reloRuntime->reloLogger(), 6,"\taction: reportMethodEnter %d\n", reportMethodEnter);
    return reportMethodEnter ? TR_RelocationRecordAction::apply : TR_RelocationRecordAction::ignore;
    }
@@ -3534,7 +3558,12 @@ TR_RelocationRecordMethodExitCheck::name()
 TR_RelocationRecordAction
 TR_RelocationRecordMethodExitCheck::action(TR_RelocationRuntime *reloRuntime)
    {
-   bool reportMethodExit = reloRuntime->fej9()->isMethodTracingEnabled((TR_OpaqueMethodBlock *) reloRuntime->method()) || reloRuntime->fej9()->canMethodExitEventBeHooked();
+   TR_RelocationRecordMethodTracingCheckPrivateData *reloPrivateData = &(privateData()->methodTracingCheck);
+
+   bool reportMethodExit = reloRuntime->fej9()->isMethodTracingEnabled((TR_OpaqueMethodBlock *)reloRuntime->method());
+   if (!reloPrivateData->_methodTraceCheck)
+      reportMethodExit = reportMethodExit || reloRuntime->fej9()->canMethodExitEventBeHooked();
+
    RELO_LOG(reloRuntime->reloLogger(), 6,"\taction: reportMethodExit %d\n", reportMethodExit);
    return reportMethodExit ? TR_RelocationRecordAction::apply : TR_RelocationRecordAction::ignore;
    }

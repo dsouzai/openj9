@@ -99,6 +99,7 @@ struct TR_RelocationRecordProfiledInlinedMethodPrivateData
 
 struct TR_RelocationRecordMethodTracingCheckPrivateData
    {
+   bool _methodTraceCheck;
    uint8_t *_destinationAddress;
    };
 
@@ -1021,6 +1022,9 @@ class TR_RelocationRecordMethodTracingCheck : public TR_RelocationRecord
       TR_RelocationRecordMethodTracingCheck() {}
       TR_RelocationRecordMethodTracingCheck(TR_RelocationRuntime *reloRuntime, TR_RelocationRecordBinaryTemplate *record) : TR_RelocationRecord(reloRuntime, record) {}
       virtual void print(TR_RelocationRuntime *reloRuntime);
+
+      void setMethodTraceCheck(TR_RelocationTarget *reloTarget, bool methodTraceCheck);
+      bool methodTraceCheck(TR_RelocationTarget *reloTarget);
 
       void setDestinationAddress(TR_RelocationTarget *reloTarget, uintptr_t destinationAddress);
       uintptr_t destinationAddress(TR_RelocationTarget *reloTarget);

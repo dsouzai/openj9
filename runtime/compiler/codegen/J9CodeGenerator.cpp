@@ -2698,7 +2698,7 @@ static TR_ExternalRelocationTargetKind getReloKindFromGuardSite(TR::CodeGenerato
          else if (site->getGuard()->getCallNode()->getOpCodeValue() == TR::MethodExitHook)
             type = TR_CheckMethodExit;
          else
-            TR_ASSERT_FATAL(false,"Unexpected %s at site %p guard %p node %p\n",
+            TR_ASSERT_FATAL(false, "Unexpected %s at site %p guard %p node %p\n",
                             site->getType() == TR_MethodEnterExitGuard ? "TR_MethodEnterExitGuard" : "TR_MethodTraceGuard",
                             site, site->getGuard(), site->getGuard()->getCallNode());
          break;
@@ -2783,6 +2783,18 @@ static void processAOTGuardSites(TR::CodeGenerator *cg, uint32_t inlinedCallSize
 
          case TR_CheckMethodEnter:
          case TR_CheckMethodExit:
+            cg->addExternalRelocation(
+               TR::ExternalRelocation::create(
+                  (uint8_t *)(*it)->getLocation(),
+                  (uint8_t *)(*it)->getGuard(),
+                  (uint8_t *)(*it)->getDestination(),
+                  type,
+                  cg),
+               __FILE__,
+               __LINE__,
+               NULL);
+            break;
+
          case TR_HCR:
             cg->addExternalRelocation(
                TR::ExternalRelocation::create(

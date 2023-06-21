@@ -22,6 +22,7 @@
 
 #include "codegen/CodeGenerator.hpp"
 #include "codegen/Instruction.hpp"
+#include "compile/VirtualGuard.hpp"
 #include "env/SharedCache.hpp"
 #include "env/jittypes.h"
 #include "env/ClassLoaderTable.hpp"
@@ -409,7 +410,11 @@ J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExternal
          {
          TR_RelocationRecordMethodTracingCheck *mtRecord = reinterpret_cast<TR_RelocationRecordMethodTracingCheck *>(reloRecord);
 
-         mtRecord->setDestinationAddress(reloTarget, reinterpret_cast<uintptr_t>(relocation->getTargetAddress()));
+         TR_VirtualGuard *guard = reinterpret_cast<TR_VirtualGuard *>(relocation->getTargetAddress());
+         TR_VirtualGuardKind guardKind = guard->getKind();
+
+         mtRecord->setMethodTraceCheck(reloTarget, (guardKind == TR_MethodTraceGuard));
+         mtRecord->setDestinationAddress(reloTarget, reinterpret_cast<uintptr_t>(relocation->getTargetAddress2()));
          }
          break;
 
@@ -1541,7 +1546,10 @@ J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool isVerbose
          self()->traceRelocationOffsets(startOfOffsets, offsetSize, endOfCurrentRecord, orderedPair);
          if (isVerbose)
             {
-            traceMsg(self()->comp(), "\nDestination address %x", mtRecord->destinationAddress(reloTarget));
+            traceMsg(self()->comp(),
+                     "\nMethod Trace Check %s, Destination address %x",
+                     mtRecord->methodTraceCheck(reloTarget) ? "true" : "false",
+                     mtRecord->destinationAddress(reloTarget));
             }
          }
          break;
