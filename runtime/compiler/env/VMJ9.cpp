@@ -3020,17 +3020,42 @@ TR_J9VMBase::lowerMethodHookPortableCode(TR::Compilation *comp, TR::Node * root,
 
    if (!isTrace && comp->cg()->getSupportsPartialInlineOfMethodHooks())
       {
-      // The method enter and exit hooks must be modified to check to see if the event is hooked
-      // in the new interface rather than the old. This is a simple bit test at a known address.
-      // The JIT should check the status of the J9HOOK_FLAG_HOOKED bit in the hook interface,
-      // rather than the vmThread->eventFlags field.
-      //
-      // create
-      // iand
-      //    bu2i
-      //      bload &vmThread()->javaVM->hookInterface->flags[J9HOOK_VM_METHOD_ENTER/J9HOOK_VM_METHOD_RETURN];
-      //    iconst J9HOOK_FLAG_HOOKED
-      //
+      /**
+       * At this point the blocks look like
+       *
+       *    original block start
+       *       ...
+       *       <Method Enter/Exit Tree>
+       *       ...
+       *    original block end
+       */
+
+      root->setNumChildren(0);
+
+      TR::Node *methodEnterExitCmp = comp->createPermanentGuard(comp, methodCall->getInlinedSiteIndex(), root, 0, TR_MethodEnterExitGuard);
+      TR::TreeTop *methodEnterExitGuard = TR::TreeTop::create(comp, methodEnterExitCmp);
+
+      TR::Node *methodTraceCmp = comp->createPermanentGuard(comp, methodCall->getInlinedSiteIndex(), root, 0, TR_MethodTraceGuard);
+      TR::TreeTop *methodTraceGuard = TR::TreeTop::create(comp, methodTraceCmp);
+
+      TR::Block *enclosingBlock = treeTop->getEnclosingBlock();
+      TR::Block *remainderBlock = enclosingBlock->createConditionalBlocksBeforeTree(treeTop, methodEnterExitGuard, methodTraceGuard, 0, comp->getFlowGraph());
+      TR::Block *methodTraceBlock = methodTraceGuard->getEnclosingBlock();
+
+      methodEnterExitGuard->getNode()->setBranchDestination(methodTraceBlock->getEntry());
+
+      /**
+       * The method enter and exit hooks must be modified to check to see if the event is hooked
+       * in the new interface rather than the old. This is a simple bit test at a known address.
+       * The JIT should check the status of the J9HOOK_FLAG_HOOKED bit in the hook interface,
+       * rather than the vmThread->eventFlags field.
+       *
+       * create
+       * iand
+       *   bu2i
+       *     bload &vmThread()->javaVM->hookInterface->flags[J9HOOK_VM_METHOD_ENTER/J9HOOK_VM_METHOD_RETURN];
+       *   iconst J9HOOK_FLAG_HOOKED
+       */
       TR::StaticSymbol * addressSym = TR::StaticSymbol::create(comp->trHeapMemory(),TR::Address);
       addressSym->setNotDataAddress();
       if (root->getOpCodeValue() == TR::MethodEnterHook)
@@ -3050,25 +3075,53 @@ TR_J9VMBase::lowerMethodHookPortableCode(TR::Compilation *comp, TR::Node * root,
                TR::Node::create(TR::bu2i, 1,
                   TR::Node::createWithSymRef(root, TR::bload, 0, new (comp->trHeapMemory()) TR::SymbolReference(comp->getSymRefTab(), addressSym))),
                TR::Node::create(root, TR::iconst, 0, J9HOOK_FLAG_HOOKED)),
-            TR::Node::create(root, TR::iconst, 0, 0)));
+            TR::Node::create(root, TR::iconst, 0, 1)));
 
-      returnTT = hookedTest;
+      methodTraceGuard->insertAfter(hookedTest);
+      TR::Block *hookedTestBlock = methodTraceBlock->split(hookedTest, comp->getFlowGraph());
 
       TR::TreeTop *callTree = TR::TreeTop::create(comp, TR::Node::create(TR::treetop, 1, methodCall));
+      hookedTest->insertAfter(callTree);
+      TR::Block *callBlock = hookedTestBlock->split(callTree, comp->getFlowGraph());
 
-      root->setNumChildren(0);
+      comp->getFlowGraph()->addEdge(hookedTestBlock, remainderBlock);
+      comp->getFlowGraph()->addEdge(methodTraceBlock, callBlock);
 
-      TR::Block *enclosingBlock = treeTop->getEnclosingBlock();
-      TR::Block *remainderBlock = enclosingBlock->createConditionalBlocksBeforeTree(treeTop, hookedTest, callTree, 0, comp->getFlowGraph());
-      TR::Block *callBlock      = callTree->getEnclosingBlock();
+      methodTraceGuard->getNode()->setBranchDestination(callBlock->getEntry());
+      hookedTest->getNode()->setBranchDestination(remainderBlock->getEntry());
 
-      TR::Node *cmp = comp->createPermanentGuard(comp, methodCall->getInlinedSiteIndex(), root, 0, TR_MethodEnterExitGuard);
-      TR::TreeTop *guard = TR::TreeTop::create(comp, cmp);
-      guard->getNode()->setBranchDestination(callBlock->getEntry());
+      /**
+       * At this point the blocks look like
+       *
+       *    original block (enclosingBlock) start
+       *       ...
+       *       methodEnterExitGuard
+       *          if <cond> goto methodTraceBlock
+       *    original block (enclosingBlock) end
+       *
+       *    remainderBlock start
+       *       ... (stuff in original block after <Method Enter/Exit Tree>)
+       *    remainderBlock end
+       *
+       *    <at end of cfg>
+       *
+       *    methodTraceBlock start
+       *       methodTraceGuard
+       *          if <cond> goto callBlock
+       *    methodTraceBlock end
+       *
+       *    hookedTestBlock start
+       *       hookedTest
+       *          if <cond> goto remainderBlock
+       *    hookedTestBlock end
+       *
+       *    callBlock start
+       *       call helper
+       *       goto remainderBlock
+       *    callBlock end
+       */
 
-      hookedTest->insertBefore(guard);
-      TR::Block *hookedTestBlock = enclosingBlock->split(hookedTest, comp->getFlowGraph());
-      comp->getFlowGraph()->addEdge(enclosingBlock, callBlock);
+      returnTT = methodEnterExitGuard;
       }
    else
       {
