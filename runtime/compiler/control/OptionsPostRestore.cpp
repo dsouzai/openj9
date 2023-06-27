@@ -688,6 +688,29 @@ J9::OptionsPostRestore::postProcessInternalCompilerOptions()
       disableAOT = true;
       }
 
+   J9HookInterface ** vmHooks = vm->internalVMFunctions->getVMHookInterface(vm);
+   TR::Options::FSDInitStatus fsdStatusJIT = TR::Options::getCmdLineOptions()->initializeFSDIfNeeded(vm, vmHooks, disableAOT);
+   TR::Options::FSDInitStatus fsdStatusAOT = TR::Options::getAOTCmdLineOptions()->initializeFSDIfNeeded(vm, vmHooks, disableAOT);
+   TR_ASSERT_FATAL (fsdStatusJIT == fsdStatusAOT, "fsdStatusJIT=%d != fsdStatusAOT=%d!\n", fsdStatusJIT, fsdStatusAOT);
+
+   if (fsdStatusJIT == TR::Options::FSDInitStatus::FSDInit_Error)
+      {
+      invalidateAll = true;
+      disableAOT = true;
+      }
+   else
+      {
+      if (fsdStatusJIT == TR::Options::FSDInitStatus::FSDInit_NotInitialized
+          && !vm->internalVMFunctions->isCheckpointAllowed(_vmThread))
+         {
+         TR::Options::getCmdLineOptions()->setOption(TR_FullSpeedDebug, false);
+         TR::Options::getCmdLineOptions()->setOption(TR_DisableDirectToJNI, false);
+
+         TR::Options::getAOTCmdLineOptions()->setOption(TR_FullSpeedDebug, false);
+         TR::Options::getAOTCmdLineOptions()->setOption(TR_DisableDirectToJNI, false);
+         }
+      }
+
    // Invalidate method bodies if needed
    invalidateCompiledMethodsIfNeeded(invalidateAll);
 
