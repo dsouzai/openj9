@@ -2880,7 +2880,7 @@ J9::Options::isFSDNeeded(J9JavaVM *javaVM, J9HookInterface **vmHooks)
       (*vmHooks)->J9HookDisable(vmHooks, J9HOOK_VM_SINGLE_STEP);
    }
 
-FSDInitStatus
+J9::Options::FSDInitStatus
 J9::Options::initializeFSDIfNeeded(J9JavaVM *javaVM, J9HookInterface **vmHooks, bool &doAOT)
    {
    if (self()->isFSDNeeded(javaVM, vmHooks))
