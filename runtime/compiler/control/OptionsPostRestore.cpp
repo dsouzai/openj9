@@ -631,6 +631,26 @@ J9::OptionsPostRestore::preProcessInternalCompilerOptions()
    }
 
 void
+J9::OptionsPostRestore::resetFSDOptions(TR::Options *options)
+   {
+   // TODO: Need to handle if these options were set/unset as part of
+   // the post restore options processing.
+
+   options->setOption(TR_FullSpeedDebug, false);
+   options->setOption(TR_DisableDirectToJNI, false);
+
+   options->setReportByteCodeInfoAtCatchBlock(false);
+   options->setOption(TR_DisableGuardedCountingRecompilations, false);
+
+   options->setOption(TR_DisableProfiling, false);
+
+   options->setOption(TR_DisableNewInstanceImplOpt, false);
+
+   options->setDisabled(OMR::redundantGotoElimination, false);
+   options->setDisabled(OMR::loopReplicator, false);
+   }
+
+void
 J9::OptionsPostRestore::postProcessInternalCompilerOptions()
    {
    J9JavaVM *vm = _jitConfig->javaVM;
@@ -703,11 +723,8 @@ J9::OptionsPostRestore::postProcessInternalCompilerOptions()
       if (fsdStatusJIT == TR::Options::FSDInitStatus::FSDInit_NotInitialized
           && !vm->internalVMFunctions->isCheckpointAllowed(_vmThread))
          {
-         TR::Options::getCmdLineOptions()->setOption(TR_FullSpeedDebug, false);
-         TR::Options::getCmdLineOptions()->setOption(TR_DisableDirectToJNI, false);
-
-         TR::Options::getAOTCmdLineOptions()->setOption(TR_FullSpeedDebug, false);
-         TR::Options::getAOTCmdLineOptions()->setOption(TR_DisableDirectToJNI, false);
+         resetFSDOptions(TR::Options::getCmdLineOptions());
+         resetFSDOptions(TR::Options::getAOTCmdLineOptions());
          }
       }
 

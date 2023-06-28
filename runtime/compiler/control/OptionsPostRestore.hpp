@@ -30,6 +30,7 @@ struct J9JITConfig;
 struct J9VMThread;
 struct J9Method;
 namespace TR { class CompilationInfo; }
+namespace TR { class Options; }
 namespace TR { struct Region; }
 struct TR_Memory;
 struct TR_J9VMBase;
@@ -125,6 +126,8 @@ class OptionsPostRestore
     * \brief Helper method to disable further AOT compilation.
     */
    void disableAOTCompilation();
+
+   void resetFSDOptions(TR::Options *options);
 
    /**
     * \brief Helper method to perform tasks prior to processing
