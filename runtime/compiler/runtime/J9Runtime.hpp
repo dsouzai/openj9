@@ -190,6 +190,7 @@ typedef struct TR_AOTMethodHeader {
 #define TR_AOTMethodHeader_CompressedMethodInCache                   0x00000080
 #define TR_AOTMethodHeader_IsNotCapableOfExceptionHook               0x00000100
 #define TR_AOTMethodHeader_UsesOSR                                   0x00000200
+#define TR_AOTMethodHeader_UsesFSD                                   0x00000400
 
 
 
