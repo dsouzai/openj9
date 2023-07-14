@@ -648,6 +648,10 @@ J9::OptionsPostRestore::resetFSDOptions(TR::Options *options)
 
    options->setDisabled(OMR::redundantGotoElimination, false);
    options->setDisabled(OMR::loopReplicator, false);
+
+   options->setOption(TR_DisableMethodHandleThunks, false);
+
+   options->getOption(TR_NoLoadAOT);
    }
 
 void
