@@ -152,6 +152,8 @@ class OMR_EXTENSIBLE Options : public OMR::OptionsConnector
       FSDInit_Initialized
       };
 
+   static FSDInitStatus _fsdInitStatus;
+
    static bool _doNotProcessEnvVars;
 
    static bool _reportByteCodeInfoAtCatchBlock;

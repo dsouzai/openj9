@@ -69,6 +69,7 @@ bool enableCompiledMethodLoadHookOnly = false;
 // Static data initialization
 // -----------------------------------------------------------------------------
 
+bool J9::Options::_fsdInitStatus = J9::FSDInitStatus::FSDInit_NotInitialized;
 bool J9::Options::_doNotProcessEnvVars = false; // set through XX options in Java
 bool J9::Options::_reportByteCodeInfoAtCatchBlock = false;
 int32_t J9::Options::_samplingFrequencyInIdleMode = 1000; // ms
@@ -2905,13 +2906,13 @@ J9::Options::initializeFSDIfNeeded(J9JavaVM *javaVM, J9HookInterface **vmHooks, 
 
          initializeFSD(javaVM);
 
-         return FSDInitStatus::FSDInit_Initialized;
+         _fsdInitStatus = FSDInitStatus::FSDInit_Initialized;
 #else
-         return FSDInitStatus::FSDInit_Error;
+         _fsdInitStatus = FSDInitStatus::FSDInit_Error;
 #endif
       }
 
-   return FSDInitStatus::FSDInit_NotInitialized;
+   return _fsdInitStatus;
    }
 
 bool J9::Options::feLatePostProcess(void * base, TR::OptionSet * optionSet)
@@ -3133,7 +3134,15 @@ bool J9::Options::feLatePostProcess(void * base, TR::OptionSet * optionSet)
    if (self()->getOption(TR_FullSpeedDebug))
       {
       self()->setReportByteCodeInfoAtCatchBlock();
+
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+   if (!javaVM->internalVMFunctions->isCheckpointAllowed(vmThread)
+       || fsdStatus == FSDInitStatus::FSDInit_NotInitialized)
+#endif
+      {
       self()->setOption(TR_DisableGuardedCountingRecompilations);
+      }
+
       self()->setOption(TR_EnableJProfiling, false);
       //might move around asyn checks and clone the OSRBlock which are not safe under the current OSR infrastructure
       self()->setOption(TR_DisableProfiling);
