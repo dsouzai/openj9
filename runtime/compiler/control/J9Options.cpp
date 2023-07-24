@@ -69,7 +69,7 @@ bool enableCompiledMethodLoadHookOnly = false;
 // Static data initialization
 // -----------------------------------------------------------------------------
 
-bool J9::Options::_fsdInitStatus = J9::FSDInitStatus::FSDInit_NotInitialized;
+J9::Options::FSDInitStatus J9::Options::_fsdInitStatus = J9::Options::FSDInitStatus::FSDInit_NotInitialized;
 bool J9::Options::_doNotProcessEnvVars = false; // set through XX options in Java
 bool J9::Options::_reportByteCodeInfoAtCatchBlock = false;
 int32_t J9::Options::_samplingFrequencyInIdleMode = 1000; // ms
