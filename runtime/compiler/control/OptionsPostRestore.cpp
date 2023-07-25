@@ -651,7 +651,7 @@ J9::OptionsPostRestore::resetFSDOptions(TR::Options *options)
 
    options->setOption(TR_DisableMethodHandleThunks, false);
 
-   options->getOption(TR_NoLoadAOT);
+   //options->setOption(TR_NoLoadAOT);
    }
 
 void
