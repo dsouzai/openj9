@@ -3137,7 +3137,7 @@ bool J9::Options::feLatePostProcess(void * base, TR::OptionSet * optionSet)
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
    if (!javaVM->internalVMFunctions->isCheckpointAllowed(vmThread)
-       || fsdStatus == FSDInitStatus::FSDInit_NotInitialized)
+       || fsdStatus == FSDInitStatus::FSDInit_Initialized)
 #endif
       {
       self()->setOption(TR_DisableGuardedCountingRecompilations);
