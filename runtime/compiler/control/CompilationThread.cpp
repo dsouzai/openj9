@@ -6328,7 +6328,12 @@ void *TR::CompilationInfo::compileOnSeparateThread(J9VMThread * vmThread, TR::Il
    TR_ASSERT(asynchronousCompilation() || requireAsyncCompile != TR_yes, "We cannot require async compilation when it is turned off");
 
    bool forcedSync = false;
-   bool async = asynchronousCompilation() && requireAsyncCompile != TR_no;
+   bool async =
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+      !_jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread) &&
+#endif
+      asynchronousCompilation() && requireAsyncCompile != TR_no;
+
    if (async)
       {
       J9::PrivateLinkage::LinkageInfo *linkageInfo = oldStartPC ? J9::PrivateLinkage::LinkageInfo::get(oldStartPC) : 0;
@@ -8715,7 +8720,16 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
                   aotCompilationReUpgradedToWarm = true;
                   }
                }
-
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+            else if (vmThread->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread)
+                     && p->_optimizationPlan->isOptLevelDowngraded()
+                     && p->_optimizationPlan->getOptLevel() == cold)
+               {
+               p->_optimizationPlan->setOptLevel(warm);
+               p->_optimizationPlan->setOptLevelDowngraded(false);
+               p->_optimizationPlan->setDisableGCR(false);
+               }
+#endif
 
             TR_PersistentCHTable *cht = that->_compInfo.getPersistentInfo()->getPersistentCHTable();
             if (cht && !cht->isActive())
