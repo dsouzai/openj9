@@ -590,8 +590,12 @@ static void jitHookInitializeSendTarget(J9HookInterface * * hook, UDATA eventNum
          // been created before options were processed.
          TR_J9VMBase *fej9 = TR_J9VMBase::get(jitConfig, vmThread, TR_J9VMBase::AOT_VM);
          TR_J9SharedCache *sc = fej9 ? fej9->sharedCache() : NULL;
-         if (sc && sc->isROMClassInSharedCache(J9_CLASS_FROM_METHOD(method)->romClass))
+         if (sc && sc->isROMClassInSharedCache(J9_CLASS_FROM_METHOD(method)->romClass)
+             && jitConfig->javaVM->sharedClassConfig
+             && jitConfig->javaVM->sharedClassConfig->existsCachedCodeForROMMethod(vmThread, romMethod))
+            {
             count = optionsAOT->getInitialSCount();
+            }
          }
 #endif
 
