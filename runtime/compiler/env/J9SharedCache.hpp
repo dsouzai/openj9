@@ -329,13 +329,18 @@ public:
       // The following are probably equivalent to SHARED_CACHE_FULL -
       // they could have failed because of no space but no error code is returned.
       SHARED_CACHE_CLASS_CHAIN_STORE_FAILED,
-      AOT_HEADER_STORE_FAILED
+      AOT_HEADER_STORE_FAILED,
+      AOT_HEADER_VALIDATION_DELAYED
       };
 
    static void setSharedCacheDisabledReason(TR_J9SharedCacheDisabledReason state) { _sharedCacheState = state; }
    static TR_J9SharedCacheDisabledReason getSharedCacheDisabledReason() { return _sharedCacheState; }
    static TR_YesNoMaybe isSharedCacheDisabledBecauseFull(TR::CompilationInfo *compInfo);
    static void setStoreSharedDataFailedLength(UDATA length) {_storeSharedDataFailedLength = length; }
+
+   static void setAOTHeaderValidationDelayed() { _aotHeaderValidationDelayed = true; }
+   static void resetAOTHeaderValidationDelayed() { _aotHeaderValidationDelayed = false; }
+   static bool aotHeaderValidationDelayed() { return _aotHeaderValidationDelayed; }
 
    virtual J9SharedClassCacheDescriptor *getCacheDescriptorList();
 
@@ -544,6 +549,9 @@ private:
    static TR_J9SharedCacheDisabledReason _sharedCacheState;
    static TR_YesNoMaybe                  _sharedCacheDisabledBecauseFull;
    static UDATA                          _storeSharedDataFailedLength;
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+   static bool                           _aotHeaderValidationDelayed;
+#endif
    };
 
 

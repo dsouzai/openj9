@@ -1994,12 +1994,14 @@ aboutToBootstrap(J9JavaVM * javaVM, J9JITConfig * jitConfig)
 #endif
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
+   bool checkpointAllowed = javaVM->internalVMFunctions->isCheckpointAllowed(curThread);
+
    /* If the JVM is in CRIU mode and checkpointing is allowed, then the JIT should be
     * limited to the same processor features as those used in Portable AOT mode. This
     * is because, the restore run may not be on the same machine as the one that created
     * the snapshot; thus the JIT code must be portable.
     */
-   if (javaVM->internalVMFunctions->isCheckpointAllowed(curThread))
+   if (checkpointAllowed)
       {
       TR::Compiler->target.cpu = TR::CPU::detectRelocatable(TR::Compiler->omrPortLib);
       if (!J9_ARE_ANY_BITS_SET(javaVM->extendedRuntimeFlags2, J9_EXTENDED_RUNTIME2_ENABLE_PORTABLE_SHARED_CACHE))
@@ -2017,6 +2019,11 @@ aboutToBootstrap(J9JavaVM * javaVM, J9JITConfig * jitConfig)
       if (persistentInfo->getRemoteCompilationMode() == JITServer::SERVER)
          validateSCC = false;
 #endif /* defined(J9VM_OPT_JITSERVER) */
+
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+      if (checkpointAllowed)
+         validateSCC = false;
+#endif
 
       if (validateSCC)
          {
@@ -2047,6 +2054,17 @@ aboutToBootstrap(J9JavaVM * javaVM, J9JITConfig * jitConfig)
             }
 #endif /* defined(J9VM_OPT_JITSERVER) */
          }
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+      else if (checkpointAllowed)
+         {
+         javaVM->sharedClassConfig->runtimeFlags &= ~J9SHR_RUNTIMEFLAG_ENABLE_AOT;
+         TR::Options::getAOTCmdLineOptions()->setOption(TR_NoLoadAOT);
+         TR::Options::getAOTCmdLineOptions()->setOption(TR_NoStoreAOT);
+         TR::Options::setSharedClassCache(false);
+         TR_J9SharedCache::setSharedCacheDisabledReason(TR_J9SharedCache::AOT_HEADER_VALIDATION_DELAYED);
+         TR_J9SharedCache::setAOTHeaderValidationDelayed();
+         }
+#endif
 
       if (javaVM->sharedClassConfig->runtimeFlags & J9SHR_RUNTIMEFLAG_ENABLE_READONLY)
          {

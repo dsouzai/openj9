@@ -60,6 +60,7 @@
 TR_J9SharedCache::TR_J9SharedCacheDisabledReason TR_J9SharedCache::_sharedCacheState = TR_J9SharedCache::UNINITIALIZED;
 TR_YesNoMaybe TR_J9SharedCache::_sharedCacheDisabledBecauseFull = TR_maybe;
 UDATA TR_J9SharedCache::_storeSharedDataFailedLength = 0;
+bool TR_J9SharedCache::_aotHeaderValidationDelayed = false;
 
 void
 TR_J9SharedCache::validateAOTHeader(J9JITConfig *jitConfig, J9VMThread *vmThread, TR::CompilationInfo *compInfo)
