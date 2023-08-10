@@ -101,6 +101,8 @@ public:
    virtual void addHint(TR_ResolvedMethod *, TR_SharedCacheHint);
    virtual bool isMostlyFull();
 
+   static void validateAOTHeader(J9JITConfig *jitConfig, J9VMThread *vmThread, TR::CompilationInfo *compInfo);
+
    /**
     * \brief Converts a shared cache offset, calculated from the end of the SCC, into the
     *        metadata section of the SCC into a pointer.
