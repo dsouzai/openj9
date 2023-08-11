@@ -6330,7 +6330,7 @@ void *TR::CompilationInfo::compileOnSeparateThread(J9VMThread * vmThread, TR::Il
    bool forcedSync = false;
    bool async =
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-      !_jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread) &&
+      (!_jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread) || isCheckpointInProgress()) &&
 #endif
       asynchronousCompilation() && requireAsyncCompile != TR_no;
 
