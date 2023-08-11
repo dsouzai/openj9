@@ -33,6 +33,7 @@
 #include "control/OptimizationPlan.hpp"
 #include "env/ClassUnloadMonitorCriticalSection.hpp"
 #include "env/Region.hpp"
+#include "env/PersistentCHTable.hpp"
 #include "env/VerboseLog.hpp"
 #include "env/VMJ9.h"
 #include "ilgen/IlGeneratorMethodDetails.hpp"
@@ -110,6 +111,30 @@ TR::CompileBeforeCheckpoint::queueMethodsForCompilationBeforeCheckpoint()
    }
 
 void
+TR::CompileBeforeCheckpoint::addMethodForCompilationBeforeCheckpoint(TR_OpaqueMethodBlock *method)
+   {
+   J9Method *j9method = reinterpret_cast<J9Method *>(method);
+   if (!_compInfo->isCompiled(j9method))
+      {
+      J9JITConfig *jitConfig = _fej9->getJ9JITConfig();
+      J9ROMMethod *romMethod = _fej9->getROMMethodFromRAMMethod(j9method);
+      TR_J9SharedCache *sc = _fej9->sharedCache();
+      if (sc && sc->isROMClassInSharedCache(J9_CLASS_FROM_METHOD(j9method)->romClass)
+            && jitConfig->javaVM->sharedClassConfig
+            && jitConfig->javaVM->sharedClassConfig->existsCachedCodeForROMMethod(_vmThread, romMethod))
+         {
+         addMethodToList(method);
+         }
+      }
+   }
+
+void
+TR::CompileBeforeCheckpoint::collectMethodsForCompilationBeforeCheckpoint()
+   {
+   _compInfo->getPersistentInfo()->getPersistentCHTable()->collectMethodsForCompilationBeforeCheckpoint(*this);
+   }
+
+void
 TR::CompileBeforeCheckpoint::collectAndCompileMethodsBeforeCheckpoint()
    {
    /* Read Acquire Class Unload Monitor to prevent class unloading */
@@ -117,6 +142,27 @@ TR::CompileBeforeCheckpoint::collectAndCompileMethodsBeforeCheckpoint()
 
    collectMethodsForCompilationBeforeCheckpoint();
    queueMethodsForCompilationBeforeCheckpoint();
+   }
+
+void
+TR_PersistentCHTable::collectMethodsForCompilationBeforeCheckpoint(TR::CompileBeforeCheckpoint &compileBeforeCheckpoint)
+   {
+   TR_ASSERT_FATAL(isActive(), "Should not be called if table is not active!");
+   TR_J9VMBase *fej9 = compileBeforeCheckpoint.fej9();
+   for (int32_t i = 0; i < CLASSHASHTABLE_SIZE; i++)
+      {
+      for (TR_PersistentClassInfo *pci = _classes[i].getFirst(); pci; pci = pci->getNext())
+         {
+         TR_OpaqueClassBlock *clazz = pci->getClassId();
+         uint32_t numMethods = fej9->getNumMethods(clazz);
+         J9Method *methods = reinterpret_cast<J9Method *>(fej9->getMethods(clazz));
+         for (auto i = 0; i < numMethods; i++)
+            {
+            J9Method *j9method = &(methods[i]);
+            compileBeforeCheckpoint.addMethodForCompilationBeforeCheckpoint(reinterpret_cast<TR_OpaqueMethodBlock *>(j9method));
+            }
+         }
+      }
    }
 
 #endif

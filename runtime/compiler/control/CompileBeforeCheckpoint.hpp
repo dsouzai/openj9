@@ -47,11 +47,12 @@ class CompileBeforeCheckpoint
       CompileBeforeCheckpoint(TR::Region &region, J9VMThread *vmThread, TR_J9VMBase *fej9, TR::CompilationInfo *compInfo);
 
       void collectAndCompileMethodsBeforeCheckpoint();
-      void addMethodForCompilationBeforeCheckpoint(TR_OpaqueMethodBlock *method) { return addMethodToList(method); }
+      void addMethodForCompilationBeforeCheckpoint(TR_OpaqueMethodBlock *method);
+
 
    private:
       void addMethodToList(TR_OpaqueMethodBlock *method);
-      void collectMethodsForCompilationBeforeCheckpoint() {};
+      void collectMethodsForCompilationBeforeCheckpoint();
       void queueMethodsForCompilationBeforeCheckpoint();
 
       TR::Region &_region;

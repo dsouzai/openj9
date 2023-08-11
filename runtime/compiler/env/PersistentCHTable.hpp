@@ -45,6 +45,11 @@ namespace TR { class Compilation; }
 namespace TR { class ResolvedMethodSymbol; }
 namespace TR { class CompilationInfo; }
 
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+namespace TR { class CompileBeforeCheckpoint; }
+#endif
+
+
 class TR_PersistentCHTable
    {
    private:
@@ -77,6 +82,10 @@ class TR_PersistentCHTable
    virtual TR_PersistentClassInfo * findClassInfoAfterLocking(TR_OpaqueClassBlock * classId, TR_FrontEnd *, bool returnClassInfoForAOT = false);
 
    void dumpMethodCounts(TR_FrontEnd *fe, TR_Memory &trMemory);         // A routine to dump initial method compilation counts
+
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+   void collectMethodsForCompilationBeforeCheckpoint(TR::CompileBeforeCheckpoint &compileBeforeCheckpoint);
+#endif
 
    virtual void commitSideEffectGuards(TR::Compilation *c);
    virtual bool isOverriddenInThisHierarchy(TR_ResolvedMethod *, TR_OpaqueClassBlock *, int32_t, TR::Compilation *comp, bool locked = false);
