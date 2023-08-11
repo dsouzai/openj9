@@ -49,6 +49,7 @@ class CompileBeforeCheckpoint
       void collectAndCompileMethodsBeforeCheckpoint();
       void addMethodForCompilationBeforeCheckpoint(TR_OpaqueMethodBlock *method);
 
+      TR_J9VMBase * fej9() { return _fej9; }
 
    private:
       void addMethodToList(TR_OpaqueMethodBlock *method);
