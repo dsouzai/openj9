@@ -399,6 +399,21 @@ public:
       INTERRUPT_CHECKPOINT,
       READY_FOR_CHECKPOINT_RESTORE
       };
+
+   struct TR_FailedCompilations
+      {
+      TR_PERSISTENT_ALLOC(TR_MemoryBase::CompilationInfo);
+
+      TR_FailedCompilations(J9Method *method, TR_FailedCompilations *next)
+         :
+         _method(method),
+         _next(next)
+         {}
+
+
+      J9Method *_method;
+      TR_FailedCompilations *_next;
+      };
 #endif
 
    struct DLT_record
@@ -704,6 +719,9 @@ public:
    intptr_t waitOnCompMonitorTimed(J9VMThread *vmThread, int64_t millis, int32_t nanos);
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
+   void pushFailedCompilation(J9Method *method);
+   J9Method * popFailedCompilation();
+
    /* The CR Monitor (Checkpoint/Restore Monitor) must always be acquired with the Comp Monitor
     * in hand. If waiting on the CR Monitor, the Comp Monitor should be released. After being
     * notified, the CR Monitor should be released before re-acquiring the Comp Monitor.
@@ -1388,6 +1406,7 @@ private:
    DLTTracking           *_dltHT;
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
+   TR_FailedCompilations *_failedComps;
    TR::Monitor *_crMonitor;
    TR_CheckpointStatus _checkpointStatus;
    bool _vmMethodTraceEnabled;

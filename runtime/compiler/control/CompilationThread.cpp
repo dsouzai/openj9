@@ -1186,6 +1186,8 @@ TR::CompilationInfo::CompilationInfo(J9JITConfig *jitConfig) :
 #endif
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
+   _failedComps = NULL;
+
    _crMonitor = TR::Monitor::create("JIT-CheckpointRestoreMonitor");
    _checkpointStatus = TR_CheckpointStatus::NO_CHECKPOINT_IN_PROGRESS;
 
@@ -1563,6 +1565,28 @@ void TR::CompilationInfo::releaseCompilationLock()
    }
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
+void
+TR::CompilationInfo::pushFailedCompilation(J9Method *method)
+   {
+   auto failedComps = new (persistentMemory()) TR_FailedCompilations(method, _failedComps);
+   if (failedComps)
+      _failedComps = failedComps;
+   }
+
+J9Method *
+TR::CompilationInfo::popFailedCompilation()
+   {
+   J9Method *method = NULL;
+   if (_failedComps)
+      {
+      TR_FailedCompilations *failedComp = _failedComps;
+      method = failedComp->_method;
+      _failedComps = failedComp->_next;
+      jitPersistentFree(failedComp);
+      }
+   return method;
+   }
+
 void TR::CompilationInfo::acquireCRMonitor()
    {
    getCRMonitor()->enter();
@@ -2497,7 +2521,19 @@ bool TR::CompilationInfo::shouldRetryCompilation(TR_MethodToBeCompiled *entry, T
    // don't carry the decision to generate AOT code to the next compilation
    // because it may no longer be the right thing to do at that point
    if (tryCompilingAgain)
+      {
       entry->_useAotCompilation = false;
+      }
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+   else
+      {
+      TR::CompilationInfo *compInfo = entry->_compInfoPT->getCompilationInfo();
+      J9JavaVM *javaVM = compInfo->getJITConfig()->javaVM;
+      J9VMThread *vmThread = javaVM->internalVMFunctions->currentVMThread(javaVM);
+      if (javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
+         compInfo->pushFailedCompilation(entry->getMethodDetails().getMethod());
+      }
+#endif
 
    return tryCompilingAgain;
    }
@@ -2978,6 +3014,17 @@ void TR::CompilationInfo::prepareForRestore()
 
    // Resume suspended compilation threads.
    resumeCompilationThread();
+
+   J9Method *method;
+   while (method = popFailedCompilation())
+      {
+      if (getJ9MethodVMExtra(method) == J9_JIT_NEVER_TRANSLATE)
+         {
+         if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCheckpointRestoreDetails))
+            TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Resetting %p", method);
+         TR::CompilationInfo::setInvocationCount(method, 0);
+         }
+      }
    }
 
    if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCheckpointRestore))
