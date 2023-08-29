@@ -9126,6 +9126,12 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
                   {
                   options->setInsertGCRTrees(); // This is a recommendation not a directive
                   }
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+               else if (jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
+                  {
+                  options->setInsertGCRTrees();
+                  }
+#endif
                // Disable some expensive optimizations
                if (options->getOptLevel() <= warm && !options->getOption(TR_EnableExpensiveOptsAtWarm))
                   {

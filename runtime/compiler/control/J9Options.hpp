@@ -145,7 +145,14 @@ class OMR_EXTENSIBLE Options : public OMR::OptionsConnector
 
    Options(TR::Options &other) : OMR::OptionsConnector(other) {}
 
+   enum FSDInitStatus
+      {
+      FSDInit_Error,
+      FSDInit_NotInitialized,
+      FSDInit_Initialized
+      };
 
+   static FSDInitStatus _fsdInitStatus;
 
    static bool _doNotProcessEnvVars;
 
@@ -606,6 +613,9 @@ class OMR_EXTENSIBLE Options : public OMR::OptionsConnector
    bool  showOptionsInEffect();
    bool  showPID();
    void openLogFiles(J9JITConfig *jitConfig);
+
+   bool isFSDNeeded(J9JavaVM *javaVM, J9HookInterface **vmHooks);
+   FSDInitStatus initializeFSDIfNeeded(J9JavaVM *javaVM, J9HookInterface **vmHooks, bool &doAOT);
 
 #if defined(J9VM_OPT_JITSERVER)
    void setupJITServerOptions();
