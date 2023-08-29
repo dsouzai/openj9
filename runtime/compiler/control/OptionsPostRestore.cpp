@@ -631,6 +631,28 @@ J9::OptionsPostRestore::preProcessInternalCompilerOptions()
    }
 
 void
+J9::OptionsPostRestore::resetFSDOptions(TR::Options *options)
+   {
+   // TODO: Need to handle if these options were set/unset as part of
+   // the post restore options processing.
+
+   options->setOption(TR_FullSpeedDebug, false);
+   options->setOption(TR_DisableDirectToJNI, false);
+
+   options->setReportByteCodeInfoAtCatchBlock(false);
+   options->setOption(TR_DisableGuardedCountingRecompilations, false);
+
+   options->setOption(TR_DisableProfiling, false);
+
+   options->setOption(TR_DisableNewInstanceImplOpt, false);
+
+   options->setDisabled(OMR::redundantGotoElimination, false);
+   options->setDisabled(OMR::loopReplicator, false);
+
+   options->setOption(TR_DisableMethodHandleThunks, false);
+   }
+
+void
 J9::OptionsPostRestore::postProcessInternalCompilerOptions()
    {
    J9JavaVM *vm = _jitConfig->javaVM;
@@ -686,6 +708,26 @@ J9::OptionsPostRestore::postProcessInternalCompilerOptions()
       _compInfo->setVMExceptionEventsHooked(true);
       invalidateAll = true;
       disableAOT = true;
+      }
+
+   J9HookInterface ** vmHooks = vm->internalVMFunctions->getVMHookInterface(vm);
+   TR::Options::FSDInitStatus fsdStatusJIT = TR::Options::getCmdLineOptions()->initializeFSDIfNeeded(vm, vmHooks, disableAOT);
+   TR::Options::FSDInitStatus fsdStatusAOT = TR::Options::getAOTCmdLineOptions()->initializeFSDIfNeeded(vm, vmHooks, disableAOT);
+   TR_ASSERT_FATAL (fsdStatusJIT == fsdStatusAOT, "fsdStatusJIT=%d != fsdStatusAOT=%d!\n", fsdStatusJIT, fsdStatusAOT);
+
+   if (fsdStatusJIT == TR::Options::FSDInitStatus::FSDInit_Error)
+      {
+      invalidateAll = true;
+      disableAOT = true;
+      }
+   else
+      {
+      if (fsdStatusJIT == TR::Options::FSDInitStatus::FSDInit_NotInitialized
+          && !vm->internalVMFunctions->isCheckpointAllowed(_vmThread))
+         {
+         resetFSDOptions(TR::Options::getCmdLineOptions());
+         resetFSDOptions(TR::Options::getAOTCmdLineOptions());
+         }
       }
 
    // Invalidate method bodies if needed
