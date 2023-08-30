@@ -6192,7 +6192,11 @@ static int32_t J9THREAD_PROC samplerThreadProc(void * entryarg)
    CompilationDensity compDensity;
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
-   TR_J9VMBase *fe = TR_J9VMBase::get(jitConfig, 0);
+   TR_J9VMBase *fe = TR_J9VMBase::get(jitConfig, samplerThread);
+
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+   bool forcedRecompilations = false;
+#endif
 
    j9thread_set_name(j9thread_self(), "JIT Sampler");
    while (!shutdownSamplerThread)
@@ -6204,6 +6208,54 @@ static int32_t J9THREAD_PROC samplerThreadProc(void * entryarg)
          if (vm->internalVMFunctions->isCheckpointAllowed(samplerThread))
             {
             suspendSamplerThreadForCheckpoint(samplerThread,jitConfig, compInfo);
+            }
+         else
+            {
+            if (!forcedRecompilations && jitConfig->javaVM->phase == J9VM_PHASE_NOT_STARTUP)
+               {
+               forcedRecompilations = true;
+
+               compInfo->acquireCompMonitor(samplerThread);
+
+               J9Method *method;
+               while (method = compInfo->popForcedRecompilation())
+                  {
+                  J9ROMMethod *romMethod = J9_ROM_METHOD_FROM_RAM_METHOD(method);
+                  if (!_J9ROMMETHOD_J9MODIFIER_IS_SET(romMethod, J9AccMethodFrameIteratorSkip)
+                      && !_J9ROMMETHOD_J9MODIFIER_IS_SET(romMethod, J9AccAbstract)
+                      && !_J9ROMMETHOD_J9MODIFIER_IS_SET(romMethod, J9AccNative)
+                      && compInfo->isCompiled(method))
+                     {
+                     if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCheckpointRestoreDetails))
+                        TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Attempting to force %p for recompilation", method);
+
+                     TR_MethodEvent event;
+                     event._eventType = TR_MethodEvent::ForcedRecompilationPostRestore;
+                     event._j9method = method;
+                     event._oldStartPC = method->extra;
+                     event._vmThread = samplerThread;
+                     event._classNeedingThunk = 0;
+                     bool newPlanCreated = false;
+                     TR_OptimizationPlan *plan = TR::CompilationController::getCompilationStrategy()->processEvent(&event, &newPlanCreated);
+                     // the plan needs to be created only when async compilation is possible
+                     // Otherwise the compilation will be triggered on next invocation
+                     if (plan)
+                        {
+                        TR_PersistentJittedBodyInfo *bodyInfo = TR::Recompilation::getJittedBodyInfoFromPC(method->extra);
+                        TR_PersistentMethodInfo *methodInfo = bodyInfo->getMethodInfo();
+                        methodInfo->setReasonForRecompilation(TR_PersistentMethodInfo::RecompDueToCRIU);
+
+                        bool queued = false;
+                        TR::Recompilation::induceRecompilation(fe, method->extra, &queued, plan);
+
+                        if (!queued && newPlanCreated)
+                           TR_OptimizationPlan::freeOptimizationPlan(plan);
+                        }
+                     }
+                  }
+
+               compInfo->releaseCompMonitor(samplerThread);
+               }
             }
 #endif // #if defined(J9VM_OPT_CRIU_SUPPORT)
 

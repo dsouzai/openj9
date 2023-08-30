@@ -1187,6 +1187,7 @@ TR::CompilationInfo::CompilationInfo(J9JITConfig *jitConfig) :
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
    _failedComps = NULL;
+   _forcedRecomps = NULL;
 
    _crMonitor = TR::Monitor::create("JIT-CheckpointRestoreMonitor");
    _checkpointStatus = TR_CheckpointStatus::NO_CHECKPOINT_IN_PROGRESS;
@@ -1581,6 +1582,28 @@ TR::CompilationInfo::popFailedCompilation()
       method = failedComp->_method;
       _failedComps = failedComp->_next;
       jitPersistentFree(failedComp);
+      }
+   return method;
+   }
+
+void
+TR::CompilationInfo::pushForcedRecompilation(J9Method *method)
+   {
+   auto forcedRecomps = new (persistentMemory()) TR_ForcedRecompilations(method, _forcedRecomps);
+   if (forcedRecomps)
+      _forcedRecomps = forcedRecomps;
+   }
+
+J9Method *
+TR::CompilationInfo::popForcedRecompilation()
+   {
+   J9Method *method = NULL;
+   if (_forcedRecomps)
+      {
+      TR_ForcedRecompilations *forcedRecomps = _forcedRecomps;
+      method = forcedRecomps->_method;
+      _forcedRecomps = forcedRecomps->_next;
+      jitPersistentFree(forcedRecomps);
       }
    return method;
    }
@@ -9303,12 +9326,7 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
                   {
                   options->setInsertGCRTrees(); // This is a recommendation not a directive
                   }
-#if defined(J9VM_OPT_CRIU_SUPPORT)
-               else if (jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
-                  {
-                  options->setInsertGCRTrees();
-                  }
-#endif
+
                // Disable some expensive optimizations
                if (options->getOptLevel() <= warm && !options->getOption(TR_EnableExpensiveOptsAtWarm))
                   {
@@ -10888,6 +10906,14 @@ TR::CompilationInfo::compilationEnd(J9VMThread * vmThread, TR::IlGeneratorMethod
             else
                {
                jitMethodTranslated(vmThread, method, startPC);
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+               if (jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
+                  {
+                  if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCheckpointRestoreDetails))
+                     TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Will force %p to be recompiled post-restore", method);
+                  compInfo->pushForcedRecompilation(method);
+                  }
+#endif
                }
             }
          }
@@ -11229,6 +11255,8 @@ void TR::CompilationInfoPerThreadBase::logCompilationSuccess(
                   case TR_PersistentMethodInfo::RecompDueToEdo:
                      catchBlockCounter = bodyInfo->getMethodInfo()->getCatchBlockCounter();
                      recompReason = 'E'; break;
+                  case TR_PersistentMethodInfo::RecompDueToCRIU:
+                     recompReason = 'F'; break;
                   } // end switch
                bodyInfo->getMethodInfo()->setReasonForRecompilation(0); // reset the flags
                }

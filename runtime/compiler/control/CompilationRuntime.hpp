@@ -415,6 +415,21 @@ public:
       J9Method *_method;
       TR_FailedCompilations *_next;
       };
+
+   struct TR_ForcedRecompilations
+      {
+      TR_PERSISTENT_ALLOC(TR_MemoryBase::CompilationInfo);
+
+      TR_ForcedRecompilations(J9Method *method, TR_ForcedRecompilations *next)
+         :
+         _method(method),
+         _next(next)
+         {}
+
+
+      J9Method *_method;
+      TR_ForcedRecompilations *_next;
+      };
 #endif
 
    struct DLT_record
@@ -722,6 +737,8 @@ public:
 #if defined(J9VM_OPT_CRIU_SUPPORT)
    void pushFailedCompilation(J9Method *method);
    J9Method * popFailedCompilation();
+   void pushForcedRecompilation(J9Method *method);
+   J9Method * popForcedRecompilation();
 
    /* The CR Monitor (Checkpoint/Restore Monitor) must always be acquired with the Comp Monitor
     * in hand. If waiting on the CR Monitor, the Comp Monitor should be released. After being
@@ -1405,6 +1422,7 @@ private:
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
    TR_FailedCompilations *_failedComps;
+   TR_ForcedRecompilations *_forcedRecomps;
    TR::Monitor *_crMonitor;
    TR_CheckpointStatus _checkpointStatus;
    bool _vmMethodTraceEnabled;
