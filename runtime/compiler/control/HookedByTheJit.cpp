@@ -71,6 +71,7 @@
 #include "runtime/RelocationRuntime.hpp"
 #include "runtime/asmprotos.h"
 #include "runtime/codertinit.hpp"
+#include "runtime/J9VMAccess.hpp"
 #include "control/MethodToBeCompiled.hpp"
 #include "control/CompilationRuntime.hpp"
 #include "control/CompilationThread.hpp"
@@ -433,7 +434,7 @@ static void jitHookInitializeSendTarget(J9HookInterface * * hook, UDATA eventNum
       {
       bool sccCounts
          = TR::Options::sharedClassCache()
-           || (jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread)
+           || (jitConfig->javaVM->fakeCheckpointAllowed
                && jitConfig->javaVM->sharedClassConfig);
 
       J9ROMClass *declaringClazz = J9_CLASS_FROM_METHOD(method)->romClass;
@@ -476,10 +477,10 @@ static void jitHookInitializeSendTarget(J9HookInterface * * hook, UDATA eventNum
                sharedQueryTime = j9time_hires_clock(); // may not be good for SMP
 
             bool methodExistsInSCC = jitConfig->javaVM->sharedClassConfig->existsCachedCodeForROMMethod(vmThread, romMethod);
-            if (methodExistsInSCC && jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
+            if (methodExistsInSCC && jitConfig->javaVM->fakeCheckpointAllowed)
                compInfo->pushImportantMethodForCR(method);
 
-            if (methodExistsInSCC && !jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
+            if (methodExistsInSCC && !jitConfig->javaVM->fakeCheckpointAllowed)
                {
                int32_t scount = optionsAOT->getInitialSCount();
                uint16_t newScount = 0;
@@ -1362,7 +1363,7 @@ static void jitMethodSampleInterrupt(J9VMThread* vmThread, IDATA handlerKey, voi
           && !compInfo->shouldSuspendThreadsForCheckpoint()
 
           /* Don't sample methods for recompilation pre-checkpoint */
-          && !jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread)
+          && !jitConfig->javaVM->fakeCheckpointAllowed
 #endif
           && !compInfo->getPersistentInfo()->getDisableFurtherCompilation())
          {
@@ -1868,7 +1869,7 @@ static void jitHookPrepareRestore(J9HookInterface * * hookInterface, UDATA event
     * remove the portability restrictions on the target CPU (used
     * for JIT compiles) to allow optimal code generation
     */
-   if (!javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
+   if (!javaVM->fakeCheckpointAllowed)
       {
       TR::Compiler->target.cpu = TR::CPU::detect(TR::Compiler->omrPortLib);
       jitConfig->targetProcessor = TR::Compiler->target.cpu.getProcessorDescription();
@@ -6193,6 +6194,7 @@ static int32_t J9THREAD_PROC samplerThreadProc(void * entryarg)
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
    bool forcedRecompilations = false;
+   bool fakedCRIU = false;
 #endif
 
    j9thread_set_name(j9thread_self(), "JIT Sampler");
@@ -6202,12 +6204,32 @@ static int32_t J9THREAD_PROC samplerThreadProc(void * entryarg)
              j9thread_sleep_interruptable((IDATA) samplingPeriod, 0) == 0) // Anything non-0 is an error condition so we shouldn't do the sampling //!= J9THREAD_INTERRUPTED)
          {
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-         if (vm->internalVMFunctions->isCheckpointAllowed(samplerThread))
+         /*
+         if (vm->internalVMFunctions->fakeCheckpointAllowed)
             {
             suspendSamplerThreadForCheckpoint(samplerThread,jitConfig, compInfo);
             }
          else
+         */
+         if (jitConfig->javaVM->phase == J9VM_PHASE_NOT_STARTUP && jitConfig->javaVM->fakeCriuEnabled)
             {
+            if (!fakedCRIU)
+               {
+               fakedCRIU = true;
+
+               acquireVMAccessNoSuspend(samplerThread);
+               compInfo->prepareForCheckpoint();
+
+               jitConfig->javaVM->fakeCheckpointAllowed = 0;
+
+               TR::Compiler->target.cpu = TR::CPU::detect(TR::Compiler->omrPortLib);
+               jitConfig->targetProcessor = TR::Compiler->target.cpu.getProcessorDescription();
+               TR::Compiler->target.cpu.initializeTargetProcessorInfo(true);
+
+               compInfo->prepareForRestore();
+               releaseVMAccessNoSuspend(samplerThread);
+               }
+
             if (!forcedRecompilations && jitConfig->javaVM->phase == J9VM_PHASE_NOT_STARTUP)
                {
                forcedRecompilations = true;

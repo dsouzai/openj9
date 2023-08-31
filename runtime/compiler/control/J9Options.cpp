@@ -1490,7 +1490,7 @@ void J9::Options::preProcessMmf(J9JavaVM *vm, J9JITConfig *jitConfig)
 
    if (J9_ARE_ANY_BITS_SET(vm->extendedRuntimeFlags2, J9_EXTENDED_RUNTIME2_ENABLE_PORTABLE_SHARED_CACHE)
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-       || vm->internalVMFunctions->isCheckpointAllowed(vmThread)
+       || vm->fakeCheckpointAllowed
 #endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
        )
       {
@@ -2356,7 +2356,7 @@ bool J9::Options::preProcessJitServer(J9JavaVM *vm, J9JITConfig *jitConfig)
          // Enable JITServer client mode if
          // 1) CRIU support is enabled
          // 2) client mode is not explicitly disabled
-         bool implicitClientMode = ifuncs->isCRIUSupportEnabled(currentThread) && !useJitServerExplicitlyDisabled;
+         bool implicitClientMode = vm->fakeCriuEnabled && !useJitServerExplicitlyDisabled;
 #endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
 
          if (useJitServerExplicitlySpecified
@@ -2966,7 +2966,7 @@ bool J9::Options::feLatePostProcess(void * base, TR::OptionSet * optionSet)
       }
 #if defined(J9VM_OPT_CRIU_SUPPORT)
    else if (fsdStatus == FSDInitStatus::FSDInit_NotInitialized
-            && javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
+            && javaVM->fakeCheckpointAllowed)
       {
       self()->setOption(TR_FullSpeedDebug);
       self()->setOption(TR_DisableDirectToJNI);
@@ -3136,7 +3136,7 @@ bool J9::Options::feLatePostProcess(void * base, TR::OptionSet * optionSet)
       self()->setReportByteCodeInfoAtCatchBlock();
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-   if (!javaVM->internalVMFunctions->isCheckpointAllowed(vmThread)
+   if (!javaVM->fakeCheckpointAllowed
        || fsdStatus == FSDInitStatus::FSDInit_Initialized)
 #endif
       {
@@ -3169,7 +3169,7 @@ bool J9::Options::feLatePostProcess(void * base, TR::OptionSet * optionSet)
          }
       // do AOT
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-      else if (!javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
+      else if (!javaVM->fakeCheckpointAllowed)
 #else
       else
 #endif

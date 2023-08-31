@@ -4012,7 +4012,7 @@ TR_IProfiler::processWorkingQueue()
    do {
 #if defined(J9VM_OPT_CRIU_SUPPORT)
       // Check if the IProfiler Thread should be suspended for checkpoint
-      if (_compInfo->getJITConfig()->javaVM->internalVMFunctions->isCheckpointAllowed(_iprofilerThread))
+      if (_compInfo->getJITConfig()->javaVM->fakeCheckpointAllowed)
          {
          // The monitors must be acquired in the right order, therefore
          // release the IProfiler monitor prior to attempting to suspend
@@ -4086,7 +4086,7 @@ TR_IProfiler::processWorkingQueue()
       else
          {
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-         if (!jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(_iprofilerThread))
+         if (!jitConfig->javaVM->fakeCheckpointAllowed)
 #endif
             TR_ASSERT_FATAL(false, "IProfiler Thread notified even though the working list is empty and the JVM is not shutting down; "
                                    "getIProfilerThreadLifetimeState=%d", getIProfilerThreadLifetimeState());

@@ -732,7 +732,7 @@ J9::OptionsPostRestore::postProcessInternalCompilerOptions()
    else
       {
       if (fsdStatusJIT == TR::Options::FSDInitStatus::FSDInit_NotInitialized
-          && !vm->internalVMFunctions->isCheckpointAllowed(_vmThread))
+          && !_jitConfig->javaVM->fakeCheckpointAllowed)
          {
          resetFSDOptions(TR::Options::getCmdLineOptions());
          resetFSDOptions(TR::Options::getAOTCmdLineOptions());

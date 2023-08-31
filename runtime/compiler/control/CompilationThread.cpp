@@ -2574,7 +2574,7 @@ bool TR::CompilationInfo::shouldRetryCompilation(TR_MethodToBeCompiled *entry, T
       TR::CompilationInfo *compInfo = entry->_compInfoPT->getCompilationInfo();
       J9JavaVM *javaVM = compInfo->getJITConfig()->javaVM;
       J9VMThread *vmThread = javaVM->internalVMFunctions->currentVMThread(javaVM);
-      if (javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
+      if (javaVM->fakeCheckpointAllowed)
          compInfo->pushFailedCompilation(entry->getMethodDetails().getMethod());
       }
 #endif
@@ -2986,6 +2986,7 @@ TR::CompilationInfo::suspendCompilerThreadsForCheckpoint(J9VMThread *vmThread)
    if (!suspendCompThreadsForCheckpoint(vmThread))
       return false;
 
+   /*
    // Suspend Sampler Thread
    if (_jitConfig->samplerMonitor)
       {
@@ -3006,6 +3007,7 @@ TR::CompilationInfo::suspendCompilerThreadsForCheckpoint(J9VMThread *vmThread)
 
       j9thread_monitor_exit(_jitConfig->samplerMonitor);
       }
+   */
 
    // Suspend IProfiler Thread
    TR_IProfiler *iProfiler = TR_J9VMBase::get(_jitConfig, NULL)->getIProfiler();
@@ -3061,6 +3063,7 @@ TR::CompilationInfo::resumeCompilerThreadsForRestore(J9VMThread *vmThread)
       iProfiler->getIProfilerMonitor()->exit();
       }
 
+   /*
    // Resume suspended Sampler Thread
    if (_jitConfig->samplerMonitor)
       {
@@ -3068,6 +3071,7 @@ TR::CompilationInfo::resumeCompilerThreadsForRestore(J9VMThread *vmThread)
       j9thread_monitor_notify_all(_jitConfig->samplerMonitor);
       j9thread_monitor_exit(_jitConfig->samplerMonitor);
       }
+   */
 
    // Resume suspended compilation threads.
    resumeCompilationThread();
@@ -6569,7 +6573,7 @@ void *TR::CompilationInfo::compileOnSeparateThread(J9VMThread * vmThread, TR::Il
    bool forcedSync = false;
    bool async =
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-      (!_jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread) || isCheckpointInProgress()) &&
+      (!_jitConfig->javaVM->fakeCheckpointAllowed || isCheckpointInProgress()) &&
 #endif
       asynchronousCompilation() && requireAsyncCompile != TR_no;
 
@@ -7680,7 +7684,7 @@ TR::CompilationInfoPerThreadBase::cannotPerformRemoteComp(
    {
    return
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-          (_jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread) && !_compInfo.canPerformRemoteCompilationInCRIUMode()) ||
+          (_jitConfig->javaVM->fakeCheckpointAllowed && !_compInfo.canPerformRemoteCompilationInCRIUMode()) ||
 #endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
           !JITServer::ClientStream::isServerCompatible(OMRPORT_FROM_J9PORT(_jitConfig->javaVM->portLibrary)) ||
           (!JITServerHelpers::isServerAvailable() && !JITServerHelpers::shouldRetryConnection(OMRPORT_FROM_J9PORT(_jitConfig->javaVM->portLibrary))) ||
@@ -8963,7 +8967,7 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
                   }
                }
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-            else if (vmThread->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread)
+            else if (vmThread->javaVM->fakeCheckpointAllowed
                      && !p->_checkpointInProgress
                      && p->_optimizationPlan->isOptLevelDowngraded()
                      && p->_optimizationPlan->getOptLevel() == cold
@@ -10965,7 +10969,7 @@ TR::CompilationInfo::compilationEnd(J9VMThread * vmThread, TR::IlGeneratorMethod
                {
                jitMethodTranslated(vmThread, method, startPC);
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-               if (jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread) && !compInfo->isCheckpointInProgress())
+               if (jitConfig->javaVM->fakeCheckpointAllowed && !compInfo->isCheckpointInProgress())
                   {
                   if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCheckpointRestoreDetails))
                      TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Will force %p to be recompiled post-restore", method);

@@ -1564,7 +1564,7 @@ onLoadInternal(
 #endif // defined(J9VM_OPT_JITSERVER)
       {
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-      if (javaVM->internalVMFunctions->isCheckpointAllowed(curThread))
+      if (javaVM->fakeCheckpointAllowed)
          {
          if (TR::Options::_numAllocatedCompilationThreads > maxNumberOfCodeCaches)
             {
@@ -1994,7 +1994,7 @@ aboutToBootstrap(J9JavaVM * javaVM, J9JITConfig * jitConfig)
 #endif
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-   bool checkpointAllowed = javaVM->internalVMFunctions->isCheckpointAllowed(curThread);
+   bool checkpointAllowed = javaVM->fakeCheckpointAllowed;
 
    /* If the JVM is in CRIU mode and checkpointing is allowed, then the JIT should be
     * limited to the same processor features as those used in Portable AOT mode. This
