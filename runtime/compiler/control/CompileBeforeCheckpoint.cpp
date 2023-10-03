@@ -67,8 +67,10 @@ TR::CompileBeforeCheckpoint::queueMethodsForCompilationBeforeCheckpoint()
           /* Method is interpreted */
           !_compInfo->isCompiled(j9method)
 
+#if !defined(J9VM_OPT_OPENJDK_METHODHANDLE)
           /* Method is not a thunk archetype */
           && !_J9ROMMETHOD_J9MODIFIER_IS_SET(romMethod, J9AccMethodFrameIteratorSkip)
+#endif
 
           /* Method is not abstract */
           && !_J9ROMMETHOD_J9MODIFIER_IS_SET(romMethod, J9AccAbstract)

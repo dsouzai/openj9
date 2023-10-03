@@ -6221,9 +6221,11 @@ static int32_t J9THREAD_PROC samplerThreadProc(void * entryarg)
                while (method = compInfo->popForcedRecompilation())
                   {
                   J9ROMMethod *romMethod = J9_ROM_METHOD_FROM_RAM_METHOD(method);
-                  if (!_J9ROMMETHOD_J9MODIFIER_IS_SET(romMethod, J9AccMethodFrameIteratorSkip)
-                      && !_J9ROMMETHOD_J9MODIFIER_IS_SET(romMethod, J9AccAbstract)
+                  if (!_J9ROMMETHOD_J9MODIFIER_IS_SET(romMethod, J9AccAbstract)
                       && !_J9ROMMETHOD_J9MODIFIER_IS_SET(romMethod, J9AccNative)
+#if !defined(J9VM_OPT_OPENJDK_METHODHANDLE)
+                      && !_J9ROMMETHOD_J9MODIFIER_IS_SET(romMethod, J9AccMethodFrameIteratorSkip)
+#endif
                       && compInfo->isCompiled(method))
                      {
                      if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCheckpointRestoreDetails))
