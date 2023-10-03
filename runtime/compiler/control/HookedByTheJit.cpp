@@ -1366,6 +1366,9 @@ static void jitMethodSampleInterrupt(J9VMThread* vmThread, IDATA handlerKey, voi
            * optimization that statistically should be useful.
            */
           && !compInfo->shouldSuspendThreadsForCheckpoint()
+
+          /* Don't sample methods for recompilation pre-checkpoint */
+          && !jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread)
 #endif
           && !compInfo->getPersistentInfo()->getDisableFurtherCompilation())
          {
