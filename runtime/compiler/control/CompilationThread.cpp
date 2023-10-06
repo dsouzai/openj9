@@ -2933,6 +2933,52 @@ bool TR::CompilationInfo::suspendCompThreadsForCheckpoint(J9VMThread *vmThread)
    return true;
    }
 
+bool
+TR::CompilationInfo::suspendCompilerThreadsForCheckpoint(J9VMThread *vmThread)
+   {
+   // Suspend compilation threads for checkpoint
+   if (!suspendCompThreadsForCheckpoint(vmThread))
+      return false;
+
+   // Suspend Sampler Thread
+   if (_jitConfig->samplerMonitor)
+      {
+      j9thread_monitor_enter(_jitConfig->samplerMonitor);
+      j9thread_interrupt(_jitConfig->samplerThread);
+
+      // Determine whether to wait on the CR Monitor.
+      //
+      // Note, this thread releases the sampler monitor and then
+      // acquires the CR monitor inside releaseCompMonitorUntilNotifiedOnCRMonitor.
+      while (!shouldCheckpointBeInterrupted()
+             && getSamplingThreadLifetimeState() != TR::CompilationInfo::SAMPLE_THR_SUSPENDED)
+         {
+         j9thread_monitor_exit(_jitConfig->samplerMonitor);
+         releaseCompMonitorUntilNotifiedOnCRMonitor(vmThread);
+         j9thread_monitor_enter(_jitConfig->samplerMonitor);
+         }
+
+      j9thread_monitor_exit(_jitConfig->samplerMonitor);
+      }
+
+   return !shouldCheckpointBeInterrupted();
+   }
+
+void
+TR::CompilationInfo::resumeCompilerThreadsForRestore(J9VMThread *vmThread)
+   {
+   // Resume suspended Sampler Thread
+   if (_jitConfig->samplerMonitor)
+      {
+      j9thread_monitor_enter(_jitConfig->samplerMonitor);
+      j9thread_monitor_notify_all(_jitConfig->samplerMonitor);
+      j9thread_monitor_exit(_jitConfig->samplerMonitor);
+      }
+
+   // Resume suspended compilation threads.
+   resumeCompilationThread();
+   }
+
 void
 TR::CompilationInfo::resetStartAndElapsedTime()
    {
@@ -2989,8 +3035,8 @@ void TR::CompilationInfo::prepareForCheckpoint()
       if (!compileMethodsForCheckpoint(vmThread))
          return;
 
-   // Suspend compilation threads for checkpoint
-   if (!suspendCompThreadsForCheckpoint(vmThread))
+   // Suspend compiler threads for checkpoint
+   if (!suspendCompilerThreadsForCheckpoint(vmThread))
       return;
 
 #if defined(J9VM_OPT_JITSERVER)
@@ -3034,8 +3080,8 @@ void TR::CompilationInfo::prepareForRestore()
    // Reset the start and elapsed time.
    resetStartAndElapsedTime();
 
-   // Resume suspended compilation threads.
-   resumeCompilationThread();
+   // Resume compiler threads.
+   resumeCompilerThreadsForRestore(vmThread);
 
    J9Method *method;
    while (method = popFailedCompilation())

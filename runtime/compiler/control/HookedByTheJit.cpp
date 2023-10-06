@@ -5941,6 +5941,84 @@ public:
       }
    }; // class CompilationDensity
 
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+static bool suspendSamplerThreadForCheckpoint(J9VMThread *samplerThread, J9JITConfig *jitConfig, TR::CompilationInfo *compInfo)
+   {
+   bool postRestore = false;
+
+   compInfo->acquireCompMonitor(samplerThread);
+   if (compInfo->shouldSuspendThreadsForCheckpoint())
+      {
+      PORT_ACCESS_FROM_JITCONFIG(jitConfig);
+
+      // Must acquire this with the comp monitor in hand to ensure
+      // consistency with the checkpointing thread.
+      j9thread_monitor_enter(jitConfig->samplerMonitor);
+
+      // Because this thread has the comp monitor in hand, and because
+      // shouldSuspendThreadsForCheckpoint() returned true, it is not possible
+      // for the Sampler Thread to have any other state other than SAMPLE_THR_INITIALIZED
+      TR_ASSERT_FATAL(compInfo->getSamplingThreadLifetimeState() == TR::CompilationInfo::SAMPLE_THR_INITIALIZED,
+                      "Sampler Thread Lifetime State %d is not SAMPLE_THR_INITIALIZED!", compInfo->getSamplingThreadLifetimeState());
+
+      // Update the sampler thread state.
+      compInfo->setSamplingThreadLifetimeState(TR::CompilationInfo::SAMPLE_THR_SUSPENDED);
+
+      // Notify the checkpointing thread about the state change.
+      //
+      // Note, unlike the checkpointing thread, this thread does NOT
+      // release the sampler monitor before acquring the CR monitor.
+      // This ensures that the Sampling Thread Lifetime State does not
+      // change because of something like Shutdown. However, this
+      // can only cause a deadlock if the checkpointing thread
+      // decides to re-acquire the sampler monitor with the CR monitor
+      // in hand.
+      compInfo->acquireCRMonitor();
+      compInfo->getCRMonitor()->notifyAll();
+      compInfo->releaseCRMonitor();
+
+      if (TR::Options::isAnyVerboseOptionSet())
+         TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Suspending Sampler Thread for Checkpoint");
+
+      // Release the comp monitor before suspending.
+      compInfo->releaseCompMonitor(samplerThread);
+      j9thread_monitor_wait(jitConfig->samplerMonitor);
+
+      if (TR::Options::isAnyVerboseOptionSet())
+         TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Resuming Sampler Thread from Checkpoint");
+
+      // Release the sampler monitor before reacquring both the
+      // comp monitor and sampler monitor. This is necessary to
+      // ensure consistency with the checkpointing thread.
+      j9thread_monitor_exit(jitConfig->samplerMonitor);
+      compInfo->acquireCompMonitor(samplerThread);
+      j9thread_monitor_enter(jitConfig->samplerMonitor);
+
+      // Ensure the sampler thread was resumed because of a restore
+      // rather than something else (such as shutdown)
+      if (compInfo->getSamplingThreadLifetimeState() == TR::CompilationInfo::SAMPLE_THR_SUSPENDED)
+         {
+         postRestore = true;
+
+         if (TR::Options::isAnyVerboseOptionSet())
+            TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Resetting Sampling Thread Lifetime State");
+         compInfo->setSamplingThreadLifetimeState(TR::CompilationInfo::SAMPLE_THR_INITIALIZED);
+         }
+      else
+         {
+         if (TR::Options::isAnyVerboseOptionSet())
+            TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Sampling Thread Lifetime State is %p which is not %p!", compInfo->getSamplingThreadLifetimeState(), TR::CompilationInfo::SAMPLE_THR_SUSPENDED);
+         }
+
+      // Release the reacquired sampler thread monitor.
+      j9thread_monitor_exit(jitConfig->samplerMonitor);
+      }
+   compInfo->releaseCompMonitor(samplerThread);
+
+   return postRestore;
+   }
+#endif
+
 static int32_t J9THREAD_PROC samplerThreadProc(void * entryarg)
    {
    J9JITConfig * jitConfig = (J9JITConfig *) entryarg;
@@ -6122,6 +6200,13 @@ static int32_t J9THREAD_PROC samplerThreadProc(void * entryarg)
       while (!shutdownSamplerThread && // watch for shutdown signals
              j9thread_sleep_interruptable((IDATA) samplingPeriod, 0) == 0) // Anything non-0 is an error condition so we shouldn't do the sampling //!= J9THREAD_INTERRUPTED)
          {
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+         if (vm->internalVMFunctions->isCheckpointAllowed(samplerThread))
+            {
+            suspendSamplerThreadForCheckpoint(samplerThread,jitConfig, compInfo);
+            }
+#endif // #if defined(J9VM_OPT_CRIU_SUPPORT)
+
          J9VMThread * currentThread;
 
          persistentInfo->updateElapsedTime(samplingPeriod);
