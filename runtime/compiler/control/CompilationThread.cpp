@@ -1207,8 +1207,6 @@ TR::CompilationInfo::CompilationInfo(J9JITConfig *jitConfig) :
         || J9_EVENT_IS_RESERVED(jitConfig->javaVM->hookInterface, J9HOOK_VM_EXCEPTION_THROW);
    _vmExceptionEventsHooked = exceptionCatchEventHooked || exceptionThrowEventHooked;
 
-   _resetStartAndElapsedTime = false;
-
 #if defined(J9VM_OPT_JITSERVER)
    _canPerformRemoteCompilationInCRIUMode = false;
    _remoteCompilationRequestedAtBootstrap = false;
@@ -2935,6 +2933,30 @@ bool TR::CompilationInfo::suspendCompThreadsForCheckpoint(J9VMThread *vmThread)
    return true;
    }
 
+void
+TR::CompilationInfo::resetStartAndElapsedTime()
+   {
+   // Post-restore, reset the start and elapsed time. The Checkpoint
+   // phase is conceptually part of building the application; therefore
+   // it does not make sense to expect a user who specifies an option such
+   // as -XsamplingExpirationTime  to take into account the time spent
+   // executing in the Checkpoint phase.
+
+   PORT_ACCESS_FROM_JAVAVM(jitConfig->javaVM);
+   TR::PersistentInfo *persistentInfo = getPersistentInfo();
+
+   if (TR::Options::isAnyVerboseOptionSet())
+      TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Start and elapsed time: startTime=%6u, elapsedTime=%6u",
+                                       (uint32_t)persistentInfo->getStartTime(), (uint32_t)persistentInfo->getElapsedTime());
+
+   persistentInfo->setStartTime(j9time_current_time_millis());
+   persistentInfo->setElapsedTime(0);
+
+   if (TR::Options::isAnyVerboseOptionSet())
+      TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Reset start and elapsed time: startTime=%6u, elapsedTime=%6u",
+                                       (uint32_t)persistentInfo->getStartTime(), (uint32_t)persistentInfo->getElapsedTime());
+   }
+
 void TR::CompilationInfo::prepareForCheckpoint()
    {
    J9JavaVM   *vm       = _jitConfig->javaVM;
@@ -2998,9 +3020,6 @@ void TR::CompilationInfo::prepareForRestore()
    if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCheckpointRestore))
       TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Preparing for restore");
 
-   // Inform the Sampler Thread to reset the start and elapsed time it maintains
-   setResetStartAndElapsedTime(true);
-
    // Process the post-restore options
    J9::OptionsPostRestore::processOptionsPostRestore(vmThread, _jitConfig, this);
 
@@ -3011,6 +3030,9 @@ void TR::CompilationInfo::prepareForRestore()
 
    // Reset the checkpoint in progress flag.
    resetCheckpointInProgress();
+
+   // Reset the start and elapsed time.
+   resetStartAndElapsedTime();
 
    // Resume suspended compilation threads.
    resumeCompilationThread();

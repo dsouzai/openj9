@@ -749,9 +749,6 @@ public:
    void setVMExceptionEventsHooked(bool trace) { _vmExceptionEventsHooked = trace; }
    bool isVMExceptionEventsHooked()            { return _vmExceptionEventsHooked;  }
 
-   bool resetStartAndElapsedTime()              { return _resetStartAndElapsedTime;  }
-   void setResetStartAndElapsedTime(bool reset) { _resetStartAndElapsedTime = reset; }
-
 #if defined(J9VM_OPT_JITSERVER)
    bool canPerformRemoteCompilationInCRIUMode()                   { return _canPerformRemoteCompilationInCRIUMode;       }
    void setCanPerformRemoteCompilationInCRIUMode(bool remoteComp) { _canPerformRemoteCompilationInCRIUMode = remoteComp; }
@@ -1411,7 +1408,6 @@ private:
    TR_CheckpointStatus _checkpointStatus;
    bool _vmMethodTraceEnabled;
    bool _vmExceptionEventsHooked;
-   bool _resetStartAndElapsedTime;
 #if defined(J9VM_OPT_JITSERVER)
    bool _canPerformRemoteCompilationInCRIUMode;
    bool _remoteCompilationRequestedAtBootstrap;
@@ -1610,6 +1606,11 @@ private:
     * @return false false if the checkpoint is interrupted, true otherwise.
     */
    bool suspendCompThreadsForCheckpoint(J9VMThread *vmThread);
+
+   /**
+    * @brief Reset Start and Elapsed Time post retore
+    */
+   void resetStartAndElapsedTime();
 #endif
    }; // CompilationInfo
 }
