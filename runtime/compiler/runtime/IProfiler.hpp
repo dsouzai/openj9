@@ -509,6 +509,8 @@ public:
       IPROF_THR_FAILED_TO_ATTACH,
       IPROF_THR_ATTACHED,
       IPROF_THR_INITIALIZED,
+      IPROF_THR_WAITING_FOR_WORK,
+      IPROF_THR_SUSPENDING,
       IPROF_THR_SUSPENDED,
       IPROF_THR_STOPPING,
       IPROF_THR_DESTROYED,
@@ -696,6 +698,10 @@ private:
     * @note This method must be called with IProfiler Monitor in hand
     */
    void addBuffersToFreeList();
+
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+   bool suspendIProfilerThreadForCheckpoint();
+#endif
 
    // data members
    J9PortLibrary                  *_portLib;

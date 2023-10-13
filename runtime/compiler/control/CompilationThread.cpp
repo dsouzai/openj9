@@ -2961,12 +2961,60 @@ TR::CompilationInfo::suspendCompilerThreadsForCheckpoint(J9VMThread *vmThread)
       j9thread_monitor_exit(_jitConfig->samplerMonitor);
       }
 
+   // Suspend IProfiler Thread
+   TR_IProfiler *iProfiler = TR_J9VMBase::get(_jitConfig, NULL)->getIProfiler();
+   if (iProfiler
+       && iProfiler->getIProfilerMonitor()
+       && !TR::Options::getCmdLineOptions()->getOption(TR_DisableIProfilerThread))
+      {
+      iProfiler->getIProfilerMonitor()->enter();
+
+      // If the Iprofiler Thread queried shouldSuspendThreadsForCheckpoint() before the
+      // checkpointing thread gets to this point, it will have already suspended itself,
+      // so notifying it will prematurely resume it.
+      if (iProfiler->getIProfilerThreadLifetimeState() != TR_IProfiler::IPROF_THR_SUSPENDED)
+         {
+         // Don't change the state if the JVM is currently shutting down.
+         if (iProfiler->getIProfilerThreadLifetimeState() != TR_IProfiler::IPROF_THR_STOPPING)
+            iProfiler->setIProfilerThreadLifetimeState(TR_IProfiler::IPROF_THR_SUSPENDING);
+
+         // During shutdown, both the IProfiler Thread and the Shutdown Thread could be
+         // waiting on the IProfiler Monitor.
+         iProfiler->getIProfilerMonitor()->notifyAll();
+         }
+
+      // Determine whether to wait on the CR Monitor.
+      //
+      // Note, this thread releases the iprofiler monitor and then
+      // acquires the CR monitor inside releaseCompMonitorUntilNotifiedOnCRMonitor.
+      while (!shouldCheckpointBeInterrupted()
+             && iProfiler->getIProfilerThreadLifetimeState() != TR_IProfiler::IPROF_THR_SUSPENDED)
+         {
+         iProfiler->getIProfilerMonitor()->exit();
+         releaseCompMonitorUntilNotifiedOnCRMonitor(vmThread);
+         iProfiler->getIProfilerMonitor()->enter();
+         }
+
+      iProfiler->getIProfilerMonitor()->exit();
+      }
+
    return !shouldCheckpointBeInterrupted();
    }
 
 void
 TR::CompilationInfo::resumeCompilerThreadsForRestore(J9VMThread *vmThread)
    {
+   // Resume suspended IProfiler Thread
+   TR_IProfiler *iProfiler = TR_J9VMBase::get(_jitConfig, NULL)->getIProfiler();
+   if (iProfiler
+       && iProfiler->getIProfilerMonitor()
+       && !TR::Options::getCmdLineOptions()->getOption(TR_DisableIProfilerThread))
+      {
+      iProfiler->getIProfilerMonitor()->enter();
+      iProfiler->getIProfilerMonitor()->notifyAll();
+      iProfiler->getIProfilerMonitor()->exit();
+      }
+
    // Resume suspended Sampler Thread
    if (_jitConfig->samplerMonitor)
       {
