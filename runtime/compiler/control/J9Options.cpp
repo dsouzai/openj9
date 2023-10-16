@@ -3167,7 +3167,12 @@ bool J9::Options::feLatePostProcess(void * base, TR::OptionSet * optionSet)
                j9nls_printf( PORTLIB, J9NLS_WARNING,  J9NLS_RELOCATABLE_CODE_NOT_AVAILABLE_WITH_FSD_JVMPI);
             }
          }
-      else // do AOT
+      // do AOT
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+      else if (!javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
+#else
+      else
+#endif
          {
          if (!self()->getOption(TR_DisablePersistIProfile))
             {
