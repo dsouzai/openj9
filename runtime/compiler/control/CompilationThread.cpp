@@ -1188,6 +1188,7 @@ TR::CompilationInfo::CompilationInfo(J9JITConfig *jitConfig) :
 #if defined(J9VM_OPT_CRIU_SUPPORT)
    _failedComps = NULL;
    _forcedRecomps = NULL;
+   _impMethodForCR = NULL;
 
    _crMonitor = TR::Monitor::create("JIT-CheckpointRestoreMonitor");
    _checkpointStatus = TR_CheckpointStatus::NO_CHECKPOINT_IN_PROGRESS;
@@ -1604,6 +1605,28 @@ TR::CompilationInfo::popForcedRecompilation()
       method = forcedRecomps->_method;
       _forcedRecomps = forcedRecomps->_next;
       jitPersistentFree(forcedRecomps);
+      }
+   return method;
+   }
+
+void
+TR::CompilationInfo::pushImportantMethodForCR(J9Method *method)
+   {
+   auto impMethodForCR = new (persistentMemory()) TR_ImportantMethodForCR(method, _impMethodForCR);
+   if (impMethodForCR)
+      _impMethodForCR = impMethodForCR;
+   }
+
+J9Method *
+TR::CompilationInfo::popImportantMethodForCR()
+   {
+   J9Method *method = NULL;
+   if (_impMethodForCR)
+      {
+      TR_ImportantMethodForCR *impMethodForCR = _impMethodForCR;
+      method = impMethodForCR->_method;
+      _impMethodForCR = impMethodForCR->_next;
+      jitPersistentFree(impMethodForCR);
       }
    return method;
    }
@@ -3163,6 +3186,35 @@ void TR::CompilationInfo::prepareForRestore()
             TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Resetting %p", method);
          TR::CompilationInfo::setInvocationCount(method, 0);
          }
+      else if (J9_ARE_ANY_BITS_SET(J9_ROM_METHOD_FROM_RAM_METHOD(method)->modifiers, J9AccNative))
+         {
+         if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCheckpointRestoreDetails))
+            TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Requeuing %p", method);
+
+         TR_MethodEvent event;
+         event._eventType = TR_MethodEvent::InterpreterCounterTripped;
+         event._j9method = method;
+         event._oldStartPC = NULL;
+         event._vmThread = vmThread;
+         event._classNeedingThunk = 0;
+         bool newPlanCreated = false;
+         TR_OptimizationPlan *plan = TR::CompilationController::getCompilationStrategy()->processEvent(&event, &newPlanCreated);
+         // the plan needs to be created only when async compilation is possible
+         // Otherwise the compilation will be triggered on next invocation
+         if (plan)
+            {
+            bool queued = false;
+
+               // scope for details
+               {
+               TR::IlGeneratorMethodDetails details(method);
+               compileMethod(vmThread, details, NULL, TR_maybe, NULL, &queued, plan);
+               }
+
+            if (!queued && newPlanCreated)
+               TR_OptimizationPlan::freeOptimizationPlan(plan);
+            }
+         }
       }
    }
 
@@ -4592,6 +4644,7 @@ TR::CompilationInfoPerThread::processEntries()
             {
             // Compilation request extracted; go work on it
             TR_ASSERT(entry, "Attempting to process NULL entry");
+            entry->_checkpointInProgress = compInfo->isCheckpointInProgress();
             processEntry(*entry, scratchSegmentCache);
             break;
             }
@@ -6516,7 +6569,7 @@ void *TR::CompilationInfo::compileOnSeparateThread(J9VMThread * vmThread, TR::Il
    bool forcedSync = false;
    bool async =
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-      !_jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread) &&
+      (!_jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread) || isCheckpointInProgress()) &&
 #endif
       asynchronousCompilation() && requireAsyncCompile != TR_no;
 
@@ -8625,7 +8678,8 @@ TR::CompilationInfoPerThreadBase::compile(J9VMThread * vmThread,
          regionSegmentProvider,
          dispatchRegion,
          trMemory,
-         TR::CompileIlGenRequest(entry->getMethodDetails())
+         TR::CompileIlGenRequest(entry->getMethodDetails()),
+         entry->_checkpointInProgress
          );
    if (TR::Options::getVerboseOption(TR_VerboseCompilationDispatch))
       TR_VerboseLog::writeLineLocked(TR_Vlog_DISPATCH,
@@ -8910,8 +8964,10 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
                }
 #if defined(J9VM_OPT_CRIU_SUPPORT)
             else if (vmThread->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread)
+                     && !p->_checkpointInProgress
                      && p->_optimizationPlan->isOptLevelDowngraded()
-                     && p->_optimizationPlan->getOptLevel() == cold)
+                     && p->_optimizationPlan->getOptLevel() == cold
+                     && !J9_ARE_ANY_BITS_SET(J9_ROM_METHOD_FROM_RAM_METHOD((J9Method *)method)->modifiers, J9AccNative))
                {
                p->_optimizationPlan->setOptLevel(warm);
                p->_optimizationPlan->setOptLevelDowngraded(false);
@@ -10909,7 +10965,7 @@ TR::CompilationInfo::compilationEnd(J9VMThread * vmThread, TR::IlGeneratorMethod
                {
                jitMethodTranslated(vmThread, method, startPC);
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-               if (jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
+               if (jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread) && !compInfo->isCheckpointInProgress())
                   {
                   if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCheckpointRestoreDetails))
                      TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Will force %p to be recompiled post-restore", method);

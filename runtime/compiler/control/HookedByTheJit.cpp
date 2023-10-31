@@ -431,6 +431,11 @@ static void jitHookInitializeSendTarget(J9HookInterface * * hook, UDATA eventNum
    int32_t count = -1; // means we didn't set the value yet
 
       {
+      bool sccCounts
+         = TR::Options::sharedClassCache()
+           || (jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread)
+               && jitConfig->javaVM->sharedClassConfig);
+
       J9ROMClass *declaringClazz = J9_CLASS_FROM_METHOD(method)->romClass;
       J9UTF8 * className = J9ROMCLASS_CLASSNAME(declaringClazz);
       J9UTF8 * name = J9ROMMETHOD_NAME(romMethod);
@@ -456,7 +461,7 @@ static void jitHookInitializeSendTarget(J9HookInterface * * hook, UDATA eventNum
                      TR::Options::getHighCodeCacheOccupancyBCount() :
                      TR::Options::getHighCodeCacheOccupancyCount();
          }
-      else if (TR::Options::sharedClassCache())
+      else if (sccCounts)
          {
          // The default FE may not have TR_J9SharedCache object because the FE may have
          // been created before options were processed.
@@ -470,7 +475,11 @@ static void jitHookInitializeSendTarget(J9HookInterface * * hook, UDATA eventNum
             if (optionsAOT->getOption(TR_EnableSharedCacheTiming))
                sharedQueryTime = j9time_hires_clock(); // may not be good for SMP
 
-            if (jitConfig->javaVM->sharedClassConfig->existsCachedCodeForROMMethod(vmThread, romMethod))
+            bool methodExistsInSCC = jitConfig->javaVM->sharedClassConfig->existsCachedCodeForROMMethod(vmThread, romMethod);
+            if (methodExistsInSCC && jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
+               compInfo->pushImportantMethodForCR(method);
+
+            if (methodExistsInSCC && !jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
                {
                int32_t scount = optionsAOT->getInitialSCount();
                uint16_t newScount = 0;
@@ -583,21 +592,6 @@ static void jitHookInitializeSendTarget(J9HookInterface * * hook, UDATA eventNum
             }
 #endif // defined(J9VM_INTERP_AOT_COMPILE_SUPPORT) && defined(J9VM_OPT_SHARED_CLASSES) && (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) || defined(TR_HOST_ARM64))
          } // if (TR::Options::sharedClassCache())
-#if defined(J9VM_OPT_CRIU_SUPPORT) && defined(J9VM_INTERP_AOT_COMPILE_SUPPORT) && defined(J9VM_OPT_SHARED_CLASSES) && (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) || defined(TR_HOST_ARM64))
-      else if (jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
-         {
-         // The default FE may not have TR_J9SharedCache object because the FE may have
-         // been created before options were processed.
-         TR_J9VMBase *fej9 = TR_J9VMBase::get(jitConfig, vmThread, TR_J9VMBase::AOT_VM);
-         TR_J9SharedCache *sc = fej9 ? fej9->sharedCache() : NULL;
-         if (sc && sc->isROMClassInSharedCache(J9_CLASS_FROM_METHOD(method)->romClass)
-             && jitConfig->javaVM->sharedClassConfig
-             && jitConfig->javaVM->sharedClassConfig->existsCachedCodeForROMMethod(vmThread, romMethod))
-            {
-            count = optionsAOT->getInitialSCount();
-            }
-         }
-#endif
 
       if (count == -1) // count didn't change yet
          {

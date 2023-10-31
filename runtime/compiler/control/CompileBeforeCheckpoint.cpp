@@ -111,9 +111,48 @@ TR::CompileBeforeCheckpoint::queueMethodsForCompilationBeforeCheckpoint()
       }
    }
 
+static void resetFSD(TR::Options *options)
+   {
+   options->setOption(TR_EnableHCR);
+
+   options->setOption(TR_FullSpeedDebug, false);
+   options->setOption(TR_DisableDirectToJNI, false);
+
+   options->setReportByteCodeInfoAtCatchBlock(false);
+   options->setOption(TR_DisableGuardedCountingRecompilations, false);
+
+   options->setOption(TR_DisableProfiling, false);
+
+   options->setOption(TR_DisableNewInstanceImplOpt, false);
+
+   options->setDisabled(OMR::redundantGotoElimination, false);
+   options->setDisabled(OMR::loopReplicator, false);
+
+   options->setOption(TR_DisableMethodHandleThunks, false);
+   }
+
+void
+TR::CompileBeforeCheckpoint::collectMethodsForCompilationBeforeCheckpoint()
+   {
+   J9Method *method;
+   while (method = _compInfo->popImportantMethodForCR())
+      {
+      addMethodToList(reinterpret_cast<TR_OpaqueMethodBlock *>(method));
+      }
+   }
+
 void
 TR::CompileBeforeCheckpoint::collectAndCompileMethodsBeforeCheckpoint()
    {
+   resetFSD(TR::Options::getCmdLineOptions());
+   resetFSD(TR::Options::getAOTCmdLineOptions());
+   _compInfo->setCanPerformRemoteCompilationInCRIUMode(false);
+   _compInfo->getPersistentInfo()->setClientUID(0);
+   _compInfo->getPersistentInfo()->setServerUID(0);
+   _fej9->getJ9JITConfig()->clientUID = 0;
+   _fej9->getJ9JITConfig()->serverUID = 0;
+   J9::PersistentInfo::_remoteCompilationMode = JITServer::NONE;
+
    /* Read Acquire Class Unload Monitor to prevent class unloading */
    TR::ClassUnloadMonitorCriticalSection collectMethodsCriticalSection;
 

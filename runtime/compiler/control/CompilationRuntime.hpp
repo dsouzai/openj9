@@ -430,6 +430,21 @@ public:
       J9Method *_method;
       TR_ForcedRecompilations *_next;
       };
+
+   struct TR_ImportantMethodForCR
+      {
+      TR_PERSISTENT_ALLOC(TR_MemoryBase::CompilationInfo);
+
+      TR_ImportantMethodForCR(J9Method *method, TR_ImportantMethodForCR *next)
+         :
+         _method(method),
+         _next(next)
+         {}
+
+
+      J9Method *_method;
+      TR_ImportantMethodForCR *_next;
+      };
 #endif
 
    struct DLT_record
@@ -739,6 +754,8 @@ public:
    J9Method * popFailedCompilation();
    void pushForcedRecompilation(J9Method *method);
    J9Method * popForcedRecompilation();
+   void pushImportantMethodForCR(J9Method *method);
+   J9Method * popImportantMethodForCR();
 
    /* The CR Monitor (Checkpoint/Restore Monitor) must always be acquired with the Comp Monitor
     * in hand. If waiting on the CR Monitor, the Comp Monitor should be released. After being
@@ -1423,6 +1440,7 @@ private:
 #if defined(J9VM_OPT_CRIU_SUPPORT)
    TR_FailedCompilations *_failedComps;
    TR_ForcedRecompilations *_forcedRecomps;
+   TR_ImportantMethodForCR *_impMethodForCR;
    TR::Monitor *_crMonitor;
    TR_CheckpointStatus _checkpointStatus;
    bool _vmMethodTraceEnabled;
@@ -1630,16 +1648,16 @@ private:
     * @brief Suspend all JIT threads such as
     *        * Compilation Threads
     *        * Sampler Thread
-    * 
+    *
     * @param vmThread The J9VMThread
-    * 
+    *
     * @return false if the checkpoint is interrupted, true otherwise.
     */
    bool suspendCompilerThreadsForCheckpoint(J9VMThread *vmThread);
 
    /**
     * @brief Resume all JIT threads suspended by suspendCompilerThreadsForCheckpoint
-    * 
+    *
     * @param vmThread The J9VMThread
     */
    void resumeCompilerThreadsForRestore(J9VMThread *vmThread);

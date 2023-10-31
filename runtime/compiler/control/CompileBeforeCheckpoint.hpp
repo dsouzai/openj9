@@ -51,7 +51,7 @@ class CompileBeforeCheckpoint
 
    private:
       void addMethodToList(TR_OpaqueMethodBlock *method);
-      void collectMethodsForCompilationBeforeCheckpoint() {};
+      void collectMethodsForCompilationBeforeCheckpoint();
       void queueMethodsForCompilationBeforeCheckpoint();
 
       TR::Region &_region;
