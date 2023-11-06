@@ -38,6 +38,14 @@ J9::CompilerEnv::CompilerEnv(J9JavaVM *vm, TR::RawAllocator raw, const TR::Persi
    portLib(vm->portLibrary),
    javaVM(vm)
    {
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+#if defined(TR_SIMULATE_CRIU_SUPPORT)
+   _simulateCRIUSupport = false;
+   _checkpointAllowed = false;
+   _criuSupportEnabled = false;
+   _jvmInPortableRestoreMode = false;
+#endif
+#endif
    }
 
 void
@@ -126,3 +134,38 @@ J9::CompilerEnv::persistentGlobalMemory()
    }
 
 #endif /* defined(J9VM_OPT_JITSERVER) */
+
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+bool
+J9::CompilerEnv::isCRIUSupportEnabled(J9VMThread *vmThread)
+   {
+#if defined(TR_SIMULATE_CRIU_SUPPORT)
+   if (_simulateCRIUSupport)
+      return _criuSupportEnabled;
+   else
+#endif
+      return javaVM->internalVMFunctions->isCRIUSupportEnabled(vmThread);
+   }
+
+bool
+J9::CompilerEnv::isCheckpointAllowed(J9VMThread *vmThread)
+   {
+#if defined(TR_SIMULATE_CRIU_SUPPORT)
+   if (_simulateCRIUSupport)
+      return _checkpointAllowed;
+   else
+#endif
+      return javaVM->internalVMFunctions->isCheckpointAllowed(vmThread);
+   }
+
+bool
+J9::CompilerEnv::isJVMInPortableRestoreMode(J9VMThread *vmThread)
+   {
+#if defined(TR_SIMULATE_CRIU_SUPPORT)
+   if (_simulateCRIUSupport)
+      return _jvmInPortableRestoreMode;
+   else
+#endif
+      return javaVM->internalVMFunctions->isJVMInPortableRestoreMode(vmThread);
+   }
+#endif /* defined(J9VM_OPT_CRIU_SUPPORT) */

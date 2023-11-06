@@ -311,6 +311,19 @@ IDATA J9VMDllMain(J9JavaVM* vm, IDATA stage, void * reserved)
 
          TR::Options::_doNotProcessEnvVars = (FIND_AND_CONSUME_VMARG(EXACT_MATCH, J9::Options::_externalOptionStrings[J9::ExternalOptions::XXdoNotProcessJitEnvVars], 0) >= 0);
 
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+#if defined(TR_SIMULATE_CRIU_SUPPORT)
+         if (FIND_AND_CONSUME_VMARG(EXACT_MATCH, "-XCompilerCRIUSimulation", 0) >= 0)
+            {
+            TR::Compiler->_simulateCRIUSupport = true;
+            TR::Compiler->_criuSupportEnabled = true;
+            TR::Compiler->_checkpointAllowed = true;
+            if (FIND_AND_CONSUME_VMARG(EXACT_MATCH, "-XCompilerCRIUSimulationPortableRestore", 0) >= 0)
+               TR::Compiler->_jvmInPortableRestoreMode = true;
+            }
+#endif
+#endif
+
          isQuickstart = J9_ARE_ANY_BITS_SET(vm->extendedRuntimeFlags2, J9_EXTENDED_RUNTIME2_TUNE_QUICKSTART);
 
 #ifdef TR_HOST_X86

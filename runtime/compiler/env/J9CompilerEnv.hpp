@@ -37,6 +37,7 @@
 extern "C" {
 struct J9PortLibrary;
 struct J9JavaVM;
+struct J9VMThread;
 }
 
 namespace J9
@@ -50,6 +51,15 @@ public:
 
    J9PortLibrary * const portLib;
    J9JavaVM * const javaVM;
+
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+#if defined(TR_SIMULATE_CRIU_SUPPORT)
+   bool _simulateCRIUSupport;
+   bool _checkpointAllowed;
+   bool _criuSupportEnabled
+   bool _jvmInPortableRestoreMode;
+#endif
+#endif
 
    void initializeTargetEnvironment();
 
@@ -65,6 +75,12 @@ public:
    TR::PersistentAllocator &persistentGlobalAllocator();
    TR_PersistentMemory *persistentGlobalMemory();
 #endif /* defined(J9VM_OPT_JITSERVER) */
+
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+   bool isCRIUSupportEnabled(J9VMThread *vmThread);
+   bool isCheckpointAllowed(J9VMThread *vmThread);
+   bool isJVMInPortableRestoreMode(J9VMThread *vmThread);
+#endif
    };
 
 }
