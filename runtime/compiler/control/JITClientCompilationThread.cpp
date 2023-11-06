@@ -527,7 +527,7 @@ handleServerMessage(JITServer::ClientStream *client, TR_J9VM *fe, JITServer::Mes
          vmInfo._isPortableRestoreMode = fe->isPortableRestoreModeEnabled();
          vmInfo._isSnapshotModeEnabled = fe->isSnapshotModeEnabled();
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-         vmInfo._isNonPortableRestoreMode = !javaVM->internalVMFunctions->isJVMInPortableRestoreMode(vmThread);
+         vmInfo._isNonPortableRestoreMode = !TR::Compiler->isJVMInPortableRestoreMode(vmThread);
 #else
          vmInfo._isNonPortableRestoreMode = false;
 #endif /* defined(J9VM_OPT_CRIU_SUPPORT) */

@@ -1496,7 +1496,7 @@ void J9::Options::preProcessMmf(J9JavaVM *vm, J9JITConfig *jitConfig)
 
    if (J9_ARE_ANY_BITS_SET(vm->extendedRuntimeFlags2, J9_EXTENDED_RUNTIME2_ENABLE_PORTABLE_SHARED_CACHE)
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-       || vm->internalVMFunctions->isJVMInPortableRestoreMode(vmThread)
+       || TR::Compiler->isJVMInPortableRestoreMode(vmThread)
 #endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
        )
       {
@@ -2355,14 +2355,12 @@ bool J9::Options::preProcessJitServer(J9JavaVM *vm, J9JITConfig *jitConfig)
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
          bool useJitServerExplicitlyDisabled = xxDisableUseJITServerArgIndex > xxUseJITServerArgIndex;
-
-         struct J9InternalVMFunctions *ifuncs = vm->internalVMFunctions;
-         J9VMThread *currentThread = ifuncs->currentVMThread(vm);
+         J9VMThread *currentThread = vm->internalVMFunctions->currentVMThread(vm);
 
          // Enable JITServer client mode if
          // 1) CRIU support is enabled
          // 2) client mode is not explicitly disabled
-         bool implicitClientMode = ifuncs->isCRIUSupportEnabled(currentThread) && !useJitServerExplicitlyDisabled;
+         bool implicitClientMode = TR::Compiler->isCRIUSupportEnabled(currentThread && !useJitServerExplicitlyDisabled;
 #endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
 
          if (useJitServerExplicitlySpecified
@@ -2375,7 +2373,7 @@ bool J9::Options::preProcessJitServer(J9JavaVM *vm, J9JITConfig *jitConfig)
             if (implicitClientMode && useJitServerExplicitlySpecified)
                {
                compInfo->setRemoteCompilationRequestedAtBootstrap(true);
-               if (ifuncs->isJVMInPortableRestoreMode(currentThread))
+               if (TR::Compiler->isJVMInPortableRestoreMode(currentThread))
                    compInfo->setCanPerformRemoteCompilationInCRIUMode(true);
                }
 #endif
