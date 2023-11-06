@@ -4220,6 +4220,103 @@ void printIprofilerStats(TR::Options *options, J9JITConfig * jitConfig, TR_IProf
    }
 #endif
 
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+#if defined(TR_SIMULATE_CRIU_SUPPORT)
+volatile TR::Monitor* simulateCRIUSupportMonitor = NULL;
+volatile j9thread_t simulateCRIUSupportOSThread = NULL;
+volatile J9VMThread *simulateCRIUSupportThread = NULL;
+volatile bool simulateCRIUSupportAttachAttempted = false;
+volatile bool shutdownSimulateCRIUSupportThread = false;
+
+static int32_t J9THREAD_PROC simulateCRIUSupportProc(void * entryarg)
+   {
+   J9JITConfig * jitConfig = (J9JITConfig *) entryarg;
+   J9JavaVM * vm           = jitConfig->javaVM;
+   PORT_ACCESS_FROM_JITCONFIG(jitConfig);
+
+   J9VMThread *vmThread = NULL;
+
+   int rc = vm->internalVMFunctions->internalAttachCurrentThread(vm, &vmThread, NULL,
+                                  J9_PRIVATE_FLAGS_DAEMON_THREAD | J9_PRIVATE_FLAGS_NO_OBJECT |
+                                  J9_PRIVATE_FLAGS_SYSTEM_THREAD | J9_PRIVATE_FLAGS_ATTACHED_THREAD,
+                                  simulateCRIUSupportOSThread);
+
+   simulateCRIUSupportMonitor->enter();
+   simulateCRIUSupportAttachAttempted = true;
+   if (rc == JNI_OK)
+      simulateCRIUSupportThread = vmThread;
+   simulateCRIUSupportMonitor->notifyAll();
+   simulateCRIUSupportMonitor->exit();
+   if (rc != JNI_OK)
+      return JNI_ERR;
+
+   j9thread_set_name(j9thread_self(), "JIT CRIU Support Simulation Thread");
+
+   while (!shutdownSimulateCRIUSupportThread && j9thread_sleep_interruptable((IDATA) TR::Options::_minSamplingPeriod, 0) == 0)
+      {
+      if (!shutdownSimulateCRIUSupportThread && jitConfig->javaVM->phase == J9VM_PHASE_NOT_STARTUP)
+         {
+         TR::CompilationInfo::get(jitConfig);
+         J9VMClassesUnloadEvent eventData;
+         eventData.currentThread = simulateCRIUSupportThread;
+
+         acquireVMAccessNoSuspend(simulateCRIUSupportThread);
+         jitHookPrepareCheckpoint(NULL, 0, (void *)&eventData, NULL);
+
+         // This is the checkpoint/restore
+         TR::Compiler->_checkpointAllowed = false;
+
+         jitHookPrepareRestore(NULL, 0, (void *)&eventData, NULL);
+         releaseVMAccessNoSuspend(simulateCRIUSupportThread);
+
+         simulateCRIUSupportMonitor->enter();
+         shutdownSimulateCRIUSupportThread = true;
+         simulateCRIUSupportMonitor->exit();
+         }
+      }
+
+   vm->internalVMFunctions->DetachCurrentThread((JavaVM *) vm);
+   simulateCRIUSupportMonitor->enter();
+   simulateCRIUSupportThread = NULL;
+   simulateCRIUSupportMonitor->notifyAll();
+   j9thread_exit((J9ThreadMonitor*)simulateCRIUSupportMonitor->getVMMonitor());
+
+   return 0;
+   }
+
+static void startSimulateCRIUSupportThread(J9JavaVM *javaVM)
+   {
+   J9JITConfig *jitConfig = javaVM->jitConfig;
+   PORT_ACCESS_FROM_JITCONFIG(jitConfig);
+
+   UDATA priority = J9THREAD_PRIORITY_NORMAL;
+   const UDATA defaultOSStackSize = javaVM->defaultOSStackSize; //256KB stack size
+
+   simulateCRIUSupportMonitor = TR::Monitor::create("JIT-simulateCRIUSupportMonitor");
+   if (simulateCRIUSupportMonitor)
+      {
+      if(javaVM->internalVMFunctions->createThreadWithCategory(&simulateCRIUSupportOSThread,
+                                                               defaultOSStackSize,
+                                                               priority,
+                                                               0,
+                                                               &simulateCRIUSupportProc,
+                                                               jitConfig,
+                                                               J9THREAD_CATEGORY_SYSTEM_JIT_THREAD))
+         {
+         // cannot create the thread
+         simulateCRIUSupportMonitor = NULL;
+         }
+      else
+         {
+         simulateCRIUSupportMonitor->enter();
+         while (!simulateCRIUSupportAttachAttempted)
+            simulateCRIUSupportMonitor->wait();
+         simulateCRIUSupportMonitor->exit();
+         }
+      }
+   }
+#endif /* defined(TR_SIMULATE_CRIU_SUPPORT) */
+#endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
 
 /// JIT cleanup code
 void JitShutdown(J9JITConfig * jitConfig)
@@ -4253,6 +4350,21 @@ void JitShutdown(J9JITConfig * jitConfig)
 
 
    PORT_ACCESS_FROM_JAVAVM(javaVM);
+
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+#if defined(TR_SIMULATE_CRIU_SUPPORT)
+      if (TR::Compiler->_simulateCRIUSupport && simulateCRIUSupportMonitor)
+         {
+         simulateCRIUSupportMonitor->enter();
+         shutdownSimulateCRIUSupportThread = true;
+         j9thread_interrupt(simulateCRIUSupportThread);
+         while (simulateCRIUSupportThread)
+            simulateCRIUSupportMonitor->wait();
+         simulateCRIUSupportMonitor->exit();
+         simulateCRIUSupportMonitor = NULL;
+         }
+#endif /*defined(TR_SIMULATE_CRIU_SUPPORT) */
+#endif /*defined(J9VM_OPT_CRIU_SUPPORT) */
 
    TR::Options *options = TR::Options::getCmdLineOptions();
 #if defined(J9VM_INTERP_PROFILING_BYTECODES)
@@ -7062,6 +7174,14 @@ int32_t setUpHooks(J9JavaVM * javaVM, J9JITConfig * jitConfig, TR_FrontEnd * vm)
          jProfiler->start(javaVM);
          }
       }
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+#if defined(TR_SIMULATE_CRIU_SUPPORT)
+      if (TR::Compiler->_simulateCRIUSupport)
+         {
+         startSimulateCRIUSupportThread(javaVM);
+         }
+#endif /*defined(TR_SIMULATE_CRIU_SUPPORT) */
+#endif /*defined(J9VM_OPT_CRIU_SUPPORT) */
 
    if ((*gcOmrHooks)->J9HookRegisterWithCallSite(gcOmrHooks, J9HOOK_MM_OMR_LOCAL_GC_START, jitHookLocalGCStart, OMR_GET_CALLSITE(), NULL) ||
        (*gcOmrHooks)->J9HookRegisterWithCallSite(gcOmrHooks, J9HOOK_MM_OMR_LOCAL_GC_END, jitHookLocalGCEnd, OMR_GET_CALLSITE(), NULL) ||
