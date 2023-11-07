@@ -40,6 +40,12 @@ struct J9JavaVM;
 struct J9VMThread;
 }
 
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+#ifndef TR_SIMULATE_CRIU_SUPPORT
+#define TR_SIMULATE_CRIU_SUPPORT
+#endif
+#endif
+
 namespace J9
 {
 
@@ -56,7 +62,7 @@ public:
 #if defined(TR_SIMULATE_CRIU_SUPPORT)
    bool _simulateCRIUSupport;
    bool _checkpointAllowed;
-   bool _criuSupportEnabled
+   bool _criuSupportEnabled;
    bool _jvmInPortableRestoreMode;
 #endif
 #endif

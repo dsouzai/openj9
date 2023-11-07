@@ -91,6 +91,11 @@
 #include "runtime/Listener.hpp"
 #include "runtime/MetricsServer.hpp"
 #endif /* defined(J9VM_OPT_JITSERVER) */
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+#if defined(TR_SIMULATE_CRIU_SUPPORT)
+#include "runtime/J9VMAccess.hpp"
+#endif /* defined(TR_SIMULATE_CRIU_SUPPORT) */
+#endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
 
 extern "C" {
 struct J9JavaVM;
@@ -4222,9 +4227,9 @@ void printIprofilerStats(TR::Options *options, J9JITConfig * jitConfig, TR_IProf
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
 #if defined(TR_SIMULATE_CRIU_SUPPORT)
-volatile TR::Monitor* simulateCRIUSupportMonitor = NULL;
-volatile j9thread_t simulateCRIUSupportOSThread = NULL;
-volatile J9VMThread *simulateCRIUSupportThread = NULL;
+TR::Monitor* simulateCRIUSupportMonitor = NULL;
+j9thread_t simulateCRIUSupportOSThread = NULL;
+J9VMThread *simulateCRIUSupportThread = NULL;
 volatile bool simulateCRIUSupportAttachAttempted = false;
 volatile bool shutdownSimulateCRIUSupportThread = false;
 
@@ -4357,7 +4362,7 @@ void JitShutdown(J9JITConfig * jitConfig)
          {
          simulateCRIUSupportMonitor->enter();
          shutdownSimulateCRIUSupportThread = true;
-         j9thread_interrupt(simulateCRIUSupportThread);
+         j9thread_interrupt(simulateCRIUSupportOSThread);
          while (simulateCRIUSupportThread)
             simulateCRIUSupportMonitor->wait();
          simulateCRIUSupportMonitor->exit();
