@@ -593,6 +593,46 @@ done:
 		void* const jitReturnAddress = VM_JITInterface::fetchJITReturnAddress(_currentThread, _sp);
 		J9ROMMethod* const romMethod = J9_ROM_METHOD_FROM_RAM_METHOD(_sendMethod);
 		void* const exitPoint = j2iReturnPoint(J9ROMMETHOD_SIGNATURE(romMethod));
+
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+		if (_vm->internalVMFunctions->isCRIUSupportEnabled(_currentThread)
+			&& !_vm->internalVMFunctions->isCheckpointAllowed(_currentThread)
+			&& _vm->phase == J9VM_PHASE_NOT_STARTUP) {
+			static uint64_t sampler = 0;
+			if (sampler%10 == 0) {
+				J9JITExceptionTable *metadata = _vm->jitConfig->jitGetExceptionTableFromPC(_currentThread, (UDATA)jitReturnAddress);
+				if (metadata) {
+					J9Method *fromMethod = metadata->ramMethod;
+					J9UTF8 *fromClassName = J9ROMCLASS_CLASSNAME(J9_CLASS_FROM_METHOD(fromMethod)->romClass);
+					J9UTF8 *fromMethodName = J9ROMMETHOD_NAME(J9_ROM_METHOD_FROM_RAM_METHOD(fromMethod));
+					J9UTF8 *fromMethodSignature = J9ROMMETHOD_SIGNATURE(J9_ROM_METHOD_FROM_RAM_METHOD(fromMethod));
+
+					J9UTF8 *toClassName = J9ROMCLASS_CLASSNAME(J9_CLASS_FROM_METHOD(_sendMethod)->romClass);
+					J9UTF8 *toMethodName = J9ROMMETHOD_NAME(J9_ROM_METHOD_FROM_RAM_METHOD(_sendMethod));
+					J9UTF8 *toMethodSignature = J9ROMMETHOD_SIGNATURE(J9_ROM_METHOD_FROM_RAM_METHOD(_sendMethod));
+
+					printf("j2iTransition: %.*s.%.*s%.*s%s -> %.*s.%.*s%.*s\n",
+						J9UTF8_LENGTH(fromClassName), (char *) J9UTF8_DATA(fromClassName),
+						J9UTF8_LENGTH(fromMethodName), (char *) J9UTF8_DATA(fromMethodName),
+						J9UTF8_LENGTH(fromMethodSignature), (char *) J9UTF8_DATA(fromMethodSignature),
+						metadata->flags & JIT_METADATA_IS_FSD_COMP ? " (fsd)" : "",
+						J9UTF8_LENGTH(toClassName), (char *) J9UTF8_DATA(toClassName),
+						J9UTF8_LENGTH(toMethodName), (char *) J9UTF8_DATA(toMethodName),
+						J9UTF8_LENGTH(toMethodSignature), (char *) J9UTF8_DATA(toMethodSignature));
+				} else {
+					J9UTF8 *className = J9ROMCLASS_CLASSNAME(J9_CLASS_FROM_METHOD(_sendMethod)->romClass);
+					J9UTF8 *methodName = J9ROMMETHOD_NAME(J9_ROM_METHOD_FROM_RAM_METHOD(_sendMethod));
+					J9UTF8 *methodSignature = J9ROMMETHOD_SIGNATURE(J9_ROM_METHOD_FROM_RAM_METHOD(_sendMethod));
+					printf("j2iTransition: unknownmethod -> %.*s.%.*s%.*s\n",
+						J9UTF8_LENGTH(className), (char *) J9UTF8_DATA(className),
+						J9UTF8_LENGTH(methodName), (char *) J9UTF8_DATA(methodName),
+						J9UTF8_LENGTH(methodSignature), (char *) J9UTF8_DATA(methodSignature));
+				}
+			}
+			sampler++;
+		}
+#endif
+
 		if (J9_ARE_ANY_BITS_SET(romMethod->modifiers, J9AccNative | J9AccAbstract)) {
 			_literals = (J9Method*)jitReturnAddress;
 			_pc = nativeReturnBytecodePC(REGISTER_ARGS, romMethod);
