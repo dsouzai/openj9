@@ -1002,6 +1002,11 @@ freeJavaVM(J9JavaVM * vm)
 			vm->delayedLockingOperationsMutex = NULL;
 		}
 
+		if (NULL != vm->j2iStackWalkMonitor) {
+			omrthread_monitor_destroy(vm->j2iStackWalkMonitor);
+			vm->j2iStackWalkMonitor = NULL;
+		}
+
 		while (NULL != restoreArgsList) {
 			J9VMInitArgs *previousArgs = restoreArgsList->previousArgs;
 			destroyJvmInitArgs(vm->portLibrary, restoreArgsList);

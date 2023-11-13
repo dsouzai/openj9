@@ -5943,6 +5943,7 @@ typedef struct J9JavaVM {
 #endif /* JAVA_SPEC_VERSION >= 19 */
 #if defined(J9VM_OPT_CRIU_SUPPORT)
 	omrthread_monitor_t delayedLockingOperationsMutex;
+	omrthread_monitor_t j2iStackWalkMonitor;
 #endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
 } J9JavaVM;
 

@@ -143,6 +143,30 @@ ffiCallWithSetJmpForUpcall(J9VMThread *currentThread, ffi_cif *cif, void *functi
 }
 #endif /* JAVA_SPEC_VERSION >= 16 */
 
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+	VMINLINE static UDATA
+	j2iWalkStackIterator(J9VMThread *currentThread, J9StackWalkState *walkState) {
+		J9Method *method = walkState->method;
+
+		if (method) {
+			J9UTF8 *className = J9ROMCLASS_CLASSNAME(J9_CLASS_FROM_METHOD(method)->romClass);
+			J9UTF8 *methodName = J9ROMMETHOD_NAME(J9_ROM_METHOD_FROM_RAM_METHOD(method));
+			J9UTF8 *methodSignature = J9ROMMETHOD_SIGNATURE(J9_ROM_METHOD_FROM_RAM_METHOD(method));
+
+			printf("\t0x%p: %.*s.%.*s%.*s (0x%p)\n",
+				currentThread,
+				J9UTF8_LENGTH(className), (char *) J9UTF8_DATA(className),
+				J9UTF8_LENGTH(methodName), (char *) J9UTF8_DATA(methodName),
+				J9UTF8_LENGTH(methodSignature), (char *) J9UTF8_DATA(methodSignature),
+				method);
+		} else {
+			printf("\t0x%p: unknown (0x%p)\n", currentThread, method);
+		}
+
+		return J9_STACKWALK_KEEP_ITERATING;
+	}
+#endif
+
 class INTERPRETER_CLASS
 {
 /*
@@ -581,6 +605,81 @@ done:
 #endif /* defined(J9VM_OPT_METHOD_HANDLE) */
 	}
 
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+	VMINLINE void
+	j2iStackWalk(
+		REGISTER_ARGS_LIST,
+		void* const jitReturnAddress,
+		bool doBuildMethodFrame
+	) {
+		if (_vm->internalVMFunctions->isCRIUSupportEnabled(_currentThread)
+			&& !_vm->internalVMFunctions->isCheckpointAllowed(_currentThread)
+			&& _vm->phase == J9VM_PHASE_NOT_STARTUP
+			) {
+			static uint64_t sampler = 0;
+
+			if (sampler%10 == 0) {
+				omrthread_monitor_enter(_vm->j2iStackWalkMonitor);
+
+				J9JITExceptionTable *metadata = _vm->jitConfig->jitGetExceptionTableFromPC(_currentThread, (UDATA)jitReturnAddress);
+				if (metadata) {
+					J9Method *fromMethod = metadata->ramMethod;
+					J9UTF8 *fromClassName = J9ROMCLASS_CLASSNAME(J9_CLASS_FROM_METHOD(fromMethod)->romClass);
+					J9UTF8 *fromMethodName = J9ROMMETHOD_NAME(J9_ROM_METHOD_FROM_RAM_METHOD(fromMethod));
+					J9UTF8 *fromMethodSignature = J9ROMMETHOD_SIGNATURE(J9_ROM_METHOD_FROM_RAM_METHOD(fromMethod));
+
+					J9UTF8 *toClassName = J9ROMCLASS_CLASSNAME(J9_CLASS_FROM_METHOD(_sendMethod)->romClass);
+					J9UTF8 *toMethodName = J9ROMMETHOD_NAME(J9_ROM_METHOD_FROM_RAM_METHOD(_sendMethod));
+					J9UTF8 *toMethodSignature = J9ROMMETHOD_SIGNATURE(J9_ROM_METHOD_FROM_RAM_METHOD(_sendMethod));
+
+					printf("j2iTransition (%d) 0x%p: %.*s.%.*s%.*s%s -> %.*s.%.*s%.*s\n",
+						doBuildMethodFrame, _currentThread,
+						J9UTF8_LENGTH(fromClassName), (char *) J9UTF8_DATA(fromClassName),
+						J9UTF8_LENGTH(fromMethodName), (char *) J9UTF8_DATA(fromMethodName),
+						J9UTF8_LENGTH(fromMethodSignature), (char *) J9UTF8_DATA(fromMethodSignature),
+						metadata->flags & JIT_METADATA_IS_FSD_COMP ? " (fsd)" : "",
+						J9UTF8_LENGTH(toClassName), (char *) J9UTF8_DATA(toClassName),
+						J9UTF8_LENGTH(toMethodName), (char *) J9UTF8_DATA(toMethodName),
+						J9UTF8_LENGTH(toMethodSignature), (char *) J9UTF8_DATA(toMethodSignature));
+				} else {
+					J9UTF8 *className = J9ROMCLASS_CLASSNAME(J9_CLASS_FROM_METHOD(_sendMethod)->romClass);
+					J9UTF8 *methodName = J9ROMMETHOD_NAME(J9_ROM_METHOD_FROM_RAM_METHOD(_sendMethod));
+					J9UTF8 *methodSignature = J9ROMMETHOD_SIGNATURE(J9_ROM_METHOD_FROM_RAM_METHOD(_sendMethod));
+					printf("j2iTransition (%d) 0x%p: unknownmethod -> %.*s.%.*s%.*s\n",
+						doBuildMethodFrame, _currentThread,
+						J9UTF8_LENGTH(className), (char *) J9UTF8_DATA(className),
+						J9UTF8_LENGTH(methodName), (char *) J9UTF8_DATA(methodName),
+						J9UTF8_LENGTH(methodSignature), (char *) J9UTF8_DATA(methodSignature));
+				}
+
+				J9StackWalkState walkState;
+				walkState.userData1 = 0;
+				walkState.walkThread = _currentThread;
+				walkState.skipCount = 0;
+				walkState.maxFrames = 32;
+				walkState.flags = J9_STACKWALK_VISIBLE_ONLY | J9_STACKWALK_INCLUDE_NATIVES | J9_STACKWALK_ITERATE_FRAMES;
+				walkState.frameWalkFunction = j2iWalkStackIterator;
+
+				UDATA *bp;
+				if (doBuildMethodFrame) {
+					bp = buildMethodFrame(REGISTER_ARGS, _sendMethod, J9_SSF_JIT_NATIVE_TRANSITION_FRAME);
+				}
+				updateVMStruct(REGISTER_ARGS);
+				if (_vm->walkStackFrames(_currentThread, &walkState) != J9_STACKWALK_RC_NONE) {
+					printf("\t0x%p: Failed to stack walk\n", _currentThread);
+				}
+				VMStructHasBeenUpdated(REGISTER_ARGS);
+				if (doBuildMethodFrame) {
+					restoreSpecialStackFrameLeavingArgs(REGISTER_ARGS, bp);
+				}
+
+				omrthread_monitor_exit(_vm->j2iStackWalkMonitor);
+			}
+			sampler++;
+		}
+	}
+#endif
+
 	VMINLINE VM_BytecodeAction
 	j2iTransition(
 		REGISTER_ARGS_LIST
@@ -593,46 +692,6 @@ done:
 		void* const jitReturnAddress = VM_JITInterface::fetchJITReturnAddress(_currentThread, _sp);
 		J9ROMMethod* const romMethod = J9_ROM_METHOD_FROM_RAM_METHOD(_sendMethod);
 		void* const exitPoint = j2iReturnPoint(J9ROMMETHOD_SIGNATURE(romMethod));
-
-#if defined(J9VM_OPT_CRIU_SUPPORT)
-		if (_vm->internalVMFunctions->isCRIUSupportEnabled(_currentThread)
-			&& !_vm->internalVMFunctions->isCheckpointAllowed(_currentThread)
-			&& _vm->phase == J9VM_PHASE_NOT_STARTUP) {
-			static uint64_t sampler = 0;
-			if (sampler%10 == 0) {
-				J9JITExceptionTable *metadata = _vm->jitConfig->jitGetExceptionTableFromPC(_currentThread, (UDATA)jitReturnAddress);
-				if (metadata) {
-					J9Method *fromMethod = metadata->ramMethod;
-					J9UTF8 *fromClassName = J9ROMCLASS_CLASSNAME(J9_CLASS_FROM_METHOD(fromMethod)->romClass);
-					J9UTF8 *fromMethodName = J9ROMMETHOD_NAME(J9_ROM_METHOD_FROM_RAM_METHOD(fromMethod));
-					J9UTF8 *fromMethodSignature = J9ROMMETHOD_SIGNATURE(J9_ROM_METHOD_FROM_RAM_METHOD(fromMethod));
-
-					J9UTF8 *toClassName = J9ROMCLASS_CLASSNAME(J9_CLASS_FROM_METHOD(_sendMethod)->romClass);
-					J9UTF8 *toMethodName = J9ROMMETHOD_NAME(J9_ROM_METHOD_FROM_RAM_METHOD(_sendMethod));
-					J9UTF8 *toMethodSignature = J9ROMMETHOD_SIGNATURE(J9_ROM_METHOD_FROM_RAM_METHOD(_sendMethod));
-
-					printf("j2iTransition: %.*s.%.*s%.*s%s -> %.*s.%.*s%.*s\n",
-						J9UTF8_LENGTH(fromClassName), (char *) J9UTF8_DATA(fromClassName),
-						J9UTF8_LENGTH(fromMethodName), (char *) J9UTF8_DATA(fromMethodName),
-						J9UTF8_LENGTH(fromMethodSignature), (char *) J9UTF8_DATA(fromMethodSignature),
-						metadata->flags & JIT_METADATA_IS_FSD_COMP ? " (fsd)" : "",
-						J9UTF8_LENGTH(toClassName), (char *) J9UTF8_DATA(toClassName),
-						J9UTF8_LENGTH(toMethodName), (char *) J9UTF8_DATA(toMethodName),
-						J9UTF8_LENGTH(toMethodSignature), (char *) J9UTF8_DATA(toMethodSignature));
-				} else {
-					J9UTF8 *className = J9ROMCLASS_CLASSNAME(J9_CLASS_FROM_METHOD(_sendMethod)->romClass);
-					J9UTF8 *methodName = J9ROMMETHOD_NAME(J9_ROM_METHOD_FROM_RAM_METHOD(_sendMethod));
-					J9UTF8 *methodSignature = J9ROMMETHOD_SIGNATURE(J9_ROM_METHOD_FROM_RAM_METHOD(_sendMethod));
-					printf("j2iTransition: unknownmethod -> %.*s.%.*s%.*s\n",
-						J9UTF8_LENGTH(className), (char *) J9UTF8_DATA(className),
-						J9UTF8_LENGTH(methodName), (char *) J9UTF8_DATA(methodName),
-						J9UTF8_LENGTH(methodSignature), (char *) J9UTF8_DATA(methodSignature));
-				}
-			}
-			sampler++;
-		}
-#endif
-
 		if (J9_ARE_ANY_BITS_SET(romMethod->modifiers, J9AccNative | J9AccAbstract)) {
 			_literals = (J9Method*)jitReturnAddress;
 			_pc = nativeReturnBytecodePC(REGISTER_ARGS, romMethod);
@@ -645,6 +704,11 @@ done:
 #endif /* J9SW_NEEDS_JIT_2_INTERP_CALLEE_ARG_POP */
 			/* Set the flag indicating that the caller was the JIT */
 			_currentThread->jitStackFrameFlags = J9_SSF_JIT_NATIVE_TRANSITION_FRAME;
+
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+			j2iStackWalk(REGISTER_ARGS, jitReturnAddress, true);
+#endif
+
 			/* If a stop request has been posted, handle it instead of running the native */
 			if (J9_ARE_ANY_BITS_SET(_currentThread->publicFlags, J9_PUBLIC_FLAGS_STOP)) {
 				buildMethodFrame(REGISTER_ARGS, _sendMethod, jitStackFrameFlags(REGISTER_ARGS, 0));
@@ -761,7 +825,12 @@ throwStackOverflow:
 			_arg0EA = _sp;
 #endif /* J9SW_NEEDS_JIT_2_INTERP_CALLEE_ARG_POP */
 			_literals = (J9Method*)exitPoint;
+
 			rc = inlineSendTarget(REGISTER_ARGS, VM_MAYBE, VM_MAYBE, VM_MAYBE, VM_MAYBE, true, decompileOccurred);
+
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+			j2iStackWalk(REGISTER_ARGS, jitReturnAddress, false);
+#endif
 		}
 done:
 		return rc;

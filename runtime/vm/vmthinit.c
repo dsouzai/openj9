@@ -97,6 +97,7 @@ UDATA initializeVMThreading(J9JavaVM *vm)
 #endif /* JAVA_SPEC_VERSION >= 19 */
 #if defined(J9VM_OPT_CRIU_SUPPORT)
 		omrthread_monitor_init_with_name(&vm->delayedLockingOperationsMutex, 0, "Delayed locking operations mutex") ||
+		omrthread_monitor_init_with_name(&vm->j2iStackWalkMonitor, 0, "j2i stack walk mutex") ||
 #endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
 
 		initializeMonitorTable(vm)
