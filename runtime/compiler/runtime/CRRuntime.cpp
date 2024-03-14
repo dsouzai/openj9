@@ -36,7 +36,6 @@
 #include "env/RawAllocator.hpp"
 #include "env/SystemSegmentProvider.hpp"
 #include "env/VerboseLog.hpp"
-#include "env/VMAccessCriticalSection.hpp"
 #include "infra/Assert.hpp"
 #include "infra/CriticalSection.hpp"
 #include "infra/Monitor.hpp"
@@ -87,7 +86,8 @@ TR::CRRuntime::CRRuntime(J9JITConfig *jitConfig, TR::CompilationInfo *compInfo) 
    _crRuntimeThreadLifetimeState(TR_CRRuntimeThreadLifetimeStates::CR_THR_NOT_CREATED),
    _checkpointStatus(TR_CheckpointStatus::NO_CHECKPOINT_IN_PROGRESS),
    _failedComps(),
-   _forcedRecomps()
+   _forcedRecomps(),
+   _impMethodForCR()
    {
    // TR::CompilationInfo is initialized in the JIT_INITIALIZED bootstrap
    // stage, whereas J9_EXTENDED_RUNTIME_METHOD_TRACE_ENABLED is set in the
@@ -240,6 +240,7 @@ TR::CRRuntime::removeMethodsFromMemoizedCompilations(T *entryToRemove)
    OMR::CriticalSection removeMemoizedCompilations(getCRRuntimeMonitor());
    removeMemoizedCompilation<T>(_failedComps, entryToRemove);
    removeMemoizedCompilation<T>(_forcedRecomps, entryToRemove);
+   removeMemoizedCompilation<T>(_impMethodForCR, entryToRemove);
    }
 
 void
@@ -257,6 +258,7 @@ TR::CRRuntime::purgeMemoizedCompilations()
    OMR::CriticalSection removeMemoizedCompilations(getCRRuntimeMonitor());
    purgeMemoizedCompilation(_failedComps);
    purgeMemoizedCompilation(_forcedRecomps);
+   purgeMemoizedCompilation(_impMethodForCR);
    }
 
 void
@@ -415,7 +417,7 @@ bool TR::CRRuntime::compileMethodsForCheckpoint(J9VMThread *vmThread)
       TR::Region compForCheckpointRegion(regionSegmentProvider, rawAllocator);
 
       TR::CompileBeforeCheckpoint compileBeforeCheckpoint(compForCheckpointRegion, vmThread, fej9, getCompInfo());
-      compileBeforeCheckpoint.collectAndCompileMethodsBeforeCheckpoint();
+      compileBeforeCheckpoint.compileMethodsBeforeCheckpoint();
       }
    catch (const std::exception &e)
       {
@@ -742,7 +744,6 @@ TR::CRRuntime::process()
          }
       else if (state == TR_CRRuntimeThreadLifetimeStates::CR_THR_TRIGGER_RECOMP)
          {
-         triggerCompilationOfFailedCompilationsPreCheckpoint(getCRRuntimeThread());
          triggerRecompilationForPreCheckpointGeneratedFSDBodies(getCRRuntimeThread());
 
          // Because the CR Runtime Monitor may have been released, only reset

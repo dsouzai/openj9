@@ -4167,6 +4167,7 @@ TR::CompilationInfoPerThread::processEntries()
             {
             // Compilation request extracted; go work on it
             TR_ASSERT(entry, "Attempting to process NULL entry");
+            entry->_checkpointInProgress = compInfo->getCRRuntime()->isCheckpointInProgress();
             processEntry(*entry, scratchSegmentCache);
             break;
             }
@@ -8261,7 +8262,8 @@ TR::CompilationInfoPerThreadBase::compile(J9VMThread * vmThread,
          regionSegmentProvider,
          dispatchRegion,
          trMemory,
-         TR::CompileIlGenRequest(entry->getMethodDetails())
+         TR::CompileIlGenRequest(entry->getMethodDetails()),
+         entry->_checkpointInProgress
          );
    if (TR::Options::getVerboseOption(TR_VerboseCompilationDispatch))
       TR_VerboseLog::writeLineLocked(TR_Vlog_DISPATCH,
@@ -8544,7 +8546,18 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
                   aotCompilationReUpgradedToWarm = true;
                   }
                }
-
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+            else if (vmThread->javaVM->internalVMFunctions->isDebugOnRestoreEnabled(vmThread)
+                     && vmThread->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread)
+                     && !p->_checkpointInProgress
+                     && p->_optimizationPlan->isOptLevelDowngraded()
+                     && p->_optimizationPlan->getOptLevel() == cold
+                     && !J9_ARE_ANY_BITS_SET(J9_ROM_METHOD_FROM_RAM_METHOD((J9Method *)method)->modifiers, J9AccNative))
+               {
+               p->_optimizationPlan->setOptLevel(warm);
+               p->_optimizationPlan->setOptLevelDowngraded(false);
+               }
+#endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
 
             TR_PersistentCHTable *cht = that->_compInfo.getPersistentInfo()->getPersistentCHTable();
             if (cht && !cht->isActive())
@@ -10564,7 +10577,8 @@ TR::CompilationInfo::compilationEnd(J9VMThread * vmThread, TR::IlGeneratorMethod
                jitMethodTranslated(vmThread, method, startPC);
 #if defined(J9VM_OPT_CRIU_SUPPORT)
                if (jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread)
-                   && jitConfig->javaVM->internalVMFunctions->isDebugOnRestoreEnabled(vmThread))
+                   && jitConfig->javaVM->internalVMFunctions->isDebugOnRestoreEnabled(vmThread)
+                   && (!compInfo->getCRRuntime()->isCheckpointInProgress() || comp->getOption(TR_FullSpeedDebug)))
                   {
                   if (comp->getRecompilationInfo() && comp->getRecompilationInfo()->getJittedBodyInfo())
                      {
