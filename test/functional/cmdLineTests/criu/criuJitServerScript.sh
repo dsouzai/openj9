@@ -83,6 +83,7 @@ if [ "$JITSERVER_EXISTS" == 0 ]; then
     fi
 
     cat testOutput criuOutput;
+    cat vlog;
 
     if  [ "$KEEP_CHECKPOINT" != true ]; then
         if [ "$KEEP_TEST_OUTPUT" != true ]; then
