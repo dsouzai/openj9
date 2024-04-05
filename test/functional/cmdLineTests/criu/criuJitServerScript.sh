@@ -60,7 +60,7 @@ if grep -q -- "$JITSERVER_SSL" <<< "$APP_ARGS"; then
     fi
 fi
 
-JITSERVER_OPTIONS="-XX:JITServerPort=$JITSERVER_PORT -Xjit:verbose={compilePerformance},verbose={JITServer*},verbose={hook*} -XX:JITServerHealthProbePort=$HEALTH_PORT $SSL_OPTS"
+JITSERVER_OPTIONS="-XX:JITServerPort=$JITSERVER_PORT -Xjit:verbose={compilePerformance},verbose={JITServer*},verbose={hook},verbose={hookDetailsClassUnloading} -XX:JITServerHealthProbePort=$HEALTH_PORT $SSL_OPTS"
 
 echo "Starting $TEST_JDK_BIN/jitserver $JITSERVER_OPTIONS"
 $TEST_JDK_BIN/jitserver $JITSERVER_OPTIONS &

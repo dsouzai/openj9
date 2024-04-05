@@ -256,7 +256,7 @@
 		<variations>
 			<variation>-Xjit</variation>
 			<variation>-Xjit:count=0</variation>
-			<variation>-Xjit:verbose={compilePerformance},verbose={CheckpointRestore},verbose={JITServer*},verbose={hook*},vlog=vlog</variation>
+			<variation>-Xjit:verbose={compilePerformance},verbose={CheckpointRestore},verbose={JITServer*},verbose={hook},verbose={hookDetailsClassUnloading},vlog=vlog</variation>
 			<variation>-XX:+JVMPortableRestoreMode</variation>
 		</variations>
 		<disables>
