@@ -176,7 +176,7 @@
 		<variations>
 			<variation>-Xjit</variation>
 			<variation>-Xjit:count=0</variation>
-			<variation>-Xjit:verbose={compilePerformance},verbose={CheckpointRestore},verbose={JITServer*},verbose={hook*},vlog=vlog</variation>
+			<variation>-Xjit:vlog=vlog</variation>
 			<variation>-XX:+DebugOnRestore -Xjit</variation>
 			<variation>-XX:+DebugOnRestore -Xjit:count=0</variation>
 		</variations>
@@ -256,7 +256,7 @@
 		<variations>
 			<variation>-Xjit</variation>
 			<variation>-Xjit:count=0</variation>
-			<variation>-Xjit:vlog=vlog</variation>
+			<variation>-Xjit:verbose={compilePerformance},verbose={CheckpointRestore},verbose={JITServer*},verbose={hook*},vlog=vlog</variation>
 			<variation>-XX:+JVMPortableRestoreMode</variation>
 		</variations>
 		<disables>
