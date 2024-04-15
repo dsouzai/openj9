@@ -178,6 +178,8 @@ J9::OptionsPostRestore::iterateOverExternalOptions()
          case J9::ExternalOptions::XXplusHealthProbes:
          case J9::ExternalOptions::XXminusHealthProbes:
          case J9::ExternalOptions::XXJITServerHealthProbePortOption:
+         case J9::ExternalOptions::XXplusDisclaimPersistentMemory:
+         case J9::ExternalOptions::XXminusDisclaimPersistentMemory:
             {
             // do nothing, consume them to prevent errors
             FIND_AND_CONSUME_RESTORE_ARG(OPTIONAL_LIST_MATCH, optString, 0);

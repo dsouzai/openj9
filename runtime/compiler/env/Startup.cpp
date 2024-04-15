@@ -20,6 +20,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0 OR GPL-2.0-only WITH OpenJDK-assembly-exception-1.0
  *******************************************************************************/
 
+#include "control/Options.hpp"
 #include "env/CompilerEnv.hpp"
 #include "env/RawAllocator.hpp"
 #include "j9.h"
@@ -35,11 +36,18 @@ bool initializeJIT(J9JavaVM *vm)
       {
       // Allocate the host environment structure
       //
+      uint32_t memoryType = 0;
+      if (TR::Options::_disclaimPersistentMemory)
+         {
+         memoryType |= MEMORY_TYPE_VIRTUAL; // force the usage of mmap for allocation
+         memoryType |= MEMORY_TYPE_DISCLAIMABLE_TO_FILE;
+         }
+      TR::PersistentAllocatorKit kit(1 << 20/*1 MB*/, *(vm), memoryType);
       TR::Compiler = new (rawAllocator)
          TR::CompilerEnv(
             vm,
             rawAllocator,
-            (TR::PersistentAllocatorKit( 1 << 20, *vm))
+            kit
             );
       }
    catch (const std::bad_alloc& ba)

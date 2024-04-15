@@ -246,6 +246,9 @@ IDATA J9VMDllMain(J9JavaVM* vm, IDATA stage, void * reserved)
    IDATA argIndexMergeOptionsEnabled = 0;
    IDATA argIndexMergeOptionsDisabled = 0;
 
+   IDATA argIndexDisclaimPersistentMemEnabled = 0;
+   IDATA argIndexDisclaimPersistentMemDisabled = 0;
+
    static bool isJIT = false;
    static bool isAOT = false;
 
@@ -261,6 +264,10 @@ IDATA J9VMDllMain(J9JavaVM* vm, IDATA stage, void * reserved)
 
       case DLL_LOAD_TABLE_FINALIZED :
          {
+         argIndexDisclaimPersistentMemEnabled = FIND_AND_CONSUME_VMARG(EXACT_MATCH, J9::Options::_externalOptionStrings[J9::ExternalOptions::XXplusDisclaimPersistentMemory], 0);
+         argIndexDisclaimPersistentMemDisabled = FIND_AND_CONSUME_VMARG(EXACT_MATCH, J9::Options::_externalOptionStrings[J9::ExternalOptions::XXminusDisclaimPersistentMemory], 0);
+         if (argIndexDisclaimPersistentMemEnabled > argIndexDisclaimPersistentMemDisabled)
+            TR::Options::_disclaimPersistentMemory = 1;
 
          // Bootstrap JIT initialization
          //

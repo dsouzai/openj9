@@ -130,7 +130,9 @@ enum ExternalOptions
    XXplusHealthProbes                          = 74,
    XXminusHealthProbes                         = 75,
    XXJITServerHealthProbePortOption            = 76,
-   TR_NumExternalOptions                       = 77
+   XXplusDisclaimPersistentMemory              = 77,
+   XXminusDisclaimPersistentMemory             = 78,
+   TR_NumExternalOptions                       = 79
    };
 
 class OMR_EXTENSIBLE Options : public OMR::OptionsConnector
@@ -444,6 +446,8 @@ class OMR_EXTENSIBLE Options : public OMR::OptionsConnector
 
    static int32_t _expensiveCompWeight; // weight of a comp request to be considered expensive
    static int32_t _jProfilingEnablementSampleThreshold;
+
+   static uint32_t _disclaimPersistentMemory;
 
    static bool _aggressiveLockReservation;
 

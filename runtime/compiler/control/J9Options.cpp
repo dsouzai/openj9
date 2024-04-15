@@ -301,6 +301,8 @@ int32_t J9::Options::_dltPostponeThreshold = 2;
 int32_t J9::Options::_expensiveCompWeight = TR::CompilationInfo::JSR292_WEIGHT;
 int32_t J9::Options::_jProfilingEnablementSampleThreshold = 10000;
 
+uint32_t J9::Options::_disclaimPersistentMemory = 0; // disabled
+
 bool J9::Options::_aggressiveLockReservation = false;
 
 bool J9::Options::_xrsSync = false;
@@ -389,7 +391,9 @@ const char * J9::Options::_externalOptionStrings[J9::ExternalOptions::TR_NumExte
    "-XX:+JITServerHealthProbes",          // = 74
    "-XX:-JITServerHealthProbes",          // = 75
    "-XX:JITServerHealthProbePort=",       // = 76
-   // TR_NumExternalOptions                  = 77
+   "-XX:+DisclaimPersistentMemory",       // = 77
+   "-XX:-DisclaimPersistentMemory",       // = 78
+   // TR_NumExternalOptions                  = 79
    };
 
 //************************************************************************

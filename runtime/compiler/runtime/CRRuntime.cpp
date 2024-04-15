@@ -33,6 +33,7 @@
 #include "control/Recompilation.hpp"
 #include "control/RecompilationInfo.hpp"
 #include "env/J9SegmentAllocator.hpp"
+#include "env/PersistentAllocator.hpp"
 #include "env/RawAllocator.hpp"
 #include "env/SystemSegmentProvider.hpp"
 #include "env/VerboseLog.hpp"
@@ -675,6 +676,8 @@ TR::CRRuntime::prepareForCheckpoint()
       U_32 ghostFileLimit = vm->jitConfig->dataCacheKB * 1024; // convert to bytes
       vm->internalVMFunctions->setRequiredGhostFileLimit(vmThread, ghostFileLimit);
       }
+
+   TR::Compiler->persistentAllocator().disclaimAllSegments();
 
    setReadyForCheckpointRestore();
 
