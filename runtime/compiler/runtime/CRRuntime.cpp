@@ -41,6 +41,7 @@
 #include "infra/CriticalSection.hpp"
 #include "infra/Monitor.hpp"
 #include "runtime/CRRuntime.hpp"
+#include "runtime/DataCache.hpp"
 #include "runtime/IProfiler.hpp"
 #include "runtime/J9VMAccess.hpp"
 
@@ -678,6 +679,7 @@ TR::CRRuntime::prepareForCheckpoint()
       }
 
    TR::Compiler->persistentAllocator().disclaimAllSegments();
+   TR_DataCacheManager::getManager()->disclaimAllDataCaches();
 
    setReadyForCheckpointRestore();
 

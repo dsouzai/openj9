@@ -788,6 +788,8 @@ int TR_DataCacheManager::disclaimSegment(J9MemorySegment *segment, bool canDiscl
             TR_VerboseLog::writeLine(TR_Vlog_PERF, "Disclaimed data cache segment %p of size %zu. Present pages =%d swapped=%d fileMapped=%d\n",
                  segment, segLength, numPresentPages, swappedCount, filePageCount);
 #endif // DEBUG_DISCLAIM
+         if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
+            TR_VerboseLog::writeLine(TR_Vlog_PERF, "madvise disclaimed data cache segment at address %p size=%zu", segment, segLength);
          }
       }
    else // Cannot disclaim because the memory is not backed by a file and swap is not present
