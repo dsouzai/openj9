@@ -680,6 +680,8 @@ TR::CRRuntime::prepareForCheckpoint()
       }
 
    TR_DataCacheManager::getManager()->disclaimAllDataCaches();
+   if (TR_IProfiler::allocator())
+      TR_IProfiler::allocator()->disclaimAllSegments();
 
    setReadyForCheckpointRestore();
    }

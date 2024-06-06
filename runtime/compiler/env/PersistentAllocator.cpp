@@ -743,6 +743,8 @@ PersistentAllocator::disclaimAllSegments()
             fprintf(stderr, "Disclaimed persistent memory segment %p of size %zu. Present pages =%d swapped=%d fileMapped=%d\n",
                     &segment, segLength, numPresentPages, swappedCount, filePageCount);
 #endif
+            if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
+               TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "madvise disclaimed persistent memory segment at address %p size=%zu", segment.heapBase, segLength);
             numSegDisclaimed++;
             }
          }
