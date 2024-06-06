@@ -41,6 +41,7 @@
 #include "infra/CriticalSection.hpp"
 #include "infra/Monitor.hpp"
 #include "runtime/CRRuntime.hpp"
+#include "runtime/DataCache.hpp"
 #include "runtime/IProfiler.hpp"
 #include "runtime/J9VMAccess.hpp"
 
@@ -677,6 +678,8 @@ TR::CRRuntime::prepareForCheckpoint()
       U_32 ghostFileLimit = std::max(vm->jitConfig->dataCacheKB, vm->jitConfig->codeCacheTotalKB) * 1024; // convert to bytes
       vm->internalVMFunctions->setRequiredGhostFileLimit(vmThread, ghostFileLimit);
       }
+
+   TR_DataCacheManager::getManager()->disclaimAllDataCaches();
 
    setReadyForCheckpointRestore();
    }
