@@ -702,6 +702,11 @@ TR::CRRuntime::prepareForRestore()
    if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCheckpointRestore))
       TR_VerboseLog::writeLineLocked(TR_Vlog_CHECKPOINT_RESTORE, "Preparing for restore");
 
+   /*
+   if (getJITConfig()->disclaimEntireCodeCache)
+      getJITConfig()->disclaimEntireCodeCache(getJITConfig());
+   */
+
    // Process the post-restore options
    J9::OptionsPostRestore::processOptionsPostRestore(vmThread, getJITConfig(), getCompInfo());
 

@@ -7585,6 +7585,14 @@ int32_t setUpHooks(J9JavaVM * javaVM, J9JITConfig * jitConfig, TR_FrontEnd * vm)
    return 0;
    }
 
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+void disclaimEntireCodeCache(J9JITConfig *jitConfig)
+   {
+   TR::CodeCacheManager::instance()->disclaimCodeRepository();
+   //TR::CodeCacheManager::instance()->disclaimAllCodeCaches(true);
+   }
+#endif
+
 #if defined(J9VM_OPT_JITSERVER)
 int32_t startJITServer(J9JITConfig *jitConfig)
    {

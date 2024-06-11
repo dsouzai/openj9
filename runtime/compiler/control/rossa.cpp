@@ -245,6 +245,7 @@ extern "C" void promoteGPUCompile(J9VMThread *vmThread);
 extern "C" int32_t setUpHooks(J9JavaVM * javaVM, J9JITConfig * jitConfig, TR_FrontEnd * vm);
 extern "C" int32_t startJITServer(J9JITConfig *jitConfig);
 extern "C" int32_t waitJITServerTermination(J9JITConfig *jitConfig);
+extern "C" void disclaimEntireCodeCache(J9JITConfig *jitConfig);
 
 
 
@@ -1155,6 +1156,10 @@ onLoadInternal(
    jitConfig->startJITServer = startJITServer;
    jitConfig->waitJITServerTermination = waitJITServerTermination;
 #endif /* J9VM_OPT_JITSERVER */
+
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+   jitConfig->disclaimEntireCodeCache = disclaimEntireCodeCache;
+#endif
 
    TR_PersistentMemory * persistentMemory = (TR_PersistentMemory *)jitConfig->scratchSegment;
    if (persistentMemory == NULL)

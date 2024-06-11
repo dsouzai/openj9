@@ -54,6 +54,12 @@
 #if !defined(MADV_HUGEPAGE)
 #define MADV_HUGEPAGE 14
 #endif /* MADV_HUGEPAGE */
+#ifndef MADV_NOHUGEPAGE
+#define MADV_NOHUGEPAGE  15
+#endif // MADV_NOHUGEPAGE
+#ifndef MADV_PAGEOUT
+#define MADV_PAGEOUT     21
+#endif // MADV_PAGEOUT
 #endif /* LINUX */
 
 TR::CodeCacheManager *J9::CodeCacheManager::_codeCacheManager = NULL;
@@ -812,9 +818,45 @@ J9::CodeCacheManager::printOccupancyStats()
       }
    }
 
+void
+J9::CodeCacheManager::disclaimCodeRepository()
+   {
+#ifdef LINUX
+   J9JavaVM * javaVM = _jitConfig->javaVM;
+   PORT_ACCESS_FROM_JAVAVM(javaVM); // for j9vmem_supported_page_sizes
+
+   bool trace = TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance);
+   uint8_t *disclaim_start = _codeCacheRepositorySegment->segmentBase();
+   size_t pageSize = j9vmem_supported_page_sizes()[0];
+   size_t round = pageSize - 1;
+   disclaim_start = (uint8_t *)(((size_t)(disclaim_start + round)) & ~round);
+
+   size_t disclaim_size = (_codeCacheRepositorySegment->segmentTop() - disclaim_start + round) & ~round;
+
+   if (trace)
+      {
+      TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Will disclaim code repository %p : start=%p size=%zuB", _codeCacheRepositorySegment, disclaim_start, disclaim_size);
+      }
+
+   int32_t ret = madvise((void *)disclaim_start, disclaim_size, MADV_PAGEOUT);
+
+   if (ret != 0)
+      {
+      if (trace)
+         TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "WARNING: Failed to use madvise to disclaim memory for code cache");
+
+      if (ret == EINVAL)
+         {
+         setDisclaimEnabled(false); // Don't try to disclaim again, since support seems to be missing
+         if (trace)
+            TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "WARNING: Disabling data cache disclaiming from now on");
+         }
+      }
+#endif // ifdef LINUX
+   }
 
 int32_t
-J9::CodeCacheManager::disclaimAllCodeCaches()
+J9::CodeCacheManager::disclaimAllCodeCaches(bool entireCodeCache)
    {
    if (!_disclaimEnabled)
       return 0;
@@ -828,7 +870,10 @@ J9::CodeCacheManager::disclaimAllCodeCaches()
    CacheListCriticalSection scanCacheList(self());
    for (TR::CodeCache *codeCache = self()->getFirstCodeCache(); codeCache; codeCache = codeCache->next())
       {
-      numDisclaimed += codeCache->disclaim(self(), canDisclaimOnSwap);
+      if (entireCodeCache)
+         numDisclaimed += codeCache->disclaimAll(self(), canDisclaimOnSwap);
+      else
+         numDisclaimed += codeCache->disclaim(self(), canDisclaimOnSwap);
       }
 #endif // LINUX
 
