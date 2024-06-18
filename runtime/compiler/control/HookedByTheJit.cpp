@@ -1886,6 +1886,11 @@ static void jitHookThreadDestroy(J9HookInterface * * hookInterface, UDATA eventN
    }
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
+static void jitHookCheckpoint(J9HookInterface * * hookInterface, UDATA eventNum, void * eventData, void * userData)
+   {
+   TR::CodeCacheManager::instance()->disclaimCodeRepository();
+   }
+
 static void jitHookPrepareCheckpoint(J9HookInterface * * hookInterface, UDATA eventNum, void * eventData, void * userData)
    {
    J9VMClassesUnloadEvent * restoreEvent = (J9VMClassesUnloadEvent *)eventData;
@@ -7563,7 +7568,8 @@ int32_t setUpHooks(J9JavaVM * javaVM, J9JITConfig * jitConfig, TR_FrontEnd * vm)
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
    if ((*vmHooks)->J9HookRegisterWithCallSite(vmHooks, J9HOOK_VM_PREPARING_FOR_CHECKPOINT, jitHookPrepareCheckpoint, OMR_GET_CALLSITE(), NULL) ||
-       (*vmHooks)->J9HookRegisterWithCallSite(vmHooks, J9HOOK_VM_PREPARING_FOR_RESTORE, jitHookPrepareRestore, OMR_GET_CALLSITE(), NULL))
+       (*vmHooks)->J9HookRegisterWithCallSite(vmHooks, J9HOOK_VM_PREPARING_FOR_RESTORE, jitHookPrepareRestore, OMR_GET_CALLSITE(), NULL) ||
+       (*vmHooks)->J9HookRegisterWithCallSite(vmHooks, J9HOOK_VM_CRIU_CHECKPOINT, jitHookCheckpoint, OMR_GET_CALLSITE(), NULL))
       {
       j9tty_printf(PORTLIB, "Error: Unable to register CRIU hook\n");
       return -1;
@@ -7584,13 +7590,6 @@ int32_t setUpHooks(J9JavaVM * javaVM, J9JITConfig * jitConfig, TR_FrontEnd * vm)
       }
    return 0;
    }
-
-#if defined(J9VM_OPT_CRIU_SUPPORT)
-void disclaimEntireCodeCache(J9JITConfig *jitConfig)
-   {
-   TR::CodeCacheManager::instance()->disclaimCodeRepository();
-   }
-#endif
 
 #if defined(J9VM_OPT_JITSERVER)
 int32_t startJITServer(J9JITConfig *jitConfig)

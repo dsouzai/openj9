@@ -1829,10 +1829,6 @@ criuCheckpointJVMImpl(JNIEnv *env,
 			syslogFlagNone = false;
 		}
 
-		if (vm->jitConfig && vm->jitConfig->disclaimEntireCodeCache) {
-			vm->jitConfig->disclaimEntireCodeCache(vm->jitConfig);
-		}
-
 		TRIGGER_J9HOOK_VM_CRIU_CHECKPOINT(vm->hookInterface, currentThread);
 
 		malloc_trim(0);
