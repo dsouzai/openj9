@@ -816,51 +816,6 @@ extern "C"
    }
 
 int32_t
-J9::CodeCache::disclaimAll(TR::CodeCacheManager *manager, bool canDisclaimOnSwap)
-   {
-   int32_t disclaimDone = 0;
-
-#ifdef LINUX
-   J9JavaVM * javaVM = jitConfig->javaVM;
-   PORT_ACCESS_FROM_JAVAVM(javaVM); // for j9vmem_supported_page_sizes
-
-   bool trace = TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance);
-   uint8_t *disclaim_start = _segment->segmentBase();
-   size_t pageSize = j9vmem_supported_page_sizes()[0];
-   size_t round = pageSize - 1;
-   disclaim_start = (uint8_t *)(((size_t)(disclaim_start + round)) & ~round);
-
-   size_t disclaim_size = (_segment->segmentTop() - disclaim_start + round) & ~round;
-
-   if (trace)
-      {
-      TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "Will disclaim code cache %p : start=%p size=%zuB", this, disclaim_start, disclaim_size);
-      }
-
-   int32_t ret = madvise((void *)disclaim_start, disclaim_size, MADV_PAGEOUT);
-
-   if (ret != 0)
-      {
-      if (trace)
-         TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "WARNING: Failed to use madvise to disclaim memory for code cache");
-
-      if (ret == EINVAL)
-         {
-         manager->setDisclaimEnabled(false); // Don't try to disclaim again, since support seems to be missing
-         if (trace)
-            TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "WARNING: Disabling data cache disclaiming from now on");
-         }
-      }
-   else
-      {
-      disclaimDone = 1;
-      }
-#endif // ifdef LINUX
-
-   return disclaimDone;
-   }
-
-int32_t
 J9::CodeCache::disclaim(TR::CodeCacheManager *manager, bool canDisclaimOnSwap)
    {
    int32_t disclaimDone = 0;

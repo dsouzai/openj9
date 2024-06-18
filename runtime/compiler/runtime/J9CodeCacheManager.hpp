@@ -155,7 +155,7 @@ public:
    void printOccupancyStats();
    bool isDisclaimEnabled() const { return _disclaimEnabled; }
    void setDisclaimEnabled(bool value)  { _disclaimEnabled = value; }
-   int32_t disclaimAllCodeCaches(bool entireCodeCache = false);
+   int32_t disclaimAllCodeCaches();
    void disclaimCodeRepository();
 
 private :

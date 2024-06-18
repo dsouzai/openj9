@@ -7589,7 +7589,6 @@ int32_t setUpHooks(J9JavaVM * javaVM, J9JITConfig * jitConfig, TR_FrontEnd * vm)
 void disclaimEntireCodeCache(J9JITConfig *jitConfig)
    {
    TR::CodeCacheManager::instance()->disclaimCodeRepository();
-   //TR::CodeCacheManager::instance()->disclaimAllCodeCaches(true);
    }
 #endif
 

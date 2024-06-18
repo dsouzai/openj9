@@ -856,7 +856,7 @@ J9::CodeCacheManager::disclaimCodeRepository()
    }
 
 int32_t
-J9::CodeCacheManager::disclaimAllCodeCaches(bool entireCodeCache)
+J9::CodeCacheManager::disclaimAllCodeCaches()
    {
    if (!_disclaimEnabled)
       return 0;
@@ -870,10 +870,7 @@ J9::CodeCacheManager::disclaimAllCodeCaches(bool entireCodeCache)
    CacheListCriticalSection scanCacheList(self());
    for (TR::CodeCache *codeCache = self()->getFirstCodeCache(); codeCache; codeCache = codeCache->next())
       {
-      if (entireCodeCache)
-         numDisclaimed += codeCache->disclaimAll(self(), canDisclaimOnSwap);
-      else
-         numDisclaimed += codeCache->disclaim(self(), canDisclaimOnSwap);
+      numDisclaimed += codeCache->disclaim(self(), canDisclaimOnSwap);
       }
 #endif // LINUX
 

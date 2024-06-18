@@ -104,7 +104,6 @@ public:
    void resetCodeCache();
 
    int32_t disclaim(TR::CodeCacheManager *manager, bool canDisclaimOnSwap);
-   int32_t disclaimAll(TR::CodeCacheManager *manager, bool canDisclaimOnSwap);
 
    private:
    /**
