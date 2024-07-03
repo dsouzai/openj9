@@ -103,6 +103,38 @@ J9::CodeCache::allocate(TR::CodeCacheManager *cacheManager, size_t segmentSize, 
    return newCodeCache;
    }
 
+#ifdef LINUX
+static int open_temp_file(size_t length)
+   {
+   int fd = -1;
+
+   char filename[64+1];
+   snprintf(filename, sizeof(filename), "fsd_codecache_XXXXXX");
+
+   fd = mkostemp(filename, 0);
+
+   if (fd == -1)
+      {
+      const char *error = strerror(errno);
+      if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Failed to open temp file %s: %s", filename, error);
+      }
+   else
+      {
+      unlink(filename);
+      if (ftruncate(fd, length) == -1)
+         {
+         const char *error = strerror(errno);
+         if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
+            TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Failed to set file size to %zu: %s", length, error);
+         close(fd);
+         fd = -1;
+         }
+      }
+
+   return fd;
+   }
+#endif
 
 bool
 J9::CodeCache::initialize(TR::CodeCacheManager *manager,
@@ -149,11 +181,42 @@ J9::CodeCache::initialize(TR::CodeCacheManager *manager,
    self()->setInitialAllocationPointers();
 
 #ifdef LINUX
+   J9JavaVM * javaVM = jitConfig->javaVM;
+   PORT_ACCESS_FROM_JAVAVM(javaVM); // for j9vmem_supported_page_sizes
+
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+   if (TR::Options::getCmdLineOptions()->getOption(TR_FSDCodeCachesDisclaiming))
+      {
+      J9VMThread *vmThread = javaVM->internalVMFunctions->currentVMThread(javaVM);
+
+      if (javaVM->internalVMFunctions->isDebugOnRestoreEnabled(vmThread)
+          && javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
+         {
+         _kind = TR::CodeCache::CacheKind::FILEBACKED;
+
+         if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
+            TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Code Cache Kind for %p set to FILEBACKED", self());
+
+         size_t round = j9vmem_supported_page_sizes()[0] - 1;
+         uint8_t *addr = (uint8_t *)(((size_t)(_segment->segmentBase() + round)) & ~round);
+         size_t length = _segment->segmentTop() - addr;
+
+         int prot = PROT_EXEC | PROT_READ | PROT_WRITE;
+         int flags = MAP_SHARED | MAP_FIXED;
+         int fd = open_temp_file(length);
+         off_t offset = 0;
+
+         void *remapped_addr = mmap(addr, length, prot, flags, fd, offset);
+         TR_ASSERT_FATAL(remapped_addr == addr, "Double Map failed for code cache %p start %p length %zu\n", self(), _segment->segmentBase(), length);
+
+         if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
+            TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Double mapped code cache starting from %p length %zu", addr, length);
+         }
+      }
+   else
+#endif
    if (manager->isDisclaimEnabled())
       {
-      J9JavaVM * javaVM = jitConfig->javaVM;
-      PORT_ACCESS_FROM_JAVAVM(javaVM); // for j9vmem_supported_page_sizes
-
       uint8_t *middle  = _warmCodeAlloc + (_coldCodeAllocBase - _warmCodeAlloc) / 2;
       size_t round = j9vmem_supported_page_sizes()[0] - 1;
       middle = (uint8_t *)(((size_t)(middle + round)) & ~round);
