@@ -90,7 +90,8 @@ public:
    TR::CodeCache * reserveCodeCache(bool compilationCodeAllocationsMustBeContiguous,
                                     size_t sizeEstimate,
                                     int32_t compThreadID,
-                                    int32_t *numReserved);
+                                    int32_t *numReserved,
+                                    TR::CodeCache::CacheKind kind = TR::CodeCache::CacheKind::DEFAULT);
 
    TR::CodeCacheMemorySegment *setupMemorySegmentFromRepository(uint8_t *start,
                                                                 uint8_t *end,
