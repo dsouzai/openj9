@@ -176,7 +176,7 @@ J9::CodeCache::initialize(TR::CodeCacheManager *manager,
       config._trampolineSpacePercentage = percentageToUse;
       }
 
-   if (!self()->OMR::CodeCache::initialize(manager, codeCacheSegment, allocatedCodeCacheSizeInBytes))
+   if (!self()->OMR::CodeCache::initialize(manager, codeCacheSegment, allocatedCodeCacheSizeInBytes, kind))
       return false;
 
    self()->setInitialAllocationPointers();
