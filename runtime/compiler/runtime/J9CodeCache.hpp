@@ -64,7 +64,8 @@ public:
     */
    bool                       initialize(TR::CodeCacheManager *manager,
                                          TR::CodeCacheMemorySegment *codeCacheSegment,
-                                         size_t allocatedCodeCacheSizeInBytes);
+                                         size_t allocatedCodeCacheSizeInBytes,
+                                         CacheKind kind = CacheKind::DEFAULT);
 
    static TR::CodeCache *     allocate(TR::CodeCacheManager *cacheManager, size_t segmentSize, int32_t reservingCompThreadID);
 

@@ -139,7 +139,8 @@ static int open_temp_file(size_t length)
 bool
 J9::CodeCache::initialize(TR::CodeCacheManager *manager,
                           TR::CodeCacheMemorySegment *codeCacheSegment,
-                          size_t allocatedCodeCacheSizeInBytes)
+                          size_t allocatedCodeCacheSizeInBytes,
+                          OMR::CodeCache::CacheKind kind)
    {
    // make J9 memory segment look all used up
    //J9MemorySegment *j9segment = _segment->segment();
@@ -185,33 +186,25 @@ J9::CodeCache::initialize(TR::CodeCacheManager *manager,
    PORT_ACCESS_FROM_JAVAVM(javaVM); // for j9vmem_supported_page_sizes
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-   if (TR::Options::getCmdLineOptions()->getOption(TR_FSDCodeCachesDisclaiming))
+   if (_kind == TR::CodeCache::CacheKind::FILEBACKED)
       {
-      J9VMThread *vmThread = javaVM->internalVMFunctions->currentVMThread(javaVM);
+      if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Code Cache Kind for %p set to FILEBACKED", self());
 
-      if (javaVM->internalVMFunctions->isDebugOnRestoreEnabled(vmThread)
-          && javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
-         {
-         _kind = TR::CodeCache::CacheKind::FILEBACKED;
+      size_t round = j9vmem_supported_page_sizes()[0] - 1;
+      uint8_t *addr = (uint8_t *)(((size_t)(_segment->segmentBase() + round)) & ~round);
+      size_t length = _segment->segmentTop() - addr;
 
-         if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
-            TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Code Cache Kind for %p set to FILEBACKED", self());
+      int prot = PROT_EXEC | PROT_READ | PROT_WRITE;
+      int flags = MAP_SHARED | MAP_FIXED;
+      int fd = open_temp_file(length);
+      off_t offset = 0;
 
-         size_t round = j9vmem_supported_page_sizes()[0] - 1;
-         uint8_t *addr = (uint8_t *)(((size_t)(_segment->segmentBase() + round)) & ~round);
-         size_t length = _segment->segmentTop() - addr;
+      void *remapped_addr = mmap(addr, length, prot, flags, fd, offset);
+      TR_ASSERT_FATAL(remapped_addr == addr, "Double Map failed for code cache %p start %p length %zu\n", self(), _segment->segmentBase(), length);
 
-         int prot = PROT_EXEC | PROT_READ | PROT_WRITE;
-         int flags = MAP_SHARED | MAP_FIXED;
-         int fd = open_temp_file(length);
-         off_t offset = 0;
-
-         void *remapped_addr = mmap(addr, length, prot, flags, fd, offset);
-         TR_ASSERT_FATAL(remapped_addr == addr, "Double Map failed for code cache %p start %p length %zu\n", self(), _segment->segmentBase(), length);
-
-         if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
-            TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Double mapped code cache starting from %p length %zu", addr, length);
-         }
+      if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Double mapped code cache starting from %p length %zu", addr, length);
       }
    else
 #endif

@@ -257,24 +257,9 @@ TR::CodeCache*
 J9::CodeCacheManager::reserveCodeCache(bool compilationCodeAllocationsMustBeContiguous,
                                       size_t sizeEstimate,
                                       int32_t compThreadID,
-                                      int32_t *numReserved)
+                                      int32_t *numReserved,
+                                      TR::CodeCache::CacheKind kind)
    {
-   TR::CodeCache::CacheKind kind = TR::CodeCache::CacheKind::DEFAULT;
-
-#if defined(J9VM_OPT_CRIU_SUPPORT)
-   if (TR::Options::getCmdLineOptions()->getOption(TR_FSDCodeCachesDisclaiming))
-      {
-      J9JavaVM *javaVM = TR::CodeCacheManager::javaVM();
-      J9VMThread *vmThread = javaVM->internalVMFunctions->currentVMThread(javaVM);
-
-      if (javaVM->internalVMFunctions->isDebugOnRestoreEnabled(vmThread)
-          && javaVM->internalVMFunctions->isCheckpointAllowed(vmThread))
-         {
-         kind = TR::CodeCache::CacheKind::FILEBACKED;
-         }
-      }
-#endif
-
    TR::CodeCache *codeCache = self()->OMR::CodeCacheManager::reserveCodeCache(compilationCodeAllocationsMustBeContiguous,
                                                                             sizeEstimate,
                                                                             compThreadID,
