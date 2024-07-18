@@ -147,7 +147,8 @@ J9::Compilation::Compilation(int32_t id,
       TR_Memory *m,
       TR_OptimizationPlan *optimizationPlan,
       TR_RelocationRuntime *reloRuntime,
-      TR::Environment *target)
+      TR::Environment *target,
+      bool generateSubOptimalCode)
    : OMR::CompilationConnector(
       id,
       j9vmThread->omrVMThread,
@@ -206,7 +207,8 @@ J9::Compilation::Compilation(int32_t id,
    _thunkRecords(decltype(_thunkRecords)::allocator_type(heapMemoryRegion)),
 #endif /* defined(J9VM_OPT_JITSERVER) */
    _osrProhibitedOverRangeOfTrees(false),
-   _wasFearPointAnalysisDone(false)
+   _wasFearPointAnalysisDone(false),
+   _generateSubOptimalCode(generateSubOptimalCode)
    {
    _symbolValidationManager = new (self()->region()) TR::SymbolValidationManager(self()->region(), compilee, self());
 

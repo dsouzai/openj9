@@ -101,7 +101,8 @@ class OMR_EXTENSIBLE Compilation : public OMR::CompilationConnector
          TR_Memory *,
          TR_OptimizationPlan *optimizationPlan,
          TR_RelocationRuntime *reloRuntime,
-         TR::Environment *target = NULL);
+         TR::Environment *target = NULL,
+         bool generateSubOptimalCode = false);
 
    ~Compilation();
 
@@ -218,6 +219,8 @@ class OMR_EXTENSIBLE Compilation : public OMR::CompilationConnector
    bool compileRelocatableCode();
 
    bool compilePortableCode();
+
+   bool generateSubOptimalCode() { return _generateSubOptimalCode; }
 
    int32_t maxInternalPointers();
 
@@ -564,6 +567,8 @@ private:
    TR::SymbolValidationManager *_symbolValidationManager;
    bool _osrProhibitedOverRangeOfTrees;
    bool _wasFearPointAnalysisDone;
+
+   bool _generateSubOptimalCode;
    };
 
 }
