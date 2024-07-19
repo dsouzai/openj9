@@ -6755,7 +6755,7 @@ TR_J9ByteCodeIlGenerator::genAconst_init(TR_OpaqueClassBlock *valueTypeClass, in
                      {
                      // In non-SVM AOT compilation, cpIndex is required for AOT relocation.
                      // In this case, cpindex is unknown for the field.
-                     if (comp()->compileRelocatableCode() && !comp()->getOption(TR_UseSymbolValidationManager))
+                     if (comp()->compileRelocatableCode() && comp()->generateSubOptimalCode())
                         {
                         abortForUnresolvedValueTypeOp("aconst_init", "field");
                         }
@@ -8030,7 +8030,7 @@ void TR_J9ByteCodeIlGenerator::performClassLookahead(TR_PersistentClassInfo *cla
    if (comp()->getOption(TR_EnableHCR))
       return;
 
-   if (comp()->compileRelocatableCode() && !comp()->getOption(TR_UseSymbolValidationManager))
+   if (comp()->compileRelocatableCode() && comp()->generateSubOptimalCode())
       return;
 
    _classLookaheadSymRefTab = new (trStackMemory())TR::SymbolReferenceTable(method()->maxBytecodeIndex(), comp());

@@ -1190,7 +1190,7 @@ TR_ResolvedRelocatableJ9Method::getClassFromConstantPool(TR::Compilation *comp, 
    {
    TR_OpaqueClassBlock * resolvedClass = NULL;
 
-   if (returnClassForAOT || comp->getOption(TR_UseSymbolValidationManager))
+   if (returnClassForAOT || !comp->generateSubOptimalCode())
       {
       resolvedClass = TR_ResolvedJ9Method::getClassFromConstantPool(comp, cpIndex);
       if (resolvedClass)

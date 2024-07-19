@@ -579,7 +579,7 @@ TR_PersistentCHTable::findSingleAbstractImplementer(
    {
    if (comp->getOption(TR_DisableCHOpts))
       return 0;
-   bool allowForAOT = comp->getOption(TR_UseSymbolValidationManager);
+   bool allowForAOT = !comp->generateSubOptimalCode();
    TR_PersistentClassInfo * classInfo = findClassInfoAfterLocking(thisClass, comp, allowForAOT);
    if (!classInfo) return 0;
 
@@ -623,7 +623,7 @@ TR_PersistentCHTable::findSingleConcreteSubClass(
    if (comp->getOption(TR_DisableCHOpts))
       return 0;
 
-   bool allowForAOT = comp->getOption(TR_UseSymbolValidationManager);
+   bool allowForAOT = !comp->generateSubOptimalCode();
 
    TR_PersistentClassInfo *classInfo = comp->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(opaqueClass, comp, allowForAOT);
    if (classInfo)

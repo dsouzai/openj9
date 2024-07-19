@@ -176,7 +176,7 @@ const char *
 SymbolReference::getTypeSignature(int32_t & len, TR_AllocationKind allocKind, bool *isFixed)
    {
    TR::Compilation * comp = TR::comp();
-   bool allowForAOT = comp->getOption(TR_UseSymbolValidationManager);
+   bool allowForAOT = !comp->generateSubOptimalCode();
 
    TR_PersistentClassInfo * persistentClassInfo = NULL;
    switch (_symbol->getKind())

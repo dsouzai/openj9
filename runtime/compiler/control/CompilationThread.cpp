@@ -9129,6 +9129,10 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
                target = TR::Compiler->relocatableTarget;
                }
             }
+         bool generateSubOptimalCode = vm->isAOT_DEPRECATED_DO_NOT_USE() &&
+                                       (!options->getOption(TR_UseSymbolValidationManager)
+                                        || jitConfig->javaVM->phase != J9VM_PHASE_NOT_STARTUP);
+
          compiler = new (p->trMemory(), heapAlloc) TR::Compilation(
                that->getCompThreadId(),
                vmThread,
@@ -9140,7 +9144,8 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
                p->trMemory(),
                p->_optimizationPlan,
                reloRuntime,
-               &target);
+               &target,
+               generateSubOptimalCode);
 
 #if defined(J9VM_OPT_JITSERVER)
          // JITServer TODO: put info in optPlan so that compilation constructor can do this

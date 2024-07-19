@@ -1420,7 +1420,7 @@ uint32_t J9::TreeEvaluator::calculateInstanceOfOrCheckCastSequences(TR::Node *in
 
          // If the caller doesn't provide the output param don't bother with guessing.
          //
-         if ((!cg->comp()->compileRelocatableCode() || cg->comp()->getOption(TR_UseSymbolValidationManager))
+         if ((!cg->comp()->compileRelocatableCode() || !cg->comp()->generateSubOptimalCode())
                && compileTimeGuessClass
                && !TR::Compiler->cls.isConcreteClass(cg->comp(), castClass))
             {

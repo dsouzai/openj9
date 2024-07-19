@@ -7648,7 +7648,7 @@ TR_J9VM::inlineNativeCall(TR::Compilation * comp, TR::TreeTop * callNodeTreeTop,
       case TR::java_lang_Class_getStackClass:
          {
          if ((isAOT_DEPRECATED_DO_NOT_USE()
-                  && !comp->getOption(TR_UseSymbolValidationManager))
+                  && comp->generateSubOptimalCode())
                || !callNode->getFirstChild()->getOpCode().isLoadConst())
             {
             return 0;
@@ -7721,7 +7721,7 @@ TR_J9VM::inlineNativeCall(TR::Compilation * comp, TR::TreeTop * callNodeTreeTop,
       case TR::sun_reflect_Reflection_getCallerClass:
          {
          // We need to bail out since we create a class pointer const with cpIndex of -1
-         if (isAOT_DEPRECATED_DO_NOT_USE() && !comp->getOption(TR_UseSymbolValidationManager))
+         if (isAOT_DEPRECATED_DO_NOT_USE() && comp->generateSubOptimalCode())
             {
             return 0;
             }
@@ -9276,7 +9276,7 @@ TR_OpaqueClassBlock *
 TR_J9SharedCacheVM::getClassFromNewArrayType(int32_t arrayType)
    {
    TR::Compilation *comp = TR::comp();
-   if (comp && comp->getOption(TR_UseSymbolValidationManager))
+   if (comp && !comp->generateSubOptimalCode())
       return TR_J9VM::getClassFromNewArrayType(arrayType);
    return NULL;
    }

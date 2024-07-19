@@ -3295,7 +3295,7 @@ TR_OpaqueClassBlock *
 TR_J9SharedCacheServerVM::getClassFromNewArrayType(int32_t arrayType)
    {
    TR::Compilation *comp = _compInfoPT->getCompilation();
-   if (comp && comp->getOption(TR_UseSymbolValidationManager))
+   if (comp && !comp->generateSubOptimalCode())
       return TR_J9ServerVM::getClassFromNewArrayType(arrayType);
    return NULL;
    }

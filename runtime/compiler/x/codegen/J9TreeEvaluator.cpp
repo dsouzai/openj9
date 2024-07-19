@@ -4603,13 +4603,13 @@ TR::Register *J9::X86::TreeEvaluator::checkcastinstanceofEvaluator(TR::Node *nod
          break;
       }
    auto clazz = TR::TreeEvaluator::getCastClassAddress(node->getChild(1));
-   if (isCheckCast && !clazz && !comp->getOption(TR_DisableInlineCheckCast) && (!comp->compileRelocatableCode() || comp->getOption(TR_UseSymbolValidationManager)))
+   if (isCheckCast && !clazz && !comp->getOption(TR_DisableInlineCheckCast) && (!comp->compileRelocatableCode() || !comp->generateSubOptimalCode()))
       {
       generateInlinedCheckCastForDynamicCastClass(node, cg);
       }
    else if (clazz &&
        !TR::Compiler->cls.isClassArray(comp, clazz) && // not yet optimized
-       (!comp->compileRelocatableCode() || comp->getOption(TR_UseSymbolValidationManager)) &&
+       (!comp->compileRelocatableCode() || !comp->generateSubOptimalCode()) &&
        !comp->getOption(TR_DisableInlineCheckCast)  &&
        !comp->getOption(TR_DisableInlineInstanceOf))
       {

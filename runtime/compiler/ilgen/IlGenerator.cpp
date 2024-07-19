@@ -92,7 +92,7 @@ TR_J9ByteCodeIlGenerator::TR_J9ByteCodeIlGenerator(
          ((comp->getMethodHotness() >= scorching) ||
           (comp->couldBeRecompiled() && (comp->getMethodHotness() >= hot ))))))
       {
-      bool allowForAOT = comp->getOption(TR_UseSymbolValidationManager);
+      bool allowForAOT = !comp->generateSubOptimalCode();
       _classInfo = comp->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(method()->containingClass(), comp, allowForAOT);
       }
    else

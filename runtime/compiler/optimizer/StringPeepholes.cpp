@@ -218,7 +218,7 @@ int32_t TR_StringPeepholes::perform()
    {
    static char *skipitAtWarm = feGetEnv("TR_noPeepholeAtWarm");
    if (comp()->getOption(TR_DisableStringPeepholes)
-       || (!comp()->fej9()->doStringPeepholing() && !comp()->getOption(TR_UseSymbolValidationManager))
+       || (!comp()->fej9()->doStringPeepholing() && comp()->generateSubOptimalCode())
        || (skipitAtWarm && comp()->getMethodHotness() == warm)
        || comp()->isFearPointPlacementUnrestricted())
       return 1;

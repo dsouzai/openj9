@@ -1025,7 +1025,7 @@ J9::Node::getTypeSignature(int32_t & len, TR_AllocationKind allocKind, bool parm
    TR::Symbol *sym = symRef->getSymbol();
    if (parmAsAuto && sym->isParm())
       return 0;
-   bool allowForAOT = c->getOption(TR_UseSymbolValidationManager);
+   bool allowForAOT = !c->generateSubOptimalCode();
    TR_PersistentClassInfo * classInfo = c->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(c->getCurrentMethod()->containingClass(), c, allowForAOT);
    TR::Node * node = self();
    TR_PersistentFieldInfo * fieldInfo = classInfo && classInfo->getFieldInfo() ? classInfo->getFieldInfo()->findFieldInfo(c, node, false) : 0;

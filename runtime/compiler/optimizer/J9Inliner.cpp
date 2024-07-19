@@ -528,7 +528,7 @@ bool TR_J9VirtualCallSite::findCallSiteForAbstractClass(TR_InlinerBase* inliner)
    TR_PersistentCHTable *chTable = comp()->getPersistentInfo()->getPersistentCHTable();
    TR_ResolvedMethod *implementer;
 
-   bool canInline = (!comp()->compileRelocatableCode() || comp()->getOption(TR_UseSymbolValidationManager));
+   bool canInline = (!comp()->compileRelocatableCode() || !comp()->generateSubOptimalCode());
    if (canInline && TR::Compiler->cls.isAbstractClass(comp(), _receiverClass) &&!comp()->getOption(TR_DisableAbstractInlining) &&
        (implementer = chTable->findSingleAbstractImplementer(_receiverClass, _vftSlot, _callerResolvedMethod, comp())))
       {
@@ -863,7 +863,7 @@ bool TR_J9InterfaceCallSite::findCallSiteTargetImpl(
          // heuristic because in that case we can be certain that the class
          // won't be extended later.
          bool useVftTestHeuristics = true;
-         if (comp()->compileRelocatableCode() && !comp()->getOption(TR_UseSymbolValidationManager))
+         if (comp()->compileRelocatableCode() && comp()->generateSubOptimalCode())
             {
             useVftTestHeuristics = false;
             }
@@ -928,7 +928,7 @@ bool TR_J9InterfaceCallSite::findCallSiteTargetImpl(
                 && valueInfo != NULL
                 && !comp()->getOption(TR_DisableProfiledInlining))
                {
-               TR_ASSERT_FATAL(!comp()->compileRelocatableCode() || comp()->getOption(TR_UseSymbolValidationManager),
+               TR_ASSERT_FATAL(!comp()->compileRelocatableCode() || !comp()->generateSubOptimalCode(),
                                "Cannot use VFT Test Heuristics in non-SVM AOT!\n");
 
                TR_ScratchList<TR_ExtraAddressInfo> byFreqDesc(comp()->trMemory());

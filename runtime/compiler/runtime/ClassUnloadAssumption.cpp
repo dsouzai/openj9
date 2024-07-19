@@ -1314,7 +1314,7 @@ bool
 J9::PersistentInfo::isObsoleteClass(void *v, TR_FrontEnd *fe)
    {
    TR::Compilation *comp = TR::comp();
-   bool allowForAOT = comp && comp->getOption(TR_UseSymbolValidationManager);
+   bool allowForAOT = comp && !comp->generateSubOptimalCode();
    if (isUnloadedClass(v, true))
       return true;
    else if (!getPersistentCHTable())

@@ -1440,8 +1440,7 @@ J9::Compilation::getCachedClassPointer(CachedClassPointerId which)
    if (clazz != NULL)
       return clazz;
 
-   if (self()->compileRelocatableCode()
-       && !self()->getOption(TR_UseSymbolValidationManager))
+   if (self()->compileRelocatableCode() && self()->generateSubOptimalCode())
       return NULL;
 
    static const char * const names[] =

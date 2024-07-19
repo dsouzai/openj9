@@ -302,7 +302,7 @@ List<OMR::RuntimeAssumption> *TR::InterProceduralAnalyzer::analyzeCallGraph(TR::
             }
          }
 
-      bool allowForAOT = comp()->getOption(TR_UseSymbolValidationManager);
+      bool allowForAOT = !comp()->generateSubOptimalCode();
       TR_PersistentClassInfo *classInfo = comp()->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(clazz, comp(), allowForAOT);
       if (classInfo)
          {

@@ -2364,7 +2364,7 @@ TR_IProfiler::createIProfilingValueInfo (TR_ByteCodeInfo &bcInfo, TR::Compilatio
       // profiling information coming from this caller
       if (comp->getOption(TR_IProfilerPerformTimestampCheck) && method && !_compInfo->isCompiled((J9Method *)method))// method is interpreted
          {
-         bool allowForAOT = comp->getOption(TR_UseSymbolValidationManager);
+         bool allowForAOT = !comp->generateSubOptimalCode();
          TR_PersistentClassInfo *currentPersistentClassInfo = _compInfo->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(comp->getCurrentMethod()->containingClass(), comp, allowForAOT);
          TR_PersistentClassInfo *calleePersistentClassInfo = _compInfo->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking((TR_OpaqueClassBlock *)J9_CLASS_FROM_METHOD(((J9Method *)method)), comp, allowForAOT);
 
