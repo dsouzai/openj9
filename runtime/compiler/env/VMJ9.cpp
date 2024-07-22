@@ -535,7 +535,8 @@ bool
 TR_J9VMBase::isAotResolvedDirectDispatchGuaranteed(TR::Compilation *comp)
    {
    return comp->getOption(TR_UseSymbolValidationManager)
-      && comp->cg()->guaranteesResolvedDirectDispatchForSVM();
+      && comp->cg()->guaranteesResolvedDirectDispatchForSVM()
+      && !comp->generateSubOptimalCode();
    }
 
 bool
@@ -548,7 +549,8 @@ bool
 TR_J9VMBase::isAotResolvedVirtualDispatchGuaranteed(TR::Compilation *comp)
    {
    return comp->getOption(TR_UseSymbolValidationManager)
-      && comp->cg()->guaranteesResolvedVirtualDispatchForSVM();
+      && comp->cg()->guaranteesResolvedVirtualDispatchForSVM()
+      && !comp->generateSubOptimalCode();
    }
 
 J9Class *
@@ -8939,8 +8941,9 @@ TR_J9SharedCacheVM::isInstanceOf(TR_OpaqueClassBlock * a, TR_OpaqueClassBlock *b
 
    if (comp && comp->getOption(TR_UseSymbolValidationManager))
       {
-      if (isAnInstanceOf != TR_maybe)
-         validated = comp->getSymbolValidationManager()->addClassInstanceOfClassRecord(a, b, objectTypeIsFixed, castTypeIsFixed, (isAnInstanceOf == TR_yes));
+      if (!comp->generateSubOptimalCode() || optimizeForAOT)
+         if (isAnInstanceOf != TR_maybe)
+            validated = comp->getSymbolValidationManager()->addClassInstanceOfClassRecord(a, b, objectTypeIsFixed, castTypeIsFixed, (isAnInstanceOf == TR_yes));
       }
    else
       {
@@ -8970,9 +8973,12 @@ TR_J9SharedCacheVM::getClassFromSignature(const char * sig, int32_t sigLength, T
       {
       if (comp->getOption(TR_UseSymbolValidationManager))
          {
-         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
-         SVM_ASSERT_ALREADY_VALIDATED(svm, method);
-         validated = svm->addClassByNameRecord(j9class, getClassFromMethodBlock(method));
+         if (!comp->generateSubOptimalCode() || isVettedForAOT)
+            {
+            TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+            SVM_ASSERT_ALREADY_VALIDATED(svm, method);
+            validated = svm->addClassByNameRecord(j9class, getClassFromMethodBlock(method));
+            }
          }
       else
          {
@@ -8999,7 +9005,8 @@ TR_J9SharedCacheVM::getSystemClassFromClassName(const char * name, int32_t lengt
 
    if (comp && comp->getOption(TR_UseSymbolValidationManager))
       {
-      validated = comp->getSymbolValidationManager()->addSystemClassByNameRecord(classPointer);
+      if (!comp->generateSubOptimalCode() || isVettedForAOT)
+         validated = comp->getSymbolValidationManager()->addSystemClassByNameRecord(classPointer);
       }
    else
       {

@@ -2641,8 +2641,9 @@ TR_J9SharedCacheServerVM::isInstanceOf(TR_OpaqueClassBlock * a, TR_OpaqueClassBl
 
    if (comp && comp->getOption(TR_UseSymbolValidationManager))
       {
-      if (isAnInstanceOf != TR_maybe)
-         validated = comp->getSymbolValidationManager()->addClassInstanceOfClassRecord(a, b, objectTypeIsFixed, castTypeIsFixed, (isAnInstanceOf == TR_yes));
+      if (!comp->generateSubOptimalCode() || optimizeForAOT)
+         if (isAnInstanceOf != TR_maybe)
+            validated = comp->getSymbolValidationManager()->addClassInstanceOfClassRecord(a, b, objectTypeIsFixed, castTypeIsFixed, (isAnInstanceOf == TR_yes));
       }
    else
       {
@@ -2660,7 +2661,8 @@ TR_J9SharedCacheServerVM::getSystemClassFromClassName(const char * name, int32_t
 
    if (comp && comp->getOption(TR_UseSymbolValidationManager))
       {
-      validated = comp->getSymbolValidationManager()->addSystemClassByNameRecord(classPointer);
+      if (!comp->generateSubOptimalCode() || isVettedForAOT)
+         validated = comp->getSymbolValidationManager()->addSystemClassByNameRecord(classPointer);
       }
    else
       {
@@ -2761,9 +2763,12 @@ TR_J9SharedCacheServerVM::validateClass(TR_OpaqueMethodBlock * method, TR_Opaque
 
    if (comp->getOption(TR_UseSymbolValidationManager))
       {
-      TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
-      SVM_ASSERT_ALREADY_VALIDATED(svm, method);
-      validated = svm->addClassByNameRecord(j9class, getClassFromMethodBlock(method));
+      if (!comp->generateSubOptimalCode() || isVettedForAOT)
+         {
+         TR::SymbolValidationManager *svm = comp->getSymbolValidationManager();
+         SVM_ASSERT_ALREADY_VALIDATED(svm, method);
+         validated = svm->addClassByNameRecord(j9class, getClassFromMethodBlock(method));
+         }
       }
    else
       {

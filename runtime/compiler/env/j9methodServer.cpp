@@ -2261,7 +2261,7 @@ TR_ResolvedRelocatableJ9JITServerMethod::definingClassFromCPFieldRef(TR::Compila
 TR_OpaqueClassBlock *
 TR_ResolvedRelocatableJ9JITServerMethod::getClassFromConstantPool(TR::Compilation *comp, uint32_t cpIndex, bool returnClassForAOT)
    {
-   if (returnClassForAOT || comp->getOption(TR_UseSymbolValidationManager))
+   if (returnClassForAOT || !comp->generateSubOptimalCode())
       {
       TR_OpaqueClassBlock * resolvedClass = TR_ResolvedJ9JITServerMethod::getClassFromConstantPool(comp, cpIndex, returnClassForAOT);
       if (resolvedClass &&
@@ -2346,7 +2346,8 @@ TR_ResolvedRelocatableJ9JITServerMethod::classOfStatic(int32_t cpIndex, bool ret
 
    if (comp && comp->getOption(TR_UseSymbolValidationManager))
       {
-      validated = comp->getSymbolValidationManager()->addStaticClassFromCPRecord(clazz, cp(), cpIndex);
+      if (!comp->generateSubOptimalCode() || returnClassForAOT)
+         validated = comp->getSymbolValidationManager()->addStaticClassFromCPRecord(clazz, cp(), cpIndex);
       }
    else
       {

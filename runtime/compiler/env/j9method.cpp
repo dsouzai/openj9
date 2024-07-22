@@ -1709,7 +1709,8 @@ TR_ResolvedRelocatableJ9Method::classOfStatic(int32_t cpIndex, bool returnClassF
 
    if (comp && comp->getOption(TR_UseSymbolValidationManager))
       {
-      validated = comp->getSymbolValidationManager()->addStaticClassFromCPRecord(clazz, cp(), cpIndex);
+      if (!comp->generateSubOptimalCode() || returnClassForAOT)
+         validated = comp->getSymbolValidationManager()->addStaticClassFromCPRecord(clazz, cp(), cpIndex);
       }
    else
       {
