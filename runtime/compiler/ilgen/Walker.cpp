@@ -3221,15 +3221,13 @@ static char *suffixedName(char *baseName, char typeSuffix, char *buf, int32_t bu
 void
 TR_J9ByteCodeIlGenerator::genInvokeDynamic(int32_t callSiteIndex)
    {
-   if (comp()->compileRelocatableCode())
-      {
-      comp()->failCompilation<J9::AOTHasInvokeHandle>("COMPILATION_AOT_HAS_INVOKEHANDLE 0");
-      }
-
    if (comp()->getOption(TR_FullSpeedDebug) && !isPeekingMethod())
       comp()->failCompilation<J9::FSDHasInvokeHandle>("FSD_HAS_INVOKEHANDLE 0");
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
-
+   if (comp()->compileRelocatableCode() && !comp()->getOption(TR_UseSymbolValidationManager))
+      {
+      comp()->failCompilation<J9::AOTHasInvokeHandle>("COMPILATION_AOT_HAS_INVOKEHANDLE 0");
+      }
    // Call generated when call site table entry is resolved:
    // -----------------------------------------------------
    // call <target method obtained from memberName object>
@@ -3284,6 +3282,10 @@ TR_J9ByteCodeIlGenerator::genInvokeDynamic(int32_t callSiteIndex)
    TR::Node* callNode = genInvokeDirect(targetMethodSymRef);
 
 #else
+   if (comp()->compileRelocatableCode())
+      {
+      comp()->failCompilation<J9::AOTHasInvokeHandle>("COMPILATION_AOT_HAS_INVOKEHANDLE 0");
+      }
 
    TR::SymbolReference *symRef = symRefTab()->findOrCreateDynamicMethodSymbol(_methodSymbol, callSiteIndex);
 
@@ -3317,14 +3319,13 @@ TR_J9ByteCodeIlGenerator::genInvokeDynamic(int32_t callSiteIndex)
 TR::Node *
 TR_J9ByteCodeIlGenerator::genInvokeHandle(int32_t cpIndex)
    {
-   if (comp()->compileRelocatableCode())
-      {
-      comp()->failCompilation<J9::AOTHasInvokeHandle>("COMPILATION_AOT_HAS_INVOKEHANDLE 1");
-      }
-
    if (comp()->getOption(TR_FullSpeedDebug) && !isPeekingMethod())
       comp()->failCompilation<J9::FSDHasInvokeHandle>("FSD_HAS_INVOKEHANDLE 1");
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
+   if (comp()->compileRelocatableCode() && !comp()->getOption(TR_UseSymbolValidationManager))
+      {
+      comp()->failCompilation<J9::AOTHasInvokeHandle>("COMPILATION_AOT_HAS_INVOKEHANDLE 1");
+      }
    // Call generated when methodType table entry is resolved:
    // -----------------------------------------------------
    // call <target method obtained from memberName object>
@@ -3382,6 +3383,10 @@ TR_J9ByteCodeIlGenerator::genInvokeHandle(int32_t cpIndex)
    TR::Node* callNode = genInvokeDirect(targetMethodSymRef);
 
 #else
+   if (comp()->compileRelocatableCode())
+      {
+      comp()->failCompilation<J9::AOTHasInvokeHandle>("COMPILATION_AOT_HAS_INVOKEHANDLE 1");
+      }
 
    TR::SymbolReference * invokeExactSymRef = symRefTab()->findOrCreateHandleMethodSymbol(_methodSymbol, cpIndex);
 
