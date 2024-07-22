@@ -101,8 +101,8 @@ class OMR_EXTENSIBLE Compilation : public OMR::CompilationConnector
          TR_Memory *,
          TR_OptimizationPlan *optimizationPlan,
          TR_RelocationRuntime *reloRuntime,
-         TR::Environment *target = NULL,
-         bool generateSubOptimalCode = false);
+         TR::Environment *target,
+         bool generateSubOptimalCode);
 
    ~Compilation();
 

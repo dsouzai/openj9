@@ -50,7 +50,8 @@ class OMR_EXTENSIBLE Compilation : public J9::CompilationConnector
          TR_Memory *memory,
          TR_OptimizationPlan *optimizationPlan,
          TR_RelocationRuntime *reloRuntime,
-         TR::Environment *target = NULL) :
+         TR::Environment *target = NULL,
+         bool generateSubOptimalCode = false) :
       J9::CompilationConnector(
          compThreadId,
          j9vmThread,
@@ -62,7 +63,8 @@ class OMR_EXTENSIBLE Compilation : public J9::CompilationConnector
          memory,
          optimizationPlan,
          reloRuntime,
-         target)
+         target,
+         generateSubOptimalCode)
       {}
 
    ~Compilation() {}

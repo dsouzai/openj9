@@ -354,7 +354,7 @@ TR::S390J9CallSnippet::emitSnippetBody()
       {
       // Store the method pointer: it is NULL for unresolved
       // This field must be doubleword aligned for 64-bit and word aligned for 32-bit
-      if (methodSymRef->isUnresolved() || (comp->compileRelocatableCode() && !comp->getOption(TR_UseSymbolValidationManager)))
+      if (methodSymRef->isUnresolved() || (comp->compileRelocatableCode() && comp->generateSubOptimalCode()))
          {
          pad_bytes = (((uintptr_t) cursor + (sizeof(uintptr_t) - 1)) / sizeof(uintptr_t) * sizeof(uintptr_t) - (uintptr_t) cursor);
          TR_ASSERT( pad_bytes == 0, "Method Pointer field must be aligned for patching");
