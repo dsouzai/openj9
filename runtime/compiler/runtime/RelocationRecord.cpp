@@ -6848,7 +6848,7 @@ TR_RelocationRecordCallsiteTableEntryAddress::applyRelocation(TR_RelocationRunti
    TR_RelocationRecordCallsiteTableEntryAddressPrivateData *reloPrivateData = &(privateData()->callsiteTableEntryAddr);
    void *callsiteTableEntryAddr = reloPrivateData->_callsiteTableEntryAddress;
 
-   reloTarget->storeAddressSequence((uint8_t *)callsiteTableEntryAddr, reloLocation, reloFlags(reloTarget));
+   //reloTarget->storeAddressSequence((uint8_t *)callsiteTableEntryAddr, reloLocation, reloFlags(reloTarget));
 
    return TR_RelocationErrorCode::relocationOK;
    }
@@ -6859,7 +6859,7 @@ TR_RelocationRecordCallsiteTableEntryAddress::applyRelocation(TR_RelocationRunti
    TR_RelocationRecordCallsiteTableEntryAddressPrivateData *reloPrivateData = &(privateData()->callsiteTableEntryAddr);
    void *callsiteTableEntryAddr = reloPrivateData->_callsiteTableEntryAddress;
 
-   reloTarget->storeAddress((uint8_t *)callsiteTableEntryAddr, reloLocationHigh, reloLocationLow, reloFlags(reloTarget));
+   //reloTarget->storeAddress((uint8_t *)callsiteTableEntryAddr, reloLocationHigh, reloLocationLow, reloFlags(reloTarget));
 
    return TR_RelocationErrorCode::relocationOK;
    }
@@ -6916,7 +6916,7 @@ TR_RelocationRecordMethodTypeTableEntryAddress::applyRelocation(TR_RelocationRun
    TR_RelocationRecordMethodTypeTableEntryAddressPrivateData *reloPrivateData = &(privateData()->methodTypeTableEntryAddr);
    void *methodTypeTableEntryAddr = reloPrivateData->_methodTypeTableEntryAddress;
 
-   reloTarget->storeAddressSequence((uint8_t *)methodTypeTableEntryAddr, reloLocation, reloFlags(reloTarget));
+   //reloTarget->storeAddressSequence((uint8_t *)methodTypeTableEntryAddr, reloLocation, reloFlags(reloTarget));
 
    return TR_RelocationErrorCode::relocationOK;
    }
@@ -6927,7 +6927,7 @@ TR_RelocationRecordMethodTypeTableEntryAddress::applyRelocation(TR_RelocationRun
    TR_RelocationRecordMethodTypeTableEntryAddressPrivateData *reloPrivateData = &(privateData()->methodTypeTableEntryAddr);
    void *methodTypeTableEntryAddr = reloPrivateData->_methodTypeTableEntryAddress;
 
-   reloTarget->storeAddress((uint8_t *)methodTypeTableEntryAddr, reloLocationHigh, reloLocationLow, reloFlags(reloTarget));
+   //reloTarget->storeAddress((uint8_t *)methodTypeTableEntryAddr, reloLocationHigh, reloLocationLow, reloFlags(reloTarget));
 
    return TR_RelocationErrorCode::relocationOK;
    }
