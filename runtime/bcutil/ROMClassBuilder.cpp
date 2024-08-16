@@ -283,7 +283,6 @@ ROMClassBuilder::handleAnonClassName(J9CfrClassFile *classfile, ROMClassCreation
 	 * Performance can be much worse (compared to shared cache turned off).
 	 */
 	if (isLambdaFormClassName(originalStringBytes, originalStringLength, NULL/*deterministicPrefixLength*/)) {
-		context->addFindClassFlags(J9_FINDCLASS_FLAG_DO_NOT_SHARE);
 		context->addFindClassFlags(J9_FINDCLASS_FLAG_LAMBDAFORM);
 	}
 
