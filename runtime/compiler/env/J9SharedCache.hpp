@@ -103,6 +103,9 @@ public:
    virtual void addHint(TR_ResolvedMethod *, TR_SharedCacheHint);
    virtual bool isMostlyFull();
 
+   // TEMP - check if offset is at all in the shared cache
+   bool isOffsetInCache(uintptr_t offset);
+
    static void validateAOTHeader(J9JITConfig *jitConfig, J9VMThread *vmThread, TR::CompilationInfo *compInfo);
 
    /**
@@ -186,22 +189,28 @@ public:
       return rememberClass((J9Class *)classPtr, NULL, false) != TR_SharedCache::INVALID_CLASS_CHAIN_OFFSET;
       }
 
-   virtual uintptr_t rememberClass(TR_OpaqueClassBlock *classPtr,
-                                    const AOTCacheClassChainRecord **classChainRecord = NULL)
+   virtual uintptr_t classChainOffsetIfRemembered(TR_OpaqueClassBlock *classPtr, bool holdingClassTableMutex = false);
+
+   virtual uintptr_t rememberClass(TR_OpaqueClassBlock *classPtr, const AOTCacheClassChainRecord **classChainRecord = NULL)
       {
-      return rememberClass((J9Class *)classPtr, classChainRecord, true);
+      return rememberClass((J9Class *)classPtr, classChainRecord, true, false);
       }
 
    virtual uintptr_t rememberClass(J9Class *clazz, const AOTCacheClassChainRecord **classChainRecord = NULL,
-                                    bool create = true);
+                                    bool create = true, bool holdingClassTableMutex = false);
+
+   uintptr_t rememberClassHoldingClassTableMutex(TR_OpaqueClassBlock *classPtr, bool create = true)
+      {
+      return rememberClass((J9Class *)classPtr, NULL, create, true);
+      }
 
    virtual UDATA rememberDebugCounterName(const char *name);
    virtual const char *getDebugCounterName(UDATA offset);
 
-   virtual bool classMatchesCachedVersion(J9Class *clazz, UDATA *chainData=NULL);
-   virtual bool classMatchesCachedVersion(TR_OpaqueClassBlock *classPtr, UDATA *chainData=NULL)
+   virtual bool classMatchesCachedVersion(J9Class *clazz, UDATA *chainData = NULL, bool holdingClassTableMutex = false);
+   virtual bool classMatchesCachedVersion(TR_OpaqueClassBlock *classPtr, UDATA *chainData = NULL, bool holdingClassTableMutex = false)
       {
-      return classMatchesCachedVersion((J9Class *) classPtr, chainData);
+      return classMatchesCachedVersion((J9Class *) classPtr, chainData, holdingClassTableMutex);
       }
 
    /**
@@ -376,6 +385,14 @@ public:
     */
    virtual const void *storeWellKnownClasses(J9VMThread *vmThread, uintptr_t *classChainOffsets, size_t classChainOffsetsSize, unsigned int includedClasses);
    virtual const void *storeSharedData(J9VMThread *vmThread, const char *key, const J9SharedDataDescriptor *descriptor);
+
+   virtual uintptr_t storeAOTMethodDependencies(J9VMThread *vmThread,
+                                                TR_OpaqueMethodBlock *method,
+                                                TR_OpaqueClassBlock *definingClass,
+                                                uintptr_t *classDependencyChain,
+                                                size_t classDependencyChainSize);
+   virtual const uintptr_t *getDependenciesOfMethod(J9Method *method);
+   virtual void *aotMethodDependenciesFromOffsetInSharedCache(uintptr_t offset);
 
    /**
     * \brief Fill the given buffer with the SCC key for the well-known classes object with the given
@@ -593,7 +610,7 @@ private:
     *
     * \return The cached CCVResult; CCVResult::notYetValidated if result does not exist.
     */
-   const CCVResult getCachedCCVResult(TR_OpaqueClassBlock *clazz);
+   const CCVResult getCachedCCVResult(TR_OpaqueClassBlock *clazz, bool holdingClassTableMutex);
 
    /**
     * \brief Caches the result of a class chain validation
@@ -603,7 +620,7 @@ private:
     *
     * \return The result of the insertion
     */
-   bool cacheCCVResult(TR_OpaqueClassBlock *clazz, CCVResult result);
+   bool cacheCCVResult(TR_OpaqueClassBlock *clazz, CCVResult result, bool holdingClassTableMutex);
 
    uint16_t _initialHintSCount;
    uint16_t _hintsEnabledMask;
@@ -657,7 +674,7 @@ public:
    virtual bool isMostlyFull() override { TR_ASSERT_FATAL(false, "called"); return false;}
 
    virtual uintptr_t rememberClass(J9Class *clazz, const AOTCacheClassChainRecord **classChainRecord = NULL,
-                                   bool create = true) override;
+                                   bool create = true, bool holdingClassTableMutex = false) override;
 
    virtual UDATA rememberDebugCounterName(const char *name) override { TR_ASSERT_FATAL(false, "called"); return 0;}
    virtual const char *getDebugCounterName(UDATA offset) override { TR_ASSERT_FATAL(false, "called"); return NULL;}
@@ -667,7 +684,7 @@ public:
    virtual bool isROMMethodInSharedCache(J9ROMMethod *romMethod, uintptr_t *cacheOffset = NULL) override { TR_ASSERT_FATAL(false, "called"); return false; }
    virtual uintptr_t offsetInSharedCacheFromROMMethod(J9ROMMethod *romMethod) override { TR_ASSERT_FATAL(false, "called"); return TR_SharedCache::INVALID_ROM_METHOD_OFFSET; }
 
-   virtual bool classMatchesCachedVersion(J9Class *clazz, UDATA *chainData=NULL) override { TR_ASSERT_FATAL(false, "called"); return false;}
+   virtual bool classMatchesCachedVersion(J9Class *clazz, UDATA *chainData = NULL, bool holdingClassTableMutex = false) override { TR_ASSERT_FATAL(false, "called"); return false;}
 
    virtual void *lookupClassLoaderAssociatedWithClassChain(void *chainData) override
       { TR_ASSERT_FATAL(false, "called"); return NULL; }
@@ -687,6 +704,12 @@ public:
    void setStream(JITServer::ServerStream *stream) { _stream = stream; }
    void setCompInfoPT(TR::CompilationInfoPerThread *compInfoPT) { _compInfoPT = compInfoPT; }
    virtual const void *storeSharedData(J9VMThread *vmThread, const char *key, const J9SharedDataDescriptor *descriptor) override;
+   virtual uintptr_t storeAOTMethodDependencies(J9VMThread *vmThread,
+                                                TR_OpaqueMethodBlock *method,
+                                                TR_OpaqueClassBlock *definingClass,
+                                                uintptr_t *classDependencyChain,
+                                                size_t classDependencyChainSize) override;
+   virtual void *aotMethodDependenciesFromOffsetInSharedCache(uintptr_t offset) override { TR_ASSERT_FATAL(false, "called"); return NULL;};
 
 private:
 
@@ -736,7 +759,7 @@ public:
    virtual void *lookupClassLoaderAssociatedWithClassChain(void *chainData) override;
    virtual J9ROMClass *romClassFromOffsetInSharedCache(uintptr_t offset) override;
    virtual J9ROMMethod *romMethodFromOffsetInSharedCache(uintptr_t offset) override;
-   virtual bool classMatchesCachedVersion(J9Class *clazz, UDATA *chainData=NULL) override;
+   virtual bool classMatchesCachedVersion(J9Class *clazz, UDATA *chainData = NULL, bool holdingClassTableMutex = false) override;
    virtual TR_OpaqueClassBlock *lookupClassFromChainAndLoader(uintptr_t *chainData, void *classLoader,
                                                               TR::Compilation *comp) override;
 
@@ -762,7 +785,7 @@ public:
       { TR_ASSERT_FATAL(false, "called"); return TR_SharedCache::INVALID_CLASS_CHAIN_OFFSET; }
 
    virtual uintptr_t rememberClass(J9Class *clazz, const AOTCacheClassChainRecord **classChainRecord = NULL,
-                                   bool create = true) override
+                                   bool create = true, bool holdingClassTableMutex = false) override
       { TR_ASSERT_FATAL(false, "called"); return TR_SharedCache::INVALID_CLASS_CHAIN_OFFSET; }
 
    virtual UDATA rememberDebugCounterName(const char *name) override { TR_ASSERT_FATAL(false, "called"); return 0; }

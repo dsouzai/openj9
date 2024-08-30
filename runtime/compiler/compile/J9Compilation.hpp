@@ -432,6 +432,10 @@ class OMR_EXTENSIBLE Compilation : public OMR::CompilationConnector
    void setOSRProhibitedOverRangeOfTrees() { _osrProhibitedOverRangeOfTrees = true; }
    bool isOSRProhibitedOverRangeOfTrees() { return _osrProhibitedOverRangeOfTrees; }
 
+   void addAOTMethodDependency(uintptr_t offset, bool classIsInitialized, const char *loc);
+   bool isTrackingAOTMethodDependencies() const { return _trackingAOTMethodDependencies; }
+   void populateAOTMethodDependencies(Vector<uintptr_t> &chainBuffer);
+
 private:
    enum CachedClassPointerId
       {
@@ -560,6 +564,9 @@ private:
    // Set of AOT cache thunk records that this compilation depends on; always empty at the client
    UnorderedSet<const AOTCacheThunkRecord *> _thunkRecords;
 #endif /* defined(J9VM_OPT_JITSERVER) */
+
+   UnorderedMap<uintptr_t, bool> _aotMethodDependencies;
+   bool _trackingAOTMethodDependencies;
 
    TR::SymbolValidationManager *_symbolValidationManager;
    bool _osrProhibitedOverRangeOfTrees;

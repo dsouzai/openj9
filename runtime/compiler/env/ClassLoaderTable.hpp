@@ -23,7 +23,10 @@
 #ifndef CLASSLOADERTABLE_INCL
 #define CLASSLOADERTABLE_INCL
 
+#include "env/J9KnownObjectTable.hpp"
 #include "env/TRMemory.hpp"
+#include "env/PersistentCollections.hpp"
+#include "env/jittypes.h"
 
 
 #define CLASSLOADERTABLE_SIZE 2053
@@ -66,6 +69,83 @@ private:
 #if defined(J9VM_OPT_JITSERVER)
    TR_ClassLoaderInfo *_nameTable[CLASSLOADERTABLE_SIZE];
 #endif /* defined(J9VM_OPT_JITSERVER) */
+   };
+
+struct MethodEntry
+   {
+   uintptr_t _dependencyCount;
+   const uintptr_t *_dependencyChain;
+   };
+
+
+struct OffsetEntry
+   {
+   // OffsetEntry(PersistentUnorderedSet<J9Class *>loadedClasses, PersistentUnorderedSet<std::pair<J9Method *const, MethodEntry> *> waitingMethods) :
+   //    _loadedClasses(loadedClasses), _waitingMethods(waitingMethods) {}
+
+
+   // TODO: could have multi-map table?
+   PersistentUnorderedSet<J9Class *> _loadedClasses;
+   PersistentUnorderedSet<std::pair<J9Method *const, MethodEntry> *> _waitingLoadMethods;
+   PersistentUnorderedSet<std::pair<J9Method *const, MethodEntry> *> _waitingInitMethods;
+   };
+
+enum DependencyTrackingStatus
+   {
+   TrackingSuccessful,
+   // CouldNotReduceCount,
+   MethodCouldNotBeQueued,
+   MethodWasntTracked,
+   NotTrackingPreviousMethods
+   };
+
+// TODO: move to own file
+class TR_AOTDependencyTable
+   {
+public:
+   TR_PERSISTENT_ALLOC(TR_Memory::PersistentCHTable)
+   TR_AOTDependencyTable(TR_PersistentMemory *persistentMemory);
+
+   void setSharedCache(TR_J9SharedCache *sharedCache) { _sharedCache = sharedCache; }
+
+   void trackStoredMethod(J9VMThread *vmThread, J9Method *method, const uintptr_t *dependencyChain, bool &dependenciesSatisfied);
+
+   void onClassLoad(J9VMThread *vmThread, TR_J9VMBase *vm, TR_OpaqueClassBlock *ramClass, bool isClassLoad, bool isClassInitialization);
+   void invalidateClass(TR_OpaqueClassBlock *ramClass);
+   void stopTracking(J9Method *method);
+   TR_OpaqueClassBlock *findClassFromOffset(uintptr_t offset);
+
+   // TODO: probably remove this entirely!
+   bool isTableActive() { return _sharedCache != NULL; }
+   bool isMethodTracked(J9Method *method, uintptr_t &remainingDependencies);
+   void printTrackingStatus(J9Method *method);
+
+   DependencyTrackingStatus wasMethodPreviouslyTracked(J9Method *method);
+
+   void dumpTableDetails();
+
+   int32_t getMethodCountToSet() const { return _methodCountToSet; }
+
+private:
+   bool queueAOTLoad(J9VMThread *vmThread, J9Method *method, uintptr_t offsetThatCausedQueue);
+   void registerOffset(J9VMThread *vmThread, J9Class *ramClass, uintptr_t offset, bool isClassLoad, bool isClassInitialization, std::vector<J9Method *> &methodsToQueue);
+   void unregisterOffset(J9Class *ramClass, uintptr_t offset);
+
+   bool checkInitialDependencySatisfaction(J9Method *method, const uintptr_t *dependencyChain, uintptr_t totalDependencies,
+                                           size_t &dependencyIndex, uintptr_t &numberRemainingDependencies, std::pair<J9Method *const, MethodEntry> *&methodEntry);
+
+   TR::Monitor *const _tableMonitor;
+
+   TR_PersistentMemory *const _persistentMemory;
+   TR_J9SharedCache *_sharedCache;
+
+   int32_t _methodCountToSet;
+
+   PersistentUnorderedMap<uintptr_t, OffsetEntry> _offsetMap; // TODO: must fill in rght types
+   PersistentUnorderedMap<J9Method *, MethodEntry> _methodMap;
+
+   // TODO: temporary debug thing.
+   // PersistentUnorderedMap<J9Method *, DependencyTrackingStatus> _previouslyTrackedMethods;
    };
 
 #endif

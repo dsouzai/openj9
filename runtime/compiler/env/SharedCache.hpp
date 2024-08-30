@@ -73,6 +73,8 @@ public:
 
    virtual uintptr_t getClassChainOffsetIdentifyingLoader(TR_OpaqueClassBlock *clazz, uintptr_t **classChain = NULL) { return 0; }
 
+   virtual uintptr_t classChainOffsetIfRemembered(TR_OpaqueClassBlock *classPtr) { return INVALID_CLASS_CHAIN_OFFSET; }
+
    void setPersistentClassLoaderTable(TR_PersistentClassLoaderTable *table) { _persistentClassLoaderTable = table; }
    TR_PersistentClassLoaderTable *persistentClassLoaderTable() { return _persistentClassLoaderTable; }
 
@@ -84,6 +86,7 @@ public:
    // and related methods.
    static const uintptr_t INVALID_ROM_METHOD_OFFSET = 1;
 
+   static const uintptr_t INVALID_ROM_CLASS_OFFSET = 1;
 private:
 
    TR_PersistentClassLoaderTable *_persistentClassLoaderTable;

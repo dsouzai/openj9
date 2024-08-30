@@ -999,6 +999,9 @@ TR_RelocationRuntime::generateFeatureFlags(TR_FrontEnd *fe)
       featureFlags |= TR_FeatureFlag_CHTableEnabled;
       }
 
+   // TODO: guard by option
+   featureFlags |= TR_FeatureFlag_UsesDependencyTracking;
+
    return featureFlags;
    }
 

@@ -20,6 +20,8 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0 OR GPL-2.0-only WITH OpenJDK-assembly-exception-1.0
  *******************************************************************************/
 
+#include "control/OMROptions.hpp"
+#include "env/FrontEnd.hpp"
 #if defined(J9ZOS390)
 #pragma csect(CODE,"TRJ9CompBase#C")
 #pragma csect(STATIC,"TRJ9CompBase#S")
@@ -205,6 +207,8 @@ J9::Compilation::Compilation(int32_t id,
    _serializationRecords(decltype(_serializationRecords)::allocator_type(heapMemoryRegion)),
    _thunkRecords(decltype(_thunkRecords)::allocator_type(heapMemoryRegion)),
 #endif /* defined(J9VM_OPT_JITSERVER) */
+   _aotMethodDependencies(decltype(_aotMethodDependencies)::allocator_type(heapMemoryRegion)),
+   _trackingAOTMethodDependencies(true),
    _osrProhibitedOverRangeOfTrees(false),
    _wasFearPointAnalysisDone(false)
    {
@@ -225,6 +229,9 @@ J9::Compilation::Compilation(int32_t id,
    for (int i = 0; i < CACHED_CLASS_POINTER_COUNT; i++)
       _cachedClassPointers[i] = NULL;
 
+   // TODO: replace with real option
+   static bool shouldTrackDependencies = feGetEnv("TR_ShouldNotTrackAOTDependencies") == NULL;
+   _trackingAOTMethodDependencies = shouldTrackDependencies;
 
    // Add known object index to parm 0 so that other optmizations can be unlocked.
    // It is safe to do so because method and method symbols of a archetype specimen
@@ -1586,6 +1593,72 @@ J9::Compilation::canAddOSRAssumptions()
       && self()->isOSRTransitionTarget(TR::postExecutionOSR)
       && self()->getOSRMode() == TR::voluntaryOSR
       && !self()->wasFearPointAnalysisDone();
+   }
+
+// Document: offset must be to class or class chain (can currently tell which by low bit)
+void
+J9::Compilation::addAOTMethodDependency(uintptr_t offset, bool ensureClassIsInitialized, const char *loc)
+   {
+   TR_ASSERT_FATAL(self()->compileRelocatableCode(), "Must be generating AOT code");
+
+   if (!_trackingAOTMethodDependencies)
+      {
+      if (getOptions()->getVerboseOption(TR_VerboseJITServerConns))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "addAOTMethodDependency: not tracking dependencies %lu %d %s %s", offset, ensureClassIsInitialized, loc, signature());
+      return;
+      }
+   // TODO: shouldn't have to do this manually here
+   TR_ASSERT_FATAL((offset & 1) == 1, "Offset must be from the end!");
+   // TODO: unsure if invalid offset should be an issue
+   if ((offset == TR_J9SharedCache::INVALID_CLASS_CHAIN_OFFSET) || (offset == TR_J9SharedCache::INVALID_ROM_CLASS_OFFSET))
+      {
+      if (getOptions()->getVerboseOption(TR_VerboseJITServerConns))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "addAOTMethodDependency: offset invalid %lu %d %s %s", offset, ensureClassIsInitialized, loc, signature());
+      return;
+      }
+
+   TR_ASSERT_FATAL(fej9()->sharedCache()->isOffsetInSharedCache(offset), "Offset %lu %d must be in the SCC", offset, ensureClassIsInitialized);
+   auto it = _aotMethodDependencies.find(offset);
+   if (it != _aotMethodDependencies.end())
+      it->second = it->second || ensureClassIsInitialized;
+   else
+      _aotMethodDependencies.insert(it, {offset, ensureClassIsInitialized});
+
+   if (getOptions()->getVerboseOption(TR_VerboseJITServerConns))
+      TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "addAOTMethodDependency: valid offset added %lu %d %s %s", offset, ensureClassIsInitialized, loc, signature());
+
+   // if ((offset == TR_J9SharedCache::INVALID_CLASS_CHAIN_OFFSET) || (offset == TR_J9SharedCache::INVALID_ROM_CLASS_OFFSET))
+   //    {
+   //    // TODO: associate this to a particular option
+   //    TR_VerboseLog::writeLineLocked(TR_Vlog_FAILURE, "Giving up tracking offsets for method %s", signature());
+   //    _trackingAOTMethodDependencies = false;
+   //    }
+   // _aotMethodDependencies.insert(offset);
+   }
+
+void
+J9::Compilation::populateAOTMethodDependencies(Vector<uintptr_t> &chainBuffer)
+   {
+   // memorizing wkc offsets should be unnecessary now
+   // if (self()->getOption(TR_UseSymbolValidationManager))
+   //    {
+   //    TR::SymbolValidationManager *svm = self()->getSymbolValidationManager();
+   //    // TODO: below doesn't work on jitserver
+   //    auto offsets = (uintptr_t *)svm->wellKnownClassChainOffsets();
+   //    auto offsetLength = offsets[0];
+   //    for (size_t i = 1; i <= offsetLength; ++i)
+   //       _aotMethodDependencies.insert(offsets[i]);
+   //    }
+
+   // TODO: document
+   chainBuffer.reserve(_aotMethodDependencies.size() + 1);
+   chainBuffer.push_back(_aotMethodDependencies.size());
+   // TODO: reference?
+   for (auto &entry : _aotMethodDependencies)
+      {
+      uintptr_t encodedOffset = entry.second ? entry.first : (entry.first & ~1);
+      chainBuffer.push_back(encodedOffset);
+      }
    }
 
 #if defined(J9VM_OPT_JITSERVER)

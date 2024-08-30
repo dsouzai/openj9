@@ -21,12 +21,27 @@
  *******************************************************************************/
 
 #include "AtomicSupport.hpp"
+#include "control/CompilationRuntime.hpp"
 #include "control/CompilationThread.hpp"
+#include "control/OMROptions.hpp"
 #include "env/ClassLoaderTable.hpp"
+#include "env/FrontEnd.hpp"
+#include "env/J9PersistentInfo.hpp"
 #include "env/J9SharedCache.hpp"
+#include "env/PersistentCollections.hpp"
+#include "env/VMAccessCriticalSection.hpp"
 #include "env/VerboseLog.hpp"
+#include "env/jittypes.h"
+#include "il/OMRDataTypes.hpp"
+#include "infra/Assert.hpp"
 #include "infra/MonitorTable.hpp"
+#include <cstdint>
+#include <utility>
 
+#include "ilgen/IlGeneratorMethodDetails.hpp"
+#include "control/OptimizationPlan.hpp"
+#include "control/CompilationStrategy.hpp"
+#include "control/CompilationController.hpp"
 
 enum TableKind { Loader, Chain, Name };
 
@@ -217,11 +232,12 @@ TR_PersistentClassLoaderTable::associateClassLoaderWithClass(J9VMThread *vmThrea
    void *chain = NULL;
    if (_sharedCache)
       {
-      uintptr_t chainOffset = _sharedCache->rememberClass(clazz);
+      uintptr_t chainOffset = _sharedCache->rememberClassHoldingClassTableMutex(clazz);
       if (TR_SharedCache::INVALID_CLASS_CHAIN_OFFSET == chainOffset)
          {
 #if defined(J9VM_OPT_JITSERVER)
-         if (useAOTCache && TR::Options::getVerboseOption(TR_VerboseJITServer))
+         // TODO: fix log line category
+         if ((useAOTCache && TR::Options::getVerboseOption(TR_VerboseJITServer)) || TR::Options::getVerboseOption(TR_VerboseHookDetailsClassLoading))
             TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
                "ERROR: Failed to get class chain for %.*s loaded by %p",
                nameLength, (const char *)name, loader
@@ -256,7 +272,8 @@ TR_PersistentClassLoaderTable::associateClassLoaderWithClass(J9VMThread *vmThrea
       // Probably not critical if multiple class loaders aren't routinely loading the exact same class.
       //TODO: Prevent this class loader from associating with a different class
 #if defined(J9VM_OPT_JITSERVER)
-      if (useAOTCache && TR::Options::getVerboseOption(TR_VerboseJITServer))
+      // TODO: fix log line category
+      if ((useAOTCache && TR::Options::getVerboseOption(TR_VerboseJITServer)) || TR::Options::getVerboseOption(TR_VerboseHookDetailsClassLoading))
          TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
             "ERROR: Failed to associate class %.*s chain %p with loader %p",
             nameLength, (const char *)name, chain, loader
@@ -278,7 +295,7 @@ TR_PersistentClassLoaderTable::associateClassLoaderWithClass(J9VMThread *vmThrea
          // We have added this loader to _classLoaderTable, which has a nice side
          // benefit that we won't keep trying to add it, so leave it there.
 #if defined(J9VM_OPT_JITSERVER)
-         if (useAOTCache && TR::Options::getVerboseOption(TR_VerboseJITServer))
+         if ((useAOTCache && TR::Options::getVerboseOption(TR_VerboseJITServer)) || TR::Options::getVerboseOption(TR_VerboseHookDetailsClassLoading))
             TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
                "ERROR: Class %.*s chain %p already associated with loader %p != %p",
                nameLength, (const char *)name, chain, otherInfo->_loader, loader
@@ -462,4 +479,552 @@ TR_PersistentClassLoaderTable::removeClassLoader(J9VMThread *vmThread, void *loa
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
    _persistentMemory->freePersistentMemory(info);
+   }
+
+TR_AOTDependencyTable::TR_AOTDependencyTable(TR_PersistentMemory *persistentMemory) :
+   _persistentMemory(persistentMemory), _sharedCache(NULL),
+   _tableMonitor(TR::Monitor::create("JIT-AOTDependencyTableMonitor")),
+   _offsetMap(decltype(_offsetMap)::allocator_type(TR::Compiler->persistentAllocator())),
+   _methodMap(decltype(_methodMap)::allocator_type(TR::Compiler->persistentAllocator()))
+   // _classMap(decltype(_classMap)::allocator_type(TR::Compiler->persistentAllocator()))
+   // _previouslyTrackedMethods(decltype(_previouslyTrackedMethods)::allocator_type(TR::Compiler->persistentAllocator()))
+   {
+   static const char *methodCountString = feGetEnv("TR_DependencyTableMethodCountToSet");
+   static int32_t count = methodCountString ? atoi(methodCountString) : 0;
+   _methodCountToSet = count;
+   }
+
+void
+TR_AOTDependencyTable::trackStoredMethod(J9VMThread *vmThread, J9Method *method, const uintptr_t *dependencyChain, bool &dependenciesSatisfied)
+   {
+   if (!_sharedCache)
+      return;
+
+   uintptr_t totalDependencies = *dependencyChain;
+
+   // TODO: verbose option
+   J9UTF8 *className = J9ROMCLASS_CLASSNAME(J9_CLASS_FROM_METHOD(method)->romClass);
+   J9UTF8 *name      = J9ROMMETHOD_NAME(J9_ROM_METHOD_FROM_RAM_METHOD(method));
+   J9UTF8 *signature = J9ROMMETHOD_SIGNATURE(J9_ROM_METHOD_FROM_RAM_METHOD(method));
+
+   OMR::CriticalSection cs(_tableMonitor);
+
+
+   // TODO: below is just some sanity checking
+   // if (_methodMap.find(method) != _methodMap.end())
+   //    {
+   //    if (TR::Options::getVerboseOption(TR_VerboseJITServerConns))
+   //       TR_VerboseLog::writeLineLocked(TR_Vlog_FAILURE, "Existing entry for method %p", method);
+   //    }
+
+   // TR_ASSERT_FATAL(methodEntry == &*_methodMap.find(method), "Must be equal! %p %p", methodEntry, &*_methodMap.find(method));
+
+   uintptr_t numberRemainingDependencies = totalDependencies;
+   auto m_it = _methodMap.insert({method, {0, dependencyChain}});
+   auto methodEntry = &(*m_it.first);
+
+   // TODO: sanity checking here!
+   for (size_t i = 1; i <= totalDependencies; ++i)
+      {
+      uintptr_t encodedOffset = dependencyChain[i];
+      bool waitingForInit = (encodedOffset & 1) == 1;
+      uintptr_t offset = encodedOffset | 1;
+      // TODO: remove the J9SharedCache method below, or at least correct it - I'm pretty sure, now, that the
+      // underlying method that takes in a cache descriptor only looks at the top layer!
+      // TR_ASSERT_FATAL(_sharedCache->isOffsetInCache(offset), "Offset %lu must be in the SCC!", offset);
+      auto it = _offsetMap.find(offset);
+      if (it == _offsetMap.end())
+         {
+         PersistentUnorderedSet<std::pair<J9Method *const, MethodEntry> *> waitingLoadMethods(PersistentUnorderedSet<std::pair<J9Method *const, MethodEntry> *>::allocator_type(TR::Compiler->persistentAllocator()));
+         PersistentUnorderedSet<std::pair<J9Method *const, MethodEntry> *> waitingInitMethods(PersistentUnorderedSet<std::pair<J9Method *const, MethodEntry> *>::allocator_type(TR::Compiler->persistentAllocator()));
+         PersistentUnorderedSet<J9Class *> loadedClasses(PersistentUnorderedSet<J9Class *>::allocator_type(TR::Compiler->persistentAllocator()));
+         it = _offsetMap.insert({offset, {loadedClasses, waitingLoadMethods, waitingInitMethods}}).first;
+         }
+      auto &offsetEntry = it->second;
+      if (waitingForInit)
+         offsetEntry._waitingInitMethods.insert(methodEntry);
+      else
+         offsetEntry._waitingLoadMethods.insert(methodEntry);
+
+      // TODO: assert is still non-neg.
+      // TODO: kind of inelegant, prioritizes the first loaded class
+      if (offsetEntry._loadedClasses.begin() != offsetEntry._loadedClasses.end())
+         {
+         auto clazz = *offsetEntry._loadedClasses.begin();
+         bool isDepUnsatisfied = waitingForInit && ((clazz->initializeStatus & J9ClassInitStatusMask) != J9ClassInitSucceeded);
+         if (!isDepUnsatisfied)
+            {
+            if (TR::Options::getVerboseOption(TR_VerboseJITServerConns))
+               TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Adding tracking entry %lu %d %p %p satisfied", offset, waitingForInit, method, methodEntry);
+            numberRemainingDependencies -= 1;
+            }
+         else
+            {
+            if (TR::Options::getVerboseOption(TR_VerboseJITServerConns))
+               TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Adding tracking entry %lu %d %p %p no init %lu %lu", offset, waitingForInit, method, methodEntry, clazz->initializeStatus, clazz->initializeStatus & J9ClassInitStatusMask);
+            }
+         }
+      else
+         {
+         if (TR::Options::getVerboseOption(TR_VerboseJITServerConns))
+            TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Adding tracking entry %lu %d %p %p no loads", offset, waitingForInit, method, methodEntry);
+         }
+      }
+
+   // TODO: temporary sanity check
+   // for (size_t i = 1; i <= totalDependencies; ++i)
+   //    {
+   //    auto thing = _offsetMap.find(dependencyChain[i]);
+   //    auto foo = thing->second._waitingMethods.find(methodEntry);
+   //    TR_ASSERT_FATAL(foo != thing->second._waitingMethods.end(), "Must be tracked!");
+   //    }
+
+   if (numberRemainingDependencies == 0)
+      {
+      stopTracking(method);
+      dependenciesSatisfied = true;
+      if (TR::Options::getVerboseOption(TR_VerboseJITServerConns))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Method dependencies immediately satisfied. Scheduling for early AOT load %lu: %p %.*s.%.*s%.*s",
+                                        totalDependencies,
+                                        method,
+                                        J9UTF8_LENGTH(className), J9UTF8_DATA(className),
+                                        J9UTF8_LENGTH(name), J9UTF8_DATA(name),
+                                        J9UTF8_LENGTH(signature), J9UTF8_DATA(signature));
+      // _previouslyTrackedMethods.insert({method, TrackingSuccessful});
+      }
+   else
+      {
+      if (TR::Options::getVerboseOption(TR_VerboseJITServerConns))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Tracking method in local SCC with %lu %lu: %p %.*s.%.*s%.*s",
+                                        numberRemainingDependencies,
+                                        totalDependencies,
+                                        method,
+                                        J9UTF8_LENGTH(className), J9UTF8_DATA(className),
+                                        J9UTF8_LENGTH(name), J9UTF8_DATA(name),
+                                        J9UTF8_LENGTH(signature), J9UTF8_DATA(signature));
+      methodEntry->second._dependencyCount = numberRemainingDependencies;
+      }
+   }
+
+// TODO: rename this
+void
+TR_AOTDependencyTable::onClassLoad(J9VMThread *vmThread, TR_J9VMBase *vm, TR_OpaqueClassBlock *clazz, bool isClassLoad, bool isClassInitialization)
+   {
+   // TODO: convert to nonfatal
+   TR_ASSERT_FATAL(TR::MonitorTable::get()->getClassTableMutex()->owned_by_self(), "Must hold classTableMutex");
+   if (!_sharedCache)
+      return;
+
+   auto ramClass = (J9Class *)clazz;
+
+   // uintptr_t classOffset = TR_J9SharedCache::INVALID_ROM_CLASS_OFFSET;
+   // if (!_sharedCache->isClassInSharedCache(ramClass, &classOffset))
+   //    return;
+   uintptr_t chainOffset = _sharedCache->classChainOffsetIfRemembered(clazz, true);
+   if (chainOffset == TR_J9SharedCache::INVALID_CLASS_CHAIN_OFFSET)
+      return;
+
+   if (TR::Options::getVerboseOption(TR_VerboseJITServerConns))
+      TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Tracking class: %p %lu %d", ramClass, chainOffset, isClassInitialization);
+
+
+   std::vector<J9Method *> methodsToQueue;
+   registerOffset(vmThread, ramClass, chainOffset, isClassLoad, isClassInitialization, methodsToQueue);
+   for (auto entry : methodsToQueue)
+      queueAOTLoad(vmThread, entry, chainOffset);
+   }
+
+void
+TR_AOTDependencyTable::registerOffset(J9VMThread *vmThread, J9Class *ramClass, uintptr_t offset, bool isClassLoad, bool isClassInitialization, std::vector<J9Method *> &methodsToQueue)
+   {
+   OMR::CriticalSection cs(_tableMonitor);
+
+   // TODO: could be try_emplace in c++17
+   auto it = _offsetMap.find(offset);
+   if (it == _offsetMap.end())
+      {
+      PersistentUnorderedSet<std::pair<J9Method *const, MethodEntry> *> waitingLoadMethods(PersistentUnorderedSet<std::pair<J9Method *const, MethodEntry> *>::allocator_type(TR::Compiler->persistentAllocator()));
+      PersistentUnorderedSet<std::pair<J9Method *const, MethodEntry> *> waitingInitMethods(PersistentUnorderedSet<std::pair<J9Method *const, MethodEntry> *>::allocator_type(TR::Compiler->persistentAllocator()));
+      PersistentUnorderedSet<J9Class *> loadedClasses(PersistentUnorderedSet<J9Class *>::allocator_type(TR::Compiler->persistentAllocator()));
+      it = _offsetMap.insert({offset, {loadedClasses, waitingLoadMethods, waitingInitMethods}}).first;
+      }
+   // TODO: duplication with tracking above! (registerOffset should just take an initial loaded count and return a pointer to the resulting entry)
+   // auto it = _offsetMap.find(offset);
+   // if (it == _offsetMap.end())
+   //    {
+   //    // TODO probably incorrectly allocated
+   //    PersistentUnorderedSet<std::pair<J9Method *const, MethodEntry> *> waitingMethods(PersistentUnorderedSet<std::pair<J9Method *const, MethodEntry> *>::allocator_type(TR::Compiler->persistentAllocator()));
+   //    PersistentUnorderedSet<J9Class *> loadedClasses(PersistentUnorderedSet<J9Class *>::allocator_type(TR::Compiler->persistentAllocator()));
+   //    it = _offsetMap.insert(it, {offset, {loadedClasses, waitingMethods}});
+   //    }
+   auto &offsetEntry = it->second;
+
+   // TODO: this is really, really, hack-y. probably don't need this level of
+   // precision. also, need to confirm that classes currently being initialized
+   // won't have initialization status 1, so I can remove the entry != ramClass
+   // below.
+   size_t numExistingInit = 0;
+   bool anyPreviousLoads = offsetEntry._loadedClasses.size() > 0;
+   for (auto &entry : offsetEntry._loadedClasses)
+      {
+      if (((entry->initializeStatus & J9ClassInitStatusMask) == J9ClassInitSucceeded) && (entry != ramClass))
+         ++numExistingInit;
+      }
+
+   if (TR::Options::getVerboseOption(TR_VerboseJITServerConns))
+      {
+      bool ramClassIsItselfInitialized = (ramClass->initializeStatus & J9ClassInitStatusMask) == J9ClassInitSucceeded;
+      TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "About to track %p %lu %d %d %d %d", ramClass, numExistingInit, anyPreviousLoads, ramClassIsItselfInitialized, isClassLoad, isClassInitialization);
+      }
+
+   offsetEntry._loadedClasses.insert(ramClass);
+
+   if (isClassLoad && !anyPreviousLoads)
+      {
+      for (auto entry : offsetEntry._waitingLoadMethods)
+         {
+         uintptr_t existingCount = entry->second._dependencyCount;
+         if (existingCount == 1)
+            methodsToQueue.push_back(entry->first);
+         else
+            --entry->second._dependencyCount;
+         }
+      }
+   if (isClassInitialization && (numExistingInit == 0))
+      {
+      // TODO: duplication with above
+      for (auto entry : offsetEntry._waitingInitMethods)
+         {
+         uintptr_t existingCount = entry->second._dependencyCount;
+         if (existingCount == 1)
+            methodsToQueue.push_back(entry->first);
+         else
+            --entry->second._dependencyCount;
+         }
+      }
+   for (auto entry : methodsToQueue)
+      stopTracking(entry);
+   }
+
+void
+TR_AOTDependencyTable::invalidateClass(TR_OpaqueClassBlock *clazz)
+   {
+   if (!_sharedCache)
+      return;
+
+   // TODO: convert to nonfatal
+   TR_ASSERT_FATAL(TR::MonitorTable::get()->getClassTableMutex()->owned_by_self(), "Must hold classTableMutex");
+
+   uintptr_t chainOffset = _sharedCache->classChainOffsetIfRemembered(clazz, true);
+
+   if (chainOffset != TR_J9SharedCache::INVALID_CLASS_CHAIN_OFFSET)
+      {
+      auto ramClass = (J9Class *)clazz;
+      unregisterOffset(ramClass, chainOffset);
+
+      if (TR::Options::getVerboseOption(TR_VerboseJITServerConns))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Invalidated dependency class %p", ramClass);
+      }
+   }
+
+void
+TR_AOTDependencyTable::unregisterOffset(J9Class *ramClass, uintptr_t offset)
+   {
+   OMR::CriticalSection cs(_tableMonitor);
+
+   auto it = _offsetMap.find(offset);
+   if (it == _offsetMap.end())
+      return;
+
+   size_t numErased = it->second._loadedClasses.erase(ramClass);
+   if ((numErased == 1) && (it->second._loadedClasses.size() == 0))
+      {
+      for (auto entry: it->second._waitingInitMethods)
+         ++entry->second._dependencyCount;
+      for (auto entry: it->second._waitingLoadMethods)
+         ++entry->second._dependencyCount;
+      }
+   }
+
+void
+TR_AOTDependencyTable::stopTracking(J9Method *method)
+   {
+   if (!_sharedCache)
+      return;
+
+   auto m_it = _methodMap.find(method);
+   if (m_it == _methodMap.end())
+      return;
+
+   auto methodEntry = &*m_it;
+   auto dependencyChain = m_it->second._dependencyChain;
+   auto dependencyChainLength = *dependencyChain;
+
+   for (size_t i = 1; i <= dependencyChainLength; ++i)
+      {
+      uintptr_t offset = dependencyChain[i] | 1;
+      bool waitingForInit = (dependencyChain[i] & 1) == 1;
+      auto m_it = _offsetMap.find(offset);
+      TR_ASSERT_FATAL(m_it != _offsetMap.end(), "Offset of method %p cannot be untracked!", method);
+      if (waitingForInit)
+         m_it->second._waitingInitMethods.erase(methodEntry);
+      else
+         m_it->second._waitingLoadMethods.erase(methodEntry);
+      }
+
+   _methodMap.erase(m_it);
+   }
+
+// TODO: revisit this
+// bool
+// TR_AOTDependencyTable::queueAOTLoad(J9VMThread *vmThread, J9Method *method, uintptr_t offsetThatCausedQueue)
+//    {
+//    bool queued = false;
+//    TR::CompilationInfo *compInfo = TR::CompilationInfo::get();
+//    if (!compInfo->isCompiled(method))
+//       {
+//       TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Attempting to queue method %p by %lu", method, offsetThatCausedQueue);
+//       TR_MethodEvent event;
+//       // TODO: custom event?
+//       event._eventType = TR_MethodEvent::InterpreterCounterTripped;
+//       event._j9method = method;
+//       event._oldStartPC = 0;
+//       event._vmThread = vmThread;
+//       event._classNeedingThunk = 0;
+//
+//       // TODO: really should think about what is necessary here
+//       bool newPlanCreated;
+//       TR_OptimizationPlan *plan = TR::CompilationController::getCompilationStrategy()->processEvent(&event, &newPlanCreated);
+//       if (plan)
+//          {
+//             {
+//             TR::IlGeneratorMethodDetails details(method);
+//
+//             compInfo->compileMethod(vmThread, details, NULL, TR_maybe, NULL, &queued, plan);
+//             // compInfo->compileMethod(vmThread, details, NULL, CP_ASYNC_BELOW_MAX, true, plan, &queued, TR_yes);
+//             }
+//          if (!queued && newPlanCreated)
+//             TR_OptimizationPlan::freeOptimizationPlan(plan);
+//          if (!queued)
+//             TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Method %p by %lu could not be queued", method, offsetThatCausedQueue);
+//          }
+//       else
+//          {
+//          TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Method %p by %lu did not have a plan created");
+//          }
+//       }
+//    return queued;
+//    }
+
+bool
+TR_AOTDependencyTable::queueAOTLoad(J9VMThread *vmThread, J9Method *method, uintptr_t offsetThatCausedQueue)
+   {
+   auto count = TR::CompilationInfo::getInvocationCount(method);
+   bool loweredCount = false;
+
+   if (count > 0)
+      {
+      // TODO: do I have to check not already compiled?
+      if (TR::CompilationInfo::setInvocationCount(method, _methodCountToSet))
+         {
+         if (TR::Options::getVerboseOption(TR_VerboseJITServerConns))
+            TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Method %p by %lu reduced from %d to %d", method, offsetThatCausedQueue, count, _methodCountToSet);
+         loweredCount = true;
+         }
+      else
+         {
+          if (TR::Options::getVerboseOption(TR_VerboseJITServerConns))
+            TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Method %p by %lu couldn't have its count %d reduced", method, offsetThatCausedQueue, count);
+         }
+      }
+   else
+      {
+      if (TR::Options::getVerboseOption(TR_VerboseJITServerConns))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Method %p by %lu has ineligible count %d", method, offsetThatCausedQueue, count);
+      }
+
+   return loweredCount;
+   }
+
+bool
+TR_AOTDependencyTable::isMethodTracked(J9Method *method, uintptr_t &remainingDependencies)
+   {
+   if (!_sharedCache)
+      return false;
+
+   OMR::CriticalSection cs(_tableMonitor);
+   auto m_it = _methodMap.find(method);
+   if (m_it == _methodMap.end())
+      return false;
+
+   remainingDependencies = m_it->second._dependencyCount;
+   return true;
+   }
+
+void
+TR_AOTDependencyTable::printTrackingStatus(J9Method *method)
+   {
+   // TODO: should really consolidate this, isMethodTracked, and
+   // wasMethodPreviouslyTracked into a single debug print method.
+   OMR::CriticalSection cs(_tableMonitor);
+
+   auto m_it = _methodMap.find(method);
+
+   // TODO: really shouldn't need this when methods are consolidated. is here
+   // because we release the table monitor after checking if the method is
+   // tracked, so I think we need to double-check here for now.
+   if (m_it == _methodMap.end())
+      {
+      // auto it = _previouslyTrackedMethods.find(method);
+      // if (it == _previouslyTrackedMethods.end())
+      //    TR_ASSERT_FATAL(false, "We lost track of method %p");
+
+      // TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Method %p became untracked! It got status %d", method, it->second);
+      // return;
+      TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Method %p became untracked!", method);
+      return;
+      }
+
+   auto methodEntry = m_it->second;
+   auto chain = methodEntry._dependencyChain;
+   auto chainLength = chain[0];
+
+   std::pair<J9Method *const, MethodEntry> *methodEntryPtr = &*m_it;
+
+   TR_VerboseLog::CriticalSection vlogLock;
+   TR_VerboseLog::writeLine(TR_Vlog_INFO, "Dependency tracking status of method %p", method);
+   bool foundUnsatisfiedDependency = false;
+   for (size_t i = 1; i < chainLength; ++i)
+      {
+      uintptr_t offset = chain[i] | 1;
+      uintptr_t waitingForInit = (chain[i] & 1) == 1;
+      auto d_it = _offsetMap.find(offset);
+      if (d_it == _offsetMap.end())
+         {
+         foundUnsatisfiedDependency = true;
+         TR_VerboseLog::writeLine(TR_Vlog_INFO, "\tOffset %lu %d untracked", offset, waitingForInit);
+         }
+      else if (d_it->second._waitingLoadMethods.find(methodEntryPtr) != d_it->second._waitingLoadMethods.end())
+         {
+         foundUnsatisfiedDependency = true;
+         TR_VerboseLog::writeLine(TR_Vlog_INFO, "\tOffset %lu %d waiting for load", offset, waitingForInit);
+         }
+      else if (d_it->second._waitingInitMethods.find(methodEntryPtr) != d_it->second._waitingInitMethods.end())
+         {
+         foundUnsatisfiedDependency = true;
+         TR_VerboseLog::writeLine(TR_Vlog_INFO, "\tOffset %lu %d waiting for init", offset, waitingForInit);
+         }
+      else if (d_it->second._loadedClasses.size() > 0)
+         {
+         TR_VerboseLog::writeLine(TR_Vlog_INFO, "\tOffset %lu %d has loads: %lu", offset, waitingForInit, d_it->second._loadedClasses.size());
+         }
+      }
+   if (!foundUnsatisfiedDependency)
+      TR_VerboseLog::writeLine(TR_Vlog_INFO, "\tAssumption violated: method didn't have any unsatisfied dependencies, but wasn't queued");
+   }
+
+// TODO: remove
+DependencyTrackingStatus
+TR_AOTDependencyTable::wasMethodPreviouslyTracked(J9Method *method)
+   {
+   return NotTrackingPreviousMethods;
+
+    if (!_sharedCache)
+      return MethodWasntTracked;
+
+   // OMR::CriticalSection cs(_tableMonitor);
+   // auto it = _previouslyTrackedMethods.find(method);
+   // if (it == _previouslyTrackedMethods.end())
+   //    return MethodWasntTracked;
+
+   // return it->second;
+   }
+
+void
+TR_AOTDependencyTable::dumpTableDetails()
+   {
+   if (!_sharedCache)
+      return;
+   // TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Table has %lu methods pending, %lu methods previously tracked", _methodMap.size(), _previouslyTrackedMethods.size());
+   TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Table has %lu tracked offsets", _offsetMap.size());
+   // TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Table has %lu tracked classes", _classMap.size());
+   for (auto entry : _methodMap)
+      {
+      TR_VerboseLog::CriticalSection vlogLock;
+      if (entry.second._dependencyCount > 0)
+         {
+         TR_VerboseLog::writeLine(TR_Vlog_INFO, "Table dump: method %p still has %lu dependencies", entry.first, entry.second._dependencyCount);
+         auto chain = entry.second._dependencyChain;
+         auto chainLength = chain[0];
+         bool allDependenciesSatisfied = true;
+         for (size_t i = 1; i <= chainLength; ++i)
+            {
+            uintptr_t offset = chain[i] | 1;
+            bool waitingForInit = (chain[i] & 1) == 1;
+            auto it = _offsetMap.find(offset);
+            if (it == _offsetMap.end())
+               {
+               allDependenciesSatisfied = false;
+               TR_VerboseLog::writeLine(TR_Vlog_INFO, "\tOffset %lu %d untracked", offset, waitingForInit);
+               }
+            else if (it->second._loadedClasses.size() == 0)
+               {
+               allDependenciesSatisfied = false;
+               TR_VerboseLog::writeLine(TR_Vlog_INFO, "\tOffset %lu %d no loads", offset, waitingForInit);
+               }
+            else
+               {
+               J9Class *clazz = *it->second._loadedClasses.begin();
+               bool isClazzInitialized = clazz->initializeStatus == 1;
+               if (!waitingForInit)
+                  {
+                  TR_VerboseLog::writeLine(TR_Vlog_INFO, "\tOffset %lu %d satisfied load %p %d", offset, waitingForInit, clazz, isClazzInitialized);
+                  }
+               else if (isClazzInitialized)
+                  {
+                  TR_VerboseLog::writeLine(TR_Vlog_INFO, "\tOffset %lu %d satisfied init %p %d", offset, waitingForInit, clazz, isClazzInitialized);
+                  }
+               else
+                  {
+                  allDependenciesSatisfied = false;
+                  TR_VerboseLog::writeLine(TR_Vlog_INFO, "\tOffset %lu %d needs init %p %d", offset, waitingForInit, clazz, isClazzInitialized);
+                  }
+               }
+            }
+         if (allDependenciesSatisfied)
+            TR_VerboseLog::writeLine(TR_Vlog_INFO, "\tSomehow all dependencies are satisfied!");
+         TR_VerboseLog::writeLine(TR_Vlog_INFO, "\tThe full chain data:");
+         for (size_t i = 1; i <= chainLength; ++i)
+            {
+            uintptr_t offset = chain[i] | 1;
+            bool waitingForInit = (chain[i] & 1) == 1;
+            TR_VerboseLog::writeLine(TR_Vlog_INFO, "\t\tOffset: %lu %lu %d", chain[i], offset, waitingForInit);
+            }
+         // TODO: this is triggering with SVM? at least with java -version. should look into that
+         // TR_ASSERT_FATAL(foundUnsatisfiedDependency, "Method %p has no unsatisfied dependencies!", entry.first);
+         }
+      else
+         {
+         TR_VerboseLog::writeLine(TR_Vlog_INFO, "Table dump: method %p is somehow in the map but has no dependencies!", entry.first);
+         }
+      }
+   }
+
+TR_OpaqueClassBlock *
+TR_AOTDependencyTable::findClassFromOffset(uintptr_t offset)
+   {
+   if (!_sharedCache)
+      return NULL;
+
+   OMR::CriticalSection cs(_tableMonitor);
+
+   auto it = _offsetMap.find(offset);
+   if (it == _offsetMap.end())
+      return NULL;
+
+   auto c_it = it->second._loadedClasses.begin();
+   if (c_it == it->second._loadedClasses.end())
+      return NULL;
+
+   return (TR_OpaqueClassBlock *)(*c_it);
    }

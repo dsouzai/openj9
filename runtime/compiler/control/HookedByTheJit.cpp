@@ -20,6 +20,8 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0 OR GPL-2.0-only WITH OpenJDK-assembly-exception-1.0
  *******************************************************************************/
 
+#include "control/OMROptions.hpp"
+#include "j9protos.h"
 #include <algorithm>
 #include <limits.h>
 #ifdef LINUX
@@ -517,6 +519,18 @@ static void jitHookInitializeSendTarget(J9HookInterface * * hook, UDATA eventNum
                   }
                count = scount;
                compInfo->incrementNumMethodsFoundInSharedCache();
+               // TODO: should probably improve this
+               auto dependencyChain = sc->getDependenciesOfMethod(method);
+               if (dependencyChain)
+                  {
+                  bool dependenciesSatisfied = false;
+                  auto dependencyTable = compInfo->getPersistentInfo()->getAOTDependencyTable();
+                  dependencyTable->trackStoredMethod(vmThread, method, dependencyChain, dependenciesSatisfied);
+                  if (dependenciesSatisfied)
+                     count = dependencyTable->getMethodCountToSet();
+                  }
+               else if (optionsJIT->getVerboseOption(TR_VerboseJITServerConns)) // TODO: verbose flag
+                  TR_VerboseLog::writeLineLocked(TR_Vlog_FAILURE, "SCC method %p did not have any dependencies", method);
                }
             // AOT Body not in SCC, so scount was not set
             else if (!TR::Options::getCountsAreProvidedByUser() && !countInOptionSet)
@@ -3055,7 +3069,7 @@ static void updateOverriddenFlag( J9VMThread *vm , J9Class *cl)
       }
    }
 
-static bool updateCHTable(J9VMThread * vmThread, J9Class  * cl)
+static bool updateCHTable(J9VMThread *vmThread, TR::CompilationInfo *compInfo, J9Class *cl)
    {
    typedef void JIT_METHOD_OVERRIDE_UPDATE(J9VMThread *, J9Class *, J9Method *, J9Method *);
 
@@ -3543,7 +3557,7 @@ static bool chTableOnClassLoad(J9VMThread *vmThread, TR_OpaqueClassBlock *clazz,
          //
          if (vm->isInterfaceClass(clazz))
             {
-            if (!updateCHTable(vmThread, cl))
+            if (!updateCHTable(vmThread, compInfo, cl))
                {
                allocFailed = true;
                compInfo->getPersistentInfo()->getPersistentCHTable()->removeClass(vm, clazz, info, true);
@@ -3571,7 +3585,7 @@ static bool chTableOnClassLoad(J9VMThread *vmThread, TR_OpaqueClassBlock *clazz,
                       !vm->isClassArray(compClazz) &&
                       !vm->isInterfaceClass(compClazz) &&
                       !vm->isPrimitiveClass(compClazz))
-                     initFailed = !updateCHTable(vmThread, ((J9Class *) compClazz));
+                     initFailed = !updateCHTable(vmThread, compInfo, ((J9Class *) compClazz));
 
                   if (initFailed)
                      {
@@ -3719,13 +3733,6 @@ void jitHookClassLoadHelper(J9VMThread *vmThread,
       TR::Options::_numberOfUserClassesLoaded ++;
       }
 
-   compInfo->getPersistentInfo()->getPersistentClassLoaderTable()->associateClassLoaderWithClass(vmThread, classLoader, clazz);
-
-#if defined(J9VM_OPT_JITSERVER)
-   if (auto deserializer = compInfo->getJITServerAOTDeserializer())
-      deserializer->onClassLoad(cl, vmThread);
-#endif /* defined(J9VM_OPT_JITSERVER) */
-
    // Update the count for the newInstance
    //
    TR::Options * options = TR::Options::getCmdLineOptions();
@@ -3743,6 +3750,27 @@ void jitHookClassLoadHelper(J9VMThread *vmThread,
    cl->newInstanceCount = options->getInitialCount();
 
    allocFailed = chTableOnClassLoad(vmThread, clazz, compInfo, vm);
+
+   // TODO: I'm pretty sure this is okay - we need to have
+   // associateClassLoaderWithClass and the onClassLoad() for the dependency
+   // table happen here, after chTableOnClassLoad, because of (the possibility
+   // of) CCV caching, which uses the persistent ch table
+   compInfo->getPersistentInfo()->getPersistentClassLoaderTable()->associateClassLoaderWithClass(vmThread, classLoader, clazz);
+
+   // TODO: should probably just fix the hooks for these if possible, or exclude
+   // them from deps entirely.
+   // N.B. I'm fairly sure these two classes and also java/lang/J9VMInternals$ClassInitializationLock are the
+   // only ones that are marked initialized without triggering the hook, and that last class does
+   // not appear to be stored in the SCC ever, so it's currently irrelevant for us.
+   getClassNameIfNecessary(vm, clazz, className, classNameLen);
+   bool isClassInitialization = (classNameLen == 17 && !memcmp(className, "com/ibm/oti/vm/VM", classNameLen)) ||
+                                (classNameLen == 23 && !memcmp(className, "java/lang/J9VMInternals", classNameLen));
+
+   compInfo->getPersistentInfo()->getAOTDependencyTable()->onClassLoad(vmThread, vm, clazz, true, isClassInitialization);
+#if defined(J9VM_OPT_JITSERVER)
+   if (auto deserializer = compInfo->getJITServerAOTDeserializer())
+      deserializer->onClassLoad(cl, vmThread);
+#endif /* defined(J9VM_OPT_JITSERVER) */
 
    compInfo->getPersistentInfo()->ensureUnloadedAddressSetsAreInitialized();
    // TODO: change the above line to something like the following in order to handle allocation failures:
@@ -3799,11 +3827,11 @@ static bool chTableOnClassPreinitialize(J9VMThread *vmThread,
 
          if (!initFailed &&
              !vm->isInterfaceClass(clazz))
-            updateCHTable(vmThread, cl);
+            updateCHTable(vmThread, compInfo, cl);
          }
       else
          {
-         if (!initFailed && !updateCHTable(vmThread, cl))
+         if (!initFailed && !updateCHTable(vmThread, compInfo, cl))
             initFailed = true;
          }
 
@@ -3838,6 +3866,15 @@ void jitHookClassPreinitializeHelper(J9VMThread *vmThread,
    *classPreinitializeEventFailed = chTableOnClassPreinitialize(vmThread, cl, clazz, compInfo, vm);
 
    jitReleaseClassTableMutex(vmThread);
+
+   // TODO: piggy-back on class table mutex if this works? also might want to
+   // see if this is better on full class init.
+   // also, again if this works, should rename to "onClass(Pre)Initialize" or something like that
+   // TODO: should this even check if (pre)initialization failed?
+   // TODO: might need to restore this, and add this method call back to the chtableonclass load bit where interface classes get
+   // loaded/updated (since they don't go through this function) if onClassLoad doesn't work in chTable
+   // if (!(*classPreinitializeEventFailed))
+   //    compInfo->getPersistentInfo()->getAOTDependencyTable()->onClassLoad(vmThread, clazz, true);
    }
 
 
@@ -3881,6 +3918,16 @@ static void jitHookClassInitialize(J9HookInterface * * hookInterface, UDATA even
    J9JITConfig * jitConfig = vmThread->javaVM->jitConfig;
    if (jitConfig == 0)
       return; // if a hook gets called after freeJitConfig then not much else we can do
+
+   TR::CompilationInfo * compInfo = TR::CompilationInfo::get(jitConfig);
+   TR_J9VMBase *vm = TR_J9VMBase::get(jitConfig, vmThread);
+
+   // TODO: not the most elegant - might just want to pass extra param in to the
+   // load indicating that we don't have the classtablemonitor at this moment.
+
+   jitAcquireClassTableMutex(vmThread);
+   compInfo->getPersistentInfo()->getAOTDependencyTable()->onClassLoad(vmThread, vm, (TR_OpaqueClassBlock *)cl, false, true);
+   jitReleaseClassTableMutex(vmThread);
 
    loadingClasses = false;
    }

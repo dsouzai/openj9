@@ -42,6 +42,7 @@ class TR_FrontEnd;
 class TR_PersistentMemory;
 class TR_PersistentCHTable;
 class TR_PersistentClassLoaderTable;
+class TR_AOTDependencyTable;
 class TR_MHJ2IThunkTable;
 namespace J9 { class Options; }
 
@@ -129,6 +130,7 @@ class PersistentInfo : public OMR::PersistentInfoConnector
          _numVisitedSuperClasses(0),
          _tooManySuperClasses(false),
          _persistentClassLoaderTable(NULL),
+         _aotDependencyTable(NULL),
          _GCwillBlockOnClassUnloadMonitor(false),
          _timeGCwillBlockOnClassUnloadMonitorWasSet(0),
          _numUnloadedClasses(0),
@@ -185,6 +187,9 @@ class PersistentInfo : public OMR::PersistentInfoConnector
 
    void setPersistentClassLoaderTable(TR_PersistentClassLoaderTable *table) { _persistentClassLoaderTable = table; }
    TR_PersistentClassLoaderTable *getPersistentClassLoaderTable() { return _persistentClassLoaderTable; }
+
+   void setAOTDependencyTable(TR_AOTDependencyTable *table) { _aotDependencyTable = table; }
+   TR_AOTDependencyTable *getAOTDependencyTable() { return _aotDependencyTable; }
 
    TR_OpaqueClassBlock **getVisitedSuperClasses() { return _visitedSuperClasses; }
    void clearVisitedSuperClasses() { _tooManySuperClasses = false; _numVisitedSuperClasses = 0; }
@@ -395,6 +400,8 @@ class PersistentInfo : public OMR::PersistentInfoConnector
    TR_PersistentCHTable *_persistentCHTable;
 
    TR_PersistentClassLoaderTable *_persistentClassLoaderTable;
+
+   TR_AOTDependencyTable *_aotDependencyTable;
 
    // these fields are RW
 

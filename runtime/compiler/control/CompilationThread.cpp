@@ -60,6 +60,7 @@
 #include "env/jittypes.h"
 #include "env/ClassTableCriticalSection.hpp"
 #include "env/PersistentCHTable.hpp"
+#include "env/ClassLoaderTable.hpp"
 #include "env/VMAccessCriticalSection.hpp"
 #include "env/VerboseLog.hpp"
 #include "compile/CompilationException.hpp"
@@ -3274,6 +3275,12 @@ void TR::CompilationInfo::stopCompilationThreads()
 
    J9JavaVM   * const vm       = _jitConfig->javaVM;
    J9VMThread * const vmThread = vm->internalVMFunctions->currentVMThread(vm);
+
+   // TODO: remove
+   static bool shouldPrintDependencyStats = feGetEnv("TR_ShouldNotPrintDependencyStats") == NULL;
+
+   if (shouldPrintDependencyStats && TR::Options::getVerboseOption(TR_VerboseJITServerConns))
+      getPersistentInfo()->getAOTDependencyTable()->dumpTableDetails();
 
    static char * printCompStats = feGetEnv("TR_PrintCompStats");
    if (printCompStats)
@@ -6799,6 +6806,35 @@ TR::CompilationInfoPerThreadBase::installAotCachedMethod(
       reloRuntime()->initializeHWProfilerRecords(compiler);
       }
 
+   // TODO: vlog cleanup
+   auto dependencyTable = _compInfo.getPersistentInfo()->getAOTDependencyTable();
+   if (dependencyTable->isTableActive() && TR::Options::getVerboseOption(TR_VerbosePerformance))
+      {
+      uintptr_t dependenciesLeft = 0;
+      if (dependencyTable->isMethodTracked(method, dependenciesLeft))
+         {
+         dependencyTable->printTrackingStatus(method);
+         }
+      // else
+      //    {
+      //    auto status = dependencyTable->wasMethodPreviouslyTracked(method);
+      //    switch (status)
+      //       {
+      //       case TrackingSuccessful:
+      //          TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Attempting to AOT load method %p successfully tracked", method);
+      //          break;
+      //       case MethodCouldNotBeQueued:
+      //          TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Attempting to AOT load method %p could not be queued", method);
+      //          break;
+      //       case MethodWasntTracked:
+      //          TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Attempting to AOT load method %p was not tracked", method);
+      //          break;
+      //       default:
+      //          TR_ASSERT_FATAL(false, "Unhandled status %d", status);
+      //       }
+      //    }
+      }
+
    metaData = reloRuntime()->prepareRelocateAOTCodeAndData(vmThread,
                                                            fe,
                                                            aotMCCRuntimeCodeCache,
@@ -7394,9 +7430,22 @@ TR::CompilationInfoPerThreadBase::preCompilationTasks(J9VMThread * vmThread,
 
       if (canRelocateMethod && !entry->_oldStartPC)
          {
-         // Find the AOT body in the SCC
-         //
-         *aotCachedMethod = findAotBodyInSCC(vmThread, entry->getMethodDetails().getRomMethod(fe));
+         // TODO: clean this up, but basically we want to double-check that the
+         // method has had all of its dependencies satisfied before attempting a
+         // load. right now we just bail if not.
+         auto dependencyTable = persistentInfo->getAOTDependencyTable();
+         uintptr_t remainingDependencies = 0;
+         if (dependencyTable->isMethodTracked(method, remainingDependencies))
+            {
+            canRelocateMethod = false;
+            entry->_doNotAOTCompile = true;
+            }
+         else
+            {
+            // Find the AOT body in the SCC
+            //
+            *aotCachedMethod = findAotBodyInSCC(vmThread, entry->getMethodDetails().getRomMethod(fe));
+            }
 
          // Validate the class chain of the class of the method being AOT loaded
          if (*aotCachedMethod && !fe->sharedCache()->classMatchesCachedVersion(J9_CLASS_FROM_METHOD(method)))

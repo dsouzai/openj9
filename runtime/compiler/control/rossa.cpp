@@ -1391,6 +1391,11 @@ onLoadInternal(
       return -1;
    persistentMemory->getPersistentInfo()->setPersistentClassLoaderTable(loaderTable);
 
+   TR_AOTDependencyTable *dependencyTable = new (PERSISTENT_NEW) TR_AOTDependencyTable(persistentMemory);
+   if (dependencyTable == NULL)
+      return -1;
+   persistentMemory->getPersistentInfo()->setAOTDependencyTable(dependencyTable);
+
    jitConfig->iprofilerBufferSize = TR::Options::_iprofilerBufferSize;   //1024;
 
    javaVM->minimumSuperclassArraySize = TR::Options::_minimumSuperclassArraySize;
