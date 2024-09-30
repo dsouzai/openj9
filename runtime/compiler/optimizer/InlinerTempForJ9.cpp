@@ -4773,10 +4773,14 @@ int32_t TR_MultipleCallTargetInliner::scaleSizeBasedOnBlockFrequency(int32_t byt
                               isLargeCompiledMethod(calleeResolvedMethod, bytecodeSize, frequency, exemptionFreqCutoff, veryLargeCompiledMethodThreshold, veryLargeCompiledMethodFaninThreshold);
    if (largeCompiledCallee)
       {
+      J9::Options::_largeCompilee++;
       bytecodeSize = bytecodeSize * TR::Options::_inlinerVeryLargeCompiledMethodAdjustFactor;
       }
    else if (frequency > borderFrequency)
       {
+      //if (TR::Options::getCmdLineOptions()->isAnyVerboseOptionSet())
+      //   TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "frequency=%d, borderFrequency=%d", frequency, borderFrequency);
+      J9::Options::_freqGTBorderFreq++;
       int32_t oldSize = 0;
       if (comp()->trace(OMR::inlining))
       oldSize = bytecodeSize;
@@ -4792,6 +4796,9 @@ int32_t TR_MultipleCallTargetInliner::scaleSizeBasedOnBlockFrequency(int32_t byt
       }
    else if (frequency < coldBorderFrequency)
       {
+      //if (TR::Options::getCmdLineOptions()->isAnyVerboseOptionSet())
+      //   TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "frequency=%d, coldBorderFrequency=%d", frequency, coldBorderFrequency);
+      J9::Options::_freqLTColdBorderFreq++;
       int32_t oldSize = 0;
       if (comp()->trace(OMR::inlining))
       oldSize = bytecodeSize;
@@ -4804,6 +4811,10 @@ int32_t TR_MultipleCallTargetInliner::scaleSizeBasedOnBlockFrequency(int32_t byt
       bytecodeSize = (weight >= (float)0x7fffffff) ? 0x7fffffff : ((int32_t)weight);
 
       heuristicTrace(tracer(),"exceedsSizeThreshold: Scaled up size for call from %d to %d", oldSize, bytecodeSize);
+      }
+   else
+      {
+      J9::Options::_noneOfTheAbove++;
       }
    return bytecodeSize;
    }

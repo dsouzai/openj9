@@ -307,6 +307,11 @@ int32_t J9::Options::_dltPostponeThreshold = 2;
 int32_t J9::Options::_expensiveCompWeight = TR::CompilationInfo::JSR292_WEIGHT;
 int32_t J9::Options::_jProfilingEnablementSampleThreshold = 10000;
 
+uint64_t J9::Options::_largeCompilee = 0;
+uint64_t J9::Options::_freqGTBorderFreq = 0;
+uint64_t J9::Options::_freqLTColdBorderFreq = 0;
+uint64_t J9::Options::_noneOfTheAbove = 0;
+
 bool J9::Options::_aggressiveLockReservation = false;
 
 bool J9::Options::_xrsSync = false;

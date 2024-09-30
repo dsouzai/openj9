@@ -536,8 +536,10 @@ class OMR_EXTENSIBLE Options : public OMR::OptionsConnector
    static void  printPID();
 
 
-
-
+   static uint64_t _largeCompilee;
+   static uint64_t _freqGTBorderFreq;
+   static uint64_t _freqLTColdBorderFreq;
+   static uint64_t _noneOfTheAbove;
 
 
    static const char *kcaOffsets(const char *option, void *, TR::OptionTable *entry);

@@ -4313,6 +4313,22 @@ void JitShutdown(J9JITConfig * jitConfig)
 #if defined(J9VM_INTERP_PROFILING_BYTECODES)
    TR_ASSERT(jitConfig->privateConfig, "privateConfig must exist if a frontend exists\n");
    TR_IProfiler *iProfiler = vm->getIProfiler();
+   
+   if (TR::Options::getCmdLineOptions()->isAnyVerboseOptionSet())
+      {
+      TR_VerboseLog::writeLineLocked(
+         TR_Vlog_PERF, 
+         "_isWarmCallGraphTooBigTrue=%llu, _isWarmCallGraphTooBigFalse=%llu", 
+         TR_IProfiler::_isWarmCallGraphTooBigTrue, 
+         TR_IProfiler::_isWarmCallGraphTooBigFalse);
+      TR_VerboseLog::writeLineLocked(
+         TR_Vlog_PERF,
+         "_largeCompilee=%llu, _freqGTBorderFreq=%llu, _freqLTColdBorderFreq=%llu, _noneOfTheAbove=%llu",
+         J9::Options::_largeCompilee,
+         J9::Options::_freqGTBorderFreq,
+         J9::Options::_freqLTColdBorderFreq,
+         J9::Options::_noneOfTheAbove);
+      }
 
    // The TR_DisableInterpreterProfiling options can change during run
    // so the fact that this option is true doesn't mean that IProfiler structures were not allocated
