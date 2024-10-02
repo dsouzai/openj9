@@ -7095,12 +7095,27 @@ TR_ResolvedJ9Method::getResolvedHandleMethod(TR::Compilation * comp, I_32 cpInde
       {
       uintptr_t * invokeCacheArray = (uintptr_t *) methodTypeTableEntryAddress(cpIndex);
       TR_OpaqueMethodBlock * targetJ9MethodBlock = NULL;
+      uintptr_t appendixObject = 0;
          {
          TR::VMAccessCriticalSection getResolvedHandleMethod(fej9());
          targetJ9MethodBlock = fej9()->targetMethodFromMemberName((uintptr_t) fej9()->getReferenceElement(*invokeCacheArray, JSR292_invokeCacheArrayMemberNameIndex)); // this will not work in AOT or JITServer
-         uintptr_t appendixObject = (uintptr_t) fej9()->getReferenceElement(*invokeCacheArray, JSR292_invokeCacheArrayAppendixIndex);
+         appendixObject = (uintptr_t) fej9()->getReferenceElement(*invokeCacheArray, JSR292_invokeCacheArrayAppendixIndex);
          if (isInvokeCacheAppendixNull && !appendixObject) *isInvokeCacheAppendixNull = true;
          }
+
+      if (comp->compileRelocatableCode())
+         {
+         bool valid =
+            comp->getSymbolValidationManager()->addHandleMethodFromCPIndex(
+               targetJ9MethodBlock,
+               getNonPersistentIdentifier(),
+               cpIndex,
+               !appendixObject);
+
+         if (!valid)
+            comp->failCompilation<J9::AOTHasInvokeHandle>("Failed to add valiation rcord for resolved handle method %p", targetJ9MethodBlock);
+         }
+
       result = fej9()->createResolvedMethod(comp->trMemory(), targetJ9MethodBlock, this);
       }
    else
