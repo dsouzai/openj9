@@ -7003,6 +7003,7 @@ TR_ResolvedJ9Method::getResolvedDynamicMethod(TR::Compilation * comp, I_32 callS
 
    if (!isUnresolvedEntry)
       {
+      uintptr_t appendixObject = 0;
       TR_OpaqueMethodBlock * targetJ9MethodBlock = NULL;
       uintptr_t * invokeCacheArray = (uintptr_t *) callSiteTableEntryAddress(callSiteIndex);
       // invokedynamic resolution can either result in a valid entry in the corresponding CallSite table slot if successful,
@@ -7020,9 +7021,23 @@ TR_ResolvedJ9Method::getResolvedDynamicMethod(TR::Compilation * comp, I_32 callS
          targetJ9MethodBlock = fej9()->targetMethodFromMemberName((uintptr_t) fej9()->getReferenceElement(*invokeCacheArray, JSR292_invokeCacheArrayMemberNameIndex)); // this will not work in AOT or JITServer
          // if the callSite table entry is resolved, we can check if the appendix object is null,
          // in which case the appendix object must not be pushed to stack
-         uintptr_t appendixObject = (uintptr_t) fej9()->getReferenceElement(*invokeCacheArray, JSR292_invokeCacheArrayAppendixIndex);
+         appendixObject = (uintptr_t) fej9()->getReferenceElement(*invokeCacheArray, JSR292_invokeCacheArrayAppendixIndex);
          if (isInvokeCacheAppendixNull && !appendixObject) *isInvokeCacheAppendixNull = true;
          }
+
+      if (comp->compileRelocatableCode())
+         {
+         bool valid =
+            comp->getSymbolValidationManager()->addDynamicMethodFromCallsiteIndex(
+               targetJ9MethodBlock,
+               getNonPersistentIdentifier(),
+               callSiteIndex,
+               !appendixObject);
+
+         if (!valid)
+            comp->failCompilation<J9::AOTHasInvokeHandle>("Failed to add valiation rcord for resolved dynamic method %p", targetJ9MethodBlock);
+         }
+
       result = fej9()->createResolvedMethod(comp->trMemory(), targetJ9MethodBlock, this);
       }
    else
