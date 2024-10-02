@@ -6946,5 +6946,6 @@ uint32_t TR_RelocationRecord::_relocationRecordHeaderSizeTable[TR_NumExternalRel
    sizeof(TR_RelocationRecordBinaryTemplate),                                        // TR_StartPC                                      = 114
    sizeof(TR_RelocationRecordMethodEnterExitHookAddressBinaryTemplate),              // TR_MethodEnterExitHookAddress                   = 115
    sizeof(TR_RelocationRecordValidateDynamicMethodFromCallsiteIndexBinaryTemplate),  // TR_ValidateDynamicMethodFromCallsiteIndex       = 116
+   sizeof(TR_RelocationRecordValidateHandleMethodFromCPIndexBinaryTemplate),         // TR_ValidateHandleMethodFromCPIndex              = 117
    };
 // The _relocationRecordHeaderSizeTable table should be the last thing in this file
