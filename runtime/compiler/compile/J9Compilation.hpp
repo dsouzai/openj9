@@ -223,6 +223,9 @@ class OMR_EXTENSIBLE Compilation : public OMR::CompilationConnector
 
    bool compilationShouldBeInterrupted(TR_CallingContext);
 
+   bool getOption(uint64_t o) {return _options->getOption(o);}
+   void setOption(uint64_t o) { _options->setOption(o); }
+
    /* Heuristic Region APIs
     *
     * Heuristic Regions denotes regions where decisions
