@@ -6267,6 +6267,22 @@ static int32_t J9THREAD_PROC samplerThreadProc(void * entryarg)
    j9thread_monitor_notify_all(jitConfig->samplerMonitor);
    j9thread_monitor_exit(jitConfig->samplerMonitor);
 
+   {
+   TR::Options *options = TR::Options::getCmdLineOptions();
+   options->setOption(J9::J9OptionsBitsTestWord0);
+   options->setOption(J9::J9OptionsBitsTestWord1);
+   if (options->getOption(J9::J9OptionsBitsTestWord0))
+      {
+      printf("Word Zero Set!\n");
+      TR_ASSERT_FATAL(!options->getOption(TR_TraceBVA), "TR_TraceBVA should not be set!\n");
+      }
+   if (options->getOption(J9::J9OptionsBitsTestWord1))
+      {
+      printf("Word One Set!\n");
+      TR_ASSERT_FATAL(!options->getOption(TR_DisableInterpreterSampling), "TR_DisableInterpreterSampling should not be set!\n");
+      }
+   }
+
    // Read some stats about SCC. This code could have stayed in aboutToBootstrap,
    // but here we execute it on a separate thread and hide its overhead
 

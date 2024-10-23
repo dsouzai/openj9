@@ -169,11 +169,11 @@ enum CompilationOptions
    // Available                                         = 0x1000000000000000ULL,
    // Available                                         = 0x2000000000000000ULL,
    // Available                                         = 0x4000000000000000ULL,
-   // Available                                         = 0x8000000000000000ULL,
+   J9OptionsBitsTestWord0                               = 0x8000000000000000ULL,
 
    // Option word 1
    //
-   // Available                                         = 0x0000002000000000ULL + (1ULL<<32),
+   J9OptionsBitsTestWord1                               = 0x0000002000000000ULL + (1ULL<<32),
    // Available                                         = 0x0000004000000000ULL + (1ULL<<32),
    // Available                                         = 0x0000008000000000ULL + (1ULL<<32),
    // Available                                         = 0x0000010000000000ULL + (1ULL<<32),

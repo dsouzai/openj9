@@ -1216,6 +1216,8 @@ TR::OptionTable OMR::Options::_feOptions[] = {
    {"statisticsFrequency=", "R<nnn>\tnumber of milliseconds between statistics print",
         TR::Options::setStaticNumeric, (intptr_t)&TR::Options::_statisticsFrequency, 0, "F%d", NOT_IN_SUBSET},
 #endif /* defined(J9VM_OPT_JITSERVER) */
+   {"testJ9OptionBitWordOne",           "O<nnn>\tDisable RI AOT", SET_OPTION_BIT(J9::J9OptionsBitsTestWord1), "F", NOT_IN_SUBSET},
+   {"testJ9OptionBitWordZero",          "O<nnn>\tDisable RI AOT", SET_OPTION_BIT(J9::J9OptionsBitsTestWord0), "F", NOT_IN_SUBSET},
    {"testMode",           "D\tequivalent to tossCode",  SET_JITCONFIG_RUNTIME_FLAG(J9JIT_TOSS_CODE) },
 #if defined(J9VM_OPT_JITSERVER)
    {"timeBetweenPurges=", " \tDefines how often we are willing to scan for old entries to be purged",
