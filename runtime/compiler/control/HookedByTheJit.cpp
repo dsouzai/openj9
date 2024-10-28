@@ -496,13 +496,17 @@ static void jitHookInitializeSendTarget(J9HookInterface * * hook, UDATA eventNum
                compInfo->getCRRuntime()->pushImportantMethodForCR(method);
 #endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
 
+            auto nameStr = (const char *)J9UTF8_DATA(className);
+            UDATA nameLen = (UDATA)J9UTF8_LENGTH(className);
+            bool isLambaFormClass = isLambdaFormClassName(nameStr, nameLen, NULL);
+
             if (methodExistsInSCC
 #if defined(J9VM_OPT_CRIU_SUPPORT)
                 && !cpAllowedAndDebugOnRestoreEnabled
 #endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
                )
                {
-               int32_t scount = optionsAOT->getInitialSCount();
+               int32_t scount = isLambaFormClass ? optionsAOT->getInitialLambdaFormSCount() : optionsAOT->getInitialSCount();
                uint16_t newScount = 0;
                if (sc && sc->isHint(method, TR_HintFailedValidation, &newScount))
                   {
@@ -596,6 +600,10 @@ static void jitHookInitializeSendTarget(J9HookInterface * * hook, UDATA eventNum
                      }
                   }
                }
+
+            if (isLambaFormClass)
+               count = optionsAOT->getInitialLambdaFormCount();
+
             if (optionsAOT->getOption(TR_EnableSharedCacheTiming))
                {
                sharedQueryTime = j9time_hires_delta(sharedQueryTime, j9time_hires_clock(), J9PORT_TIME_DELTA_IN_MICROSECONDS);
