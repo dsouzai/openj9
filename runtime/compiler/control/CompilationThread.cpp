@@ -7646,8 +7646,16 @@ TR::CompilationInfoPerThreadBase::preCompilationTasks(J9VMThread * vmThread,
             }
          else // Use AOT heuristics
             {
+            const J9ROMClass *romClass = entry->getMethodDetails().getRomClass();
+            J9UTF8 *className = J9ROMCLASS_CLASSNAME(romClass);
+
+            // Always generate an AOT compilation for LambdaForm Methods
+            if (isLambdaFormClassName((const char *)J9UTF8_DATA(className), (UDATA)J9UTF8_LENGTH(className), NULL))
+               {
+               canDoRelocatableCompile = true;
+               }
             // Heuristic: generate AOT only for downgraded compilations in the first run
-            if ((!isSecondAOTRun && entry->_optimizationPlan->isOptLevelDowngraded() && !_compInfo.getLowCompDensityMode()) ||
+            else if ((!isSecondAOTRun && entry->_optimizationPlan->isOptLevelDowngraded() && !_compInfo.getLowCompDensityMode()) ||
                 entry->getMethodDetails().isJitDumpAOTMethod())
                {
                canDoRelocatableCompile = true;
