@@ -486,6 +486,8 @@ handleServerMessage(JITServer::ClientStream *client, TR_J9VM *fe, JITServer::Mes
          // These offsets are initialized later on
          vmInfo._vmtargetOffset = 0;
          vmInfo._vmindexOffset = 0;
+         vmInfo._shareLambdaForm
+            = J9_ARE_ALL_BITS_SET(javaVM->sharedClassConfig->runtimeFlags2, J9SHR_RUNTIMEFLAG2_SHARE_LAMBDAFORM);
 #endif /* defined(J9VM_OPT_OPENJDK_METHODHANDLE) */
          }
 
