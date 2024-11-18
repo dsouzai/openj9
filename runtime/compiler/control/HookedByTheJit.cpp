@@ -102,6 +102,7 @@
 #if defined(J9VM_OPT_CRIU_SUPPORT)
 #include "runtime/CRRuntime.hpp"
 #endif /* if defined(J9VM_OPT_CRIU_SUPPORT) */
+#include "unittester/UnitTester.hpp"
 
 extern "C" {
 struct J9JavaVM;
@@ -6599,6 +6600,11 @@ static int32_t J9THREAD_PROC samplerThreadProc(void * entryarg)
          // FIXME: make a constant/macro for the period, and make it 100
          if (crtTime - oldSyncTime >= 100) // every 100 ms
             {
+            if (TR::UnitTester::getState() == TR::UnitTester::HANDSHAKE_COMPLETED)
+               {
+               fprintf(stderr, "\n\n###### HANDSHAKE COMPLETED! ######\n");
+               }
+
             // There is some imprecision regarding the way we maintain elapsed time
             // hence, we need to correct it periodically
             //

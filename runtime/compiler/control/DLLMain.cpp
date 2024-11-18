@@ -270,6 +270,8 @@ IDATA J9VMDllMain(J9JavaVM* vm, IDATA stage, void * reserved)
             return J9VMDLLMAIN_FAILED;
             }
 
+         fprintf(stderr, "\n\n#### JIT INITIALIZED ####\n");
+
          /* Find and consume these before the library might be unloaded */
          FIND_AND_CONSUME_VMARG(EXACT_MATCH, J9::Options::_externalOptionStrings[J9::ExternalOptions::Xnodfpbd], 0);
          if (FIND_ARG_IN_VMARGS(EXACT_MATCH, J9::Options::_externalOptionStrings[J9::ExternalOptions::Xdfpbd], 0) >= 0)
