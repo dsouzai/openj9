@@ -687,6 +687,11 @@ getCodeCacheColdAlloc(void *codeCache)
    return cc->getColdCodeAlloc();
    }
 
+extern "C" void
+jitRegisterNativeLibrary(J9JITConfig *jitConfig, const char *libName, UDATA handle)
+   {
+   fprintf(stderr, "Loaded JNI Library %s\n", libName);
+   }
 
 // -----------------------------------------------------------------------------
 // JIT control
@@ -1102,6 +1107,8 @@ onLoadInternal(
    // Callbacks for code cache allocation pointers
    jitConfig->codeCacheWarmAlloc = getCodeCacheWarmAlloc;
    jitConfig->codeCacheColdAlloc = getCodeCacheColdAlloc;
+
+   jitConfig->jitRegisterNativeLibrary = jitRegisterNativeLibrary;
 
    /* Allocate the privateConfig structure.  Note that the AOTRT DLL does not allocate this structure */
    jitConfig->privateConfig = j9mem_allocate_memory(sizeof(TR_JitPrivateConfig), J9MEM_CATEGORY_JIT);

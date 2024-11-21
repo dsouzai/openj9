@@ -4325,6 +4325,7 @@ typedef struct J9JITConfig {
 	void *serverAOTMethodSet;
 	UDATA serverAOTQueryThread;
 #endif /* defined(J9VM_OPT_JITSERVER) */
+	void ( *jitRegisterNativeLibrary)(struct J9JITConfig *jitConfig, const char *libName, UDATA handle);
 } J9JITConfig;
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)

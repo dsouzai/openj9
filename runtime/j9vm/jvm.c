@@ -4072,11 +4072,18 @@ JVM_LoadLibrary(const char *libName, jboolean throwOnFailure)
 				{
 					slOpenResult = j9sl_open_shared_library(libNameNotDecorated, &handle, flags | J9PORT_SLOPEN_DECORATE);
 					Trc_SC_LoadLibrary_OpenShared_Decorate(libNameNotDecorated);
+					if (javaVM->jitConfig && javaVM->jitConfig->jitRegisterNativeLibrary) {
+						javaVM->jitConfig->jitRegisterNativeLibrary(javaVM->jitConfig, libNameNotDecorated, handle);
+					}
 #if JAVA_SPEC_VERSION >= 17
 					if ((libName != libNameNotDecorated) && (libPath != libNameNotDecorated)) {
 						j9mem_free_memory(libNameNotDecorated);
 					}
 #endif /* JAVA_SPEC_VERSION >= 17 */
+				}
+			} else {
+				if (javaVM->jitConfig && javaVM->jitConfig->jitRegisterNativeLibrary) {
+					javaVM->jitConfig->jitRegisterNativeLibrary(javaVM->jitConfig, libName, handle);
 				}
 			}
 			if (0 == slOpenResult) {
