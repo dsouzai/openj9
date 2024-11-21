@@ -690,7 +690,12 @@ getCodeCacheColdAlloc(void *codeCache)
 extern "C" void
 jitRegisterNativeLibrary(J9JITConfig *jitConfig, const char *libName, UDATA handle)
    {
-   fprintf(stderr, "Loaded JNI Library %s\n", libName);
+   const char *libNameNoPath = strrchr(libName, DIR_SEPARATOR);
+   const char *unittesterLibName = "libopenj9-compiler-unittester.so";
+   if (0 == strncmp(unittesterLibName, libNameNoPath+1, strlen(unittesterLibName)))
+      {
+      fprintf(stderr, "Loaded JNI Library %s\n", libName);
+      }
    }
 
 // -----------------------------------------------------------------------------
