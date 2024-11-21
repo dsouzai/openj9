@@ -7048,6 +7048,19 @@ void jitHookJNINativeRegistered(J9HookInterface **hookInterface, UDATA eventNum,
       compInfo->setAllCompilationsShouldBeInterrupted();
    }
 
+void jitHookJNILibraryLoaded(J9HookInterface **hookInterface, UDATA eventNum, void *eventData, void *userData)
+   {
+   J9VMLoadJNILibraryEvent *event = (J9VMLoadJNILibraryEvent *)eventData;
+   J9VMThread *vmThread   = event->currentThread;
+   UDATA result           = event->result;
+
+   struct J9NativeLibrary * nativeLibrary = event->nativeLibrary;
+   if (nativeLibrary)
+      {
+      fprintf(stderr, "Loaded JNI Library %s, %s, %s\n", nativeLibrary->name, nativeLibrary->logicalName, event->logicalName);
+      }
+   }
+
 
 static UDATA jitReleaseCodeStackWalkFrame(J9VMThread *vmThread, J9StackWalkState *walkState)
    {
@@ -7667,6 +7680,11 @@ int32_t setUpHooks(J9JavaVM * javaVM, J9JITConfig * jitConfig, TR_FrontEnd * vm)
       if ((*vmHooks)->J9HookRegisterWithCallSite(vmHooks, J9HOOK_VM_JNI_NATIVE_REGISTERED, jitHookJNINativeRegistered, OMR_GET_CALLSITE(), NULL))
          {
          j9tty_printf(PORTLIB, "Error: Unable to register RegisterNatives hook\n");
+         return -1;
+         }
+      if ((*vmHooks)->J9HookRegisterWithCallSite(vmHooks, J9HOOK_VM_LOAD_JNI_LIBRARY, jitHookJNILibraryLoaded, OMR_GET_CALLSITE(), NULL))
+         {
+         j9tty_printf(PORTLIB, "Error: Unable to register J9HOOK_VM_LOAD_JNI_LIBRARY hook\n");
          return -1;
          }
       }
