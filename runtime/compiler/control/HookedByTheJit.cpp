@@ -7057,7 +7057,7 @@ void jitHookJNILibraryLoaded(J9HookInterface **hookInterface, UDATA eventNum, vo
    struct J9NativeLibrary * nativeLibrary = event->nativeLibrary;
    if (nativeLibrary)
       {
-      //fprintf(stderr, "Loaded JNI Library %s, %s, %s\n", nativeLibrary->name, nativeLibrary->logicalName, event->logicalName);
+      jitRegisterNativeLibrary(jitConfig, nativeLibrary->name, nativeLibrary->handle);
       }
    }
 

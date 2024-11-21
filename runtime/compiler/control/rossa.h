@@ -110,6 +110,8 @@ extern "C" {
    void JitShutdown(J9JITConfig * jitConfig);
    void freeJITConfig(J9JITConfig * jitConfig);
 
+   void jitRegisterNativeLibrary(J9JITConfig *jitConfig, const char *libName, UDATA handle);
+
 #ifdef __cplusplus
 }
 #endif
