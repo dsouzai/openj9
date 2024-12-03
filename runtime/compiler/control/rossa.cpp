@@ -342,7 +342,7 @@ j9jit_testarossa_err(
                // In that case, trigger a sync compilation. If it succeeds, all
                // new invocations will get forwarded to the new body; if it
                // fails, the startPC will get patched to revert to the
-               // intepreter. Furthermore, this prevents contention on the
+               // interpreter. Furthermore, this prevents contention on the
                // optimizationPlanMonitor.
                //
                // See <LINK> for details.
