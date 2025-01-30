@@ -6839,11 +6839,27 @@ TR::CompilationInfoPerThreadBase::installAotCachedMethod(
       uintptr_t currentTime = 0;
       uintptr_t reloTime = 0;
 
-      if (TrcEnabled_Trc_JIT_AotLoadEnd)
+      if (TR::Options::_delayAOTLoadByPercentage)
          {
          PORT_ACCESS_FROM_JITCONFIG(_jitConfig);
          currentTime = j9time_usec_clock();
          reloTime = currentTime - reloRuntime()->reloStartTime();
+
+         uintptr_t usecSleepTime = (reloTime * TR::Options::_delayAOTLoadByPercentage) / 100;
+         if (usecSleepTime)
+            j9thread_sleep(usecSleepTime / 1000);
+
+         reloTime += usecSleepTime;
+         }
+
+      if (TrcEnabled_Trc_JIT_AotLoadEnd)
+         {
+         if (reloTime == 0)
+            {
+            PORT_ACCESS_FROM_JITCONFIG(_jitConfig);
+            currentTime = j9time_usec_clock();
+            reloTime = currentTime - reloRuntime()->reloStartTime();
+            }
 
          Trc_JIT_AotLoadEnd(vmThread, compiler->signature(),
               metaData->startPC, metaData->endWarmPC, metaData->startColdPC, metaData->endPC,

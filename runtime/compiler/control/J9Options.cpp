@@ -305,6 +305,8 @@ int32_t J9::Options::_dltPostponeThreshold = 2;
 int32_t J9::Options::_expensiveCompWeight = TR::CompilationInfo::JSR292_WEIGHT;
 int32_t J9::Options::_jProfilingEnablementSampleThreshold = 10000;
 
+uint32_t J9::Options::_delayAOTLoadByPercentage = 0;
+
 bool J9::Options::_aggressiveLockReservation = false;
 
 bool J9::Options::_xrsSync = false;
@@ -942,6 +944,8 @@ TR::OptionTable OMR::Options::_feOptions[] = {
         TR::Options::setStaticNumeric, (intptr_t)&TR::Options::_dataCacheQuantumSize, 0, "F%d", NOT_IN_SUBSET},
    {"datatotal=",              "C<nnn>\ttotal data memory limit, in KB",
         TR::Options::setJitConfigNumericValue, offsetof(J9JITConfig, dataCacheTotalKB), 0, "F%d (KB)"},
+   {"delayAOTLoadByPercentage=", "M<nnn>\tDelay AOT Load",
+        TR::Options::setStaticNumeric, (intptr_t)&TR::Options::_delayAOTLoadByPercentage, 0, "F%d", NOT_IN_SUBSET },
    {"delayBeforeStateChange=",                 "M<nnn>\tTime (ms) after restore before allowing the JIT to change states.",
         TR::Options::setStaticNumeric, (intptr_t)&TR::Options::_delayBeforeStateChange, 0, "F%d", NOT_IN_SUBSET},
    {"disableIProfilerClassUnloadThreshold=",      "R<nnn>\tNumber of classes that can be unloaded before we disable the IProfiler",
