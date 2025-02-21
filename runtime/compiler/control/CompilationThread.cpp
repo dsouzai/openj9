@@ -8633,8 +8633,8 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
             if (TR::Options::getCmdLineOptions()->getOption(TR_FSDCodeCachesDisclaiming)
-                && jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(vmThread)
-                && jitConfig->javaVM->internalVMFunctions->isDebugOnRestoreEnabled(vmThread)
+                && jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(jitConfig->javaVM)
+                && jitConfig->javaVM->internalVMFunctions->isDebugOnRestoreEnabled(jitConfig->javaVM)
                 && (!p->_checkpointInProgress || options->getOption(TR_FullSpeedDebug)))
                {
                p->_optimizationPlan->setFileBackedCodeCache(true);
