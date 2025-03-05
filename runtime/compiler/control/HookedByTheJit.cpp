@@ -4704,11 +4704,19 @@ void memoryDisclaimLogic(TR::CompilationInfo *compInfo, uint64_t crtElapsedTime,
          }
       }
 
-   // Use logic similar to Data caches above
-   if (TR::CodeCacheManager::instance()->isDisclaimEnabled())
+   // Ensure we don't disclaim code caches too often
+   if (crtElapsedTime > lastCodeCacheDisclaimTime + 10 * TR::Options::_minTimeBetweenMemoryDisclaims)
       {
-      // Ensure we don't do it too often
-      if (crtElapsedTime > lastCodeCacheDisclaimTime + 10 * TR::Options::_minTimeBetweenMemoryDisclaims)
+      // If disclaiming code caches of kind FILE_BACKED_CC
+      if (TR::CodeCacheManager::instance()->isFileBackedCCDisclaimEnabled()
+          && jitConfig->javaVM->internalVMFunctions->isDebugOnRestoreEnabled(jitConfig->javaVM)
+          && !jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(jitConfig->javaVM))
+         {
+         TR::CodeCacheManager::instance()->disclaimFileBackedCodeCaches();
+         lastCodeCacheDisclaimTime = crtElapsedTime;
+         }
+      // Use logic similar to Data caches above
+      else if (TR::CodeCacheManager::instance()->isDisclaimEnabled())
          {
          // Disclaim if at least one code cache has been allocated since the last disclaim
          // or if there was a large time interval since the last disclaim

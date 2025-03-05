@@ -960,6 +960,40 @@ extern "C"
 
    }
 
+int32_t
+J9::CodeCache::disclaimMemory(TR::CodeCacheManager *manager, void * disclaimStart, size_t disclaimSize)
+   {
+   int32_t disclaimDone = 0;
+
+#ifdef LINUX
+   int32_t ret = madvise(disclaimStart, disclaimSize, MADV_PAGEOUT);
+
+   if (ret != 0)
+      {
+      bool trace = TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance);
+      if (trace)
+         TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "WARNING: Failed to use madvise to disclaim memory for code cache");
+
+      if (errno != EAGAIN)
+         {
+         // Don't try to disclaim again, since support seems to be missing
+         if (manager->isDisclaimEnabled())
+            manager->setDisclaimEnabled(false);
+         else if (manager->isFileBackedCCDisclaimEnabled())
+            manager->setFileBackedCCDisclaimEnabled(false);
+
+         if (trace)
+            TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "WARNING: Disabling code cache disclaiming from now on");
+         }
+      }
+   else
+      {
+      disclaimDone = 1;
+      }
+#endif // ifdef LINUX
+
+   return disclaimDone;
+   }
 
 int32_t
 J9::CodeCache::disclaim(TR::CodeCacheManager *manager, bool canDisclaimOnSwap)
@@ -995,25 +1029,22 @@ J9::CodeCache::disclaim(TR::CodeCacheManager *manager, bool canDisclaimOnSwap)
                                      warm_size, cold_size, cold_size * 100.0/(cold_size + warm_size));
       }
 
-   int32_t ret = madvise((void *)disclaimStart, disclaimSize, MADV_PAGEOUT);
-
-   if (ret != 0)
-      {
-      if (trace)
-         TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "WARNING: Failed to use madvise to disclaim memory for code cache");
-
-      if (errno != EAGAIN)
-         {
-         manager->setDisclaimEnabled(false); // Don't try to disclaim again, since support seems to be missing
-         if (trace)
-            TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "WARNING: Disabling data cache disclaiming from now on");
-         }
-      }
-   else
-      {
-      disclaimDone = 1;
-      }
+   self()->disclaimMemory(manager, disclaimStart, disclaimSize);
 #endif // ifdef LINUX
 
    return disclaimDone;
    }
+
+int32_t
+J9::CodeCache::disclaimFull(TR::CodeCacheManager *manager)
+   {
+   int32_t disclaimDone = 0;
+
+#ifdef LINUX
+   disclaimDone = self()->disclaimMemory(manager, self()->getCodeBase(), self()->getCodeTop()-self()->getCodeBase());
+#endif // $ifdef LINUX
+
+   return disclaimDone;
+   }
+
+

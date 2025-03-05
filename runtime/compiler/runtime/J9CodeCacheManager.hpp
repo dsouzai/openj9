@@ -57,6 +57,7 @@ public:
       {
       _codeCacheManager = reinterpret_cast<TR::CodeCacheManager *>(this);
       _disclaimEnabled = TR::Options::getCmdLineOptions()->getOption(TR_EnableCodeCacheDisclaiming);
+      _disclaimFileBackedCC = TR::Options::getCmdLineOptions()->getOption(TR_EnableFileBackedCodeCacheDisclaiming);
       }
 
    void *operator new(size_t s, TR::CodeCacheManager *m) { return m; }
@@ -154,9 +155,14 @@ public:
     * @brief Print occupancy stats for each code cache
     */
    void printOccupancyStats();
+
    bool isDisclaimEnabled() const { return _disclaimEnabled; }
    void setDisclaimEnabled(bool value)  { _disclaimEnabled = value; }
+   bool isFileBackedCCDisclaimEnabled() const { return _disclaimFileBackedCC; }
+   void setFileBackedCCDisclaimEnabled(bool value)  { _disclaimFileBackedCC = value; }
+
    int32_t disclaimAllCodeCaches();
+   int32_t disclaimFileBackedCodeCaches();
 
 private :
    TR_FrontEnd *_fe;
@@ -164,6 +170,7 @@ private :
    static J9JITConfig *_jitConfig;
    static J9JavaVM *_javaVM;
    bool  _disclaimEnabled; // If true, code cache can be disclaimed to a file or swap
+   bool  _disclaimFileBackedCC; // If true, code caches of kind FILE_BACKED_CC can be disclaimed
    };
 
 } // namespace J9

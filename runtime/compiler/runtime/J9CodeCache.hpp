@@ -106,8 +106,12 @@ public:
    void resetCodeCache();
 
    int32_t disclaim(TR::CodeCacheManager *manager, bool canDisclaimOnSwap);
+   int32_t disclaimFull(TR::CodeCacheManager *manager);
 
    private:
+
+   int32_t disclaimMemory(TR::CodeCacheManager *manager, void * disclaimStart, size_t disclaimSize);
+
    /**
     * @brief Restore trampoline pointers to their initial positions
     */
