@@ -4706,6 +4706,17 @@ void memoryDisclaimLogic(TR::CompilationInfo *compInfo, uint64_t crtElapsedTime,
          }
       }
 
+   if (TR::Options::getCmdLineOptions()->getOption(TR_FSDCodeCachesDisclaiming)
+       && jitConfig->javaVM->internalVMFunctions->isDebugOnRestoreEnabled(jitConfig->javaVM)
+       && !jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(jitConfig->javaVM))
+      {
+      if (crtElapsedTime > lastCodeCacheDisclaimTime + 10 * TR::Options::_minTimeBetweenMemoryDisclaims)
+         {
+         TR::CodeCacheManager::instance()->disclaimCodeCachesOfKind(TR::CodeCacheKind::FILE_BACKED_CC);
+         lastCodeCacheDisclaimTime = crtElapsedTime;
+         }
+      }
+
    // Use logic similar to Data caches above
    if (TR::CodeCacheManager::instance()->isDisclaimEnabled())
       {

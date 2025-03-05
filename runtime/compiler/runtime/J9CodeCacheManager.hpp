@@ -157,6 +157,7 @@ public:
    bool isDisclaimEnabled() const { return _disclaimEnabled; }
    void setDisclaimEnabled(bool value)  { _disclaimEnabled = value; }
    int32_t disclaimAllCodeCaches();
+   int32_t disclaimCodeCachesOfKind(TR::CodeCacheKind kind);
 
 private :
    TR_FrontEnd *_fe;

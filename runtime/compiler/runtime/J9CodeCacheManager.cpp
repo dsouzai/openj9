@@ -50,6 +50,17 @@
 #include "runtime/CodeCacheMemorySegment.hpp"
 #include "runtime/J9VMAccess.hpp"
 
+// for madvise
+#ifdef LINUX
+#include <sys/mman.h>
+#ifndef MADV_NOHUGEPAGE
+#define MADV_NOHUGEPAGE  15
+#endif // MADV_NOHUGEPAGE
+#ifndef MADV_PAGEOUT
+#define MADV_PAGEOUT     21
+#endif // MADV_PAGEOUT
+#endif
+
 #if defined(LINUX)
 #if !defined(MADV_HUGEPAGE)
 #define MADV_HUGEPAGE 14
@@ -839,3 +850,28 @@ J9::CodeCacheManager::disclaimAllCodeCaches()
 
    return numDisclaimed;
    }
+
+   int32_t
+   J9::CodeCacheManager::disclaimCodeCachesOfKind(TR::CodeCacheKind kind)
+      {
+      int32_t numDisclaimed = 0;
+
+   #ifdef LINUX
+      TR::CompilationInfo *compInfo = TR::CompilationInfo::get(_jitConfig);
+      bool canDisclaimOnSwap = TR::Options::getCmdLineOptions()->getOption(TR_DisclaimMemoryOnSwap) && !compInfo->isSwapMemoryDisabled();
+
+      CacheListCriticalSection scanCacheList(self());
+      for (TR::CodeCache *codeCache = self()->getFirstCodeCache(); codeCache; codeCache = codeCache->next())
+         {
+         if (codeCache->_kind == kind)
+            {
+            madvise((void *)codeCache->getCodeBase(), codeCache->getCodeTop()-codeCache->getCodeBase(), MADV_PAGEOUT);
+            numDisclaimed++;
+            if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
+               TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "t=%u JIT disclaimed code cache starting at %p size=%d", codeCache->getCodeBase(), codeCache->getCodeTop()-codeCache->getCodeBase());
+            }
+         }
+   #endif // LINUX
+
+      return numDisclaimed;
+      }
