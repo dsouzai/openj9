@@ -839,3 +839,25 @@ J9::CodeCacheManager::disclaimAllCodeCaches()
 
    return numDisclaimed;
    }
+
+   int32_t
+   J9::CodeCacheManager::disclaimCodeCachesOfKind(TR::CodeCache::CacheKind kind)
+      {
+      if (!_disclaimEnabled)
+         return 0;
+
+      int32_t numDisclaimed = 0;
+
+   #ifdef LINUX
+      TR::CompilationInfo *compInfo = TR::CompilationInfo::get(_jitConfig);
+      bool canDisclaimOnSwap = TR::Options::getCmdLineOptions()->getOption(TR_DisclaimMemoryOnSwap) && !compInfo->isSwapMemoryDisabled();
+
+      CacheListCriticalSection scanCacheList(self());
+      for (TR::CodeCache *codeCache = self()->getFirstCodeCache(); codeCache && codeCache->_kind == kind; codeCache = codeCache->next())
+         {
+         numDisclaimed += codeCache->disclaim(self(), canDisclaimOnSwap);
+         }
+   #endif // LINUX
+
+      return numDisclaimed;
+      }
