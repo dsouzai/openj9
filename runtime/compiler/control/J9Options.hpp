@@ -551,8 +551,8 @@ class OMR_EXTENSIBLE Options : public OMR::OptionsConnector
    static const char *JITServerAOTCacheStoreLimitOption(const char *option, void *, TR::OptionTable *entry);
    static const char *JITServerAOTCacheLoadLimitOption(const char *option, void *, TR::OptionTable *entry);
    static const char *JITServerRemoteExclude(const char *option, void *base, TR::OptionTable *entry);
-   static bool JITServerParseCommonOptions(J9VMInitArgs *vmArgsArray, J9JavaVM *vm, TR::CompilationInfo *compInfo);
-   static void JITServerParseLocalSyncCompiles(J9VMInitArgs *vmArgsArray, J9JavaVM *vm, TR::CompilationInfo *compInfo, bool isFSDEnabled);
+   static bool JITServerParseCommonOptions(J9VMInitArgs *vmArgsArray, J9JavaVM *vm, TR::CompilationInfo *compInfo, bool postRestore = false);
+   static void JITServerParseLocalSyncCompiles(J9VMInitArgs *vmArgsArray, J9JavaVM *vm, TR::CompilationInfo *compInfo, bool isFSDEnabled, bool postRestore = false);
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
    static const char *vmStateOption(const char *option, void *, TR::OptionTable *entry);

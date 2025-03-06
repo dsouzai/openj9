@@ -1374,21 +1374,30 @@ static std::string readFileToString(char *fileName)
       }
    }
 
-bool
-J9::Options::JITServerParseCommonOptions(J9VMInitArgs *vmArgsArray, J9JavaVM *vm, TR::CompilationInfo *compInfo)
+static int32_t getArgIndex(J9JavaVM *vm, J9::ExternalOptions option, J9VMInitArgs *vmArgsArray, bool postRestore)
    {
-   int32_t xxJITServerPortArgIndex = J9::Options::getExternalOptionIndex(J9::ExternalOptions::XXJITServerPortOption);
-   int32_t xxJITServerTimeoutArgIndex = J9::Options::getExternalOptionIndex(J9::ExternalOptions::XXJITServerTimeoutOption);
-   int32_t xxJITServerSSLKeyArgIndex = J9::Options::getExternalOptionIndex(J9::ExternalOptions::XXJITServerSSLKeyOption);
-   int32_t xxJITServerSSLCertArgIndex = J9::Options::getExternalOptionIndex(J9::ExternalOptions::XXJITServerSSLCertOption);
-   int32_t xxJITServerSSLRootCertsArgIndex = J9::Options::getExternalOptionIndex(J9::ExternalOptions::XXJITServerSSLRootCertsOption);
-   int32_t xxJITServerUseAOTCacheArgIndex = J9::Options::getExternalOptionIndex(J9::ExternalOptions::XXplusJITServerUseAOTCacheOption);
-   int32_t xxDisableJITServerUseAOTCacheArgIndex = J9::Options::getExternalOptionIndex(J9::ExternalOptions::XXminusJITServerUseAOTCacheOption);
-   int32_t xxRequireJITServerArgIndex = J9::Options::getExternalOptionIndex(J9::ExternalOptions::XXplusRequireJITServerOption);
-   int32_t xxDisableRequireJITServerArgIndex = J9::Options::getExternalOptionIndex(J9::ExternalOptions::XXminusRequireJITServerOption);
-   int32_t xxJITServerLogConnectionsArgIndex = J9::Options::getExternalOptionIndex(J9::ExternalOptions::XXplusJITServerLogConnections);
-   int32_t xxDisableJITServerLogConnectionsArgIndex = J9::Options::getExternalOptionIndex(J9::ExternalOptions::XXminusJITServerLogConnections);
-   int32_t xxJITServerAOTmxArgIndex = J9::Options::getExternalOptionIndex(J9::ExternalOptions::XXJITServerAOTmxOption);
+   return
+      postRestore ?
+         FIND_ARG_IN_ARGS(vmArgsArray, J9::Options::getExternalOptionMatch(option), J9::Options::getExternalOptionString(option), 0)
+         :
+         J9::Options::getExternalOptionIndex(option);
+   }
+
+bool
+J9::Options::JITServerParseCommonOptions(J9VMInitArgs *vmArgsArray, J9JavaVM *vm, TR::CompilationInfo *compInfo, bool postRestore)
+   {
+   int32_t xxJITServerPortArgIndex = getArgIndex(vm, J9::ExternalOptions::XXJITServerPortOption, vmArgsArray, postRestore);
+   int32_t xxJITServerTimeoutArgIndex = getArgIndex(vm, J9::ExternalOptions::XXJITServerTimeoutOption, vmArgsArray, postRestore);
+   int32_t xxJITServerSSLKeyArgIndex = getArgIndex(vm, J9::ExternalOptions::XXJITServerSSLKeyOption, vmArgsArray, postRestore);
+   int32_t xxJITServerSSLCertArgIndex = getArgIndex(vm, J9::ExternalOptions::XXJITServerSSLCertOption, vmArgsArray, postRestore);
+   int32_t xxJITServerSSLRootCertsArgIndex = getArgIndex(vm, J9::ExternalOptions::XXJITServerSSLRootCertsOption, vmArgsArray, postRestore);
+   int32_t xxJITServerUseAOTCacheArgIndex = getArgIndex(vm, J9::ExternalOptions::XXplusJITServerUseAOTCacheOption, vmArgsArray, postRestore);
+   int32_t xxDisableJITServerUseAOTCacheArgIndex = getArgIndex(vm, J9::ExternalOptions::XXminusJITServerUseAOTCacheOption, vmArgsArray, postRestore);
+   int32_t xxRequireJITServerArgIndex = getArgIndex(vm, J9::ExternalOptions::XXplusRequireJITServerOption, vmArgsArray, postRestore);
+   int32_t xxDisableRequireJITServerArgIndex = getArgIndex(vm, J9::ExternalOptions::XXminusRequireJITServerOption, vmArgsArray, postRestore);
+   int32_t xxJITServerLogConnectionsArgIndex = getArgIndex(vm, J9::ExternalOptions::XXplusJITServerLogConnections, vmArgsArray, postRestore);
+   int32_t xxDisableJITServerLogConnectionsArgIndex = getArgIndex(vm, J9::ExternalOptions::XXminusJITServerLogConnections, vmArgsArray, postRestore);
+   int32_t xxJITServerAOTmxArgIndex = getArgIndex(vm, J9::ExternalOptions::XXJITServerAOTmxOption, vmArgsArray, postRestore);
 
    if (xxJITServerPortArgIndex >= 0)
       {
@@ -1478,10 +1487,10 @@ J9::Options::JITServerParseCommonOptions(J9VMInitArgs *vmArgsArray, J9JavaVM *vm
    }
 
 void
-J9::Options::JITServerParseLocalSyncCompiles(J9VMInitArgs *vmArgsArray, J9JavaVM *vm, TR::CompilationInfo *compInfo, bool isFSDEnabled)
+J9::Options::JITServerParseLocalSyncCompiles(J9VMInitArgs *vmArgsArray, J9JavaVM *vm, TR::CompilationInfo *compInfo, bool isFSDEnabled, bool postRestore)
    {
-   int32_t xxJITServerLocalSyncCompilesArgIndex = J9::Options::getExternalOptionIndex(J9::ExternalOptions::XXplusJITServerLocalSyncCompilesOption);
-   int32_t xxDisableJITServerLocalSyncCompilesArgIndex = J9::Options::getExternalOptionIndex(J9::ExternalOptions::XXminusJITServerLocalSyncCompilesOption);
+   int32_t xxJITServerLocalSyncCompilesArgIndex = getArgIndex(vm, J9::ExternalOptions::XXplusJITServerLocalSyncCompilesOption, vmArgsArray, postRestore);
+   int32_t xxDisableJITServerLocalSyncCompilesArgIndex = getArgIndex(vm, J9::ExternalOptions::XXminusJITServerLocalSyncCompilesOption, vmArgsArray, postRestore);
 
    // We either obey the command line option, or make sure to disable LocalSyncCompiles if
    // something is set that interferes with remote async recompilations.

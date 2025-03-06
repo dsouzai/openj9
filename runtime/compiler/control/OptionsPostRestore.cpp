@@ -135,7 +135,9 @@ J9::OptionsPostRestore::iterateOverExternalOptions()
          case J9::ExternalOptions::XXplusJITServerLocalSyncCompilesOption:
          case J9::ExternalOptions::XXminusJITServerLocalSyncCompilesOption:
             {
-            // These will be processed in processJitServerOptions
+            // These will be processed in processJitServerOptions; however,
+            // consume them here
+            FIND_AND_CONSUME_RESTORE_ARG(OPTIONAL_LIST_MATCH, optString, 0);
             }
             break;
 
@@ -318,7 +320,7 @@ J9::OptionsPostRestore::processJitServerOptions()
       J9JavaVM *vm = _jitConfig->javaVM;
 
       // Parse common options
-      if (!TR::Options::JITServerParseCommonOptions(vm->checkpointState.restoreArgsList, vm, _compInfo))
+      if (!TR::Options::JITServerParseCommonOptions(vm->checkpointState.restoreArgsList, vm, _compInfo, true))
          {
          // TODO: Error condition
          }
@@ -327,7 +329,8 @@ J9::OptionsPostRestore::processJitServerOptions()
       TR::Options::JITServerParseLocalSyncCompiles(vm->checkpointState.restoreArgsList,
                                                    vm,
                                                    _compInfo,
-                                                   TR::Options::getCmdLineOptions()->getOption(TR_FullSpeedDebug));
+                                                   TR::Options::getCmdLineOptions()->getOption(TR_FullSpeedDebug),
+                                                   true);
 
       if (_argIndexJITServerAddress >= 0)
          {
