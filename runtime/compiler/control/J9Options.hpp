@@ -527,6 +527,9 @@ class OMR_EXTENSIBLE Options : public OMR::OptionsConnector
    static int32_t getExternalOptionIndex(ExternalOptions option)
       { return _externalOptionsMetadata[option]._argIndex; }
 
+   static int8_t getExternalOptionMatch(ExternalOptions option)
+      { return _externalOptionsMetadata[option]._match; }
+
    static void  printPID();
 
 
