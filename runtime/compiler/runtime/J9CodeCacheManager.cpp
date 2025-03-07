@@ -853,9 +853,12 @@ J9::CodeCacheManager::disclaimAllCodeCaches()
       bool canDisclaimOnSwap = TR::Options::getCmdLineOptions()->getOption(TR_DisclaimMemoryOnSwap) && !compInfo->isSwapMemoryDisabled();
 
       CacheListCriticalSection scanCacheList(self());
-      for (TR::CodeCache *codeCache = self()->getFirstCodeCache(); codeCache && codeCache->_kind == kind; codeCache = codeCache->next())
+      for (TR::CodeCache *codeCache = self()->getFirstCodeCache(); codeCache; codeCache = codeCache->next())
          {
-         numDisclaimed += codeCache->disclaim(self(), canDisclaimOnSwap);
+         if (codeCache->_kind == kind)
+            {
+            numDisclaimed += codeCache->disclaim(self(), canDisclaimOnSwap);
+            }
          }
    #endif // LINUX
 
