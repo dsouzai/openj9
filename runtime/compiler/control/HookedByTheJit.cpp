@@ -4711,9 +4711,10 @@ void memoryDisclaimLogic(TR::CompilationInfo *compInfo, uint64_t crtElapsedTime,
        && jitConfig->javaVM->internalVMFunctions->isDebugOnRestoreEnabled(jitConfig->javaVM)
        && !jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(jitConfig->javaVM))
       {
-      if (crtElapsedTime > lastDataCacheDisclaimTime + 10 * TR::Options::_minTimeBetweenMemoryDisclaims)
+      if (crtElapsedTime > lastCodeCacheDisclaimTime + 10 * TR::Options::_minTimeBetweenMemoryDisclaims)
          {
          TR::CodeCacheManager::instance()->disclaimCodeCachesOfKind(TR::CodeCache::CacheKind::FILEBACKED);
+	 lastCodeCacheDisclaimTime = crtElapsedTime;
          }
       }
 
