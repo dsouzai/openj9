@@ -2556,6 +2556,74 @@ void J9::AheadOfTimeCompile::interceptAOTRelocation(TR::ExternalRelocation *relo
       }
    }
 
+void J9::AheadOfTimeCompile::processAOTMethdDependencies(TR::Compilation *comp)
+   {
+#if !defined(PERSISTENT_COLLECTIONS_UNSUPPORTED)
+   if (!comp->getOption(TR_DisableDependencyTracking))
+      {
+      auto method = comp->getMethodBeingCompiled()->getPersistentIdentifier();
+      auto definingClass = comp->fe()->getClassOfMethod(method);
+
+#if defined(J9VM_OPT_JITSERVER)
+      ClientSessionData *clientData = comp->getClientData();
+      if (clientData)
+         {
+         if (comp->numAOTMethodDependencies() == 0)
+            {
+            // If there are zero dependencies, we skip storing the chain. This
+            // flag must still be set to distinguish methods with zero
+            // dependencies from methods with untracked dependencies.
+            comp->getAotMethodHeaderEntry()->flags |= TR_AOTMethodHeader_TracksDependencies;
+            if (comp->getOptions()->getVerboseOption(TR_VerboseDependencyTracking))
+               TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Method %p compiled with 0 tracked dependencies", method);
+            }
+         else
+            {
+            if (clientData->useServerOffsets(comp->getStream()))
+               {
+               // Ensure creation of serialization records of dependences created outside RelocationRecord.cpp
+               }
+            else
+               {
+               // TODO
+               }
+            }
+         }
+      else
+#endif
+         {
+         Vector<uintptr_t> dependencies(comp->trMemory()->currentStackRegion());
+         uintptr_t totalDependencies = comp->populateAOTMethodDependencies(definingClass, dependencies);
+
+         if (totalDependencies == 0)
+            {
+            // If there are zero dependencies, we skip storing the chain. This
+            // flag must still be set to distinguish methods with zero
+            // dependencies from methods with untracked dependencies.
+            comp->getAotMethodHeaderEntry()->flags |= TR_AOTMethodHeader_TracksDependencies;
+            if (comp->getOptions()->getVerboseOption(TR_VerboseDependencyTracking))
+               TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Method %p compiled with 0 tracked dependencies", method);
+            }
+         else
+            {
+            auto fej9 = comp->fej9();
+            auto sharedCache = fej9->sharedCache();
+            auto vmThread = fej9->getCurrentVMThread();
+            auto dependencyChain = sharedCache->storeAOTMethodDependencies(vmThread, method, definingClass, dependencies.data(), dependencies.size());
+            if (dependencyChain)
+               {
+               comp->getAotMethodHeaderEntry()->flags |= TR_AOTMethodHeader_TracksDependencies;
+               if (comp->getOptions()->getVerboseOption(TR_VerboseDependencyTracking))
+                  {
+                  TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Method %p compiled with %lu tracked dependencies", method, totalDependencies);
+                  }
+               }
+            }
+         }
+      }
+#endif /* !defined(PERSISTENT_COLLECTIONS_UNSUPPORTED) */
+   }
+
 void J9::AheadOfTimeCompile::processRelocations()
    {
    TR::Compilation *comp = self()->comp();
@@ -2619,38 +2687,6 @@ void J9::AheadOfTimeCompile::processRelocations()
          relocationDataCursor += s->getSizeOfRelocationData();
          }
       }
-#if !defined(PERSISTENT_COLLECTIONS_UNSUPPORTED)
-      if (!comp->getOption(TR_DisableDependencyTracking))
-         {
-         auto method = comp->getMethodBeingCompiled()->getPersistentIdentifier();
-         auto definingClass = comp->fe()->getClassOfMethod(method);
 
-         Vector<uintptr_t> dependencies(comp->trMemory()->currentStackRegion());
-         uintptr_t totalDependencies = comp->populateAOTMethodDependencies(definingClass, dependencies);
-
-         if (totalDependencies == 0)
-            {
-            // If there are zero dependencies, we skip storing the chain. This
-            // flag must still be set to distinguish methods with zero
-            // dependencies from methods with untracked dependencies.
-            comp->getAotMethodHeaderEntry()->flags |= TR_AOTMethodHeader_TracksDependencies;
-            if (comp->getOptions()->getVerboseOption(TR_VerboseDependencyTracking))
-               TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Method %p compiled with 0 tracked dependencies", method);
-            }
-         else
-            {
-            auto sharedCache = fej9->sharedCache();
-            auto vmThread = fej9->getCurrentVMThread();
-            auto dependencyChain = sharedCache->storeAOTMethodDependencies(vmThread, method, definingClass, dependencies.data(), dependencies.size());
-            if (dependencyChain)
-               {
-               comp->getAotMethodHeaderEntry()->flags |= TR_AOTMethodHeader_TracksDependencies;
-               if (comp->getOptions()->getVerboseOption(TR_VerboseDependencyTracking))
-                  {
-                  TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Method %p compiled with %lu tracked dependencies", method, totalDependencies);
-                  }
-               }
-            }
-         }
-#endif /* !defined(PERSISTENT_COLLECTIONS_UNSUPPORTED) */
+   self()->processAOTMethdDependencies(comp);
    }

@@ -265,6 +265,11 @@ protected:
     * @brief Common relocation processing for AOT
     */
    void processRelocations();
+
+   /**
+    * @brief Process AOT Method Dependencies
+    */
+   void processAOTMethdDependencies(TR::Compilation *comp);
    };
 
 }
