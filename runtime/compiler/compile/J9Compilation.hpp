@@ -62,6 +62,7 @@ namespace TR { class IlGenRequest; }
 struct SerializedRuntimeAssumption;
 class ClientSessionData;
 class AOTCacheRecord;
+class AOTCacheClassRecord;
 class AOTCacheThunkRecord;
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
@@ -439,6 +440,7 @@ class OMR_EXTENSIBLE Compilation : public OMR::CompilationConnector
    void addAOTMethodDependency(TR_OpaqueClassBlock *ramClass, uintptr_t chainOffset = TR_SharedCache::INVALID_CLASS_CHAIN_OFFSET);
    uintptr_t populateAOTMethodDependencies(TR_OpaqueClassBlock *definingClass, Vector<uintptr_t> &chainBuffer);
    uintptr_t numAOTMethodDependencies() { return _aotMethodDependencies.size(); }
+   UnorderedMap<uintptr_t, bool> & getAOTMethodDependencies() { return _aotMethodDependencies; }
 #endif
 
 private:
@@ -458,6 +460,9 @@ private:
 #if !defined(PERSISTENT_COLLECTIONS_UNSUPPORTED)
    void insertAOTMethodDependency(uintptr_t dependency, bool classIsInitialized);
    void addAOTMethodDependency(uintptr_t offset, bool classIsInitialized);
+#if defined(J9VM_OPT_JITSERVER)
+   void addAOTMethodDependency(const AOTCacheClassRecord *record, bool classIsInitialized);
+#endif
 #endif  /*  !defined(PERSISTENT_COLLECTIONS_UNSUPPORTED) */
 
    J9VMThread *_j9VMThread;
