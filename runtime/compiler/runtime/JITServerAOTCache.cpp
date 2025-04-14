@@ -1212,6 +1212,10 @@ JITServerAOTCache::getSerializationRecords(const CachedAOTMethod *method, const 
    for (size_t i = 0; i < method->data().numRecords(); ++i)
       addRecord(method->records()[i], result, newRecords, knownIds);
 
+   // Add serialization records for dependencies
+   for (size_t i = 0; i < method->data().numDependencies(); ++i)
+      addRecord(method->deps()[i], result, newRecords, knownIds);
+
    return result;
    }
 
