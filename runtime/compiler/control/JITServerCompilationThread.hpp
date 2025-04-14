@@ -192,7 +192,10 @@ private:
 
    void processAOTCacheMapRequest(const std::string& aotCacheName,
                                   TR::CompilationInfo *compInfo,
-                                  JITServer::ServerStream *stream);
+                                  JITServer::ServerStream *stream,
+                                  bool includeDependencies = false);
+
+   void sendListOfCachedAOTMethods(JITServer::ServerStream *stream, JITServerAOTCache *aotCache);
 
    TR_PersistentMethodInfo *_recompilationMethodInfo;
    uint32_t _seqNo;

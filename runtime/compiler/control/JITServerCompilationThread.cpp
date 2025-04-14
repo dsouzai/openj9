@@ -950,19 +950,59 @@ TR::CompilationInfoPerThreadRemote::processCompilationRequest(CompilationRequest
    }
 
 
+void
+TR::CompilationInfoPerThreadRemote::sendListOfCachedAOTMethods(JITServer::ServerStream *stream, JITServerAOTCache *aotCache)
+   {
+   std::vector<std::string> methodSignaturesV;
+   auto cachedMethodMonitor = aotCache->getCachedMethodMonitor();
+
+   try
+      {
+      OMR::CriticalSection cs(cachedMethodMonitor);
+
+      auto cachedAOTMethod = aotCache->getCachedMethodHead();
+      methodSignaturesV.reserve(aotCache->getCachedMethodMap().size());
+
+      for (;cachedAOTMethod != NULL;
+         cachedAOTMethod = cachedAOTMethod->getNextRecord())
+         {
+         const SerializedAOTMethod &serializedAOTMethod = cachedAOTMethod->data();
+         methodSignaturesV.emplace_back(std::string(serializedAOTMethod.signature()));
+         }
+      }
+   catch (const std::bad_alloc &e)
+      {
+      if (TR::Options::isAnyVerboseOptionSet(TR_VerboseJITServer))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_FAILURE,
+            "std::bad_alloc: %s",
+            e.what());
+      }
+
+   if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+      {
+      TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
+                                    "Sending the list of AOT methods size %d",
+                                    methodSignaturesV.size());
+      }
+
+   stream->write(JITServer::MessageType::AOTCacheMap_reply, methodSignaturesV);
+   }
+
 /**
  * @brief Private method specific to processing a compilation request.
  */
 void
 TR::CompilationInfoPerThreadRemote::processAOTCacheMapRequest(const std::string& aotCacheName,
                                                               TR::CompilationInfo *compInfo,
-                                                              JITServer::ServerStream *stream)
+                                                              JITServer::ServerStream *stream,
+                                                              bool includeDependencies)
    {
    if (TR::Options::getVerboseOption(TR_VerboseJITServer))
       {
       TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
-         "compThreadID=%d handling request for AOT cache %s method list",
-         getCompThreadId(), aotCacheName.c_str());
+         "compThreadID=%d handling request for AOT cache %s method list%s",
+         getCompThreadId(), aotCacheName.c_str(),
+         includeDependencies ? " (including dependencies)" : "");
       }
 
    auto aotCacheMap = compInfo->getJITServerAOTCacheMap();
@@ -974,39 +1014,15 @@ TR::CompilationInfoPerThreadRemote::processAOTCacheMapRequest(const std::string&
    bool pending = false;
    auto aotCache = aotCacheMap->get(aotCacheName, 0, pending);
 
-   std::vector<std::string> methodSignaturesV;
    if (aotCache)
       {
-      auto cachedMethodMonitor = aotCache->getCachedMethodMonitor();
-      try
+      if (includeDependencies)
          {
-            {
-            OMR::CriticalSection cs(cachedMethodMonitor);
-
-            auto cachedAOTMethod = aotCache->getCachedMethodHead();
-            methodSignaturesV.reserve(aotCache->getCachedMethodMap().size());
-
-            for (;cachedAOTMethod != NULL;
-               cachedAOTMethod = cachedAOTMethod->getNextRecord())
-               {
-               const SerializedAOTMethod &serializedAOTMethod = cachedAOTMethod->data();
-               methodSignaturesV.emplace_back(std::string(serializedAOTMethod.signature()));
-               }
-            }
+         // TODO
          }
-      catch (const std::bad_alloc &e)
+      else
          {
-         if (TR::Options::isAnyVerboseOptionSet(TR_VerboseJITServer))
-            TR_VerboseLog::writeLineLocked(TR_Vlog_FAILURE,
-               "std::bad_alloc: %s",
-               e.what());
-         }
-
-      if (TR::Options::getVerboseOption(TR_VerboseJITServer))
-         {
-         TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
-                                       "Sending the list of AOT methods size %d",
-                                       methodSignaturesV.size());
+         sendListOfCachedAOTMethods(stream, aotCache);
          }
       }
    else // Failed getting aotCache, treat pending as a failure
@@ -1016,7 +1032,6 @@ TR::CompilationInfoPerThreadRemote::processAOTCacheMapRequest(const std::string&
          TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Failed getting aotCache");
          }
       }
-   stream->write(JITServer::MessageType::AOTCacheMap_reply, methodSignaturesV);
    }
 
 /**
@@ -1098,24 +1113,34 @@ TR::CompilationInfoPerThreadRemote::processEntry(TR_MethodToBeCompiled &entry, J
       std::string cacheName;
 
       auto messageType = stream->readCompileRequest(req, cacheName);
+      bool includeDepencies = false;
 
-      if (messageType == JITServer::MessageType::compilationRequest)
+      switch (messageType)
          {
-         processCompilationRequest(req, stream, compInfo, compThread, clientSession,
-                                   entry, optPlan, scratchSegmentProvider,
-                                   clientId, seqNo, hasUpdatedSeqNo, useAotCompilation,
-                                   isCriticalRequest, hasIncNumActiveThreads,
-                                   aotCacheHit, abortCompilation);
-         }
-      else if (messageType == JITServer::MessageType::AOTCacheMap_request)
-         {
-         processAOTCacheMapRequest(cacheName, compInfo, stream);
-         abortCompilation = true;
-         deleteStream = true;
-         }
-      else
-         {
-         TR_ASSERT_FATAL(false, "Unknown message type %d\n", messageType);
+         case JITServer::MessageType::compilationRequest:
+            {
+            processCompilationRequest(req, stream, compInfo, compThread, clientSession,
+                                      entry, optPlan, scratchSegmentProvider,
+                                      clientId, seqNo, hasUpdatedSeqNo, useAotCompilation,
+                                      isCriticalRequest, hasIncNumActiveThreads,
+                                      aotCacheHit, abortCompilation);
+            }
+            break;
+
+         case JITServer::MessageType::AOTCacheMapWithDeps_request:
+            includeDepencies = true;
+            // fallthrough
+
+         case JITServer::MessageType::AOTCacheMap_request:
+            {
+            processAOTCacheMapRequest(cacheName, compInfo, stream, includeDepencies);
+            abortCompilation = true;
+            deleteStream = true;
+            }
+            break;
+
+         default:
+            TR_ASSERT_FATAL(false, "Message type %s is invalid at this point\n", JITServer::messageNames[messageType]);
          }
       }
    catch (const JITServer::StreamFailure &e)
