@@ -181,6 +181,7 @@ public:
             }
             break;
          case MessageType::AOTCacheMap_request:
+         case MessageType::AOTCacheMapWithDeps_request:
             {
             cacheName = std::get<0>(getArgsRaw<std::string>(_cMsg));
             }
