@@ -1420,7 +1420,7 @@ onLoadInternal(
    TR::CodeCacheManager *codeCacheManager = (TR::CodeCacheManager *) j9mem_allocate_memory(sizeof(TR::CodeCacheManager), J9MEM_CATEGORY_JIT);
    if (codeCacheManager == NULL)
       return -1;
-   memset(codeCacheManager, 0, sizeof(TR::CodeCacheManager));
+   memset((void *)codeCacheManager, 0, sizeof(TR::CodeCacheManager));
 
    // must initialize manager using the global (not thread specific) fe because current thread isn't guaranteed to live longer than the manager
    new (codeCacheManager) TR::CodeCacheManager(feWithoutThread, TR::Compiler->rawAllocator);

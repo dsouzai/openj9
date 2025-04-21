@@ -29,6 +29,7 @@ namespace J9 { struct PersistentAllocatorKit; }
 namespace TR { using J9::PersistentAllocatorKit; }
 
 #include <stddef.h>
+#include <stdint.h>
 
 extern "C" {
 struct J9JavaVM;
