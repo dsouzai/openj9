@@ -27,8 +27,6 @@
 #include "env/PersistentCollections.hpp"
 #include "env/VMJ9.h"
 
-class TR_J9SharedCache;
-
 #if defined(PERSISTENT_COLLECTIONS_UNSUPPORTED)
 
 class TR_AOTDependencyTable
@@ -47,27 +45,7 @@ public:
 
 #else
 
-struct MethodEntry
-   {
-   // The number of dependencies left to be satisfied
-   uintptr_t _remainingDependencies;
-   // The dependency chain stored in the local SCC (used to stop tracking a
-   // method)
-   const uintptr_t *_dependencyChain;
-   };
-
-typedef std::pair<J9Method *const, MethodEntry>* MethodEntryRef;
-
-struct OffsetEntry
-   {
-   // Classes that have been loaded and have a particular valid class chain
-   // offset
-   PersistentUnorderedSet<J9Class *> _loadedClasses;
-   // Methods waiting for a class with this offset to be loaded
-   PersistentUnorderedSet<MethodEntryRef> _waitingLoadMethods;
-   // Methods waiting for a class with this offset to be initialized
-   PersistentUnorderedSet<MethodEntryRef> _waitingInitMethods;
-   };
+class TR_J9SharedCache;
 
 /**
  * \brief Tracking AOT load dependencies
@@ -87,12 +65,10 @@ struct OffsetEntry
  * associated RAM methods can be reduced when all of their AOT load dependencies
  * have been satisfied.
  */
-class TR_AOTDependencyTable
+template <typename T>
+class TR_AOTDependencyTableBase
    {
 public:
-   TR_PERSISTENT_ALLOC(TR_Memory::PersistentCHTable)
-   TR_AOTDependencyTable(TR_J9SharedCache *sharedCache);
-
    // If the given method has an AOT body with stored dependencies in the local
    // SCC, trackMethod() will determine how many are currently satisfied. If all
    // are, dependenciesSatisfied will be set to true. Otherwise, the method and
@@ -139,8 +115,35 @@ public:
       return needsInitialization ? offset : (offset & ~1);
       }
 
-   void printStats();
-private:
+   virtual void printStats() = 0;
+
+protected:
+
+   struct MethodEntry
+      {
+      // The number of dependencies left to be satisfied
+      uintptr_t _remainingDependencies;
+      // The dependency chain stored in the local SCC (used to stop tracking a
+      // method)
+      const T *_dependencyChain;
+      };
+
+   typedef std::pair<J9Method *const, MethodEntry>* MethodEntryRef;
+
+   struct OffsetEntry
+      {
+      // Classes that have been loaded and have a particular valid class chain
+      // offset
+      PersistentUnorderedSet<J9Class *> _loadedClasses;
+      // Methods waiting for a class with this offset to be loaded
+      PersistentUnorderedSet<MethodEntryRef> _waitingLoadMethods;
+      // Methods waiting for a class with this offset to be initialized
+      PersistentUnorderedSet<MethodEntryRef> _waitingInitMethods;
+      };
+
+   TR_PERSISTENT_ALLOC(TR_Memory::PersistentCHTable)
+   TR_AOTDependencyTableBase<T>(TR_J9SharedCache *sharedCache);
+
    bool isActive() const { return _isActive; }
    void setInactive() { _isActive = false; }
 
@@ -203,7 +206,7 @@ private:
    // avoids the need to recreate the class chain to consult this map; this
    // works because there can be at most one class chain in the SCC whose entry
    // is a particular ROM class offset.
-   PersistentUnorderedMap<uintptr_t, OffsetEntry> _offsetMap;
+   PersistentUnorderedMap<T, OffsetEntry> _offsetMap;
 
    // A map from methods to their tracking information in the dependency table
    PersistentUnorderedMap<J9Method *, MethodEntry> _methodMap;
@@ -212,6 +215,20 @@ private:
    // table transaction
    PersistentUnorderedSet<MethodEntryRef> _pendingLoads;
    };
+
+
+class TR_AOTDependencyTable : public TR_AOTDependencyTableBase<uintptr_t>
+   {
+public:
+   TR_PERSISTENT_ALLOC(TR_Memory::PersistentCHTable)
+   TR_AOTDependencyTable(TR_J9SharedCache *sharedCache) 
+      : TR_AOTDependencyTableBase<uintptr_t>(sharedCache)
+      {};
+
+   virtual void printStats();
+   };
+
+template class TR_AOTDependencyTableBase<uintptr_t>;
 
 #endif /* defined(PERSISTENT_COLLECTIONS_UNSUPPORTED) */
 #endif

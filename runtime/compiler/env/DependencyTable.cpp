@@ -29,17 +29,19 @@
 
 #if !defined(PERSISTENT_COLLECTIONS_UNSUPPORTED)
 
-TR_AOTDependencyTable::TR_AOTDependencyTable(TR_J9SharedCache *sharedCache) :
+template<typename T>
+TR_AOTDependencyTableBase<T>::TR_AOTDependencyTableBase(TR_J9SharedCache *sharedCache) :
    _isActive(true),
    _sharedCache(sharedCache),
    _tableMonitor(TR::Monitor::create("JIT-AOTDependencyTableMonitor")),
-   _offsetMap(decltype(_offsetMap)::allocator_type(TR::Compiler->persistentAllocator())),
-   _methodMap(decltype(_methodMap)::allocator_type(TR::Compiler->persistentAllocator())),
-   _pendingLoads(decltype(_pendingLoads)::allocator_type(TR::Compiler->persistentAllocator()))
+   _offsetMap((typename decltype(_offsetMap)::allocator_type)(TR::Compiler->persistentAllocator())),
+   _methodMap((typename decltype(_methodMap)::allocator_type)(TR::Compiler->persistentAllocator())),
+   _pendingLoads((typename decltype(_pendingLoads)::allocator_type)(TR::Compiler->persistentAllocator()))
    { }
 
+template<typename T>
 bool
-TR_AOTDependencyTable::trackMethod(J9VMThread *vmThread, J9Method *method, J9ROMMethod *romMethod, bool &dependenciesSatisfied)
+TR_AOTDependencyTableBase<T>::trackMethod(J9VMThread *vmThread, J9Method *method, J9ROMMethod *romMethod, bool &dependenciesSatisfied)
    {
    const uintptr_t *methodDependencies = NULL;
    if (!_sharedCache->methodHasAOTBodyWithDependencies(vmThread, romMethod, methodDependencies))
@@ -108,8 +110,9 @@ TR_AOTDependencyTable::trackMethod(J9VMThread *vmThread, J9Method *method, J9ROM
    return true;
    }
 
+template<typename T>
 void
-TR_AOTDependencyTable::methodWillBeCompiled(J9Method *method)
+TR_AOTDependencyTableBase<T>::methodWillBeCompiled(J9Method *method)
    {
    OMR::CriticalSection cs(_tableMonitor);
    if (!isActive())
@@ -123,8 +126,9 @@ TR_AOTDependencyTable::methodWillBeCompiled(J9Method *method)
    stopTracking(method, true);
    }
 
+template<typename T>
 void
-TR_AOTDependencyTable::stopTracking(MethodEntryRef entry, bool isEarlyStop)
+TR_AOTDependencyTableBase<T>::stopTracking(MethodEntryRef entry, bool isEarlyStop)
    {
    auto method = entry->first;
    auto methodEntry = entry->second;
@@ -160,23 +164,26 @@ TR_AOTDependencyTable::stopTracking(MethodEntryRef entry, bool isEarlyStop)
    _methodMap.erase(entry->first);
    }
 
+template<typename T>
 void
-TR_AOTDependencyTable::stopTracking(J9Method *method, bool isEarlyStop)
+TR_AOTDependencyTableBase<T>::stopTracking(J9Method *method, bool isEarlyStop)
    {
    auto entry = _methodMap.find(method);
    if (entry != _methodMap.end())
       stopTracking(&*entry, isEarlyStop);
    }
 
+template<typename T>
 void
-TR_AOTDependencyTable::eraseOffsetEntryIfEmpty(const OffsetEntry &entry, uintptr_t offset)
+TR_AOTDependencyTableBase<T>::eraseOffsetEntryIfEmpty(const OffsetEntry &entry, uintptr_t offset)
    {
    if (entry._loadedClasses.empty() && entry._waitingInitMethods.empty() && entry._waitingLoadMethods.empty())
       _offsetMap.erase(offset);
    }
 
+template<typename T>
 void
-TR_AOTDependencyTable::classLoadEvent(TR_OpaqueClassBlock *clazz, bool isClassLoad, bool isClassInitialization)
+TR_AOTDependencyTableBase<T>::classLoadEvent(TR_OpaqueClassBlock *clazz, bool isClassLoad, bool isClassInitialization)
    {
    auto ramClass = (J9Class *)clazz;
 
@@ -206,8 +213,9 @@ TR_AOTDependencyTable::classLoadEvent(TR_OpaqueClassBlock *clazz, bool isClassLo
    resolvePendingLoads();
    }
 
+template<typename T>
 void
-TR_AOTDependencyTable::registerSatisfaction(PersistentUnorderedSet<MethodEntryRef> waitingMethods)
+TR_AOTDependencyTableBase<T>::registerSatisfaction(PersistentUnorderedSet<MethodEntryRef> waitingMethods)
    {
    for (auto &entry: waitingMethods)
       {
@@ -218,8 +226,9 @@ TR_AOTDependencyTable::registerSatisfaction(PersistentUnorderedSet<MethodEntryRe
       }
    }
 
+template<typename T>
 void
-TR_AOTDependencyTable::classLoadEventAtOffset(J9Class *ramClass, uintptr_t offset, bool isClassLoad, bool isClassInitialization)
+TR_AOTDependencyTableBase<T>::classLoadEventAtOffset(J9Class *ramClass, uintptr_t offset, bool isClassLoad, bool isClassInitialization)
    {
    auto offsetEntry = getOffsetEntry(offset, isClassLoad);
 
@@ -268,8 +277,9 @@ TR_AOTDependencyTable::classLoadEventAtOffset(J9Class *ramClass, uintptr_t offse
       }
    }
 
-OffsetEntry *
-TR_AOTDependencyTable::getOffsetEntry(uintptr_t offset, bool create)
+template<typename T>
+typename TR_AOTDependencyTableBase<T>::OffsetEntry *
+TR_AOTDependencyTableBase<T>::getOffsetEntry(uintptr_t offset, bool create)
    {
    auto it = _offsetMap.find(offset);
    if (it != _offsetMap.end())
@@ -277,17 +287,18 @@ TR_AOTDependencyTable::getOffsetEntry(uintptr_t offset, bool create)
 
    if (create)
       {
-      PersistentUnorderedSet<J9Class *> loadedClasses(PersistentUnorderedSet<J9Class *>::allocator_type(TR::Compiler->persistentAllocator()));
-      PersistentUnorderedSet<MethodEntryRef> waitingLoadMethods(PersistentUnorderedSet<MethodEntryRef>::allocator_type(TR::Compiler->persistentAllocator()));
-      PersistentUnorderedSet<MethodEntryRef> waitingInitMethods(PersistentUnorderedSet<MethodEntryRef>::allocator_type(TR::Compiler->persistentAllocator()));
+      PersistentUnorderedSet<J9Class *> loadedClasses((typename PersistentUnorderedSet<J9Class *>::allocator_type)(TR::Compiler->persistentAllocator()));
+      PersistentUnorderedSet<MethodEntryRef> waitingLoadMethods((typename PersistentUnorderedSet<MethodEntryRef>::allocator_type)(TR::Compiler->persistentAllocator()));
+      PersistentUnorderedSet<MethodEntryRef> waitingInitMethods((typename PersistentUnorderedSet<MethodEntryRef>::allocator_type)(TR::Compiler->persistentAllocator()));
       return &(*_offsetMap.insert(it, {offset, {loadedClasses, waitingLoadMethods, waitingInitMethods}})).second;
       }
 
    return NULL;
    }
 
+template<typename T>
 void
-TR_AOTDependencyTable::invalidateUnloadedClass(TR_OpaqueClassBlock *clazz)
+TR_AOTDependencyTableBase<T>::invalidateUnloadedClass(TR_OpaqueClassBlock *clazz)
    {
    uintptr_t classOffset = TR_SharedCache::INVALID_ROM_CLASS_OFFSET;
    if (!_sharedCache->isClassInSharedCache(clazz, &classOffset))
@@ -303,8 +314,9 @@ TR_AOTDependencyTable::invalidateUnloadedClass(TR_OpaqueClassBlock *clazz)
       invalidateMethodsOfClass(ramClass);
    }
 
+template<typename T>
 void
-TR_AOTDependencyTable::registerDissatisfaction(PersistentUnorderedSet<MethodEntryRef> waitingMethods)
+TR_AOTDependencyTableBase<T>::registerDissatisfaction(PersistentUnorderedSet<MethodEntryRef> waitingMethods)
    {
    for (auto& entry: waitingMethods)
       {
@@ -313,8 +325,9 @@ TR_AOTDependencyTable::registerDissatisfaction(PersistentUnorderedSet<MethodEntr
       }
    }
 
+template<typename T>
 bool
-TR_AOTDependencyTable::invalidateClassAtOffset(J9Class *ramClass, uintptr_t romClassOffset)
+TR_AOTDependencyTableBase<T>::invalidateClassAtOffset(J9Class *ramClass, uintptr_t romClassOffset)
    {
    auto entry = getOffsetEntry(romClassOffset, false);
    if (entry)
@@ -343,8 +356,9 @@ TR_AOTDependencyTable::invalidateClassAtOffset(J9Class *ramClass, uintptr_t romC
    return false;
    }
 
+template<typename T>
 void
-TR_AOTDependencyTable::invalidateMethodsOfClass(J9Class *ramClass)
+TR_AOTDependencyTableBase<T>::invalidateMethodsOfClass(J9Class *ramClass)
    {
    for (uint32_t i = 0; i < ramClass->romClass->romMethodCount; i++)
       stopTracking(&ramClass->ramMethods[i], true);
@@ -352,8 +366,9 @@ TR_AOTDependencyTable::invalidateMethodsOfClass(J9Class *ramClass)
 
 // If an entry exists for a class, remove it. Otherwise, if we should
 // revalidate, add an entry if the class has a valid chain.
+template<typename T>
 void
-TR_AOTDependencyTable::recheckSubclass(J9Class *ramClass, uintptr_t offset, bool shouldRevalidate)
+TR_AOTDependencyTableBase<T>::recheckSubclass(J9Class *ramClass, uintptr_t offset, bool shouldRevalidate)
    {
    if (invalidateClassAtOffset(ramClass, offset))
       return;
@@ -370,8 +385,9 @@ TR_AOTDependencyTable::recheckSubclass(J9Class *ramClass, uintptr_t offset, bool
 // formerly had valid chains will now be guaranteed not to match, so the entries
 // for these must be removed. If the new offset is valid, any class that didn't
 // have an entry should be rechecked.
+template<typename T>
 void
-TR_AOTDependencyTable::invalidateRedefinedClass(TR_PersistentCHTable *table, TR_J9VMBase *fej9, TR_OpaqueClassBlock *oldClass, TR_OpaqueClassBlock *freshClass)
+TR_AOTDependencyTableBase<T>::invalidateRedefinedClass(TR_PersistentCHTable *table, TR_J9VMBase *fej9, TR_OpaqueClassBlock *oldClass, TR_OpaqueClassBlock *freshClass)
    {
    uintptr_t freshClassOffset = TR_SharedCache::INVALID_ROM_CLASS_OFFSET;
    uintptr_t oldClassOffset = TR_SharedCache::INVALID_ROM_CLASS_OFFSET;
@@ -441,8 +457,9 @@ TR_AOTDependencyTable::invalidateRedefinedClass(TR_PersistentCHTable *table, TR_
    resolvePendingLoads();
    }
 
+template<typename T>
 void
-TR_AOTDependencyTable::resolvePendingLoads()
+TR_AOTDependencyTableBase<T>::resolvePendingLoads()
    {
    for (auto& entry: _pendingLoads)
       {
@@ -470,8 +487,9 @@ TR_AOTDependencyTable::resolvePendingLoads()
    _pendingLoads.clear();
    }
 
+template<typename T>
 J9Class *
-TR_AOTDependencyTable::findCandidateWithChainAndLoader(TR::Compilation *comp, uintptr_t classChainOffset, void *classLoaderChain)
+TR_AOTDependencyTableBase<T>::findCandidateWithChainAndLoader(TR::Compilation *comp, uintptr_t classChainOffset, void *classLoaderChain)
    {
    if (comp->isDeserializedAOTMethod() || comp->ignoringLocalSCC())
       return NULL;
@@ -480,8 +498,9 @@ TR_AOTDependencyTable::findCandidateWithChainAndLoader(TR::Compilation *comp, ui
    return findChainLoaderCandidate(comp, classChain, classLoaderChain);
    }
 
+template<typename T>
 J9Class *
-TR_AOTDependencyTable::findCandidateWithChainAndLoader(TR::Compilation *comp, uintptr_t *classChain, void *classLoaderChain)
+TR_AOTDependencyTableBase<T>::findCandidateWithChainAndLoader(TR::Compilation *comp, uintptr_t *classChain, void *classLoaderChain)
    {
    if (comp->isDeserializedAOTMethod() || comp->ignoringLocalSCC())
       return NULL;
@@ -489,8 +508,9 @@ TR_AOTDependencyTable::findCandidateWithChainAndLoader(TR::Compilation *comp, ui
    return findChainLoaderCandidate(comp, classChain, classLoaderChain);
    }
 
+template<typename T>
 J9Class *
-TR_AOTDependencyTable::findChainLoaderCandidate(TR::Compilation *comp, uintptr_t *classChain, void *classLoaderChain)
+TR_AOTDependencyTableBase<T>::findChainLoaderCandidate(TR::Compilation *comp, uintptr_t *classChain, void *classLoaderChain)
    {
    TR_ASSERT_FATAL(classLoaderChain, "Must be given a loader chain");
 
@@ -516,19 +536,9 @@ TR_AOTDependencyTable::findChainLoaderCandidate(TR::Compilation *comp, uintptr_t
    return NULL;
    }
 
-void
-TR_AOTDependencyTable::printStats()
-   {
-   TR_VerboseLog::CriticalSection vlogLock;
-
-   TR_VerboseLog::writeLine(TR_Vlog_INFO, "Dependency table: %lu methods remain tracked", _methodMap.size());
-
-   for (auto methodEntry : _methodMap)
-      stopTracking(&methodEntry, true);
-   }
-
+template<typename T>
 J9Class *
-TR_AOTDependencyTable::findCandidateForDependency(const PersistentUnorderedSet<J9Class *> &loadedClasses, bool needsInitialization)
+TR_AOTDependencyTableBase<T>::findCandidateForDependency(const PersistentUnorderedSet<J9Class *> &loadedClasses, bool needsInitialization)
    {
    for (const auto& clazz: loadedClasses)
       {
@@ -539,13 +549,25 @@ TR_AOTDependencyTable::findCandidateForDependency(const PersistentUnorderedSet<J
    return NULL;
    }
 
+template<typename T>
 void
-TR_AOTDependencyTable::deactivateTable()
+TR_AOTDependencyTableBase<T>::deactivateTable()
    {
    _offsetMap.clear();
    _methodMap.clear();
    _pendingLoads.clear();
    setInactive();
+   }
+
+void
+TR_AOTDependencyTable::printStats()
+   {
+   TR_VerboseLog::CriticalSection vlogLock;
+
+   TR_VerboseLog::writeLine(TR_Vlog_INFO, "Dependency table: %lu methods remain tracked", _methodMap.size());
+
+   for (auto methodEntry : _methodMap)
+      stopTracking(&methodEntry, true);
    }
 
 #endif /* !defined(PERSISTENT_COLLECTIONS_UNSUPPORTED) */
