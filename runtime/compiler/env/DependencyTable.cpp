@@ -29,6 +29,28 @@
 
 #if !defined(PERSISTENT_COLLECTIONS_UNSUPPORTED)
 
+template<> 
+uintptr_t 
+TR_AOTDependencyTable::decodeDependencyOffset<uintptr_t>(uintptr_t offset)
+   {
+   return offset | 1;
+   }
+
+template<>
+uintptr_t
+TR_AOTDependencyTable::decodeDependencyOffset<uintptr_t>(uintptr_t offset, bool &needsInitialization)
+   {
+   needsInitialization = (offset & 1) == 1;
+   return decodeDependencyOffset(offset);
+   }
+
+template<>
+uintptr_t
+TR_AOTDependencyTable::encodeDependencyOffset<uintptr_t>(uintptr_t offset, bool needsInitialization)
+   {
+   return needsInitialization ? offset : (offset & ~1);
+   }
+
 template<typename T>
 TR_AOTDependencyTableBase<T>::TR_AOTDependencyTableBase(TR_J9SharedCache *sharedCache) :
    _isActive(true),
@@ -560,7 +582,7 @@ TR_AOTDependencyTableBase<T>::deactivateTable()
    }
 
 void
-TR_AOTDependencyTable::printStats()
+TR_AOTDependencyTableLocalSCC ::printStats()
    {
    TR_VerboseLog::CriticalSection vlogLock;
 

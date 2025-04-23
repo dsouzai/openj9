@@ -47,6 +47,28 @@ public:
 
 class TR_J9SharedCache;
 
+class TR_AOTDependencyTable
+   {
+public:
+   virtual bool trackMethod(J9VMThread *vmThread, J9Method *method, J9ROMMethod *romMethod, bool &dependenciesSatisfied) = 0;
+   virtual void methodWillBeCompiled(J9Method *method) = 0;
+   virtual void classLoadEvent(TR_OpaqueClassBlock *ramClass, bool isClassLoad, bool isClassInitialization) = 0;
+   virtual void invalidateUnloadedClass(TR_OpaqueClassBlock *ramClass) = 0;
+   virtual void invalidateRedefinedClass(TR_PersistentCHTable *table, TR_J9VMBase *fej9, TR_OpaqueClassBlock *oldClass, TR_OpaqueClassBlock *freshClass) = 0;
+   virtual J9Class *findCandidateWithChainAndLoader(TR::Compilation *comp, uintptr_t classChainOffset, void *classLoaderChain) = 0;
+   virtual J9Class *findCandidateWithChainAndLoader(TR::Compilation *comp, uintptr_t *classChain, void *classLoaderChain) = 0;
+   virtual void printStats() = 0;
+
+   template<typename T>
+   static T decodeDependencyOffset(T offset) { return T(); }
+   
+   template<typename T>
+   static T decodeDependencyOffset(T offset, bool& needsInitialization) { return T(); }
+
+   template<typename T>
+   static T encodeDependencyOffset(T offset, bool needsInitialization) { return T(); }
+   };
+
 /**
  * \brief Tracking AOT load dependencies
  *
@@ -66,7 +88,7 @@ class TR_J9SharedCache;
  * have been satisfied.
  */
 template <typename T>
-class TR_AOTDependencyTableBase
+class TR_AOTDependencyTableBase : public TR_AOTDependencyTable
    {
 public:
    // If the given method has an AOT body with stored dependencies in the local
@@ -100,20 +122,6 @@ public:
    // with that loader chain
    J9Class *findCandidateWithChainAndLoader(TR::Compilation *comp, uintptr_t classChainOffset, void *classLoaderChain);
    J9Class *findCandidateWithChainAndLoader(TR::Compilation *comp, uintptr_t *classChain, void *classLoaderChain);
-
-   static uintptr_t decodeDependencyOffset(uintptr_t offset)
-      {
-      return offset | 1;
-      }
-   static uintptr_t decodeDependencyOffset(uintptr_t offset, bool &needsInitialization)
-      {
-      needsInitialization = (offset & 1) == 1;
-      return decodeDependencyOffset(offset);
-      }
-   static uintptr_t encodeDependencyOffset(uintptr_t offset, bool needsInitialization)
-      {
-      return needsInitialization ? offset : (offset & ~1);
-      }
 
    virtual void printStats() = 0;
 
@@ -217,11 +225,11 @@ protected:
    };
 
 
-class TR_AOTDependencyTable : public TR_AOTDependencyTableBase<uintptr_t>
+class TR_AOTDependencyTableLocalSCC : public TR_AOTDependencyTableBase<uintptr_t>
    {
 public:
    TR_PERSISTENT_ALLOC(TR_Memory::PersistentCHTable)
-   TR_AOTDependencyTable(TR_J9SharedCache *sharedCache) 
+   TR_AOTDependencyTableLocalSCC(TR_J9SharedCache *sharedCache) 
       : TR_AOTDependencyTableBase<uintptr_t>(sharedCache)
       {};
 
