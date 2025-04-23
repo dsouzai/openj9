@@ -488,6 +488,44 @@ public:
 
    J9SharedClassConfig *sharedCacheConfig() { return _sharedCacheConfig; }
 
+   /**
+    * \brief Decode a class chain offset into a "raw offset". The input offset
+    *        could only have been acquired by calling some TR_J9SharedCache API;
+    *        as such, it is encoded and so cannot be used directly. On the
+    *        other hand, the returned "raw offset" does represent a real
+    *        offset, but because data in the SCC can be stored in either the
+    *        region that grows from the start or the end, this "raw offset" is
+    *        not directly useful, and should only be used as a token to
+    *        represent the class chain. This API is intended for use where the
+    *        original encoded offset is not sufficient for use as a token.
+    *
+    * \param[in] encodedOffset The encoded offset acquired from some
+    *            TR_J9SharedCache API.
+    *
+    * \return The decoded "raw offset" described above.
+    */
+   static inline uintptr_t decodeClassChainoffset(uintptr_t encodedOffset)
+      {
+      TR_ASSERT_FATAL(isOffsetFromEnd(encodedOffset), "Invalid class chain offset 0x%p\n", (void *)encodedOffset);
+      return decodeOffsetFromEnd(encodedOffset);
+      }
+
+   /**
+    * \brief Encode a "raw offset" (that was acquired by a call to
+    *        decodeClassChainoffset above) into an encoded class chain offset
+    *        that can be used with the J9SharedCache APIs.
+    *
+    * \param[in] rawOffset The "raw offset" acquired from decodeClassChainoffset
+    *
+    * \return The traditional SCC offset that is consistent with APIs in this
+    *         class.
+    */
+   static inline uintptr_t encodeClassChainOffset(uintptr_t rawOffset)
+      {
+      TR_ASSERT_FATAL(!isOffsetFromEnd(rawOffset), "Invalidate raw offset 0x%p\n", (void *)rawOffset);
+      return encodeOffsetFromEnd(rawOffset);
+      }
+
 protected:
    static bool disclaim(const uint8_t *start, const uint8_t *end, UDATA pageSize, bool trace);
 

@@ -511,7 +511,8 @@ IDATA J9VMDllMain(J9JavaVM* vm, IDATA stage, void * reserved)
 #if !defined(PERSISTENT_COLLECTIONS_UNSUPPORTED)
                if (persistentInfo->getTrackAOTDependencies() && !TR::Options::getCmdLineOptions()->getOption(TR_DisableCHOpts))
                   {
-                  TR_AOTDependencyTable *dependencyTable = new (PERSISTENT_NEW) TR_AOTDependencyTable(sharedCache);
+                  TR::CompilationInfo *compInfo          = getCompilationInfo(vm->jitConfig);
+                  TR_AOTDependencyTable *dependencyTable = new (PERSISTENT_NEW) TR_AOTDependencyTable(sharedCache, compInfo);
                   persistentInfo->setAOTDependencyTable(dependencyTable);
                   }
 #endif /* !defined(PERSISTENT_COLLECTIONS_UNSUPPORTED) */
