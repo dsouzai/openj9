@@ -78,6 +78,13 @@ public:
       return record;
       }
 
+   static const AOTSerializationRecord *get(const char * str)
+      {
+      auto record = (const AOTSerializationRecord *)str;
+      TR_ASSERT_FATAL(record->type() < AOTSerializationRecordType_MAX, "Invalidate record 0x%p\n", record);
+      return record;
+      }
+
    // Record ID and type are stored in compact way in a single pointer-sized word
    static uintptr_t idAndType(uintptr_t id, AOTSerializationRecordType type)
       {
@@ -448,5 +455,29 @@ private:
    uint8_t _varSizedData[];
    };
 
+/**
+ * \brief This struct contains data to materialize dependencies on the client
+ */
+struct SerializedAOTDependencyRecord
+   {
+public:
+   SerializedAOTDependencyRecord(const SerializedAOTMethod&, std::string serializationRecords, std::string serializedAOTDependencies);
+   uintptr_t definingClassChainId() const { return _definingClassChainId; }
+   uint32_t index() const { return _index; }
+   uintptr_t aotHeaderId() const { return _aotHeaderId; }
+   size_t numDependencies() const { return _numDependencies; }
+   const std::string & serializationRecords() const { return _serializationRecords; }
+   const std::string & serializedAOTDependencies() const { return _serializedAOTDependencies; }
+
+private:
+   const uintptr_t _definingClassChainId;
+   // Index in the array of methods of the defining class
+   const uint32_t _index;
+   // Represents the TR_AOTHeader of the client JVM that this method was originally compiled for
+   const uintptr_t _aotHeaderId;
+   const size_t _numDependencies;
+   const std::string _serializationRecords;
+   const std::string _serializedAOTDependencies;
+   };
 
 #endif /* defined(JITSERVER_AOT_SERIALIZATION_RECORDS_H) */

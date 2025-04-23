@@ -27,6 +27,7 @@
 #include "control/JITServerHelpers.hpp"
 #include "compile/Compilation.hpp"
 #include "env/ClassLoaderTable.hpp"
+#include "env/DependencyTable.hpp"
 #include "env/StackMemoryRegion.hpp"
 #include "env/VerboseLog.hpp"
 #include "infra/CriticalSection.hpp"
@@ -1188,7 +1189,8 @@ JITServerNoSCCAOTDeserializer::JITServerNoSCCAOTDeserializer(TR_PersistentClassL
    _methodIdMap(decltype(_methodIdMap)::allocator_type(TR::Compiler->persistentAllocator())),
    _methodPtrMap(decltype(_methodPtrMap)::allocator_type(TR::Compiler->persistentAllocator())),
    _classChainMap(decltype(_classChainMap)::allocator_type(TR::Compiler->persistentAllocator())),
-   _wellKnownClassesMap(decltype(_wellKnownClassesMap)::allocator_type(TR::Compiler->persistentAllocator()))
+   _wellKnownClassesMap(decltype(_wellKnownClassesMap)::allocator_type(TR::Compiler->persistentAllocator())),
+   _depRecordId(decltype(_depRecordId)::allocator_type(TR::Compiler->persistentAllocator()))
    { }
 
 
@@ -1291,6 +1293,21 @@ JITServerNoSCCAOTDeserializer::getGeneratedClass(J9ClassLoader *loader, uintptr_
    return ramClass;
    }
 
+bool
+JITServerNoSCCAOTDeserializer::dependencyNeedsClassInitialized(uintptr_t offset)
+   {
+   bool ret = false;
+
+   OMR::CriticalSection cs(getClassMonitor());
+   auto it = _classIdMap.find(offset);
+   ClassEntry &entry = it->second;
+   if (entry._ramClass)
+      {
+      ret = entry._needsInitialization;
+      }
+
+   return ret;
+   }
 
 void
 JITServerNoSCCAOTDeserializer::clearCachedData()
@@ -1410,11 +1427,11 @@ JITServerNoSCCAOTDeserializer::cacheRecord(const ClassSerializationRecord *recor
       //    new to the server if we fail to cache it, so the server will keep sending us this exact class record).
       // 2. If ramClass ever gets unloaded, we want invalidateClass to be able to remove both entries from the maps, so that
       //    in subsequent deserializations we can attempt to find a new candidate ramClass that might end up matching after all.
-      addToMaps(_classIdMap, _classPtrMap, it, record->id(), { NULL, record->classLoaderId() }, ramClass);
+      addToMaps(_classIdMap, _classPtrMap, it, record->id(), { NULL, record->classLoaderId(), false }, ramClass);
       return false;
       }
 
-   addToMaps(_classIdMap, _classPtrMap, it, record->id(), { ramClass, record->classLoaderId() }, ramClass);
+   addToMaps(_classIdMap, _classPtrMap, it, record->id(), { ramClass, record->classLoaderId(), false }, ramClass);
 
    if (TR::Options::getVerboseOption(TR_VerboseJITServer))
       TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
@@ -1683,6 +1700,54 @@ JITServerNoSCCAOTDeserializer::updateSCCOffsets(SerializedAOTMethod *method, TR:
 #endif /* defined(DEBUG) */
       *(uintptr_t *)ptr = offset;
       }
+
+   return true;
+   }
+
+bool
+JITServerNoSCCAOTDeserializer::populateAOTMethodDependencies(SerializedAOTDependencyRecord *record, TR::CompilationInfo * compInfo, J9VMThread *vmThread, J9Method *j9method, bool &wasReset)
+   {
+   if (TR::Options::getCmdLineOptions()->getOption(TR_DisableDependencyTracking))
+      return false;
+
+   J9ROMMethod *j9rommethod = J9_ROM_METHOD_FROM_RAM_METHOD(j9method);
+
+   uintptr_t * methodDependencies = (uintptr_t *)jitPersistentAlloc(sizeof(uintptr_t) * record->numDependencies());
+
+   const std::string & dependencySerializationRecords = record->serializationRecords();
+   const std::string & serializedAOTDependencies = record->serializedAOTDependencies();
+
+   const SerializedAOTDependency * deps = reinterpret_cast<const SerializedAOTDependency *>(record->serializedAOTDependencies().data());
+
+   for (size_t i = 0; i < record->numDependencies(); ++i)
+      {
+      // Get the Serialized Method Dependency
+      const SerializedAOTDependency &serializedDep = deps[i];
+
+      TR_ASSERT_FATAL(serializedDep.recordType() == AOTSerializationRecordType::Class, "Dependency %d not of type AOTSerializationRecordType::Class", serializedDep.recordType());
+
+      if (!revalidateRecord(serializedDep.recordType(), serializedDep.recordId(), comp, wasReset))
+         return false;
+
+      bool needsInitialization = serializedDep.ensureClassIsInitialized();
+
+      // Update _needsInitialization field in the ClassEntry
+         {
+         OMR::CriticalSection cs(getClassMonitor());
+         auto it = _classIdMap.find(serializedDep.recordId());
+         ClassEntry &entry = it->second;
+         if (entry._ramClass)
+            {
+            entry._needsInitialization = entry._needsInitialization || needsInitialization;
+            }
+         }
+
+      methodDependencies[i] = serializedDep.recordId();
+      }
+
+   bool dependenciesSatisfied;
+   auto dependencyTable = compInfo->getPersistentInfo()->getAOTDependencyTable();
+   dependencyTable->trackMethod(vmThread,j9method, j9rommethod, dependenciesSatisfied, methodDependencies);
 
    return true;
    }
