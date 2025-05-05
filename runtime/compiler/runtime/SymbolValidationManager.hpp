@@ -114,7 +114,7 @@ struct SymbolValidationRecord
          return isLessThanWithinKind(other);
       }
 
-   virtual void printFields() = 0;
+   virtual void printFields(TR::Compilation *comp) = 0;
 
    virtual bool isClassValidationRecord() { return false; }
 
@@ -165,7 +165,7 @@ struct ClassValidationRecordWithChain : public ClassValidationRecord
 #endif /* defined(J9VM_OPT_JITSERVER) */
       }
 
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
 #if defined(J9VM_OPT_JITSERVER)
    const AOTCacheClassChainRecord *getAOTCacheClassChainRecord() const { return _aotCacheClassChainRecord; }
@@ -189,7 +189,7 @@ struct ClassByNameRecord : public ClassValidationRecordWithChain
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock * _beholder;
    };
@@ -207,7 +207,7 @@ struct ProfiledClassRecord : public ClassValidationRecord
       }
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
 #if defined(J9VM_OPT_JITSERVER)
    const AOTCacheClassChainRecord *getAOTCacheClassChainRecord() const { return _aotCacheClassChainRecord; }
@@ -232,7 +232,7 @@ struct ClassFromCPRecord : public ClassValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock * _class;
    TR_OpaqueClassBlock * _beholder;
@@ -250,7 +250,7 @@ struct DefiningClassFromCPRecord : public ClassValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock * _class;
    TR_OpaqueClassBlock * _beholder;
@@ -268,7 +268,7 @@ struct StaticClassFromCPRecord : public ClassValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock * _class;
    TR_OpaqueClassBlock * _beholder;
@@ -284,7 +284,7 @@ struct ArrayClassFromComponentClassRecord : public ClassValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock * _arrayClass;
    TR_OpaqueClassBlock * _componentClass;
@@ -299,7 +299,7 @@ struct SuperClassFromClassRecord : public ClassValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock *_superClass;
    TR_OpaqueClassBlock *_childClass;
@@ -317,7 +317,7 @@ struct ClassInstanceOfClassRecord : public SymbolValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock *_classOne;
    TR_OpaqueClassBlock *_classTwo;
@@ -333,7 +333,7 @@ struct SystemClassByNameRecord : public ClassValidationRecordWithChain
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
    };
 
 struct ClassFromITableIndexCPRecord : public ClassValidationRecord
@@ -346,7 +346,7 @@ struct ClassFromITableIndexCPRecord : public ClassValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock * _class;
    TR_OpaqueClassBlock * _beholder;
@@ -364,7 +364,7 @@ struct DeclaringClassFromFieldOrStaticRecord : public ClassValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock * _class;
    TR_OpaqueClassBlock * _beholder;
@@ -380,7 +380,7 @@ struct ConcreteSubClassFromClassRecord : public ClassValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock *_childClass;
    TR_OpaqueClassBlock *_superClass;
@@ -400,7 +400,7 @@ struct ClassChainRecord : public SymbolValidationRecord
       }
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
 #if defined(J9VM_OPT_JITSERVER)
    const AOTCacheClassChainRecord *getAOTCacheClassChainRecord() const { return _aotCacheClassChainRecord; }
@@ -448,7 +448,7 @@ struct MethodFromClassRecord : public MethodValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock *_beholder;
    uint32_t _index;
@@ -465,7 +465,7 @@ struct StaticMethodFromCPRecord : public MethodValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock *_beholder;
    int32_t _cpIndex;
@@ -482,7 +482,7 @@ struct SpecialMethodFromCPRecord : public MethodValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock *_beholder;
    int32_t _cpIndex;
@@ -499,7 +499,7 @@ struct VirtualMethodFromCPRecord : public MethodValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock *_beholder;
    int32_t _cpIndex;
@@ -518,7 +518,7 @@ struct VirtualMethodFromOffsetRecord : public MethodValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock *_beholder;
    int32_t _virtualCallOffset;
@@ -538,7 +538,7 @@ struct InterfaceMethodFromCPRecord : public MethodValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock *_beholder;
    TR_OpaqueClassBlock *_lookup;
@@ -556,7 +556,7 @@ struct MethodFromClassAndSigRecord : public MethodValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock *_lookupClass;
    TR_OpaqueClassBlock *_beholder;
@@ -574,7 +574,7 @@ struct StackWalkerMaySkipFramesRecord : public SymbolValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueMethodBlock *_method;
    TR_OpaqueClassBlock *_methodClass;
@@ -590,7 +590,7 @@ struct ClassInfoIsInitialized : public SymbolValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock *_class;
    bool _isInitialized;
@@ -611,7 +611,7 @@ struct MethodFromSingleImplementer : public MethodValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock *_thisClass;
    int32_t _cpIndexOrVftSlot;
@@ -632,7 +632,7 @@ struct MethodFromSingleInterfaceImplementer : public MethodValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock *_thisClass;
    int32_t _cpIndex;
@@ -652,7 +652,7 @@ struct MethodFromSingleAbstractImplementer : public MethodValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock *_thisClass;
    int32_t _vftSlot;
@@ -670,7 +670,7 @@ struct ImproperInterfaceMethodFromCPRecord : public MethodValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock *_beholder;
    int32_t _cpIndex;
@@ -685,7 +685,7 @@ struct J2IThunkFromMethodRecord : public SymbolValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    void *_thunk;
    TR_OpaqueMethodBlock *_method;
@@ -701,7 +701,7 @@ struct IsClassVisibleRecord : public SymbolValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueClassBlock *_sourceClass;
    TR_OpaqueClassBlock *_destClass;
@@ -721,7 +721,7 @@ struct DynamicMethodFromCallsiteIndexRecord : public MethodValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueMethodBlock *_caller;
    int32_t _callsiteIndex;
@@ -741,7 +741,7 @@ struct HandleMethodFromCPIndex  : public MethodValidationRecord
       {}
 
    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
-   virtual void printFields();
+   virtual void printFields(TR::Compilation *comp);
 
    TR_OpaqueMethodBlock *_caller;
    int32_t _cpIndex;

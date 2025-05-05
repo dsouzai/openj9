@@ -571,7 +571,7 @@ TR::SymbolValidationManager::appendNewRecord(void *value, TR::SymbolValidationRe
    _symbolValidationRecords.push_front(record);
    _alreadyGeneratedRecords.insert(record);
 
-   record->printFields();
+   record->printFields(_comp);
    traceMsg(_comp, "\tkind=%d\n", record->_kind);
    traceMsg(_comp, "\tid=%d\n", (uint32_t)getSymbolIDFromValue(value));
    traceMsg(_comp, "\n");
@@ -870,7 +870,7 @@ TR::SymbolValidationManager::addStaticClassFromCPRecord(TR_OpaqueClassBlock *cla
    SVM_ASSERT_ALREADY_VALIDATED(this, beholder);
    if (skipFieldRefClassRecord(clazz, beholder, cpIndex))
        return true;
-    else
+   else
       return addClassRecord(clazz, new (_region) StaticClassFromCPRecord(clazz, beholder, cpIndex));
    }
 
@@ -1778,14 +1778,31 @@ TR::SymbolValidationManager::assertionsAreFatal()
 #endif /* defined(DEBUG) || defined(PROD_WITH_ASSUMES) || defined(SVM_ASSERTIONS_ARE_FATAL) */
    }
 
-static void printClass(TR_OpaqueClassBlock *clazz)
+static void printClass(TR::Compilation *comp, TR_OpaqueClassBlock *clazz, const char *fieldName)
    {
    if (clazz != NULL)
       {
       J9UTF8 *className = J9ROMCLASS_CLASSNAME(TR::Compiler->cls.romClassOf(clazz));
-      traceMsg(TR::comp(), "\tclassName=%.*s\n", J9UTF8_LENGTH(className), J9UTF8_DATA(className));
+      traceMsg(comp, "\t%s=0x%p (%.*s)\n", fieldName, clazz,
+               J9UTF8_LENGTH(className), J9UTF8_DATA(className));
       }
    }
+
+static void printMethod(TR::Compilation *comp, TR_OpaqueMethodBlock *method, const char *fieldName)
+   {
+   J9UTF8 *className;
+   J9UTF8 *name;
+   J9UTF8 *signature;
+   getClassNameSignatureFromMethod((J9Method *)method, className, name, signature);
+   traceMsg(comp, "\t%s=0x%p (%.*s.%.*s%.*s)\n",
+            fieldName, method,
+            J9UTF8_LENGTH(className), (char *) J9UTF8_DATA(className),
+            J9UTF8_LENGTH(name), (char *) J9UTF8_DATA(name),
+            J9UTF8_LENGTH(signature), (char *) J9UTF8_DATA(signature));
+   }
+
+#define PRINT_CLASS(comp, c) printClass((comp), (c), (#c))
+#define PRINT_METHOD(comp, m) printMethod((comp), (m), (#m))
 
 namespace // file-local
    {
@@ -1826,11 +1843,10 @@ namespace // file-local
       };
    }
 
-void TR::ClassValidationRecordWithChain::printFields()
+void TR::ClassValidationRecordWithChain::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "\t_class=0x%p\n", _class);
-   printClass(_class);
-   traceMsg(TR::comp(), "\t_classChainOffset=%" OMR_PRIuPTR "\n", _classChainOffset);
+   PRINT_CLASS(comp, _class);
+   traceMsg(comp, "\t_classChainOffset=%" OMR_PRIuPTR "\n", _classChainOffset);
    }
 
 bool TR::ClassByNameRecord::isLessThanWithinKind(SymbolValidationRecord *other)
@@ -1841,12 +1857,11 @@ bool TR::ClassByNameRecord::isLessThanWithinKind(SymbolValidationRecord *other)
       .thenBy(_beholder, rhs->_beholder).less();
    }
 
-void TR::ClassByNameRecord::printFields()
+void TR::ClassByNameRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "ClassByNameRecord\n");
-   TR::ClassValidationRecordWithChain::printFields();
-   traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
-   printClass(_beholder);
+   traceMsg(comp, "ClassByNameRecord\n");
+   TR::ClassValidationRecordWithChain::printFields(comp);
+   PRINT_CLASS(comp, _beholder);
    }
 
 bool TR::ProfiledClassRecord::isLessThanWithinKind(SymbolValidationRecord *other)
@@ -1856,12 +1871,11 @@ bool TR::ProfiledClassRecord::isLessThanWithinKind(SymbolValidationRecord *other
    return LexicalOrder::by(_class, rhs->_class).less();
    }
 
-void TR::ProfiledClassRecord::printFields()
+void TR::ProfiledClassRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "ProfiledClassRecord\n");
-   traceMsg(TR::comp(), "\t_class=0x%p\n", _class);
-   printClass(_class);
-   traceMsg(TR::comp(), "\t_classChainOffset=%" OMR_PRIuPTR "\n", _classChainOffset);
+   traceMsg(comp, "ProfiledClassRecord\n");
+   PRINT_CLASS(comp, _class);
+   traceMsg(comp, "\t_classChainOffset=%" OMR_PRIuPTR "\n", _classChainOffset);
    }
 
 bool TR::ClassFromCPRecord::isLessThanWithinKind(SymbolValidationRecord *other)
@@ -1872,14 +1886,12 @@ bool TR::ClassFromCPRecord::isLessThanWithinKind(SymbolValidationRecord *other)
       .thenBy(_cpIndex, rhs->_cpIndex).less();
    }
 
-void TR::ClassFromCPRecord::printFields()
+void TR::ClassFromCPRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "ClassFromCPRecord\n");
-   traceMsg(TR::comp(), "\t_class=0x%p\n", _class);
-   printClass(_class);
-   traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
-   printClass(_beholder);
-   traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
+   traceMsg(comp, "ClassFromCPRecord\n");
+   PRINT_CLASS(comp, _class);
+   PRINT_CLASS(comp, _beholder);
+   traceMsg(comp, "\t_cpIndex=%d\n", _cpIndex);
    }
 
 bool TR::DefiningClassFromCPRecord::isLessThanWithinKind(
@@ -1892,15 +1904,13 @@ bool TR::DefiningClassFromCPRecord::isLessThanWithinKind(
       .thenBy(_isStatic, rhs->_isStatic).less();
    }
 
-void TR::DefiningClassFromCPRecord::printFields()
+void TR::DefiningClassFromCPRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "DefiningClassFromCPRecord\n");
-   traceMsg(TR::comp(), "\t_class=0x%p\n", _class);
-   printClass(_class);
-   traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
-   printClass(_beholder);
-   traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
-   traceMsg(TR::comp(), "\t_isStatic=%s\n", (_isStatic ? "true" : "false"));
+   traceMsg(comp, "DefiningClassFromCPRecord\n");
+   PRINT_CLASS(comp, _class);
+   PRINT_CLASS(comp, _beholder);
+   traceMsg(comp, "\t_cpIndex=%d\n", _cpIndex);
+   traceMsg(comp, "\t_isStatic=%s\n", (_isStatic ? "true" : "false"));
    }
 
 bool TR::StaticClassFromCPRecord::isLessThanWithinKind(
@@ -1912,14 +1922,12 @@ bool TR::StaticClassFromCPRecord::isLessThanWithinKind(
       .thenBy(_cpIndex, rhs->_cpIndex).less();
    }
 
-void TR::StaticClassFromCPRecord::printFields()
+void TR::StaticClassFromCPRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "StaticClassFromCPRecord\n");
-   traceMsg(TR::comp(), "\t_class=0x%p\n", _class);
-   printClass(_class);
-   traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
-   printClass(_beholder);
-   traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
+   traceMsg(comp, "StaticClassFromCPRecord\n");
+   PRINT_CLASS(comp, _class);
+   PRINT_CLASS(comp, _beholder);
+   traceMsg(comp, "\t_cpIndex=%d\n", _cpIndex);
    }
 
 bool TR::ArrayClassFromComponentClassRecord::isLessThanWithinKind(
@@ -1930,13 +1938,11 @@ bool TR::ArrayClassFromComponentClassRecord::isLessThanWithinKind(
       .thenBy(_componentClass, rhs->_componentClass).less();
    }
 
-void TR::ArrayClassFromComponentClassRecord::printFields()
+void TR::ArrayClassFromComponentClassRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "ArrayClassFromComponentClassRecord\n");
-   traceMsg(TR::comp(), "\t_arrayClass=0x%p\n", _arrayClass);
-   printClass(_arrayClass);
-   traceMsg(TR::comp(), "\t_componentClass=0x%p\n", _componentClass);
-   printClass(_componentClass);
+   traceMsg(comp, "ArrayClassFromComponentClassRecord\n");
+   PRINT_CLASS(comp, _arrayClass);
+   PRINT_CLASS(comp, _componentClass);
    }
 
 bool TR::SuperClassFromClassRecord::isLessThanWithinKind(
@@ -1947,13 +1953,11 @@ bool TR::SuperClassFromClassRecord::isLessThanWithinKind(
       .thenBy(_childClass, rhs->_childClass).less();
    }
 
-void TR::SuperClassFromClassRecord::printFields()
+void TR::SuperClassFromClassRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "SuperClassFromClassRecord\n");
-   traceMsg(TR::comp(), "\t_superClass=0x%p\n", _superClass);
-   printClass(_superClass);
-   traceMsg(TR::comp(), "\t_childClass=0x%p\n", _childClass);
-   printClass(_childClass);
+   traceMsg(comp, "SuperClassFromClassRecord\n");
+   PRINT_CLASS(comp, _superClass);
+   PRINT_CLASS(comp, _childClass);
    }
 
 bool TR::ClassInstanceOfClassRecord::isLessThanWithinKind(
@@ -1967,16 +1971,14 @@ bool TR::ClassInstanceOfClassRecord::isLessThanWithinKind(
       .thenBy(_isInstanceOf, rhs->_isInstanceOf).less();
    }
 
-void TR::ClassInstanceOfClassRecord::printFields()
+void TR::ClassInstanceOfClassRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "ClassInstanceOfClassRecord\n");
-   traceMsg(TR::comp(), "\t_classOne=0x%p\n", _classOne);
-   printClass(_classOne);
-   traceMsg(TR::comp(), "\t_classTwo=0x%p\n", _classTwo);
-   printClass(_classTwo);
-   traceMsg(TR::comp(), "\t_objectTypeIsFixed=%s\n", _objectTypeIsFixed ? "true" : "false");
-   traceMsg(TR::comp(), "\t_castTypeIsFixed=%s\n", _castTypeIsFixed ? "true" : "false");
-   traceMsg(TR::comp(), "\t_isInstanceOf=%s\n", _isInstanceOf ? "true" : "false");
+   traceMsg(comp, "ClassInstanceOfClassRecord\n");
+   PRINT_CLASS(comp, _classOne);
+   PRINT_CLASS(comp, _classTwo);
+   traceMsg(comp, "\t_objectTypeIsFixed=%s\n", _objectTypeIsFixed ? "true" : "false");
+   traceMsg(comp, "\t_castTypeIsFixed=%s\n", _castTypeIsFixed ? "true" : "false");
+   traceMsg(comp, "\t_isInstanceOf=%s\n", _isInstanceOf ? "true" : "false");
    }
 
 bool TR::SystemClassByNameRecord::isLessThanWithinKind(SymbolValidationRecord *other)
@@ -1986,10 +1988,10 @@ bool TR::SystemClassByNameRecord::isLessThanWithinKind(SymbolValidationRecord *o
    return LexicalOrder::by(_class, rhs->_class).less();
    }
 
-void TR::SystemClassByNameRecord::printFields()
+void TR::SystemClassByNameRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "SystemClassByNameRecord\n");
-   TR::ClassValidationRecordWithChain::printFields();
+   traceMsg(comp, "SystemClassByNameRecord\n");
+   TR::ClassValidationRecordWithChain::printFields(comp);
    }
 
 bool TR::ClassFromITableIndexCPRecord::isLessThanWithinKind(
@@ -2001,14 +2003,12 @@ bool TR::ClassFromITableIndexCPRecord::isLessThanWithinKind(
       .thenBy(_cpIndex, rhs->_cpIndex).less();
    }
 
-void TR::ClassFromITableIndexCPRecord::printFields()
+void TR::ClassFromITableIndexCPRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "ClassFromITableIndexCPRecord\n");
-   traceMsg(TR::comp(), "\t_class=0x%p\n", _class);
-   printClass(_class);
-   traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
-   printClass(_beholder);
-   traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
+   traceMsg(comp, "ClassFromITableIndexCPRecord\n");
+   PRINT_CLASS(comp, _class);
+   PRINT_CLASS(comp, _beholder);
+   traceMsg(comp, "\t_cpIndex=%d\n", _cpIndex);
    }
 
 bool TR::DeclaringClassFromFieldOrStaticRecord::isLessThanWithinKind(
@@ -2020,14 +2020,12 @@ bool TR::DeclaringClassFromFieldOrStaticRecord::isLessThanWithinKind(
       .thenBy(_cpIndex, rhs->_cpIndex).less();
    }
 
-void TR::DeclaringClassFromFieldOrStaticRecord::printFields()
+void TR::DeclaringClassFromFieldOrStaticRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "DeclaringClassFromFieldOrStaticRecord\n");
-   traceMsg(TR::comp(), "\t_class=0x%p\n", _class);
-   printClass(_class);
-   traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
-   printClass(_beholder);
-   traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
+   traceMsg(comp, "DeclaringClassFromFieldOrStaticRecord\n");
+   PRINT_CLASS(comp, _class);
+   PRINT_CLASS(comp, _beholder);
+   traceMsg(comp, "\t_cpIndex=%d\n", _cpIndex);
    }
 
 bool TR::ConcreteSubClassFromClassRecord::isLessThanWithinKind(
@@ -2038,11 +2036,11 @@ bool TR::ConcreteSubClassFromClassRecord::isLessThanWithinKind(
       .thenBy(_superClass, rhs->_superClass).less();
    }
 
-void TR::ConcreteSubClassFromClassRecord::printFields()
+void TR::ConcreteSubClassFromClassRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "ConcreteSubClassFromClassRecord\n");
-   traceMsg(TR::comp(), "\t_childClass=0x%p\n", _childClass);
-   traceMsg(TR::comp(), "\t_superClass=0x%p\n", _superClass);
+   traceMsg(comp, "ConcreteSubClassFromClassRecord\n");
+   traceMsg(comp, "\t_childClass=0x%p\n", _childClass);
+   traceMsg(comp, "\t_superClass=0x%p\n", _superClass);
    }
 
 bool TR::ClassChainRecord::isLessThanWithinKind(SymbolValidationRecord *other)
@@ -2052,12 +2050,11 @@ bool TR::ClassChainRecord::isLessThanWithinKind(SymbolValidationRecord *other)
    return LexicalOrder::by(_class, rhs->_class).less();
    }
 
-void TR::ClassChainRecord::printFields()
+void TR::ClassChainRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "ClassChainRecord\n");
-   traceMsg(TR::comp(), "\t_class=0x%p\n", _class);
-   printClass(_class);
-   traceMsg(TR::comp(), "\t_classChainOffset=%" OMR_PRIuPTR "\n", _classChainOffset);
+   traceMsg(comp, "ClassChainRecord\n");
+   PRINT_CLASS(comp, _class);
+   traceMsg(comp, "\t_classChainOffset=%" OMR_PRIuPTR "\n", _classChainOffset);
    }
 
 bool TR::MethodFromClassRecord::isLessThanWithinKind(
@@ -2069,13 +2066,12 @@ bool TR::MethodFromClassRecord::isLessThanWithinKind(
       .thenBy(_index, rhs->_index).less();
    }
 
-void TR::MethodFromClassRecord::printFields()
+void TR::MethodFromClassRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "MethodFromClassRecord\n");
-   traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
-   traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
-   printClass(_beholder);
-   traceMsg(TR::comp(), "\t_index=%u\n", _index);
+   traceMsg(comp, "MethodFromClassRecord\n");
+   PRINT_METHOD(comp, _method);
+   PRINT_CLASS(comp, _beholder);
+   traceMsg(comp, "\t_index=%u\n", _index);
    }
 
 bool TR::StaticMethodFromCPRecord::isLessThanWithinKind(
@@ -2087,13 +2083,12 @@ bool TR::StaticMethodFromCPRecord::isLessThanWithinKind(
       .thenBy(_cpIndex, rhs->_cpIndex).less();
    }
 
-void TR::StaticMethodFromCPRecord::printFields()
+void TR::StaticMethodFromCPRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "StaticMethodFromCPRecord\n");
-   traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
-   traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
-   printClass(_beholder);
-   traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
+   traceMsg(comp, "StaticMethodFromCPRecord\n");
+   PRINT_METHOD(comp, _method);
+   PRINT_CLASS(comp, _beholder);
+   traceMsg(comp, "\t_cpIndex=%d\n", _cpIndex);
    }
 
 bool TR::SpecialMethodFromCPRecord::isLessThanWithinKind(
@@ -2105,13 +2100,12 @@ bool TR::SpecialMethodFromCPRecord::isLessThanWithinKind(
       .thenBy(_cpIndex, rhs->_cpIndex).less();
    }
 
-void TR::SpecialMethodFromCPRecord::printFields()
+void TR::SpecialMethodFromCPRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "SpecialMethodFromCPRecord\n");
-   traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
-   traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
-   printClass(_beholder);
-   traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
+   traceMsg(comp, "SpecialMethodFromCPRecord\n");
+   PRINT_METHOD(comp, _method);
+   PRINT_CLASS(comp, _beholder);
+   traceMsg(comp, "\t_cpIndex=%d\n", _cpIndex);
    }
 
 bool TR::VirtualMethodFromCPRecord::isLessThanWithinKind(
@@ -2123,13 +2117,12 @@ bool TR::VirtualMethodFromCPRecord::isLessThanWithinKind(
       .thenBy(_cpIndex, rhs->_cpIndex).less();
    }
 
-void TR::VirtualMethodFromCPRecord::printFields()
+void TR::VirtualMethodFromCPRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "VirtualMethodFromCPRecord\n");
-   traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
-   traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
-   printClass(_beholder);
-   traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
+   traceMsg(comp, "VirtualMethodFromCPRecord\n");
+   PRINT_METHOD(comp, _method);
+   PRINT_CLASS(comp, _beholder);
+   traceMsg(comp, "\t_cpIndex=%d\n", _cpIndex);
    }
 
 bool TR::VirtualMethodFromOffsetRecord::isLessThanWithinKind(
@@ -2142,14 +2135,13 @@ bool TR::VirtualMethodFromOffsetRecord::isLessThanWithinKind(
       .thenBy(_ignoreRtResolve, rhs->_ignoreRtResolve).less();
    }
 
-void TR::VirtualMethodFromOffsetRecord::printFields()
+void TR::VirtualMethodFromOffsetRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "VirtualMethodFromOffsetRecord\n");
-   traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
-   traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
-   printClass(_beholder);
-   traceMsg(TR::comp(), "\t_virtualCallOffset=%d\n", _virtualCallOffset);
-   traceMsg(TR::comp(), "\t_ignoreRtResolve=%s\n", _ignoreRtResolve ? "true" : "false");
+   traceMsg(comp, "VirtualMethodFromOffsetRecord\n");
+   PRINT_METHOD(comp, _method);
+   PRINT_CLASS(comp, _beholder);
+   traceMsg(comp, "\t_virtualCallOffset=%d\n", _virtualCallOffset);
+   traceMsg(comp, "\t_ignoreRtResolve=%s\n", _ignoreRtResolve ? "true" : "false");
    }
 
 bool TR::InterfaceMethodFromCPRecord::isLessThanWithinKind(
@@ -2162,15 +2154,13 @@ bool TR::InterfaceMethodFromCPRecord::isLessThanWithinKind(
       .thenBy(_cpIndex, rhs->_cpIndex).less();
    }
 
-void TR::InterfaceMethodFromCPRecord::printFields()
+void TR::InterfaceMethodFromCPRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "InterfaceMethodFromCPRecord\n");
-   traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
-   traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
-   printClass(_beholder);
-   traceMsg(TR::comp(), "\t_lookup=0x%p\n", _lookup);
-   printClass(_lookup);
-   traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
+   traceMsg(comp, "InterfaceMethodFromCPRecord\n");
+   PRINT_METHOD(comp, _method);
+   PRINT_CLASS(comp, _beholder);
+   PRINT_CLASS(comp, _lookup);
+   traceMsg(comp, "\t_cpIndex=%d\n", _cpIndex);
    }
 
 bool TR::MethodFromClassAndSigRecord::isLessThanWithinKind(
@@ -2182,14 +2172,12 @@ bool TR::MethodFromClassAndSigRecord::isLessThanWithinKind(
       .thenBy(_beholder, rhs->_beholder).less();
    }
 
-void TR::MethodFromClassAndSigRecord::printFields()
+void TR::MethodFromClassAndSigRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "MethodFromClassAndSigRecord\n");
-   traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
-   traceMsg(TR::comp(), "\t_methodClass=0x%p\n", _lookupClass);
-   printClass(_lookupClass);
-   traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
-   printClass(_beholder);
+   traceMsg(comp, "MethodFromClassAndSigRecord\n");
+   PRINT_METHOD(comp, _method);
+   PRINT_CLASS(comp, _lookupClass);
+   PRINT_CLASS(comp, _beholder);
    }
 
 bool TR::StackWalkerMaySkipFramesRecord::isLessThanWithinKind(
@@ -2201,13 +2189,12 @@ bool TR::StackWalkerMaySkipFramesRecord::isLessThanWithinKind(
       .thenBy(_skipFrames, rhs->_skipFrames).less();
    }
 
-void TR::StackWalkerMaySkipFramesRecord::printFields()
+void TR::StackWalkerMaySkipFramesRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "StackWalkerMaySkipFramesRecord\n");
-   traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
-   traceMsg(TR::comp(), "\t_methodClass=0x%p\n", _methodClass);
-   printClass(_methodClass);
-   traceMsg(TR::comp(), "\t_skipFrames=%sp\n", _skipFrames ? "true" : "false");
+   traceMsg(comp, "StackWalkerMaySkipFramesRecord\n");
+   PRINT_METHOD(comp, _method);
+   PRINT_CLASS(comp, _methodClass);
+   traceMsg(comp, "\t_skipFrames=%sp\n", _skipFrames ? "true" : "false");
    }
 
 bool TR::ClassInfoIsInitialized::isLessThanWithinKind(
@@ -2218,12 +2205,11 @@ bool TR::ClassInfoIsInitialized::isLessThanWithinKind(
       .thenBy(_isInitialized, rhs->_isInitialized).less();
    }
 
-void TR::ClassInfoIsInitialized::printFields()
+void TR::ClassInfoIsInitialized::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "ClassInfoIsInitialized\n");
-   traceMsg(TR::comp(), "\t_class=0x%p\n", _class);
-   printClass(_class);
-   traceMsg(TR::comp(), "\t_isInitialized=%sp\n", _isInitialized ? "true" : "false");
+   traceMsg(comp, "ClassInfoIsInitialized\n");
+   PRINT_CLASS(comp, _class);
+   traceMsg(comp, "\t_isInitialized=%sp\n", _isInitialized ? "true" : "false");
    }
 
 bool TR::MethodFromSingleImplementer::isLessThanWithinKind(
@@ -2238,15 +2224,14 @@ bool TR::MethodFromSingleImplementer::isLessThanWithinKind(
       .less();
    }
 
-void TR::MethodFromSingleImplementer::printFields()
+void TR::MethodFromSingleImplementer::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "MethodFromSingleImplementer\n");
-   traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
-   traceMsg(TR::comp(), "\t_thisClass=0x%p\n", _thisClass);
-   printClass(_thisClass);
-   traceMsg(TR::comp(), "\t_cpIndexOrVftSlot=%d\n", _cpIndexOrVftSlot);
-   traceMsg(TR::comp(), "\t_callerMethod=0x%p\n", _callerMethod);
-   traceMsg(TR::comp(), "\t_useGetResolvedInterfaceMethod=%d\n", _useGetResolvedInterfaceMethod);
+   traceMsg(comp, "MethodFromSingleImplementer\n");
+   PRINT_METHOD(comp, _method);
+   PRINT_CLASS(comp, _thisClass);
+   traceMsg(comp, "\t_cpIndexOrVftSlot=%d\n", _cpIndexOrVftSlot);
+   PRINT_METHOD(comp, _callerMethod);
+   traceMsg(comp, "\t_useGetResolvedInterfaceMethod=%d\n", _useGetResolvedInterfaceMethod);
    }
 
 bool TR::MethodFromSingleInterfaceImplementer::isLessThanWithinKind(
@@ -2259,14 +2244,13 @@ bool TR::MethodFromSingleInterfaceImplementer::isLessThanWithinKind(
       .thenBy(_callerMethod, rhs->_callerMethod).less();
    }
 
-void TR::MethodFromSingleInterfaceImplementer::printFields()
+void TR::MethodFromSingleInterfaceImplementer::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "MethodFromSingleInterfaceImplementer\n");
-   traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
-   traceMsg(TR::comp(), "\t_thisClass=0x%p\n", _thisClass);
-   printClass(_thisClass);
-   traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
-   traceMsg(TR::comp(), "\t_callerMethod=0x%p\n", _callerMethod);
+   traceMsg(comp, "MethodFromSingleInterfaceImplementer\n");
+   PRINT_METHOD(comp, _method);
+   PRINT_CLASS(comp, _thisClass);
+   traceMsg(comp, "\t_cpIndex=%d\n", _cpIndex);
+   PRINT_METHOD(comp, _callerMethod);
    }
 
 bool TR::MethodFromSingleAbstractImplementer::isLessThanWithinKind(
@@ -2279,14 +2263,13 @@ bool TR::MethodFromSingleAbstractImplementer::isLessThanWithinKind(
       .thenBy(_callerMethod, rhs->_callerMethod).less();
    }
 
-void TR::MethodFromSingleAbstractImplementer::printFields()
+void TR::MethodFromSingleAbstractImplementer::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "MethodFromSingleAbstractImplementer\n");
-   traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
-   traceMsg(TR::comp(), "\t_thisClass=0x%p\n", _thisClass);
-   printClass(_thisClass);
-   traceMsg(TR::comp(), "\t_vftSlot=%d\n", _vftSlot);
-   traceMsg(TR::comp(), "\t_callerMethod=0x%p\n", _callerMethod);
+   traceMsg(comp, "MethodFromSingleAbstractImplementer\n");
+   PRINT_METHOD(comp, _method);
+   PRINT_CLASS(comp, _thisClass);
+   traceMsg(comp, "\t_vftSlot=%d\n", _vftSlot);
+   PRINT_METHOD(comp, _callerMethod);
    }
 
 bool TR::ImproperInterfaceMethodFromCPRecord::isLessThanWithinKind(
@@ -2298,13 +2281,12 @@ bool TR::ImproperInterfaceMethodFromCPRecord::isLessThanWithinKind(
       .thenBy(_cpIndex, rhs->_cpIndex).less();
    }
 
-void TR::ImproperInterfaceMethodFromCPRecord::printFields()
+void TR::ImproperInterfaceMethodFromCPRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "ImproperInterfaceMethodFromCPRecord\n");
-   traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
-   traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
-   printClass(_beholder);
-   traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
+   traceMsg(comp, "ImproperInterfaceMethodFromCPRecord\n");
+   PRINT_METHOD(comp, _method);
+   PRINT_CLASS(comp, _beholder);
+   traceMsg(comp, "\t_cpIndex=%d\n", _cpIndex);
    }
 
 bool TR::J2IThunkFromMethodRecord::isLessThanWithinKind(
@@ -2315,11 +2297,11 @@ bool TR::J2IThunkFromMethodRecord::isLessThanWithinKind(
       .thenBy(_method, rhs->_method).less();
    }
 
-void TR::J2IThunkFromMethodRecord::printFields()
+void TR::J2IThunkFromMethodRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "J2IThunkFromMethodRecord\n");
-   traceMsg(TR::comp(), "\t_thunk=0x%p\n", _thunk);
-   traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   traceMsg(comp, "J2IThunkFromMethodRecord\n");
+   traceMsg(comp, "\t_thunk=0x%p\n", _thunk);
+   PRINT_METHOD(comp, _method);
    }
 
 bool TR::IsClassVisibleRecord::isLessThanWithinKind(
@@ -2331,14 +2313,12 @@ bool TR::IsClassVisibleRecord::isLessThanWithinKind(
       .thenBy(_isVisible, rhs->_isVisible).less();
    }
 
-void TR::IsClassVisibleRecord::printFields()
+void TR::IsClassVisibleRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "IsClassVisibleRecord\n");
-   traceMsg(TR::comp(), "\t_sourceClass=0x%p\n", _sourceClass);
-   printClass(_sourceClass);
-   traceMsg(TR::comp(), "\t_destClass=0x%p\n", _destClass);
-   printClass(_destClass);
-   traceMsg(TR::comp(), "\t_isVisible=%s\n", _isVisible ? "true" : "false");
+   traceMsg(comp, "IsClassVisibleRecord\n");
+   PRINT_CLASS(comp, _sourceClass);
+   PRINT_CLASS(comp, _destClass);
+   traceMsg(comp, "\t_isVisible=%s\n", _isVisible ? "true" : "false");
    }
 
 bool TR::DynamicMethodFromCallsiteIndexRecord::isLessThanWithinKind(
@@ -2351,13 +2331,13 @@ bool TR::DynamicMethodFromCallsiteIndexRecord::isLessThanWithinKind(
       .thenBy(_appendixObjectNull, rhs->_appendixObjectNull).less();
    }
 
-void TR::DynamicMethodFromCallsiteIndexRecord::printFields()
+void TR::DynamicMethodFromCallsiteIndexRecord::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "DynamicMethodFromCallsiteIndexRecord\n");
-   traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
-   traceMsg(TR::comp(), "\t_caller=0x%p\n", _caller);
-   traceMsg(TR::comp(), "\t_callsiteIndex=%d\n", _callsiteIndex);
-   traceMsg(TR::comp(), "\t_appendixObjectNull=%s\n", _appendixObjectNull ? "true" : "false");
+   traceMsg(comp, "DynamicMethodFromCallsiteIndexRecord\n");
+   PRINT_METHOD(comp, _method);
+   PRINT_METHOD(comp, _caller);
+   traceMsg(comp, "\t_callsiteIndex=%d\n", _callsiteIndex);
+   traceMsg(comp, "\t_appendixObjectNull=%s\n", _appendixObjectNull ? "true" : "false");
    }
 
 bool TR::HandleMethodFromCPIndex::isLessThanWithinKind(
@@ -2370,11 +2350,11 @@ bool TR::HandleMethodFromCPIndex::isLessThanWithinKind(
       .thenBy(_appendixObjectNull, rhs->_appendixObjectNull).less();
    }
 
-void TR::HandleMethodFromCPIndex::printFields()
+void TR::HandleMethodFromCPIndex::printFields(TR::Compilation *comp)
    {
-   traceMsg(TR::comp(), "HandleMethodFromCPIndex\n");
-   traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
-   traceMsg(TR::comp(), "\t_caller=0x%p\n", _caller);
-   traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
-   traceMsg(TR::comp(), "\t_appendixObjectNull=%s\n", _appendixObjectNull ? "true" : "false");
+   traceMsg(comp, "HandleMethodFromCPIndex\n");
+   PRINT_METHOD(comp, _method);
+   PRINT_METHOD(comp, _caller);
+   traceMsg(comp, "\t_cpIndex=%d\n", _cpIndex);
+   traceMsg(comp, "\t_appendixObjectNull=%s\n", _appendixObjectNull ? "true" : "false");
    }
