@@ -870,7 +870,7 @@ TR::SymbolValidationManager::addStaticClassFromCPRecord(TR_OpaqueClassBlock *cla
    SVM_ASSERT_ALREADY_VALIDATED(this, beholder);
    if (skipFieldRefClassRecord(clazz, beholder, cpIndex))
        return true;
-    else
+   else
       return addClassRecord(clazz, new (_region) StaticClassFromCPRecord(clazz, beholder, cpIndex));
    }
 
@@ -1787,6 +1787,17 @@ static void printClass(TR_OpaqueClassBlock *clazz)
       }
    }
 
+static void printMethod(TR_OpaqueMethodBlock *method)
+   {
+   J9UTF8 *className;
+   J9UTF8 *name;
+   J9UTF8 *signature;
+   getClassNameSignatureFromMethod((J9Method *)method, className, name, signature);
+   traceMsg(TR::comp(), "\tmethodName=%.*s.%.*s%.*s\n", J9UTF8_LENGTH(className), (char *) J9UTF8_DATA(className),
+                                                        J9UTF8_LENGTH(name), (char *) J9UTF8_DATA(name),
+                                                        J9UTF8_LENGTH(signature), (char *) J9UTF8_DATA(signature));
+   }
+
 namespace // file-local
    {
    class LexicalOrder
@@ -2073,6 +2084,7 @@ void TR::MethodFromClassRecord::printFields()
    {
    traceMsg(TR::comp(), "MethodFromClassRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
    traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
    printClass(_beholder);
    traceMsg(TR::comp(), "\t_index=%u\n", _index);
@@ -2091,6 +2103,7 @@ void TR::StaticMethodFromCPRecord::printFields()
    {
    traceMsg(TR::comp(), "StaticMethodFromCPRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
    traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
    printClass(_beholder);
    traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
@@ -2109,6 +2122,7 @@ void TR::SpecialMethodFromCPRecord::printFields()
    {
    traceMsg(TR::comp(), "SpecialMethodFromCPRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
    traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
    printClass(_beholder);
    traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
@@ -2127,6 +2141,7 @@ void TR::VirtualMethodFromCPRecord::printFields()
    {
    traceMsg(TR::comp(), "VirtualMethodFromCPRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
    traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
    printClass(_beholder);
    traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
@@ -2146,6 +2161,7 @@ void TR::VirtualMethodFromOffsetRecord::printFields()
    {
    traceMsg(TR::comp(), "VirtualMethodFromOffsetRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
    traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
    printClass(_beholder);
    traceMsg(TR::comp(), "\t_virtualCallOffset=%d\n", _virtualCallOffset);
@@ -2166,6 +2182,7 @@ void TR::InterfaceMethodFromCPRecord::printFields()
    {
    traceMsg(TR::comp(), "InterfaceMethodFromCPRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
    traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
    printClass(_beholder);
    traceMsg(TR::comp(), "\t_lookup=0x%p\n", _lookup);
@@ -2186,6 +2203,7 @@ void TR::MethodFromClassAndSigRecord::printFields()
    {
    traceMsg(TR::comp(), "MethodFromClassAndSigRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
    traceMsg(TR::comp(), "\t_methodClass=0x%p\n", _lookupClass);
    printClass(_lookupClass);
    traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
@@ -2205,6 +2223,7 @@ void TR::StackWalkerMaySkipFramesRecord::printFields()
    {
    traceMsg(TR::comp(), "StackWalkerMaySkipFramesRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
    traceMsg(TR::comp(), "\t_methodClass=0x%p\n", _methodClass);
    printClass(_methodClass);
    traceMsg(TR::comp(), "\t_skipFrames=%sp\n", _skipFrames ? "true" : "false");
@@ -2242,10 +2261,12 @@ void TR::MethodFromSingleImplementer::printFields()
    {
    traceMsg(TR::comp(), "MethodFromSingleImplementer\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
    traceMsg(TR::comp(), "\t_thisClass=0x%p\n", _thisClass);
    printClass(_thisClass);
    traceMsg(TR::comp(), "\t_cpIndexOrVftSlot=%d\n", _cpIndexOrVftSlot);
    traceMsg(TR::comp(), "\t_callerMethod=0x%p\n", _callerMethod);
+   printMethod(_callerMethod);
    traceMsg(TR::comp(), "\t_useGetResolvedInterfaceMethod=%d\n", _useGetResolvedInterfaceMethod);
    }
 
@@ -2263,10 +2284,12 @@ void TR::MethodFromSingleInterfaceImplementer::printFields()
    {
    traceMsg(TR::comp(), "MethodFromSingleInterfaceImplementer\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
    traceMsg(TR::comp(), "\t_thisClass=0x%p\n", _thisClass);
    printClass(_thisClass);
    traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
    traceMsg(TR::comp(), "\t_callerMethod=0x%p\n", _callerMethod);
+   printMethod(_callerMethod);
    }
 
 bool TR::MethodFromSingleAbstractImplementer::isLessThanWithinKind(
@@ -2283,10 +2306,12 @@ void TR::MethodFromSingleAbstractImplementer::printFields()
    {
    traceMsg(TR::comp(), "MethodFromSingleAbstractImplementer\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
    traceMsg(TR::comp(), "\t_thisClass=0x%p\n", _thisClass);
    printClass(_thisClass);
    traceMsg(TR::comp(), "\t_vftSlot=%d\n", _vftSlot);
    traceMsg(TR::comp(), "\t_callerMethod=0x%p\n", _callerMethod);
+   printMethod(_callerMethod);
    }
 
 bool TR::ImproperInterfaceMethodFromCPRecord::isLessThanWithinKind(
@@ -2302,6 +2327,7 @@ void TR::ImproperInterfaceMethodFromCPRecord::printFields()
    {
    traceMsg(TR::comp(), "ImproperInterfaceMethodFromCPRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
    traceMsg(TR::comp(), "\t_beholder=0x%p\n", _beholder);
    printClass(_beholder);
    traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
@@ -2320,6 +2346,7 @@ void TR::J2IThunkFromMethodRecord::printFields()
    traceMsg(TR::comp(), "J2IThunkFromMethodRecord\n");
    traceMsg(TR::comp(), "\t_thunk=0x%p\n", _thunk);
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
    }
 
 bool TR::IsClassVisibleRecord::isLessThanWithinKind(
@@ -2355,7 +2382,9 @@ void TR::DynamicMethodFromCallsiteIndexRecord::printFields()
    {
    traceMsg(TR::comp(), "DynamicMethodFromCallsiteIndexRecord\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
    traceMsg(TR::comp(), "\t_caller=0x%p\n", _caller);
+   printMethod(_caller);
    traceMsg(TR::comp(), "\t_callsiteIndex=%d\n", _callsiteIndex);
    traceMsg(TR::comp(), "\t_appendixObjectNull=%s\n", _appendixObjectNull ? "true" : "false");
    }
@@ -2374,7 +2403,9 @@ void TR::HandleMethodFromCPIndex::printFields()
    {
    traceMsg(TR::comp(), "HandleMethodFromCPIndex\n");
    traceMsg(TR::comp(), "\t_method=0x%p\n", _method);
+   printMethod(_method);
    traceMsg(TR::comp(), "\t_caller=0x%p\n", _caller);
+   printMethod(_caller);
    traceMsg(TR::comp(), "\t_cpIndex=%d\n", _cpIndex);
    traceMsg(TR::comp(), "\t_appendixObjectNull=%s\n", _appendixObjectNull ? "true" : "false");
    }
