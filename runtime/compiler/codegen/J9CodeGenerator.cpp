@@ -494,7 +494,7 @@ J9::CodeGenerator::lowerCompressedRefs(
 bool
 J9::CodeGenerator::supportVMInternalNatives()
    {
-   return !self()->comp()->compileRelocatableCode();
+   return !self()->comp()->compileRelocatableCode() || self()->comp()->getOption(TR_UseSymbolValidationManager);
    }
 
 // J9

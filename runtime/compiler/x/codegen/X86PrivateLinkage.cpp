@@ -1984,9 +1984,9 @@ void J9::X86::PrivateLinkage::buildDirectCall(
       site.addPostCondition(ramMethodReg, TR::RealRegister::edi);
 
       // Load the RAM method into rdi and call the helper
-      if (comp()->target().is64Bit())
+      if (comp()->target().is64Bit() || comp()->compileRelocatableCode())
          {
-         generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, callNode, ramMethodReg, (uint64_t)(uintptr_t)methodSymbol->getMethodAddress(), cg());
+         generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, callNode, ramMethodReg, (uint64_t)(uintptr_t)methodSymbol->getMethodAddress(), cg(), TR_MethodPointer);
          }
       else
          {

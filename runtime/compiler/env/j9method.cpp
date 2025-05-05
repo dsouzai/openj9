@@ -1008,6 +1008,12 @@ TR_ResolvedRelocatableJ9Method::TR_ResolvedRelocatableJ9Method(TR_OpaqueMethodBl
 #endif /* defined(J9VM_OPT_JITSERVER) */
    if (comp && this->TR_ResolvedMethod::getRecognizedMethod() != TR::unknownMethod)
       {
+      if (!comp->getOption(TR_UseSymbolValidationManager)
+          && this->TR_ResolvedMethod::getRecognizedMethod() == TR::java_lang_invoke_MethodHandle_invokeBasic)
+         {
+         comp->failCompilation<J9::AOTNoSupportForAOTFailure>("Non-SVM AOT does not support dispatch to j/l/i/MethodHandle.invokeBasic\n");
+         }
+
       if (TR_SharedCache::INVALID_CLASS_CHAIN_OFFSET != fej9->sharedCache()->rememberClass(containingClass()))
          {
          if (comp->getOption(TR_UseSymbolValidationManager))
