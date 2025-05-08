@@ -2265,6 +2265,32 @@ bool J9::X86::PrivateLinkage::buildVirtualGuard(TR::X86CallSite &site, TR::Label
 
 TR::Instruction *J9::X86::PrivateLinkage::buildVFTCall(TR::X86CallSite &site, TR::InstOpCode dispatchOp, TR::Register *targetAddressReg, TR::MemoryReference *targetAddressMemref)
    {
+   // Add validation for the J2I Thunk for SVM AOT
+   if (comp()->compileRelocatableCode())
+      {
+      TR::SymbolReference *methodSymRef = site.getSymbolReference();
+      if (methodSymRef->getSymbol()->castToMethodSymbol()->isComputed()
+          || site.resolvedVirtualShouldUseVFTCall())
+         {
+         // Non-SVM AOT still has to force unresolved virtual dispatch, which
+         // works there because it won't transform other things into virtual
+         // calls, e.g. invokeinterface of an Object method.
+         TR_ASSERT_FATAL(
+            comp()->getOption(TR_UseSymbolValidationManager),
+            "resolved virtual dispatch in AOT requires SVM");
+
+         void *thunk = site.getThunkAddress();
+         TR_OpaqueMethodBlock *method = methodSymRef
+            ->getSymbol()
+            ->castToResolvedMethodSymbol()
+            ->getResolvedMethod()
+            ->getPersistentIdentifier();
+
+         comp()->getSymbolValidationManager()
+            ->addJ2IThunkFromMethodRecord(thunk, method);
+         }
+      }
+
    TR::Node *callNode = site.getCallNode();
    if (cg()->enableSinglePrecisionMethods() &&
        comp()->getJittedMethodSymbol()->usesSinglePrecisionMode())
