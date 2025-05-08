@@ -1789,6 +1789,9 @@ createMethodMetaData(
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
    if (invokeBasicCallInfoOffset >= 0)
       {
+      if (comp->compileRelocatableCode())
+         TR_ASSERT_FATAL(comp->getOption(TR_UseSymbolValidationManager), "Non-SVM AOT should not have any invokeBasicallCallInfoOffsets\n");
+
       data->invokeBasicCallInfo =
          (J9JITInvokeBasicCallInfo*)((uint8_t*)data + invokeBasicCallInfoOffset);
 
@@ -1823,7 +1826,18 @@ createMethodMetaData(
 
          destSite->jitReturnAddressOffset = retAddrOffset;
          destSite->numArgSlots = it->_numArgSlots;
-         destSite->j2iThunk = it->_j2iThunk;
+
+         if (comp->compileRelocatableCode() && it->_j2iThunk)
+            {
+            // The thunk ID is guaranteed to not be 0 because of all the
+            // guaranteed IDs, but also bcause the TR_OpaqueMethodBlock
+            // associated by it mut have already been validated.
+            destSite->j2iThunk = (void *)(uintptr_t)comp->getSymbolValidationManager()->getSymbolIDFromValue(it->_j2iThunk);
+            }
+         else
+            {
+            destSite->j2iThunk = it->_j2iThunk;
+            }
          }
       }
 #endif

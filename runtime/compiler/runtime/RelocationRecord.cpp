@@ -536,6 +536,26 @@ TR_RelocationRecordGroup::applyRelocations(TR_RelocationRuntime *reloRuntime,
       recordPointer = reloRecord->nextBinaryRecord(reloTarget);
       }
 
+   // Relocate the j2i thunks in the exception table if they exist.
+   // Needs to be done after the SVM has been populated.
+   auto invokeBasicCallInfo = reloRuntime->exceptionTable()->invokeBasicCallInfo;
+   if (invokeBasicCallInfo)
+      {
+      TR::SymbolValidationManager *svm =
+         reloRuntime->comp()->getSymbolValidationManager();
+
+      auto numSites = invokeBasicCallInfo->numSites;
+      for (auto i = 0; i < numSites; i++)
+         {
+         auto j2iThunkID = (uint16_t)(uintptr_t)invokeBasicCallInfo->sites[i].j2iThunk;
+         if (j2iThunkID)
+            {
+            auto j2iThunk = svm->getValueFromSymbolID(j2iThunkID, TR::SymbolType::typeOpaque);
+            invokeBasicCallInfo->sites[i].j2iThunk = j2iThunk;
+            }
+         }
+      }
+
    return TR_RelocationErrorCode::relocationOK;
    }
 
