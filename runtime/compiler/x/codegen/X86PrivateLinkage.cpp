@@ -1984,12 +1984,13 @@ void J9::X86::PrivateLinkage::buildDirectCall(
       site.addPostCondition(ramMethodReg, TR::RealRegister::edi);
 
       // Load the RAM method into rdi and call the helper
-      if (comp()->target().is64Bit() || comp()->compileRelocatableCode())
+      if (comp()->target().is64Bit())
          {
          generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, callNode, ramMethodReg, (uint64_t)(uintptr_t)methodSymbol->getMethodAddress(), cg(), TR_MethodPointer);
          }
       else
          {
+         TR_ASSERT_FATAL(!comp()->compileRelocatableCode(), "VMInternalNatives is not supported for AOT in 32-bit mode\n");
          generateRegImmInstruction(TR::InstOpCode::MOV4RegImm4, callNode, ramMethodReg, (uint32_t)(uintptr_t)methodSymbol->getMethodAddress(), cg());
          }
 
