@@ -47,6 +47,7 @@
 #include "exceptions/AOTFailure.hpp"
 #include "il/StaticSymbol.hpp"
 #include "infra/SimpleRegex.hpp"
+#include "optimizer/J9RecognizedCallTransformer.hpp"
 #include "runtime/CodeCache.hpp"
 #include "runtime/CodeCacheManager.hpp"
 #include "runtime/MethodMetaData.h"
@@ -6571,9 +6572,30 @@ TR_RelocationRecordValidateJ2IThunkFromMethod::applyRelocation(TR_RelocationRunt
 
    TR::SymbolValidationManager *svm = reloRuntime->comp()->getSymbolValidationManager();
    J9Method *method = svm->getJ9MethodFromID(methodID);
+   TR_ResolvedJ9Method *resolvedMethod =
+      static_cast<TR_ResolvedJ9Method *>(
+         reloRuntime->fej9()->createResolvedMethod(
+            reloRuntime->trMemory(),
+            (TR_OpaqueMethodBlock *)method,
+            NULL));
+
    J9UTF8 *sigUTF8 = J9ROMMETHOD_SIGNATURE(J9_ROM_METHOD_FROM_RAM_METHOD(method));
    int32_t sigLen = J9UTF8_LENGTH(sigUTF8);
    char *sig = (char*)J9UTF8_DATA(sigUTF8);
+   if (resolvedMethod->getMandatoryRecognizedMethod() == TR::com_ibm_jit_JITHelpers_dispatchVirtual)
+      {
+      sig = J9::RecognizedCallTransformer::getSignatureForComputedCall(
+         "JJ",
+         "",
+         reloRuntime->comp(),
+         sig,
+         sigLen);
+
+      sig = reloRuntime->fej9()->getJ2IThunkSignatureForDispatchVirtual(sig, sigLen, reloRuntime->comp());
+      sigLen = strlen(sig);
+
+      reloRuntime->reloLogger()->printf("TR_RelocationRecordValidateJ2IThunkFromMethod: sig=%s, sigLen=%d\n", sig, sigLen);
+      }
 
    void *thunkAddress;
    TR_RelocationErrorCode err = ::relocateAndRegisterThunk(

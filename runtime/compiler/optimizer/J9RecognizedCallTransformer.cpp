@@ -1195,32 +1195,8 @@ void J9::RecognizedCallTransformer::processUnsafeAtomicCall(TR::TreeTop* treetop
 
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
 
-/** \brief
- *    Constructs signature strings for constructing methods representing computed calls
- *    from the signature of the original INL calls. Adapted from getSignatureForLinkToStatic
- *    in j9method.cpp
- *
- *  \param extraParamsBefore
- *    the params to be prepended to the original signature
- *
- *  \param extraParamsAfter
- *    the params to be appended to the original signature
- *
- *  \param comp
- *    the current compilation
- *
- *  \param origSignature
- *    the original signautre
- *
- *  \param signatureLength
- *    the constructed signature length
- *
- *  \return
- *    static char * the constructed signature
- */
-
-static char *
-getSignatureForComputedCall(
+char *
+J9::RecognizedCallTransformer::getSignatureForComputedCall(
    const char * const extraParamsBefore,
    const char * const extraParamsAfter,
    TR::Compilation* comp,
