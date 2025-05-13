@@ -3413,7 +3413,8 @@ remoteCompile(J9VMThread *vmThread, TR::Compilation *compiler, TR_ResolvedMethod
    // 1. Requests an AOT cache store or load from the server, or
    // 2. Accesses the JITServer AOT deserializer in any way.
    // That moment is currently right here, when we get the new known IDs that are cached in the deserializer.
-   ((TR::CompilationInfoPerThread *)compInfoPT)->clearDeserializerWasReset();
+   auto vm = TR_J9VMBase::get(compInfo->getJITConfig(), vmThread);
+   vm->clearDeserializerWasReset();
    std::vector<uintptr_t> newKnownIds = deserializer ? deserializer->getNewKnownIds(compiler) : std::vector<uintptr_t>();
 
    // TODO: make this a synchronized region to avoid bad_alloc exceptions

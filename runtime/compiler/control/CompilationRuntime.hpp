@@ -1147,7 +1147,7 @@ public:
    * JITServerAOTDeserializer::reset() for details.
    *
    */
-   void notifyCompilationThreadsOfDeserializerReset();
+   void notifyThreadsOfDeserializerReset();
 #endif /* defined(J9VM_OPT_JITSERVER) */
    uint32_t getNumTotalCompilations() const { return _numSyncCompilations + _numAsyncCompilations; }
    uint32_t getNumCompsUsedForCompDensityCalculations() const { return _numCompsUsedForCompDensityCalculations; }
