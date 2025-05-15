@@ -454,15 +454,26 @@ SerializedAOTMethod::isValidHeader(const JITServerAOTCacheReadContext &context) 
    }
 
 SerializedAOTDependencyRecord::SerializedAOTDependencyRecord(const SerializedAOTMethod &serializedMethod,
+                                                             uintptr_t definingClassId,
+                                                             size_t numSerializationRecords,
                                                              std::string serializationRecords,
                                                              std::string serializedAOTDependencies)
    :
-   _definingClassChainId(serializedMethod.definingClassChainId()),
-   _index(serializedMethod.index()),
-   _aotHeaderId(serializedMethod.aotHeaderId()),
-   _numDependencies(serializedMethod.numDependencies()),
+   _metadata(definingClassId, serializedMethod.index(), serializedMethod.aotHeaderId(), numSerializationRecords, serializedMethod.numDependencies()),
    _serializationRecords(serializationRecords),
-   _serializedAOTDependencies(serializedAOTDependencies)
+   _serializedAOTDependencies(serializedAOTDependencies),
+   _signature(serializedMethod.signature())
+   {}
+
+SerializedAOTDependencyRecord::SerializedAOTDependencyRecord(const SerializedAOTDependencyRecord::Metadata metadata,
+                                                             std::string signature,
+                                                             std::string serializationRecords,
+                                                             std::string dependencies)
+   :
+   _metadata(metadata),
+   _serializationRecords(serializationRecords),
+   _serializedAOTDependencies(dependencies),
+   _signature(signature)
    {}
 
 CachedAOTMethod::CachedAOTMethod(const AOTCacheClassChainRecord *definingClassChainRecord,
@@ -1238,7 +1249,7 @@ JITServerAOTCache::getSerializationRecords(const CachedAOTMethod *method, const 
    return result;
    }
 
-std::string
+std::pair<std::string, size_t>
 JITServerAOTCache::getDependencySerializationRecords(const CachedAOTMethod *method, const KnownIdSet &knownIds,
                                                      TR_Memory &trMemory) const
    {
@@ -1265,29 +1276,38 @@ JITServerAOTCache::getDependencySerializationRecords(const CachedAOTMethod *meth
       serializationRecords.append(temp);
       }
 
-   return serializationRecords;
+   return std::make_pair(serializationRecords, result.size());
    }
 
 SerializedAOTDependencyRecord
 JITServerAOTCache::getSerializedAOTDependencyRecord(const CachedAOTMethod *method, const KnownIdSet &knownIds, TR_Memory &trMemory) const
    {
-   std::string dependencySerializationRecords = getDependencySerializationRecords(method, knownIds, trMemory);
+   auto dependencySerializationRecords = getDependencySerializationRecords(method, knownIds, trMemory);
    std::string serializedAOTDependencies((const char *)method->deps(), (sizeof(SerializedAOTDependency) * method->data().numDependencies()));
 
-   return SerializedAOTDependencyRecord(method->data(), dependencySerializationRecords, serializedAOTDependencies);
+   auto definingClassChainRecord = method->definingClassChainRecord();
+   auto definingClassId = definingClassChainRecord->data().list().ids()[0];
+
+   return
+      SerializedAOTDependencyRecord(
+         method->data(),
+         definingClassId,
+         dependencySerializationRecords.second,
+         dependencySerializationRecords.first,
+         serializedAOTDependencies);
    }
 
 std::vector<SerializedAOTDependencyRecord>
-JITServerAOTCache::getSerializedAOTDependencyRecords(const CachedAOTMethod *method, const KnownIdSet &knownIds, TR_Memory &trMemory) const
+JITServerAOTCache::getSerializedAOTDependencyRecords(const KnownIdSet &knownIds, TR_Memory &trMemory) const
    {
-   std::vector<SerializedAOTDependencyRecord> result;
-
    OMR::CriticalSection cs(_cachedMethodMonitor);
+
+   std::vector<SerializedAOTDependencyRecord> result;
+   result.reserve(_cachedMethodMap.size());
 
    for (auto entry : _cachedMethodMap)
       {
-      SerializedAOTDependencyRecord record = getSerializedAOTDependencyRecord(entry.second, knownIds, trMemory);
-      result.push_back(record);
+      result.emplace_back(getSerializedAOTDependencyRecord(entry.second, knownIds, trMemory));
       }
 
    return result;

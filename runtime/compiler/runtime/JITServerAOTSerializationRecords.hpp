@@ -461,23 +461,44 @@ private:
 struct SerializedAOTDependencyRecord
    {
 public:
-   SerializedAOTDependencyRecord(const SerializedAOTMethod&, std::string serializationRecords, std::string serializedAOTDependencies);
-   uintptr_t definingClassChainId() const { return _definingClassChainId; }
-   uint32_t index() const { return _index; }
-   uintptr_t aotHeaderId() const { return _aotHeaderId; }
-   size_t numDependencies() const { return _numDependencies; }
+   struct Metadata
+      {
+      Metadata(uintptr_t definingClassId, uint32_t index, uintptr_t aotHeaderId, size_t numSerializationRecords, size_t numDependencies)
+      :
+      _definingClassId(definingClassId),
+      _index(index),
+      _aotHeaderId(aotHeaderId),
+      _numSerializationRecords(numSerializationRecords),
+      _numDependencies(numDependencies)
+      {}
+
+      const uintptr_t _definingClassId;
+      // Index in the array of methods of the defining class
+      const uint32_t _index;
+      // Represents the TR_AOTHeader of the client JVM that this method was originally compiled for
+      const uintptr_t _aotHeaderId;
+      const size_t _numSerializationRecords;
+      const size_t _numDependencies;
+      };
+
+   SerializedAOTDependencyRecord(const SerializedAOTMethod&, uintptr_t definingClassId, size_t numSerializationRecords, std::string serializationRecords, std::string serializedAOTDependencies);
+   SerializedAOTDependencyRecord(const Metadata metadata, std::string signature, std::string serliazationRecords, std::string dependencies);
+
+   const Metadata metadata() const { return _metadata; }
+   uintptr_t definingClassId() const { return _metadata._definingClassId; }
+   uint32_t index() const { return _metadata._index; }
+   uintptr_t aotHeaderId() const { return _metadata._aotHeaderId; }
+   size_t numSerializationRecords() const { return _metadata._numSerializationRecords; }
+   size_t numDependencies() const { return _metadata._numDependencies; }
    const std::string & serializationRecords() const { return _serializationRecords; }
    const std::string & serializedAOTDependencies() const { return _serializedAOTDependencies; }
+   const std::string & signature() const { return _signature; }
 
 private:
-   const uintptr_t _definingClassChainId;
-   // Index in the array of methods of the defining class
-   const uint32_t _index;
-   // Represents the TR_AOTHeader of the client JVM that this method was originally compiled for
-   const uintptr_t _aotHeaderId;
-   const size_t _numDependencies;
+   const Metadata _metadata;
    const std::string _serializationRecords;
    const std::string _serializedAOTDependencies;
+   const std::string _signature;
    };
 
 #endif /* defined(JITSERVER_AOT_SERIALIZATION_RECORDS_H) */

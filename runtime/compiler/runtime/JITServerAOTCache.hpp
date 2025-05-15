@@ -487,7 +487,7 @@ public:
    getSerializationRecords(const CachedAOTMethod *method, const KnownIdSet &knownIds, TR_Memory &trMemory) const;
 
    std::vector<SerializedAOTDependencyRecord>
-   getSerializedAOTDependencyRecords(const CachedAOTMethod *method, const KnownIdSet &knownIds, TR_Memory &trMemory) const;
+   getSerializedAOTDependencyRecords(const KnownIdSet &knownIds, TR_Memory &trMemory) const;
 
    void incNumCacheBypasses() { ++_numCacheBypasses; }
    void incNumCacheMisses() { ++_numCacheMisses; }
@@ -618,7 +618,7 @@ private:
    static bool readRecords(FILE *f, JITServerAOTCacheReadContext &context, size_t numRecordsToRead,
                            PersistentUnorderedMap<K, V *, H> &map, V *&traversalHead, V *&traversalTail, Vector<V *> &records);
 
-   std::string
+   std::pair<std::string, size_t>
    getDependencySerializationRecords(const CachedAOTMethod *method, const KnownIdSet &knownIds, TR_Memory &trMemory) const;
 
    SerializedAOTDependencyRecord
