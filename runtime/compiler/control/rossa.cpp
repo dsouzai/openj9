@@ -1926,6 +1926,35 @@ onLoadInternal(
    }
 
 #if defined(J9VM_OPT_JITSERVER)
+static void collectCachedAOTMethods(JITServer::ClientStream *client, PersistentUnorderedSet<std::string> *serverAOTMethodSet)
+   {
+   auto result = client->getRecvData<std::vector<std::string>>();
+
+   std::vector<std::string> &cachedMethods = std::get<0>(result);
+
+   if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+      TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Received %d methods",
+                                     cachedMethods.size());
+
+   for (const auto &methodSig : cachedMethods)
+      {
+      serverAOTMethodSet->insert(methodSig);
+      }
+   }
+
+static void collectCachedAOTMethodsWithDeps(JITServer::ClientStream *client,
+                                            PersistentUnorderedSet<std::string> *serverAOTMethodSet,
+                                            TR::CompilationInfo *compInfo,
+                                            J9VMThread *vmThread)
+   {
+   auto result = client->getRecvData<std::vector<SerializedAOTDependencyRecord>>();
+
+   std::vector<SerializedAOTDependencyRecord> &cachedMethods = std::get<0>(result);
+
+   auto deserializer = compInfo->getJITServerAOTDeserializer();
+   deserializer->deserializeDependencies(cachedMethods, compInfo, vmThread);
+   }
+
 static int32_t J9THREAD_PROC fetchServerCachedAOTMethods(void * entryarg)
    {
    J9JITConfig *jitConfig = (J9JITConfig *) entryarg;
@@ -1942,33 +1971,43 @@ static int32_t J9THREAD_PROC fetchServerCachedAOTMethods(void * entryarg)
                               osThread);
 
    if (rc != JNI_OK)
-   {
+      {
       return rc;
-   }
+      }
+
+   bool requestDependencies =
+      TR::Options::getCmdLineOptions()->getOption(TR_RequestJITServerCachedMethodsWithDeps)
+      && persistentInfo->getTrackAOTDependencies();
+
+   if (requestDependencies)
+      {
+      compInfo->getJITServerAOTDeserializer()->registerThreadToNotifyOnReset(vmThread);
+      }
 
    try
       {
       JITServer::ClientStream *client = new (PERSISTENT_NEW) JITServer::ClientStream(persistentInfo);
-      client->write(JITServer::MessageType::AOTCacheMap_request,
-                     persistentInfo->getJITServerAOTCacheName());
 
-      client->read();
-      auto result = client->getRecvData<std::vector<std::string>>();
-
-      std::vector<std::string> &cachedMethods = std::get<0>(result);
-
-      if (TR::Options::getVerboseOption(TR_VerboseJITServer))
-         TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Received %d methods",
-                                       cachedMethods.size());
+      auto msgType =
+         requestDependencies
+            ? JITServer::MessageType::AOTCacheMapWithDeps_request
+            : JITServer::MessageType::AOTCacheMap_request;
 
       PersistentUnorderedSet<std::string> *serverAOTMethodSet =
          new (PERSISTENT_NEW) PersistentUnorderedSet<std::string>(
             PersistentUnorderedSet<std::string>::allocator_type
                (TR::Compiler->persistentAllocator()));
 
-      for (const auto &methodSig : cachedMethods)
+      client->write(msgType, persistentInfo->getJITServerAOTCacheName());
+      client->read();
+
+      if (requestDependencies)
          {
-         serverAOTMethodSet->insert(methodSig);
+         collectCachedAOTMethodsWithDeps(client, serverAOTMethodSet, compInfo, vmThread);
+         }
+      else
+         {
+         collectCachedAOTMethods(client, serverAOTMethodSet);
          }
 
       client->~ClientStream();
@@ -1994,6 +2033,11 @@ static int32_t J9THREAD_PROC fetchServerCachedAOTMethods(void * entryarg)
          TR_VerboseLog::writeLineLocked(TR_Vlog_FAILURE,
             "std::bad_alloc: %s",
             e.what());
+      }
+
+   if (requestDependencies)
+      {
+      compInfo->getJITServerAOTDeserializer()->unregisterThreadToNotifyOnReset(vmThread);
       }
 
    vm->internalVMFunctions->DetachCurrentThread((JavaVM *) vm);

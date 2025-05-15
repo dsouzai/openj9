@@ -988,6 +988,61 @@ TR::CompilationInfoPerThreadRemote::sendListOfCachedAOTMethods(JITServer::Server
    stream->write(JITServer::MessageType::AOTCacheMap_reply, methodSignaturesV);
    }
 
+void
+TR::CompilationInfoPerThreadRemote::sendListOfCachedAOTMethodsWithDeps(JITServer::ServerStream *stream, JITServerAOTCache *aotCache)
+   {
+   std::vector<SerializedAOTDependencyRecord> methodsWithDeps;
+
+   try
+      {
+      JITServerAOTCache::KnownIdSet kis
+         = JITServerAOTCache::KnownIdSet(
+            decltype(kis)::allocator_type(
+               getCompilationInfo()->persistentMemory()->_persistentAllocator.get()));
+
+      TR::RawAllocator rawAllocator(_jitConfig->javaVM);
+      J9::SegmentAllocator segmentAllocator(MEMORY_TYPE_JIT_SCRATCH_SPACE | MEMORY_TYPE_VIRTUAL, *_jitConfig->javaVM);
+      J9::SystemSegmentProvider regionSegmentProvider(
+         1 << 20,
+         1 << 20,
+         TR::Options::getScratchSpaceLimit(),
+         segmentAllocator,
+         rawAllocator
+         );
+
+      TR::Region dispatchRegion(regionSegmentProvider, rawAllocator);
+      TR_Memory trMemory(*getCompilationInfo()->persistentMemory(), dispatchRegion);
+
+      methodsWithDeps = aotCache->getSerializedAOTDependencyRecords(kis, trMemory);
+
+      if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+         {
+         TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
+                                        "Sending the list of AOT methods size %d",
+                                        methodsWithDeps.size());
+         }
+
+      stream->write(JITServer::MessageType::AOTCacheMapWithDeps_reply, methodsWithDeps);
+
+      return;
+      }
+   catch (const std::bad_alloc &e)
+      {
+      if (TR::Options::isAnyVerboseOptionSet(TR_VerboseJITServer))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_FAILURE,
+            "std::bad_alloc: %s",
+            e.what());
+      }
+
+   if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+      {
+      TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
+                                     "Failed to list of cached AOT methods with dependencies");
+      }
+
+   stream->write(JITServer::MessageType::AOTCacheMapWithDeps_reply, methodsWithDeps);
+   }
+
 /**
  * @brief Private method specific to processing a compilation request.
  */
@@ -1018,7 +1073,9 @@ TR::CompilationInfoPerThreadRemote::processAOTCacheMapRequest(const std::string&
       {
       if (includeDependencies)
          {
-         // TODO
+         TR_ASSERT_FATAL(compInfo->getPersistentInfo()->getJITServerAOTCacheIgnoreLocalSCC(),
+                         "Cannot request dependencies from the server if not ignoring the local SCC\n");
+
          }
       else
          {

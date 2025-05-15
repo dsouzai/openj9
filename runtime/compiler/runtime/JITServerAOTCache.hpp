@@ -487,7 +487,7 @@ public:
    getSerializationRecords(const CachedAOTMethod *method, const KnownIdSet &knownIds, TR_Memory &trMemory) const;
 
    std::vector<SerializedAOTDependencyRecord>
-   getSerializedAOTDependencyRecords(const CachedAOTMethod *method, const KnownIdSet &knownIds, TR_Memory &trMemory) const;
+   getSerializedAOTDependencyRecords(const KnownIdSet &knownIds, TR_Memory &trMemory) const;
 
    void incNumCacheBypasses() { ++_numCacheBypasses; }
    void incNumCacheMisses() { ++_numCacheMisses; }

@@ -1732,20 +1732,26 @@ JITServerNoSCCAOTDeserializer::updateSCCOffsets(SerializedAOTMethod *method, Des
    }
 
 bool
-JITServerNoSCCAOTDeserializer::populateAOTMethodDependencies(SerializedAOTDependencyRecord *record, TR::CompilationInfo * compInfo, J9VMThread *vmThread, J9Method *j9method, bool &wasReset)
+JITServerNoSCCAOTDeserializer::populateAOTMethodDependencies(SerializedAOTDependencyRecord *record, TR::CompilationInfo * compInfo, J9VMThread *vmThread, bool &wasReset)
    {
    if (TR::Options::getCmdLineOptions()->getOption(TR_DisableDependencyTracking))
       return false;
 
-   J9ROMMethod *j9rommethod = J9_ROM_METHOD_FROM_RAM_METHOD(j9method);
-
+   // Allocate array of method dependencies to be populated
    uintptr_t * methodDependencies = (uintptr_t *)jitPersistentAlloc(sizeof(uintptr_t) * record->numDependencies());
 
+   // process serialization records
    const std::string & dependencySerializationRecords = record->serializationRecords();
+   const AOTSerializationRecord * sRecords = reinterpret_cast<const AOTSerializationRecord *>(record->serializationRecords().data());
+   for (size_t i = 0; i < ; ++i)
+      {
+      const AOTSerializationRecord &serializedRecord = sRecords[i];
+
+      }
+
+   // process dependencies
    const std::string & serializedAOTDependencies = record->serializedAOTDependencies();
-
    const SerializedAOTDependency * deps = reinterpret_cast<const SerializedAOTDependency *>(record->serializedAOTDependencies().data());
-
    for (size_t i = 0; i < record->numDependencies(); ++i)
       {
       // Get the Serialized Method Dependency
@@ -1772,11 +1778,25 @@ JITServerNoSCCAOTDeserializer::populateAOTMethodDependencies(SerializedAOTDepend
       methodDependencies[i] = serializedDep.recordId();
       }
 
+   J9ROMMethod *j9rommethod = J9_ROM_METHOD_FROM_RAM_METHOD(j9method);
+
    bool dependenciesSatisfied;
    auto dependencyTable = compInfo->getPersistentInfo()->getAOTDependencyTable();
    dependencyTable->trackMethod(vmThread,j9method, j9rommethod, dependenciesSatisfied, methodDependencies);
 
    return true;
+   }
+
+bool
+JITServerAOTDeserializer::deserializeDependencies(std::vector<SerializedAOTDependencyRecord> &cachedMethods,
+                                                  TR::CompilationInfo * compInfo, J9VMThread *vmThread)
+   {
+   bool success = true;
+   for (auto & record : cachedMethods)
+      {
+
+      }
+   return success;
    }
 
 bool

@@ -1278,16 +1278,16 @@ JITServerAOTCache::getSerializedAOTDependencyRecord(const CachedAOTMethod *metho
    }
 
 std::vector<SerializedAOTDependencyRecord>
-JITServerAOTCache::getSerializedAOTDependencyRecords(const CachedAOTMethod *method, const KnownIdSet &knownIds, TR_Memory &trMemory) const
+JITServerAOTCache::getSerializedAOTDependencyRecords(const KnownIdSet &knownIds, TR_Memory &trMemory) const
    {
-   std::vector<SerializedAOTDependencyRecord> result;
-
    OMR::CriticalSection cs(_cachedMethodMonitor);
+
+   std::vector<SerializedAOTDependencyRecord> result;
+   result.reserve(_cachedMethodMap.size());
 
    for (auto entry : _cachedMethodMap)
       {
-      SerializedAOTDependencyRecord record = getSerializedAOTDependencyRecord(entry.second, knownIds, trMemory);
-      result.push_back(record);
+      result.emplace_back(getSerializedAOTDependencyRecord(entry.second, knownIds, trMemory));
       }
 
    return result;

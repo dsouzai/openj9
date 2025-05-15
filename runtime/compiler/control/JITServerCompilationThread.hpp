@@ -198,6 +198,7 @@ private:
                                   bool includeDependencies = false);
 
    void sendListOfCachedAOTMethods(JITServer::ServerStream *stream, JITServerAOTCache *aotCache);
+   void sendListOfCachedAOTMethodsWithDeps(JITServer::ServerStream *stream, JITServerAOTCache *aotCache);
 
    TR_PersistentMethodInfo *_recompilationMethodInfo;
    uint32_t _seqNo;
