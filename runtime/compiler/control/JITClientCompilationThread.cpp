@@ -3415,7 +3415,8 @@ remoteCompile(J9VMThread *vmThread, TR::Compilation *compiler, TR_ResolvedMethod
    // That moment is currently right here, when we get the new known IDs that are cached in the deserializer.
    auto vm = TR_J9VMBase::get(compInfo->getJITConfig(), vmThread);
    vm->clearDeserializerWasReset();
-   std::vector<uintptr_t> newKnownIds = deserializer ? deserializer->getNewKnownIds(compiler) : std::vector<uintptr_t>();
+   auto helper = DeserializerHelper(compiler->j9VMThread(), compiler->fej9(), compiler->trMemory(), compiler);
+   std::vector<uintptr_t> newKnownIds = deserializer ? deserializer->getNewKnownIds(&helper) : std::vector<uintptr_t>();
 
    // TODO: make this a synchronized region to avoid bad_alloc exceptions
    compInfo->getSequencingMonitor()->enter();
@@ -3533,7 +3534,8 @@ remoteCompile(J9VMThread *vmThread, TR::Compilation *compiler, TR_ResolvedMethod
 
          auto method = SerializedAOTMethod::get(methodStr);
          bool usesSVM = false;
-         if (deserializer->deserialize(method, records, compiler, usesSVM))
+         auto helper = DeserializerHelper(compiler->j9VMThread(), compiler->fej9(), compiler->trMemory(), compiler);
+         if (deserializer->deserialize(method, records, &helper, usesSVM))
             {
             compiler->setDeserializedAOTMethodStore(true);
             compiler->setDeserializedAOTMethod(true);
@@ -3567,7 +3569,8 @@ remoteCompile(J9VMThread *vmThread, TR::Compilation *compiler, TR_ResolvedMethod
 
          auto method = SerializedAOTMethod::get(methodStr);
          bool usesSVM = false;
-         if (deserializer->deserialize(method, records, compiler, usesSVM))
+         auto helper = DeserializerHelper(compiler->j9VMThread(), compiler->fej9(), compiler->trMemory(), compiler);
+         if (deserializer->deserialize(method, records, &helper, usesSVM))
             {
             compiler->setDeserializedAOTMethod(true);
             compiler->setDeserializedAOTMethodUsingSVM(usesSVM);

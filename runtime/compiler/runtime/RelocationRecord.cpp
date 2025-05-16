@@ -3359,8 +3359,9 @@ TR_RelocationRecordProfiledInlinedMethod::preparePrivateData(TR_RelocationRuntim
          if (!inlinedCodeClass && reloRuntime->comp()->isDeserializedAOTMethod())
             {
             auto deserializer = TR::CompilationInfo::get()->getJITServerAOTDeserializer();
-            inlinedCodeClass = (TR_OpaqueClassBlock *)deserializer->getGeneratedClass(classLoader, romClassOffset,
-                                                                                      reloRuntime->comp());
+            auto comp = reloRuntime->comp();
+            auto helper = DeserializerHelper(comp->j9VMThread(), comp->fej9(), comp->trMemory(), comp);
+            inlinedCodeClass = (TR_OpaqueClassBlock *)deserializer->getGeneratedClass(classLoader, romClassOffset, &helper);
             }
 #endif /* defined(J9VM_OPT_JITSERVER) */
          }

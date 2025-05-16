@@ -32,6 +32,17 @@ class TR_PersistentClassLoaderTable;
 namespace TR { class Compilation; }
 namespace TR { class Monitor; }
 
+struct DeserializerHelper
+   {
+   DeserializerHelper(J9VMThread * vmThread, TR_J9VMBase * fej9, TR_Memory *trMemory, TR::Compilation * comp = NULL)
+      : _vmThread(vmThread), _fej9(fej9), _trMemory(trMemory), _comp(comp)
+      {}
+
+   J9VMThread * _vmThread;
+   TR_J9VMBase * _fej9;
+   TR_Memory * _trMemory;
+   TR::Compilation * _comp;
+   };
 
 // This class defines the base interface for the deserialization of cached AOT methods received from a JITServer,
 // and initializes certain elements common to the implementations. Its derived classes contain the actual
@@ -72,7 +83,7 @@ public:
    // Deserializes in place a serialized AOT method received from JITServer. Returns true on success.
    // Caches new serialization records and adds their IDs to the set of new known IDs.
    bool deserialize(SerializedAOTMethod *method, const std::vector<std::string> &records,
-                    TR::Compilation *comp, bool &usesSVM);
+                    DeserializerHelper *helper, bool &usesSVM);
 
    void onClassLoad(J9Class *ramClass, J9VMThread *vmThread);
    // Invalidation function called from the class unload JIT hook to invalidate class loader pointers
@@ -95,7 +106,7 @@ public:
    // IDs of records newly cached during deserialization of an AOT method are sent to the JITServer with
    // the next compilation request, so that the server can update its set of known IDs for this client.
    // This function returns the list of IDs cached since the last call, and clears the set of new known IDs.
-   std::vector<uintptr_t/*idAndType*/> getNewKnownIds(TR::Compilation *comp);
+   std::vector<uintptr_t/*idAndType*/> getNewKnownIds(DeserializerHelper *helper);
 
    // Find a runtime-generated class for given class loader, deterministic class name prefix, and ROMClass hash
    J9Class *findGeneratedClass(J9ClassLoader *loader, const uint8_t *namePrefix, size_t namePrefixLength,
@@ -103,7 +114,7 @@ public:
    // Find the stored hash for ramClass loaded by loader if it exists in the generated classes map.
    std::string findGeneratedClassHash(J9ClassLoader *loader, J9Class *ramClass, TR_J9VM *fe, J9VMThread *vmThread);
    // Get the RAMClass for a previously deserialized ROMClass offset for a runtime-generated class
-   virtual J9Class *getGeneratedClass(J9ClassLoader *loader, uintptr_t romClassSccOffset, TR::Compilation *comp) = 0;
+   virtual J9Class *getGeneratedClass(J9ClassLoader *loader, uintptr_t romClassSccOffset, DeserializerHelper *helper) = 0;
 
    void incNumCacheBypasses() { ++_numCacheBypasses; }
    void incNumCacheMisses() { ++_numCacheMisses; }
@@ -129,10 +140,10 @@ protected:
       };
 
    bool deserializerWasReset(TR_J9VMBase *vm, bool &wasReset);
-   bool deserializationFailure(const SerializedAOTMethod *method, TR::Compilation *comp, bool wasReset);
+   bool deserializationFailure(const SerializedAOTMethod *method, DeserializerHelper *helper, bool wasReset);
 
    // Returns true if ROMClass hash matches the one in the serialization record
-   bool isClassMatching(const ClassSerializationRecord *record, J9Class *ramClass, TR::Compilation *comp);
+   bool isClassMatching(const ClassSerializationRecord *record, J9Class *ramClass, DeserializerHelper *helper);
 
    template<typename V> V
    findInMap(const PersistentUnorderedMap<uintptr_t, V> &map, uintptr_t id, TR::Monitor *monitor, TR_J9VMBase *vm, bool &wasReset);
@@ -166,34 +177,34 @@ private:
    // and sets isNew to true if the record was newly cached (not already known).
    // Returns false if the record is invalid (e.g. ROMClass hash doesn't match)
    // or not yet valid (e.g. class has not been loaded yet).
-   bool cacheRecord(const AOTSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset);
+   bool cacheRecord(const AOTSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset);
 
    // Cache a ClassLoaderSerializationRecord by looking up a class loader in the current JVM with a first-loaded class name
    // that matches what was recorded during compilation. This will be used to find candidate J9Classes when deserializing other
    // records, and isn't guranteed to have any particular relationship with the actual compile-time class loader.
-   virtual bool cacheRecord(const ClassLoaderSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) = 0;
+   virtual bool cacheRecord(const ClassLoaderSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) = 0;
    // Cache a ClassSerializationRecord by looking up a J9Class in the current JVM, using its associated ClassLoaderRecord, that
    // has a name and ROM class hash that matches what was recorded at compile time. These are used to construct RAM class chains
    // for class chain serialization records. The J9Classes found may not have any particular relationship with the ones recorded
    // at compile time.
-   virtual bool cacheRecord(const ClassSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) = 0;
+   virtual bool cacheRecord(const ClassSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) = 0;
    // Cache a MethodSerializationRecord by looking up its defining J9Class using its (already-cached) defining
    // ClassSerializationRecord. No extra guarantees are provided beyond what the associated ClassSerializationRecord provides.
-   virtual bool cacheRecord(const MethodSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) = 0;
+   virtual bool cacheRecord(const MethodSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) = 0;
    // Cache a ClassChainSerializationRecord by constructing a RAM class chain using its stored ClassSerializationRecord IDs.
    // We then construct the actual RAM class chain of the first class in the ClassChainSerializationRecord, and make sure that
    // the constructed and actual RAM class chains match. This ensures that the first class in the chain matches what was recorded
    // at compile time, giving the same guarantees as J9SharedCache::classMatchesCachedVersion().
-   virtual bool cacheRecord(const ClassChainSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) = 0;
+   virtual bool cacheRecord(const ClassChainSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) = 0;
    // Cache a WellKnownClassesSerializationRecord. No extra guarantees are provided beyond what the associated
    // ClassChainSerializationRecords of the individual well-known classes chains provide.
-   virtual bool cacheRecord(const WellKnownClassesSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) = 0;
+   virtual bool cacheRecord(const WellKnownClassesSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) = 0;
    // Deserialize a ThunkSerializationRecord by installing it in the JVM if one cannot be found through the compilation frontend.
    // No special validation or caching needs to be performed.
-   virtual bool cacheRecord(const ThunkSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) = 0;
+   virtual bool cacheRecord(const ThunkSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) = 0;
 
    // Returns false on failure
-   virtual bool updateSCCOffsets(SerializedAOTMethod *method, TR::Compilation *comp, bool &wasReset, bool &usesSVM) = 0;
+   virtual bool updateSCCOffsets(SerializedAOTMethod *method, DeserializerHelper *helper, bool &wasReset, bool &usesSVM) = 0;
 
    TR_PersistentClassLoaderTable *const _loaderTable;
 
@@ -256,7 +267,7 @@ public:
    virtual void invalidateClassLoader(J9VMThread *vmThread, J9ClassLoader *loader) override;
    virtual void invalidateClass(J9VMThread *vmThread, J9Class *oldClass, J9Class *newClass = NULL) override;
 
-   virtual J9Class *getGeneratedClass(J9ClassLoader *loader, uintptr_t romClassSccOffset, TR::Compilation *comp) override;
+   virtual J9Class *getGeneratedClass(J9ClassLoader *loader, uintptr_t romClassSccOffset, DeserializerHelper *helper) override;
 
 private:
    virtual void clearCachedData() override;
@@ -274,25 +285,25 @@ private:
       uintptr_t _loaderChainSCCOffset;
       };
 
-   virtual bool cacheRecord(const ClassLoaderSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const ClassSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const MethodSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const ClassChainSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const WellKnownClassesSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const ThunkSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) override;
+   virtual bool cacheRecord(const ClassLoaderSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) override;
+   virtual bool cacheRecord(const ClassSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) override;
+   virtual bool cacheRecord(const MethodSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) override;
+   virtual bool cacheRecord(const ClassChainSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) override;
+   virtual bool cacheRecord(const WellKnownClassesSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) override;
+   virtual bool cacheRecord(const ThunkSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) override;
 
    // Returns the class loader for given class loader ID, either cached or
    // looked up using the cached SCC offset if the class loader was unloaded.
    // The SCC offset of the identifying class chain is returned in loaderSCCOffset.
-   J9ClassLoader *getClassLoader(uintptr_t id, uintptr_t &loaderSCCOffset, TR::Compilation *comp, bool &wasReset);
+   J9ClassLoader *getClassLoader(uintptr_t id, uintptr_t &loaderSCCOffset, DeserializerHelper *helper, bool &wasReset);
    // Returns the RAMClass for given class ID, either cached or
    // looked up using the cached SCC offsets if the class was unloaded.
-   J9Class *getRAMClass(uintptr_t id, TR::Compilation *comp, bool &wasReset);
+   J9Class *getRAMClass(uintptr_t id, DeserializerHelper *helper, bool &wasReset);
 
-   virtual bool updateSCCOffsets(SerializedAOTMethod *method, TR::Compilation *comp, bool &wasReset, bool &usesSVM) override;
+   virtual bool updateSCCOffsets(SerializedAOTMethod *method, DeserializerHelper *helper, bool &wasReset, bool &usesSVM) override;
 
    // Returns -1 on failure
-   uintptr_t getSCCOffset(AOTSerializationRecordType type, uintptr_t id, TR::Compilation *comp, bool &wasReset);
+   uintptr_t getSCCOffset(AOTSerializationRecordType type, uintptr_t id, DeserializerHelper *helper, bool &wasReset);
 
    TR_J9SharedCache *const _sharedCache;
 
@@ -334,7 +345,7 @@ public:
    virtual void invalidateClass(J9VMThread *vmThread, J9Class *oldClass, J9Class *newClass = NULL) override;
    void invalidateMethod(J9Method *method);
 
-   virtual J9Class *getGeneratedClass(J9ClassLoader *loader, uintptr_t romClassSccOffset, TR::Compilation *comp) override;
+   virtual J9Class *getGeneratedClass(J9ClassLoader *loader, uintptr_t romClassSccOffset, DeserializerHelper *helper) override;
 
    static uintptr_t offsetId(uintptr_t offset)
       { return AOTSerializationRecord::getId(offset); }
@@ -351,22 +362,22 @@ private:
 
    virtual void clearCachedData() override;
 
-   virtual bool cacheRecord(const ClassLoaderSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const ClassSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const MethodSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const ClassChainSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const WellKnownClassesSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const ThunkSerializationRecord *record, TR::Compilation *comp, bool &isNew, bool &wasReset) override;
+   virtual bool cacheRecord(const ClassLoaderSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) override;
+   virtual bool cacheRecord(const ClassSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) override;
+   virtual bool cacheRecord(const MethodSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) override;
+   virtual bool cacheRecord(const ClassChainSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) override;
+   virtual bool cacheRecord(const WellKnownClassesSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) override;
+   virtual bool cacheRecord(const ThunkSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) override;
 
-   virtual bool updateSCCOffsets(SerializedAOTMethod *method, TR::Compilation *comp, bool &wasReset, bool &usesSVM) override;
+   virtual bool updateSCCOffsets(SerializedAOTMethod *method, DeserializerHelper *helper, bool &wasReset, bool &usesSVM) override;
    bool revalidateRecord(AOTSerializationRecordType type, uintptr_t id, TR_J9VMBase *vm, bool &wasReset);
 
-   void getRAMClassChain(TR::Compilation *comp, J9Class *clazz, J9Class **chainBuffer, size_t &chainLength);
+   void getRAMClassChain(DeserializerHelper *helper, J9Class *clazz, J9Class **chainBuffer, size_t &chainLength);
 
-   J9ROMClass *romClassFromOffsetInSharedCache(uintptr_t offset, TR::Compilation *comp, bool &wasReset);
-   void *pointerFromOffsetInSharedCache(uintptr_t offset, TR::Compilation *comp, bool &wasReset);
-   J9ROMMethod *romMethodFromOffsetInSharedCache(uintptr_t offset, TR::Compilation *comp, bool &wasReset);
-   J9Class *classFromOffset(uintptr_t offset, TR::Compilation *comp, bool &wasReset);
+   J9ROMClass *romClassFromOffsetInSharedCache(uintptr_t offset, DeserializerHelper *helper, bool &wasReset);
+   void *pointerFromOffsetInSharedCache(uintptr_t offset, DeserializerHelper *helper, bool &wasReset);
+   J9ROMMethod *romMethodFromOffsetInSharedCache(uintptr_t offset, DeserializerHelper *helper, bool &wasReset);
+   J9Class *classFromOffset(uintptr_t offset, DeserializerHelper *helper, bool &wasReset);
 
    static uintptr_t encodeOffset(const AOTSerializationRecord *record)
       { return AOTSerializationRecord::idAndType(record->id(), record->type()); }
