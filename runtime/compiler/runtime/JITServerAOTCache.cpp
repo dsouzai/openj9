@@ -454,12 +454,14 @@ SerializedAOTMethod::isValidHeader(const JITServerAOTCacheReadContext &context) 
    }
 
 SerializedAOTDependencyRecord::SerializedAOTDependencyRecord(const SerializedAOTMethod &serializedMethod,
+                                                             size_t numSerializtionRecords,
                                                              std::string serializationRecords,
                                                              std::string serializedAOTDependencies)
    :
    _definingClassChainId(serializedMethod.definingClassChainId()),
    _index(serializedMethod.index()),
    _aotHeaderId(serializedMethod.aotHeaderId()),
+   _numSerializationRecords(numSerializtionRecords),
    _numDependencies(serializedMethod.numDependencies()),
    _serializationRecords(serializationRecords),
    _serializedAOTDependencies(serializedAOTDependencies)
@@ -1238,7 +1240,7 @@ JITServerAOTCache::getSerializationRecords(const CachedAOTMethod *method, const 
    return result;
    }
 
-std::string
+std::pair<std::string, size_t>
 JITServerAOTCache::getDependencySerializationRecords(const CachedAOTMethod *method, const KnownIdSet &knownIds,
                                                      TR_Memory &trMemory) const
    {
@@ -1265,16 +1267,21 @@ JITServerAOTCache::getDependencySerializationRecords(const CachedAOTMethod *meth
       serializationRecords.append(temp);
       }
 
-   return serializationRecords;
+   return std::make_pair(serializationRecords, result.size());
    }
 
 SerializedAOTDependencyRecord
 JITServerAOTCache::getSerializedAOTDependencyRecord(const CachedAOTMethod *method, const KnownIdSet &knownIds, TR_Memory &trMemory) const
    {
-   std::string dependencySerializationRecords = getDependencySerializationRecords(method, knownIds, trMemory);
+   auto dependencySerializationRecords = getDependencySerializationRecords(method, knownIds, trMemory);
    std::string serializedAOTDependencies((const char *)method->deps(), (sizeof(SerializedAOTDependency) * method->data().numDependencies()));
 
-   return SerializedAOTDependencyRecord(method->data(), dependencySerializationRecords, serializedAOTDependencies);
+   return
+      SerializedAOTDependencyRecord(
+         method->data(),
+         dependencySerializationRecords.second,
+         dependencySerializationRecords.first,
+         serializedAOTDependencies);
    }
 
 std::vector<SerializedAOTDependencyRecord>

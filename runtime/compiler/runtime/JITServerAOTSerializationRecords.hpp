@@ -461,10 +461,11 @@ private:
 struct SerializedAOTDependencyRecord
    {
 public:
-   SerializedAOTDependencyRecord(const SerializedAOTMethod&, std::string serializationRecords, std::string serializedAOTDependencies);
+   SerializedAOTDependencyRecord(const SerializedAOTMethod&, size_t numSerializationRecords, std::string serializationRecords, std::string serializedAOTDependencies);
    uintptr_t definingClassChainId() const { return _definingClassChainId; }
    uint32_t index() const { return _index; }
    uintptr_t aotHeaderId() const { return _aotHeaderId; }
+   size_t numSerializationRecords() const { return _numSerializationRecords; }
    size_t numDependencies() const { return _numDependencies; }
    const std::string & serializationRecords() const { return _serializationRecords; }
    const std::string & serializedAOTDependencies() const { return _serializedAOTDependencies; }
@@ -475,6 +476,7 @@ private:
    const uint32_t _index;
    // Represents the TR_AOTHeader of the client JVM that this method was originally compiled for
    const uintptr_t _aotHeaderId;
+   const size_t _numSerializationRecords;
    const size_t _numDependencies;
    const std::string _serializationRecords;
    const std::string _serializedAOTDependencies;

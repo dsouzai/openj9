@@ -618,7 +618,7 @@ private:
    static bool readRecords(FILE *f, JITServerAOTCacheReadContext &context, size_t numRecordsToRead,
                            PersistentUnorderedMap<K, V *, H> &map, V *&traversalHead, V *&traversalTail, Vector<V *> &records);
 
-   std::string
+   std::pair<std::string, size_t>
    getDependencySerializationRecords(const CachedAOTMethod *method, const KnownIdSet &knownIds, TR_Memory &trMemory) const;
 
    SerializedAOTDependencyRecord
