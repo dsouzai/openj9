@@ -4756,6 +4756,7 @@ void TR_MultipleCallTargetInliner::processChoppedOffCallTargets(TR_CallTarget *l
 //Note, this function is shared by all FE's.  If you are changing the heuristic for your FE only, you need to push this method into the various FE's FEInliner.cpp file.
 int32_t TR_MultipleCallTargetInliner::scaleSizeBasedOnBlockFrequency(int32_t bytecodeSize, int32_t frequency, int32_t borderFrequency, TR_ResolvedMethod * calleeResolvedMethod, TR::Node *callNode, int32_t coldBorderFrequency)
    {
+   heuristicTrace(tracer(), "TR_MultipleCallTargetInliner::scaleSizeBasedOnBlockFrequency start");
    int32_t maxFrequency = MAX_BLOCK_COUNT + MAX_COLD_BLOCK_COUNT;
 
    int32_t exemptionFreqCutoff = comp()->getOptions()->getLargeCompiledMethodExemptionFreqCutoff();
@@ -4771,15 +4772,19 @@ int32_t TR_MultipleCallTargetInliner::scaleSizeBasedOnBlockFrequency(int32_t byt
 
    bool largeCompiledCallee = !comp()->getOption(TR_InlineVeryLargeCompiledMethods) &&
                               isLargeCompiledMethod(calleeResolvedMethod, bytecodeSize, frequency, exemptionFreqCutoff, veryLargeCompiledMethodThreshold, veryLargeCompiledMethodFaninThreshold);
+
+   heuristicTrace(tracer(), "frequency=%d, borderFrequency=%d, coldBorderFrequency=%d", frequency, borderFrequency, coldBorderFrequency);
+
    if (largeCompiledCallee)
       {
       J9::Options::_largeCompilee++;
+      auto prevBCS = bytecodeSize;
       bytecodeSize = bytecodeSize * TR::Options::_inlinerVeryLargeCompiledMethodAdjustFactor;
+
+      heuristicTrace(tracer(), "largeCompiledCallee: Adjusting bytecodeSize from %d to %d", prevBCS, bytecodeSize);
       }
    else if (frequency > borderFrequency)
       {
-      //if (TR::Options::getCmdLineOptions()->isAnyVerboseOptionSet())
-      //   TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "frequency=%d, borderFrequency=%d", frequency, borderFrequency);
       J9::Options::_freqGTBorderFreq++;
       int32_t oldSize = 0;
       if (comp()->trace(OMR::inlining))
@@ -4792,12 +4797,10 @@ int32_t TR_MultipleCallTargetInliner::scaleSizeBasedOnBlockFrequency(int32_t byt
       bytecodeSize = (int32_t)((float)bytecodeSize * factor);
       if (bytecodeSize < 10) bytecodeSize = 10;
 
-      heuristicTrace(tracer(),"exceedsSizeThreshold (mct): Scaled down size for call from %d to %d", oldSize, bytecodeSize);
+      heuristicTrace(tracer(),"frequency > borderFrequency: exceedsSizeThreshold (mct): (frequency=%d, borderFrequency=%d) Scaled down size for call from %d to %d", frequency, borderFrequency, oldSize, bytecodeSize);
       }
    else if (frequency < coldBorderFrequency)
       {
-      //if (TR::Options::getCmdLineOptions()->isAnyVerboseOptionSet())
-      //   TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "frequency=%d, coldBorderFrequency=%d", frequency, coldBorderFrequency);
       J9::Options::_freqLTColdBorderFreq++;
       int32_t oldSize = 0;
       if (comp()->trace(OMR::inlining))
@@ -4810,12 +4813,15 @@ int32_t TR_MultipleCallTargetInliner::scaleSizeBasedOnBlockFrequency(int32_t byt
       float weight = (float)bytecodeSize / (factor*factor);
       bytecodeSize = (weight >= (float)0x7fffffff) ? 0x7fffffff : ((int32_t)weight);
 
-      heuristicTrace(tracer(),"exceedsSizeThreshold: Scaled up size for call from %d to %d", oldSize, bytecodeSize);
+      heuristicTrace(tracer(),"frequency < coldBorderFrequency: exceedsSizeThreshold: (frequency=%d, borderFrequency=%d) Scaled up size for call from %d to %d", frequency, borderFrequency, oldSize, bytecodeSize);
       }
    else
       {
       J9::Options::_noneOfTheAbove++;
+
+      heuristicTrace(tracer(), "None of the above");
       }
+   heuristicTrace(tracer(), "TR_MultipleCallTargetInliner::scaleSizeBasedOnBlockFrequency end");
    return bytecodeSize;
    }
 
