@@ -1087,6 +1087,7 @@ TR::CompilationInfoPerThreadRemote::processAOTCacheMapRequest(const std::string&
          TR_ASSERT_FATAL(compInfo->getPersistentInfo()->getJITServerAOTCacheIgnoreLocalSCC(),
                          "Cannot request dependencies from the server if not ignoring the local SCC\n");
 
+         sendListOfCachedAOTMethodsWithDeps(stream, aotCache);
          }
       else
          {
@@ -1198,7 +1199,6 @@ TR::CompilationInfoPerThreadRemote::processEntry(TR_MethodToBeCompiled &entry, J
          case JITServer::MessageType::AOTCacheMapWithDeps_request:
             includeDepencies = true;
             // fallthrough
-
          case JITServer::MessageType::AOTCacheMap_request:
             {
             processAOTCacheMapRequest(cacheName, compInfo, stream, includeDepencies);
