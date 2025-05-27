@@ -1958,6 +1958,7 @@ static void collectCachedAOTMethodsWithDeps(JITServer::ClientStream *client,
    for (auto i = 0; i < metadatas.size(); ++i)
       {
       cachedMethods.emplace_back(SerializedAOTDependencyRecord(metadatas[i], signatures[i], serializationRecords[i], dependencies[i]));
+      serverAOTMethodSet->insert(signatures[i]);
       }
 
    auto jitConfig = compInfo->getJITConfig();
@@ -2345,10 +2346,12 @@ aboutToBootstrap(J9JavaVM * javaVM, J9JITConfig * jitConfig)
    if (!persistentInfo->getJITServerUseAOTCache())
       {
       TR::Options::getCmdLineOptions()->setOption(TR_RequestJITServerCachedMethods, false);
+      TR::Options::getCmdLineOptions()->setOption(TR_RequestJITServerCachedMethodsWithDeps, false);
       }
 
    jitConfig->serverAOTMethodSet = NULL;
-   if (TR::Options::getCmdLineOptions()->getOption(TR_RequestJITServerCachedMethods))
+   if (TR::Options::getCmdLineOptions()->getOption(TR_RequestJITServerCachedMethods)
+       || TR::Options::getCmdLineOptions()->getOption(TR_RequestJITServerCachedMethodsWithDeps))
       {
       // Ask the server for its cached methods
       if (compInfo->getPersistentInfo()->getRemoteCompilationMode() == JITServer::CLIENT)
