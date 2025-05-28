@@ -366,7 +366,7 @@ TR_IProfiler::elgibleForPersistIprofileInfo(TR::Compilation *comp) const
 void
 TR_IProfiler::persistIprofileInfo(TR::ResolvedMethodSymbol *resolvedMethodSymbol, TR_ResolvedMethod *resolvedMethod, TR::Compilation *comp)
    {
-   static bool traceIProfiling = (debug("traceIProfiling") != NULL);
+   static bool traceIProfiling = (NULL != feGetEnv("TR_traceiprofiling"));
    static bool SCfull = false;
 
    if (resolvedMethod->isNative())
@@ -378,11 +378,9 @@ TR_IProfiler::persistIprofileInfo(TR::ResolvedMethodSymbol *resolvedMethodSymbol
    TR::StackMemoryRegion stackMemoryRegion(*comp->trMemory());
 
    TR_OpaqueMethodBlock* method = resolvedMethod->getPersistentIdentifier();
-#ifdef PERSISTENCE_VERBOSE
    char methodSig[500];
    _vm->printTruncatedSignature(methodSig, 500, method);
-   fprintf(stderr, "persistIprofileInfo for %s while compiling %s\n", methodSig, comp->signature());
-#endif
+   traceMsg(comp, "persistIprofileInfo for %s while compiling %s\n", methodSig, comp->signature());
 
    if (elgibleForPersistIprofileInfo(comp) &&
       (!SCfull || !comp->getOption(TR_DisableUpdateJITBytesSize)))
@@ -446,12 +444,11 @@ TR_IProfiler::persistIprofileInfo(TR::ResolvedMethodSymbol *resolvedMethodSymbol
 
                if (!SCfull)
                   {
-#ifdef PERSISTENCE_VERBOSE
-                  fprintf(stderr, "Entries found:");
+                  traceMsg(comp, "Entries found:");
                   for (int32_t i=0; i < numEntries; i++)
-                     fprintf(stderr, " %p(bytecode=0x%x)", pcEntries[i], *((char*)pcEntries[i]));
-                  fprintf(stderr, "\n");
-#endif
+                     traceMsg(comp, " %p(bytecode=0x%x)", (void *)pcEntries[i], *((char*)pcEntries[i]));
+                  traceMsg(comp, "\n");
+
                   void * memChunk = comp->trMemory()->allocateMemory(bytesFootprint, stackAlloc);
                   intptr_t bytes = createBalancedBST(pcEntries, 0, numEntries-1, (uintptr_t) memChunk, comp->fej9()->sharedCache());
                   TR_ASSERT(bytes == bytesFootprint, "BST doesn't match expected footprint");
@@ -465,33 +462,25 @@ TR_IProfiler::persistIprofileInfo(TR::ResolvedMethodSymbol *resolvedMethodSymbol
                      {
                      _STATS_methodPersisted++;
                      _STATS_entriesPersisted += numEntries;
-#ifdef PERSISTENCE_VERBOSE
-                     fprintf(stderr, "\tPersisted %d entries\n", numEntries);
-#endif
+                     traceMsg(comp, "\tPersisted %d entries\n", numEntries);
                      }
                   else if (store != J9SHR_RESOURCE_STORE_FULL)
                      {
                      _STATS_persistError++;
-#ifdef PERSISTENCE_VERBOSE
-                     fprintf(stderr, "\tNot Persisted: error\n");
-#endif
+                     traceMsg(comp, "\tNot Persisted: error\n");
                      }
                   else
                      {
                      SCfull = true;
                      _STATS_methodNotPersisted_SCCfull++;
                      bytesToPersist = bytesFootprint;
-#ifdef PERSISTENCE_VERBOSE
-                     fprintf(stderr, "\tNot Persisted: SCC full\n");
-#endif
+                     traceMsg(comp, "\tNot Persisted: SCC full\n");
                      }
                   }
                else // SC Full
                   {
                   _STATS_methodNotPersisted_SCCfull++;
-#ifdef PERSISTENCE_VERBOSE
-                  fprintf(stderr, "\tNot Persisted: SCC full\n");
-#endif
+                  traceMsg(comp, "\tNot Persisted: SCC full\n");
                   bytesToPersist = bytesFootprint;
                   }
 
@@ -507,16 +496,12 @@ TR_IProfiler::persistIprofileInfo(TR::ResolvedMethodSymbol *resolvedMethodSymbol
                if (abort)
                   {
                   _STATS_abortedPersistence++;
-#ifdef PERSISTENCE_VERBOSE
-                  fprintf(stderr, "\tNot Persisted: aborted\n");
-#endif
+                  traceMsg(comp, "\tNot Persisted: aborted\n");
                   }
                else if (numEntries == 0)
                   {
                   _STATS_methodNotPersisted_noEntries++;
-#ifdef PERSISTENCE_VERBOSE
-                  fprintf(stderr, "\tNot Persisted: no entries\n");
-#endif
+                  traceMsg(comp, "\tNot Persisted: no entries\n");
                   }
                }
 
@@ -531,25 +516,19 @@ TR_IProfiler::persistIprofileInfo(TR::ResolvedMethodSymbol *resolvedMethodSymbol
          else
             {
             _STATS_methodNotPersisted_alreadyStored++;
-#ifdef PERSISTENCE_VERBOSE
-            fprintf(stderr, "\tNot Persisted: already stored\n");
-#endif
+            traceMsg(comp, "\tNot Persisted: already stored\n");
             }
          }
       else
          {
          _STATS_methodNotPersisted_classNotInSCC++;
-#ifdef PERSISTENCE_VERBOSE
-         fprintf(stderr, "\tNot Persisted: class not in SCC\n");
-#endif
+         traceMsg(comp, "\tNot Persisted: class not in SCC\n");
          }
       }
    else
       {
       _STATS_methodNotPersisted_other++;
-#ifdef PERSISTENCE_VERBOSE
-       fprintf(stderr, "\tNot Persisted: other\n");
-#endif
+       traceMsg(comp, "\tNot Persisted: other\n");
       }
    }
 
@@ -1468,6 +1447,9 @@ TR_IProfiler::profilingSample (TR_OpaqueMethodBlock *method, uint32_t byteCodeIn
          // then just return the entry I found in the hashtable
          if (preferHashtableData || entry->isPersistentEntryRead())
             {
+            traceMsg(comp, "pc=%p,bci=%d,method=%p, preferHashtableData=%s, isPersistentEntryRead=%s\n", 
+			    pc, byteCodeIndex, method,
+			    preferHashtableData ? "true" : "false", entry->isPersistentEntryRead() ? "true" : "false");
             return entry;
             }
          }
@@ -1509,11 +1491,9 @@ TR_IProfiler::profilingSample (TR_OpaqueMethodBlock *method, uint32_t byteCodeIn
 
                   _STATS_persistedIPReadFail++;
 
-#ifdef PERSISTENCE_VERBOSE
                   char methodSig[500];
                   _vm->printTruncatedSignature(methodSig, 500, method);
-                  fprintf(stderr, "Cannot find entry for method %s bci %u while compiling %s\n", methodSig, byteCodeIndex, comp->signature());
-#endif
+                  traceMsg(comp, "Cannot find entry for method %s bci %u while compiling %s\n", methodSig, byteCodeIndex, comp->signature());
                   }
                }
             else // found entry in SCC
@@ -1524,9 +1504,7 @@ TR_IProfiler::profilingSample (TR_OpaqueMethodBlock *method, uint32_t byteCodeIn
                   && bytecode != JBinvokespecialsplit
                   )
                   _readSampleRequestsHistory->incTotalReadSampleRequests();
-#ifdef PERSISTENCE_VERBOSE
-               fprintf(stderr, "Entry from SCC\n");
-#endif
+               traceMsg(comp, "Entry from SCC\n");
                if (!entry->hasData())
                   {
                   _STATS_persistedIPReadHadBadData++;
@@ -1587,31 +1565,51 @@ TR_IProfiler::profilingSample (TR_OpaqueMethodBlock *method, uint32_t byteCodeIn
                _STATS_IPEntryChoosePersistent++;
                currentEntry = findOrCreateEntry(bcHash(pc), pc, true);
                currentEntry->copyFromEntry(persistentEntry);
+
+   	       currentEntry->printWeights(comp);
+
                // Remember that we already looked into the SCC for this PC
                currentEntry->setPersistentEntryRead();
+	       TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "pc=%p,bci=%d,method=%p, Choosing persistent profile; setting Persistent Entry Read\n", 
+   			       (void *)pc, byteCodeIndex, method);
+
                return currentEntry;
                }
             }
          // If I don't have relevant data in the SCC, choose the data from IProfiler HT
          else if(!persistentEntry || !persistentEntry->hasData())
             {
+	    currentEntry->printWeights(comp);
+
             // Remember that we already looked into the SCC for this PC
             currentEntry->setPersistentEntryRead();
+	    TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "pc=%p,bci=%d,method=%p, Choosing IProfiler HT; setting Persistent Entry Read\n", 
+   			       (void *)pc, byteCodeIndex, method);
             return currentEntry;
             }
          // We have two sources of data. Must pick the best one
          else
             {
             // Remember that we already looked into the SCC for this PC
+
             currentEntry->setPersistentEntryRead();
             int32_t currentCount = getSamplingCount(currentEntry, comp);
             int32_t persistentCount = getSamplingCount(persistentEntry, comp);
+
+	    currentEntry->printWeights(comp);
+	    persistentEntry->printWeights(comp);
+
             if(currentCount >= persistentCount)
                {
+	       TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "pc=%p,bci=%d,method=%p, Both exist; choosing IProfiler HT: setting Persistent Entry Read\n", 
+   			       (void *)pc, byteCodeIndex, method);
                return currentEntry;
                }
             else
                {
+               TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "pc=%p,bci=%d,method=%p, Both exist; choosing SCC; setting Persistent Entry Read\n", 
+   			       (void *)pc, byteCodeIndex, method);
+
                _STATS_IPEntryChoosePersistent++;
                currentEntry->copyFromEntry(persistentEntry);
                return currentEntry;
@@ -2040,7 +2038,7 @@ TR_IProfiler::getProfilingEntry(TR_OpaqueMethodBlock *method, uint32_t byteCodeI
    {
    TR_IPBytecodeHashTableEntry *entry = profilingSample (method, byteCodeIndex, comp);
 
-   static bool traceIProfiling = ((debug("traceIProfiling") != NULL));
+   static bool traceIProfiling = (NULL != feGetEnv("TR_traceiprofiling"));
 
    if (traceIProfiling)
       traceMsg(comp, "Asked for profiling data on PC=%p, ", getSearchPC (method, byteCodeIndex, comp));
@@ -2068,7 +2066,7 @@ TR_IProfiler::getProfilingData(TR_OpaqueMethodBlock *method, uint32_t byteCodeIn
    {
    TR_IPBytecodeHashTableEntry *entry = getProfilingEntry(method, byteCodeIndex, comp);
 
-   static bool traceIProfiling = ((debug("traceIProfiling") != NULL));
+   static bool traceIProfiling = (NULL != feGetEnv("TR_traceiprofiling"));
 
    if (entry)
       {
@@ -2191,7 +2189,7 @@ int16_t next2BytesSigned(uintptr_t pc)       { return *(int16_t *)(pc); }
 void
 TR_IProfiler::getBranchCounters (TR::Node *node, TR::TreeTop *fallThroughTree, int32_t *taken, int32_t *notTaken, TR::Compilation *comp)
    {
-   static bool traceIProfiling = ((debug("traceIProfiling") != NULL));
+   static bool traceIProfiling = (NULL != feGetEnv("TR_traceiprofiling"));
    uintptr_t data = getProfilingData (node, comp);
 
    if (data)
@@ -2326,7 +2324,7 @@ TR_IProfiler::setBlockAndEdgeFrequencies(TR::CFG *cfg, TR::Compilation *comp)
 
    cfg->propagateFrequencyInfoFromExternalProfiler(this);
 
-   static bool traceIProfiling = ((debug("traceIProfiling") != NULL));
+   static bool traceIProfiling = (NULL != feGetEnv("TR_traceiprofiling"));
    if (traceIProfiling)
       {
       traceMsg(comp, "\nBlock frequency info set by Interpreter profiling\n");
@@ -2348,7 +2346,7 @@ TR_IProfiler::createIProfilingValueInfo (TR_ByteCodeInfo &bcInfo, TR::Compilatio
    if (!isIProfilingEnabled())
       return NULL;
 
-   static bool traceIProfiling = ((debug("traceIProfiling") != NULL));
+   static bool traceIProfiling = (NULL != feGetEnv("TR_traceiprofiling"));
 
    TR_OpaqueMethodBlock *method = getMethodFromBCInfo(bcInfo, comp);
    TR_ExternalValueProfileInfo *valueProfileInfo = TR_ExternalValueProfileInfo::getInfo(method, comp);
@@ -2530,7 +2528,7 @@ TR_AbstractInfo *
 TR_IProfiler::createIProfilingValueInfo (TR::Node *node, TR::Compilation *comp)
    {
 
-   static bool traceIProfiling = ((debug("traceIProfiling") != NULL));
+   static bool traceIProfiling = (NULL != feGetEnv("TR_traceiprofiling"));
    if (traceIProfiling)
       {
       traceMsg(comp, "\nCreating iprofiling value info for node %p\n", node);
@@ -2551,7 +2549,7 @@ TR_IProfiler::getValueProfileInfo(TR_ByteCodeInfo &bcInfo, TR::Compilation *comp
    if (!isIProfilingEnabled())
       return NULL;
 
-   static bool traceIProfiling = ((debug("traceIProfiling") != NULL));
+   static bool traceIProfiling = (NULL != feGetEnv("TR_traceiprofiling"));
 
    if (traceIProfiling)
       {
@@ -2852,7 +2850,7 @@ TR_IPBCDataCallGraph::getData(TR::Compilation *comp)
    int32_t maxWeight;
    uintptr_t data = _csInfo.getDominantClass(sumWeight, maxWeight);
 
-   static bool traceIProfiling = ((debug("traceIProfiling") != NULL));
+   static bool traceIProfiling = (NULL != feGetEnv("TR_traceiprofiling"));
    if (traceIProfiling && comp)
       {
       traceMsg(comp, "\nMax weight %d, current sum weight %d\n", maxWeight, sumWeight);
@@ -2904,7 +2902,11 @@ TR_IPBCDataCallGraph::getEdgeWeight(TR_OpaqueClassBlock *clazz, TR::Compilation 
    }
 
 
-
+static char *
+getClassNameChars(TR_OpaqueClassBlock * ramClass, int32_t & length)
+   {
+   return utf8Data(J9ROMCLASS_CLASSNAME(TR::Compiler->cls.romClassOf(ramClass)), length);
+   }
 
 void
 TR_IPBCDataCallGraph::printWeights(TR::Compilation *comp)
@@ -2912,11 +2914,11 @@ TR_IPBCDataCallGraph::printWeights(TR::Compilation *comp)
    for (int32_t i = 0; i < NUM_CS_SLOTS; i++)
       {
       int32_t len;
-      const char * s = _csInfo.getClazz(i) ? comp->fej9()->getClassNameChars((TR_OpaqueClassBlock*)_csInfo.getClazz(i), len) : "0";
+      const char * s = _csInfo.getClazz(i) ? getClassNameChars((TR_OpaqueClassBlock*)_csInfo.getClazz(i), len) : "0";
 
-      fprintf(stderr, "%#" OMR_PRIxPTR " %s %d\n", _csInfo.getClazz(i), s, _csInfo._weight[i]);
+      TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "\t%#" OMR_PRIxPTR " %s %d", _csInfo.getClazz(i), s, _csInfo._weight[i]);
       }
-   fprintf(stderr, "%d\n", _csInfo._residueWeight);
+   TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "\t%d", _csInfo._residueWeight);
    }
 
 void
@@ -3135,6 +3137,10 @@ TR_IPBCDataCallGraph::createPersistentCopy(TR_J9SharedCache *sharedCache, TR_IPB
    // Having VM access in hand prevents class unloading and redefinition
    TR::VMAccessCriticalSection criticalSection(sharedCache->fe());
 
+   if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
+      TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "createPersistentCopy:");
+   printWeights(NULL);
+
    if (indexMaxWeight >= 0) // If there is a valid dominant class
       {
       TR_OpaqueClassBlock *clazz =  (TR_OpaqueClassBlock*)_csInfo.getClazz(indexMaxWeight);
@@ -3323,7 +3329,7 @@ TR_IProfiler::getCGProfilingData(TR_OpaqueMethodBlock *method, uint32_t byteCode
    {
    TR_IPBytecodeHashTableEntry *entry = profilingSample(method, byteCodeIndex, comp);
 
-   static bool traceIProfiling = ((debug("traceIProfiling") != NULL));
+   static bool traceIProfiling = (NULL != feGetEnv("TR_traceiprofiling"));
    if (entry)
       {
       if (invalidateEntryIfInconsistent(entry))
@@ -5087,25 +5093,19 @@ TR_IProfiler::persistAllEntries()
                   {
                   _STATS_methodPersisted++;
                   _STATS_entriesPersisted += numEntries;
-#ifdef PERSISTENCE_VERBOSE
-                  fprintf(stderr, "\tPersisted %d entries\n", numEntries);
-#endif
+                  fprintf(stderr, "\tPersisted %zu entries\n", numEntries);
                   }
                else if (store != J9SHR_RESOURCE_STORE_FULL)
                   {
                   _STATS_persistError++;
-   #ifdef PERSISTENCE_VERBOSE
                   fprintf(stderr, "\tNot Persisted: error\n");
-   #endif
                   }
                else
                   {
                   SCfull = true;
                   _STATS_methodNotPersisted_SCCfull++;
                   //bytesToPersist = bytesFootprint;
-   #ifdef PERSISTENCE_VERBOSE
                   fprintf(stderr, "\tNot Persisted: SCC full\n");
-   #endif
                   }
                // Release all entries in ipEntries[] that were locked by us
                for (uint32_t i = 0; i < numEntries; i++)
@@ -5117,9 +5117,7 @@ TR_IProfiler::persistAllEntries()
                }
             else // Nothing can be persisted for this method
                {
-#ifdef PERSISTENCE_VERBOSE
                fprintf(stderr, "\tNo entry can be persisted for this method (locked/invalid/notOnSCC) \n");
-#endif
                }
             }
          }

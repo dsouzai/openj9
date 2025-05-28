@@ -218,6 +218,7 @@ public:
    virtual TR_IPBCDataAllocation     *asIPBCDataAllocation()     { return NULL; }
    // returns the number of bytes the equivalent storage structure needs
    virtual uint32_t                   getBytesFootprint() = 0;
+   virtual void printWeights(TR::Compilation *comp) {} ;
 
 #if defined(J9VM_OPT_JITSERVER)
    // Serialization used for JITServer
@@ -456,11 +457,12 @@ public:
    virtual uint32_t getNumSamples() const { return getSumCount(); }
    virtual bool isCompact() { return false; }
    virtual TR_IPBCDataCallGraph *asIPBCDataCallGraph() { return this; }
+   virtual void printWeights(TR::Compilation *comp);
+
    int32_t getSumCount() const;
    int32_t getSumCount(TR::Compilation *comp);
    int32_t getEdgeWeight(TR_OpaqueClassBlock *clazz, TR::Compilation *comp);
    void updateEdgeWeight(TR_OpaqueClassBlock *clazz, int32_t weight);
-   void printWeights(TR::Compilation *comp);
 
    void setWarmCallGraphTooBig(bool set=true) { _csInfo._tooBigToBeInlined = (set) ? 1 : 0; }
    bool isWarmCallGraphTooBig() { return (_csInfo._tooBigToBeInlined == 1); }
