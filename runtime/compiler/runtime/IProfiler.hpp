@@ -140,8 +140,27 @@ public:
    void setClazz(int index, uintptr_t clazzPtr);
    uintptr_t getDominantClass(int32_t &sumW, int32_t &maxW);
 
-private:
+protected:
    uintptr_t _clazz[NUM_CS_SLOTS]; // store them in either 64 or 32 bits
+   };
+
+class PersistentCallSiteProfileInfo : public CallSiteProfileInfo
+   {
+public:
+   void initialize()
+      {
+      CallSiteProfileInfo::initialize();
+      for (int i = 0; i < NUM_CS_SLOTS; i++)
+         {
+         _loaderClassChain[i]=0;
+         }
+      }
+
+   uintptr_t getLoaderClassChain(int index);
+   void setLoaderClassChain(int index, uintptr_t classChain);
+
+private:
+   uintptr_t _loaderClassChain[NUM_CS_SLOTS];
    };
 
 #define TR_IPBCD_FOUR_BYTES  1
@@ -173,7 +192,7 @@ typedef struct TR_IPBCDataEightWordsStorage
 typedef struct TR_IPBCDataCallGraphStorage
    {
    TR_IPBCDataStorageHeader header;
-   CallSiteProfileInfo _csInfo;
+   PersistentCallSiteProfileInfo _csInfo;
    } TR_IPBCDataCallGraphStorage;
 
 enum TR_EntryStatusInfo
