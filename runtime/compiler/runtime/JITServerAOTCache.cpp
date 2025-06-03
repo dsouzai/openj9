@@ -1283,7 +1283,7 @@ SerializedAOTDependencyRecord
 JITServerAOTCache::getSerializedAOTDependencyRecord(const CachedAOTMethod *method, const KnownIdSet &knownIds, TR_Memory &trMemory) const
    {
    auto dependencySerializationRecords = getDependencySerializationRecords(method, knownIds, trMemory);
-   std::string serializedAOTDependencies((const char *)method->deps(), (sizeof(SerializedAOTDependency) * method->data().numDependencies()));
+   std::string serializedAOTDependencies((const char *)method->data().deps(), (sizeof(SerializedAOTDependency) * method->data().numDependencies()));
 
    auto definingClassChainRecord = method->definingClassChainRecord();
    auto definingClassId = definingClassChainRecord->data().list().ids()[0];
