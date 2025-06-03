@@ -103,6 +103,38 @@ J9::CodeCache::allocate(TR::CodeCacheManager *cacheManager, size_t segmentSize, 
    return newCodeCache;
    }
 
+#ifdef LINUX
+static int open_temp_file(size_t length)
+   {
+   int fd = -1;
+
+   char filename[64+1];
+   snprintf(filename, sizeof(filename), "fsd_codecache_XXXXXX");
+
+   fd = mkostemp(filename, 0);
+
+   if (fd == -1)
+      {
+      const char *error = strerror(errno);
+      if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_CODECACHE, "Failed to open temp file %s: %s", filename, error);
+      }
+   else
+      {
+      unlink(filename);
+      if (ftruncate(fd, length) == -1)
+         {
+         const char *error = strerror(errno);
+         if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
+            TR_VerboseLog::writeLineLocked(TR_Vlog_CODECACHE, "Failed to set file size to %zu: %s", length, error);
+         close(fd);
+         fd = -1;
+         }
+      }
+
+   return fd;
+   }
+#endif
 
 bool
 J9::CodeCache::initialize(TR::CodeCacheManager *manager,
@@ -173,10 +205,58 @@ J9::CodeCache::initialize(TR::CodeCacheManager *manager,
    self()->setInitialAllocationPointers();
 
 #ifdef LINUX
+   J9JavaVM * javaVM = jitConfig->javaVM;
+   PORT_ACCESS_FROM_JAVAVM(javaVM); // for j9vmem_supported_page_sizes
+
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+   if (_kind == TR::CodeCacheKind::FILE_BACKED_CC)
+      {
+      if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_CODECACHE, "Code Cache Kind for %p set to FILE_BACKED_CC", self());
+
+      size_t round = j9vmem_supported_page_sizes()[0] - 1;
+      uint8_t *addr = (uint8_t *)(((size_t)(_segment->segmentBase() + round)) & ~round);
+      size_t length = _segment->segmentTop() - addr;
+
+      int prot = PROT_EXEC | PROT_READ | PROT_WRITE;
+      int flags = MAP_SHARED | MAP_FIXED;
+      int fd = open_temp_file(length);
+      off_t offset = 0;
+
+      if (fd != -1)
+         {
+         void *remapped_addr = mmap(addr, length, prot, flags, fd, offset);
+         if (remapped_addr == MAP_FAILED)
+            {
+            if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
+               {
+               TR_VerboseLog::writeLineLocked(TR_Vlog_CODECACHE,
+                                              "Double Map failed for code cache %p start %p length %zu; "
+                                              "resetting kind to DEFAULT_CC",
+                                              self(), _segment->segmentBase(), length);
+               }
+            _kind = TR::CodeCacheKind::DEFAULT_CC;
+            close(fd);
+            fd = -1;
+            }
+         else
+            {
+            TR_ASSERT_FATAL(remapped_addr == addr, "remapped_addr %p != addr %p\n",
+                            remapped_addr, addr);
+
+            if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
+               {
+               TR_VerboseLog::writeLineLocked(TR_Vlog_CODECACHE,
+                                              "Double mapped code cache starting from %p length %zu",
+                                              addr, length);
+               }
+            }
+         }
+      }
+   else
+#endif // defined(J9VM_OPT_CRIU_SUPPORT)
    if (manager->isDisclaimEnabled())
       {
-      J9JavaVM * javaVM = jitConfig->javaVM;
-      PORT_ACCESS_FROM_JAVAVM(javaVM); // for j9vmem_supported_page_sizes
       uintptr_t round = (uintptr_t)(j9vmem_supported_page_sizes()[0] - 1);
 
       // The code cache segment start must be page aligned because it was allocated with mmap
@@ -201,7 +281,7 @@ J9::CodeCache::initialize(TR::CodeCacheManager *manager,
       // Power has 64 KB and 16 MB pages (16 MB is too large to be useful for disclaiming)
       // ARM can have many sizes for its large pages: 64 K, 1 MB, 2 MB, 16 MB)
       static const uintptr_t THP_SIZE = 65536; // 64K
-#endif
+#endif // defined(TR_TARGET_X86)
       static const uintptr_t ROUNDING_VALUE = THP_SIZE/2 - 1;
       if (codeCacheSegment->segmentTop() - codeCacheSegment->segmentBase() >= 2 * THP_SIZE)
          {
