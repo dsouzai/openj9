@@ -8643,6 +8643,17 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
                   p->_optimizationPlan,
                   (vm->isAOT_DEPRECATED_DO_NOT_USE() || that->_methodBeingCompiled->isAotLoad()),
                   that->getCompThreadId());
+
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+            if (TR::Options::getCmdLineOptions()->getOption(TR_FSDCodeCachesDisclaiming)
+                && jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(jitConfig->javaVM)
+                && jitConfig->javaVM->internalVMFunctions->isDebugOnRestoreEnabled(jitConfig->javaVM)
+                && (!p->_checkpointInProgress || options->getOption(TR_FullSpeedDebug)))
+               {
+               options->setCodeCacheKind(TR::CodeCacheKind::FILE_BACKED_CC);
+               }
+#endif
+
             // JITServer TODO determine if we care to support annotations
             if (that->_methodBeingCompiled->isRemoteCompReq())
                {
