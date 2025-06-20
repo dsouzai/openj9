@@ -4644,7 +4644,12 @@ void disclaimIProfilerSegments(uint64_t crtElapsedTime)
 void disclaimCodeCaches(uint64_t crtElapsedTime)
    {
    size_t rssBefore = getRSS_Kb();
-   int numDisclaimed = TR::CodeCacheManager::instance()->disclaimAllCodeCaches();
+
+   int numDisclaimed =
+      TR::Options::getCmdLineOptions()->getOption(TR_EnableFileBackedCodeCacheDisclaiming)
+      ? TR::CodeCacheManager::instance()->disclaimAllCodeCachesWithKind(TR::CodeCacheKind::FILE_BACKED_CC)
+      : TR::CodeCacheManager::instance()->disclaimAllCodeCaches();
+
    size_t rssAfter = getRSS_Kb();
    if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
       TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "t=%u JIT disclaimed %d Code Caches RSS before=%zu KB, RSS after=%zu KB, delta=%zd KB = %5.2f%%",

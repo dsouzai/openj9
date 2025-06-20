@@ -810,9 +810,8 @@ J9::CodeCacheManager::printOccupancyStats()
       }
    }
 
-
 int32_t
-J9::CodeCacheManager::disclaimAllCodeCaches()
+J9::CodeCacheManager::disclaimAllCodeCachesWithKind(TR::CodeCacheKind kind, bool ignoreKind)
    {
    if (!_disclaimEnabled)
       return 0;
@@ -826,9 +825,19 @@ J9::CodeCacheManager::disclaimAllCodeCaches()
    CacheListCriticalSection scanCacheList(self());
    for (TR::CodeCache *codeCache = self()->getFirstCodeCache(); codeCache; codeCache = codeCache->next())
       {
-      numDisclaimed += codeCache->disclaim(self(), canDisclaimOnSwap);
+      if (ignoreKind || kind == codeCache->_kind)
+         {
+         numDisclaimed += codeCache->disclaim(self(), canDisclaimOnSwap);
+         }
       }
 #endif // LINUX
 
    return numDisclaimed;
+
+   }
+
+int32_t
+J9::CodeCacheManager::disclaimAllCodeCaches()
+   {
+   return self()->disclaimAllCodeCachesWithKind(TR::CodeCacheKind::DEFAULT_CC, true /* ignoreKind */);
    }
