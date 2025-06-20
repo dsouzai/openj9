@@ -9236,6 +9236,16 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
                reloRuntime,
                &target);
 
+#if defined(J9VM_OPT_CRIU_SUPPORT)
+         if (TR::Options::getCmdLineOptions()->getOption(TR_EnableFileBackedCodeCacheDisclaiming)
+             && jitConfig->javaVM->internalVMFunctions->isCheckpointAllowed(jitConfig->javaVM)
+             && jitConfig->javaVM->internalVMFunctions->isDebugOnRestoreEnabled(jitConfig->javaVM)
+             && (!p->_checkpointInProgress || compiler->getOptions()->getOption(TR_FullSpeedDebug)))
+            {
+            compiler->getOptions()->setCodeCacheKind(TR::CodeCacheKind::FILE_BACKED_CC);
+            }
+#endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
+
 #if defined(J9VM_OPT_JITSERVER)
          // JITServer TODO: put info in optPlan so that compilation constructor can do this
          if (that->_methodBeingCompiled->isRemoteCompReq())

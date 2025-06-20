@@ -51,12 +51,30 @@ class OMR_EXTENSIBLE CodeCacheManager : public OMR::CodeCacheManagerConnector
    TR::CodeCacheManager *self();
 
 public:
+   /**
+    * @brief Enum to indicate the disclaim mode
+    */
+   enum DisclaimMode
+      {
+      DISCLAIM_DISABLED = 0, /** No Disclaim                          */
+      PARTIAL_DISCLAIM,      /** Disclaim only part of the code cache */
+      FULL_DISCLAIM,         /** Disclaim the entire code cache       */
+      };
+
    CodeCacheManager(TR_FrontEnd *fe, TR::RawAllocator rawAllocator) :
       OMR::CodeCacheManagerConnector(rawAllocator),
       _fe(fe)
       {
+      _disclaimMode = DisclaimMode::DISCLAIM_DISABLED;
+
+      auto options = TR::Options::getCmdLineOptions();
+      if (options->getOption(TR_EnableFileBackedCodeCacheDisclaiming))
+         _disclaimMode = DisclaimMode::FULL_DISCLAIM;
+      else if (options->getOption(TR_EnableCodeCacheDisclaiming))
+         _disclaimMode = DisclaimMode::PARTIAL_DISCLAIM;
+
       _codeCacheManager = reinterpret_cast<TR::CodeCacheManager *>(this);
-      _disclaimEnabled = TR::Options::getCmdLineOptions()->getOption(TR_EnableCodeCacheDisclaiming);
+      _disclaimEnabled = _disclaimMode != DisclaimMode::DISCLAIM_DISABLED;
       }
 
    void *operator new(size_t s, TR::CodeCacheManager *m) { return m; }
@@ -154,8 +172,30 @@ public:
     * @brief Print occupancy stats for each code cache
     */
    void printOccupancyStats();
+
    bool isDisclaimEnabled() const { return _disclaimEnabled; }
    void setDisclaimEnabled(bool value)  { _disclaimEnabled = value; }
+
+   /**
+    * @brief Return the disclaim mode
+    *
+    * @return the disclaim mode
+    */
+   DisclaimMode disclaimMode() const { return _disclaimMode; }
+
+   /**
+    * @brief Disclaim all code caches of the specified kind.
+    *
+    * @param kind the TR::CodeCacheKind
+    * @param ignoreKind boolean to indicate whether to ignore the kind
+    *
+    * @return the number of code caches disclaimed
+    */
+   int32_t disclaimAllCodeCachesWithKind(TR::CodeCacheKind kind = TR::CodeCacheKind::DEFAULT_CC, bool ignoreKind = false);
+
+   /**
+    * @brief Disclaim all code caches (regardless of kind)
+    */
    int32_t disclaimAllCodeCaches();
 
 private :
@@ -163,6 +203,7 @@ private :
    static TR::CodeCacheManager *_codeCacheManager;
    static J9JITConfig *_jitConfig;
    static J9JavaVM *_javaVM;
+   DisclaimMode _disclaimMode;
    bool  _disclaimEnabled; // If true, code cache can be disclaimed to a file or swap
    };
 

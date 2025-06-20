@@ -91,7 +91,9 @@ J9::OptionsPostRestore::OptionsPostRestore(J9VMThread *vmThread, J9JITConfig *ji
         || options->getOption(TR_NoResumableTrapHandler)
         || options->getOption(TR_DisableTraps);
 
-   _enableCodeCacheDisclaimingPreCheckpoint = options->getOption(TR_EnableCodeCacheDisclaiming);
+   _enableCodeCacheDisclaimingPreCheckpoint =
+      options->getOption(TR_EnableCodeCacheDisclaiming)
+      || options->getOption(TR_EnableFileBackedCodeCacheDisclaiming);
    }
 
 void
@@ -825,10 +827,16 @@ J9::OptionsPostRestore::postProcessInternalCompilerOptions()
       }
 
 
-   if (!_enableCodeCacheDisclaimingPreCheckpoint &&
-       TR::Options::getCmdLineOptions()->getOption(TR_EnableCodeCacheDisclaiming))
+   if (!_enableCodeCacheDisclaimingPreCheckpoint)
       {
-      TR::Options::getCmdLineOptions()->setOption(TR_EnableCodeCacheDisclaiming, false);
+      if (TR::Options::getCmdLineOptions()->getOption(TR_EnableCodeCacheDisclaiming))
+         {
+         TR::Options::getCmdLineOptions()->setOption(TR_EnableCodeCacheDisclaiming, false);
+         }
+      else if (TR::Options::getCmdLineOptions()->getOption(TR_EnableFileBackedCodeCacheDisclaiming))
+         {
+         TR::Options::getCmdLineOptions()->setOption(TR_EnableFileBackedCodeCacheDisclaiming, false);
+         }
 
       if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
           TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "WARNING: Code Cache disclaiming disabled since it was disabled before checkpoint");
@@ -837,6 +845,7 @@ J9::OptionsPostRestore::postProcessInternalCompilerOptions()
    if (!TR::Options::getCmdLineOptions()->getOption(TR_DisableDataCacheDisclaiming) ||
        !TR::Options::getCmdLineOptions()->getOption(TR_DisableIProfilerDataDisclaiming) ||
        TR::Options::getCmdLineOptions()->getOption(TR_EnableCodeCacheDisclaiming) ||
+       TR::Options::getCmdLineOptions()->getOption(TR_EnableFileBackedCodeCacheDisclaiming) ||
        TR::Options::getCmdLineOptions()->getOption(TR_EnableSharedCacheDisclaiming))
       {
       TR::Options::disableMemoryDisclaimIfNeeded(_jitConfig);
