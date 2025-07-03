@@ -5517,6 +5517,8 @@ TR_ResolvedJ9Method::startAddressForJittedMethod()
 
 bool TR_ResolvedJ9Method::isWarmCallGraphTooBig(uint32_t bcIndex, TR::Compilation *comp)
    {
+   return false;
+
    /*void * startPC = startAddressForJittedMethod();
 
    traceMsg(comp, " inside inlinesMethod %p, start addr %p\n", ramMethod(), startPC);

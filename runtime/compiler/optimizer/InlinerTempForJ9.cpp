@@ -36,6 +36,7 @@
 #include "env/PersistentCHTable.hpp"
 #include "env/VMJ9.h"
 #include "env/jittypes.h"
+#include "env/VerboseLog.hpp"
 #include "il/Block.hpp"
 #include "il/Node.hpp"
 #include "il/Node_inlines.hpp"
@@ -5187,11 +5188,16 @@ TR_MultipleCallTargetInliner::exceedsSizeThreshold(TR_CallSite *callSite, int by
          // callerResolvedMethod may not correspond to the caller listed in bcInfo, so it's
          // not safe to call isWarmCallGraphTooBig.
          }
-      else if (comp()->isServerInlining() &&
+      else if (false && comp()->isServerInlining() &&
             !alwaysWorthInlining(calleeResolvedMethod, NULL) &&
             callerResolvedMethod->isWarmCallGraphTooBig(bcInfo.getByteCodeIndex(), comp()) &&
             !isHot(comp()))
          {
+         if (comp()->getOptions()->getVerboseOption(TR_VerbosePerformance))
+            {
+            TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "isWarmCallGraphTooBig: %s", callerResolvedMethod->signature(comp()->trMemory()));
+            }
+
          heuristicTrace(tracer(),"### Avoiding estimation (even though size is reasonable) of call %s.(Exceeding Size Threshold)", tracer()->traceSignature(calleeResolvedMethod));
          return true;
          }

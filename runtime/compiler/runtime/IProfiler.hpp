@@ -477,6 +477,7 @@ public:
    virtual bool isCompact() { return false; }
    virtual TR_IPBCDataCallGraph *asIPBCDataCallGraph() { return this; }
    virtual void printWeights(TR::Compilation *comp);
+   void printPersistentWeights(TR::Compilation *comp, PersistentCallSiteProfileInfo &info, TR_J9SharedCache *sharedCache);
 
    int32_t getSumCount() const;
    int32_t getSumCount(TR::Compilation *comp);

@@ -424,11 +424,11 @@ TR_IProfiler::persistIprofileInfo(TR::ResolvedMethodSymbol *resolvedMethodSymbol
             if (traceIProfiling && resolvedMethodSymbol)
                comp->dumpMethodTrees("Pre Iprofiler Walk", resolvedMethodSymbol);
 
-            if (comp->getOption(TR_DumpPersistedIProfilerMethodNamesAndCounts))
+            if (comp->getOption(TR_DumpPersistedIProfilerMethodNamesAndCounts) && TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
                {
                char methodSig[3000];
                fej9->printTruncatedSignature(methodSig, 3000, method);
-               fprintf(stdout, "Persist: %s count %" OMR_PRId32 " Compiling %s\n", methodSig, count, comp->signature());
+               TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "%p Persist: %s count %" OMR_PRId32 " Compiling %s", comp->j9VMThread(), methodSig, count, comp->signature());
                }
 
             vcount_t visitCount = comp->incVisitCount();
@@ -444,10 +444,15 @@ TR_IProfiler::persistIprofileInfo(TR::ResolvedMethodSymbol *resolvedMethodSymbol
 
                if (!SCfull)
                   {
-                  traceMsg(comp, "Entries found:");
-                  for (int32_t i=0; i < numEntries; i++)
-                     traceMsg(comp, " %p(bytecode=0x%x)", (void *)pcEntries[i], *((char*)pcEntries[i]));
-                  traceMsg(comp, "\n");
+                  if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
+                     {
+                     TR_VerboseLog::CriticalSection pw; 
+
+                     TR_VerboseLog::write(TR_Vlog_PERF, "%p Entries found:",comp->j9VMThread());
+                     for (int32_t i=0; i < numEntries; i++)
+                        TR_VerboseLog::write(" %p(bytecode=0x%x)", (void *)pcEntries[i], *((char*)pcEntries[i]));
+                     TR_VerboseLog::write("\n");
+                     }
 
                   void * memChunk = comp->trMemory()->allocateMemory(bytesFootprint, stackAlloc);
                   intptr_t bytes = createBalancedBST(pcEntries, 0, numEntries-1, (uintptr_t) memChunk, comp->fej9()->sharedCache());
@@ -462,25 +467,32 @@ TR_IProfiler::persistIprofileInfo(TR::ResolvedMethodSymbol *resolvedMethodSymbol
                      {
                      _STATS_methodPersisted++;
                      _STATS_entriesPersisted += numEntries;
-                     traceMsg(comp, "\tPersisted %d entries\n", numEntries);
+
+                     if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
+                        TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "\t%p Persisted %d entries\n", comp->j9VMThread(), numEntries);
                      }
                   else if (store != J9SHR_RESOURCE_STORE_FULL)
                      {
                      _STATS_persistError++;
-                     traceMsg(comp, "\tNot Persisted: error\n");
+                     if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
+                        TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "\t%p Not Persisted: error\n", comp->j9VMThread());
                      }
                   else
                      {
                      SCfull = true;
                      _STATS_methodNotPersisted_SCCfull++;
                      bytesToPersist = bytesFootprint;
-                     traceMsg(comp, "\tNot Persisted: SCC full\n");
+
+                     if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
+                        TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "\t%p Not Persisted: SCC full\n",comp->j9VMThread());
                      }
                   }
                else // SC Full
                   {
                   _STATS_methodNotPersisted_SCCfull++;
-                  traceMsg(comp, "\tNot Persisted: SCC full\n");
+
+                  if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
+                     TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "\t%p Not Persisted: SCC full\n",comp->j9VMThread() );
                   bytesToPersist = bytesFootprint;
                   }
 
@@ -496,12 +508,16 @@ TR_IProfiler::persistIprofileInfo(TR::ResolvedMethodSymbol *resolvedMethodSymbol
                if (abort)
                   {
                   _STATS_abortedPersistence++;
-                  traceMsg(comp, "\tNot Persisted: aborted\n");
+
+                  if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
+                     TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "\t%p Not Persisted: aborted\n",comp->j9VMThread() );
                   }
                else if (numEntries == 0)
                   {
                   _STATS_methodNotPersisted_noEntries++;
-                  traceMsg(comp, "\tNot Persisted: no entries\n");
+
+                  if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
+                     TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "\t%p Not Persisted: no entries\n",comp->j9VMThread() );
                   }
                }
 
@@ -516,19 +532,25 @@ TR_IProfiler::persistIprofileInfo(TR::ResolvedMethodSymbol *resolvedMethodSymbol
          else
             {
             _STATS_methodNotPersisted_alreadyStored++;
-            traceMsg(comp, "\tNot Persisted: already stored\n");
+
+            if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
+               TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "\t%p Not Persisted: already stored\n",comp->j9VMThread() );
             }
          }
       else
          {
          _STATS_methodNotPersisted_classNotInSCC++;
-         traceMsg(comp, "\tNot Persisted: class not in SCC\n");
+
+         if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
+            TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "\t%p Not Persisted: class not in SCC\n",comp->j9VMThread() );
          }
       }
    else
       {
       _STATS_methodNotPersisted_other++;
-       traceMsg(comp, "\tNot Persisted: other\n");
+
+      if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
+         TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "\t%p Not Persisted: other\n",comp->j9VMThread());
       }
    }
 
@@ -1570,8 +1592,14 @@ TR_IProfiler::profilingSample (TR_OpaqueMethodBlock *method, uint32_t byteCodeIn
 
                // Remember that we already looked into the SCC for this PC
                currentEntry->setPersistentEntryRead();
-	       TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "pc=%p,bci=%d,method=%p, Choosing persistent profile; setting Persistent Entry Read\n", 
+	       traceMsg(comp, "pc=%p,bci=%d,method=%p, Choosing persistent profile; setting Persistent Entry Read\n", 
    			       (void *)pc, byteCodeIndex, method);
+
+               if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
+                  {
+	          TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "pc=%p,bci=%d,method=%p, Choosing persistent profile; setting Persistent Entry Read\n", 
+   			       (void *)pc, byteCodeIndex, method);
+                  }
 
                return currentEntry;
                }
@@ -1583,8 +1611,14 @@ TR_IProfiler::profilingSample (TR_OpaqueMethodBlock *method, uint32_t byteCodeIn
 
             // Remember that we already looked into the SCC for this PC
             currentEntry->setPersistentEntryRead();
-	    TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "pc=%p,bci=%d,method=%p, Choosing IProfiler HT; setting Persistent Entry Read\n", 
+	    traceMsg(comp, "pc=%p,bci=%d,method=%p, Choosing IProfiler HT; setting Persistent Entry Read\n", 
    			       (void *)pc, byteCodeIndex, method);
+
+            if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
+               {
+	       TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "pc=%p,bci=%d,method=%p, Choosing IProfiler HT; setting Persistent Entry Read\n", 
+   			       (void *)pc, byteCodeIndex, method);
+               }
             return currentEntry;
             }
          // We have two sources of data. Must pick the best one
@@ -1601,14 +1635,26 @@ TR_IProfiler::profilingSample (TR_OpaqueMethodBlock *method, uint32_t byteCodeIn
 
             if(currentCount >= persistentCount)
                {
-	       TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "pc=%p,bci=%d,method=%p, Both exist; choosing IProfiler HT: setting Persistent Entry Read\n", 
+  	       traceMsg(comp, "pc=%p,bci=%d,method=%p, Both exist; choosing IProfiler HT: setting Persistent Entry Read\n", 
    			       (void *)pc, byteCodeIndex, method);
+
+               if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
+                  {
+  	          TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "pc=%p,bci=%d,method=%p, Both exist; choosing IProfiler HT: setting Persistent Entry Read\n", 
+   			       (void *)pc, byteCodeIndex, method);
+                  }
                return currentEntry;
                }
             else
                {
-               TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "pc=%p,bci=%d,method=%p, Both exist; choosing SCC; setting Persistent Entry Read\n", 
+               traceMsg(comp, "pc=%p,bci=%d,method=%p, Both exist; choosing SCC; setting Persistent Entry Read\n", 
    			       (void *)pc, byteCodeIndex, method);
+
+               if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
+                  {
+                  TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "pc=%p,bci=%d,method=%p, Both exist; choosing SCC; setting Persistent Entry Read\n", 
+   			       (void *)pc, byteCodeIndex, method);
+                  }
 
                _STATS_IPEntryChoosePersistent++;
                currentEntry->copyFromEntry(persistentEntry);
@@ -1620,6 +1666,8 @@ TR_IProfiler::profilingSample (TR_OpaqueMethodBlock *method, uint32_t byteCodeIn
       } // !addIt
    else // Request for adding the data to the hashtable
       {
+      traceMsg(comp, "Read Request: pc=%p,bci=%d,method=%p\n", (void *)pc, byteCodeIndex, method);
+
       return profilingSample(pc, data, true);
       }
    }
@@ -2908,17 +2956,54 @@ getClassNameChars(TR_OpaqueClassBlock * ramClass, int32_t & length)
    return utf8Data(J9ROMCLASS_CLASSNAME(TR::Compiler->cls.romClassOf(ramClass)), length);
    }
 
+static char *
+getClassNameChars(J9ROMClass * romClass, int32_t & length)
+   {
+   return utf8Data(J9ROMCLASS_CLASSNAME(romClass), length);
+   }
+
 void
 TR_IPBCDataCallGraph::printWeights(TR::Compilation *comp)
    {
-   for (int32_t i = 0; i < NUM_CS_SLOTS; i++)
+   if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
       {
-      int32_t len;
-      const char * s = _csInfo.getClazz(i) ? getClassNameChars((TR_OpaqueClassBlock*)_csInfo.getClazz(i), len) : "0";
+      TR_VerboseLog::CriticalSection pw; 
+      TR_VerboseLog::writeLine(TR_Vlog_PERF, "Weights:");
+      for (int32_t i = 0; i < NUM_CS_SLOTS; i++)
+         {
+         int32_t len = 1;
+         const char * s = _csInfo.getClazz(i) ? getClassNameChars((TR_OpaqueClassBlock*)_csInfo.getClazz(i), len) : "0";
 
-      TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "\t%#" OMR_PRIxPTR " %s %d", _csInfo.getClazz(i), s, _csInfo._weight[i]);
+         TR_VerboseLog::writeLine(TR_Vlog_PERF, "\t%#" OMR_PRIxPTR " %.*s %d", _csInfo.getClazz(i), len, s, _csInfo._weight[i]);
+         }
+      TR_VerboseLog::writeLine(TR_Vlog_PERF, "\t%d", _csInfo._residueWeight);
       }
-   TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "\t%d", _csInfo._residueWeight);
+   }
+
+void
+TR_IPBCDataCallGraph::printPersistentWeights(TR::Compilation *comp, PersistentCallSiteProfileInfo &info, TR_J9SharedCache *sharedCache)
+   {
+   if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
+      {
+      TR_VerboseLog::CriticalSection pw; 
+      TR_VerboseLog::writeLine(TR_Vlog_PERF, "Persistent Weights:");
+      for (int32_t i = 0; i < NUM_CS_SLOTS; i++)
+         {
+         int32_t len = 1;
+	 J9ROMClass *romClass = NULL;
+	 if (info.getClazz(i))
+            {
+            uintptr_t classChainOffset = info.getClazz(i);
+            uintptr_t *classChain = (uintptr_t*)sharedCache->pointerFromOffsetInSharedCache(classChainOffset);
+            uintptr_t romClassOffset = classChain[1];
+            romClass = sharedCache->romClassFromOffsetInSharedCache(romClassOffset);
+            }
+         const char * s = romClass ? getClassNameChars(romClass, len) : "0";
+
+         TR_VerboseLog::writeLine(TR_Vlog_PERF, "\t%#" OMR_PRIxPTR " %.*s %d", info.getClazz(i), len, s, info._weight[i]);
+         }
+      TR_VerboseLog::writeLine(TR_Vlog_PERF, "\t%d", info._residueWeight);
+      }
    }
 
 void
@@ -3153,6 +3238,9 @@ TR_IPBCDataCallGraph::createPersistentCopy(TR_J9SharedCache *sharedCache, TR_IPB
    store->_csInfo._residueWeight = residue >= UINT16_MAX ? UINT16_MAX : residue;
 
    store->_csInfo._tooBigToBeInlined = _csInfo._tooBigToBeInlined;
+
+   printWeights(NULL);
+   printPersistentWeights(NULL, store->_csInfo, sharedCache);
    }
 
 void
@@ -3247,13 +3335,6 @@ TR_IPBCDataCallGraph::loadFromPersistentCopy(TR_IPBCDataStorageHeader * storage,
                {
                TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "loadFromPersistentCopy: Cannot convert ROMClass to RAMClass. Cannot get the class chain of ROMClass");
                }
-            }
-         }
-      else
-         {
-         if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseIProfilerPersistence))
-            {
-            TR_VerboseLog::writeLineLocked(TR_Vlog_PERF, "loadFromPersistentCopy: Cannot convert ROMClass to RAMClass. Don't have required information in the entry");
             }
          }
 
@@ -3397,6 +3478,8 @@ TR_IProfiler::setWarmCallGraphTooBig(TR_OpaqueMethodBlock *method, int32_t bcInd
 bool
 TR_IProfiler::isWarmCallGraphTooBig(TR_OpaqueMethodBlock *method, int32_t bcIndex, TR::Compilation *comp)
    {
+   return false;
+
    TR_IPBytecodeHashTableEntry *entry = profilingSample(method, bcIndex, comp);
 
    if (entry && entry->asIPBCDataCallGraph())

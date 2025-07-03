@@ -3381,7 +3381,7 @@ bool J9::Options::feLatePostProcess(void * base, TR::OptionSet * optionSet)
             TR::CompilationInfo * compInfo = getCompilationInfo(jitConfig);
             if (compInfo->isWarmSCC() == TR_yes)
                {
-               self()->setOption(TR_NoIProfilerDuringStartupPhase);
+               //self()->setOption(TR_NoIProfilerDuringStartupPhase);
                }
             }
          }

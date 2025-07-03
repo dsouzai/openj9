@@ -4319,7 +4319,7 @@ void JitShutdown(J9JITConfig * jitConfig)
    if (options /* && !options->getOption(TR_DisableInterpreterProfiling) */ && iProfiler)
       {
       //if (options->getOption(TR_StoreIPInfoOnShutdown))
-      //   iProfiler->persistAllEntries();
+      iProfiler->persistAllEntries();
 
       printIprofilerStats(options, jitConfig, iProfiler, "Shutdown");
       // Prevent the interpreter to accumulate more info
