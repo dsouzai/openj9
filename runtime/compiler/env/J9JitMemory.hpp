@@ -27,16 +27,24 @@
 #include "j9cfg.h"
 #include "il/DataTypes.hpp"
 
-void preventAllocationOfBTLMemory(J9MemorySegment * &segment,
-                                  J9JavaVM * javaVM,
-                                  TR_AllocationKind segmentType,
-                                  bool freeSegmentOverride);
+void preventAllocationOfBTLMemory(J9MemorySegment *&segment, J9JavaVM *javaVM, TR_AllocationKind segmentType,
+    bool freeSegmentOverride);
 
-class J9JitMemory
-   {
+class J9JitMemory {
 public:
-   static TR_OpaqueClassBlock *convertClassPtrToClassOffset(J9Class *clazzPtr) { return (TR_OpaqueClassBlock*)clazzPtr; }
-   static J9Method *convertMethodOffsetToMethodPtr(TR_OpaqueMethodBlock *methodOffset) { return pointer_cast<J9Method *>(methodOffset); }
-   static TR_OpaqueMethodBlock *convertMethodPtrToMethodOffset(J9Method *methodPtr) { return pointer_cast<TR_OpaqueMethodBlock *>(methodPtr); }
-   };
+    static TR_OpaqueClassBlock *convertClassPtrToClassOffset(J9Class *clazzPtr)
+    {
+        return (TR_OpaqueClassBlock *)clazzPtr;
+    }
+
+    static J9Method *convertMethodOffsetToMethodPtr(TR_OpaqueMethodBlock *methodOffset)
+    {
+        return pointer_cast<J9Method *>(methodOffset);
+    }
+
+    static TR_OpaqueMethodBlock *convertMethodPtrToMethodOffset(J9Method *methodPtr)
+    {
+        return pointer_cast<TR_OpaqueMethodBlock *>(methodPtr);
+    }
+};
 #endif

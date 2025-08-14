@@ -27,49 +27,48 @@
 #include <stdint.h>
 #include "env/FilePointerDecl.hpp"
 
-extern "C" { struct J9PortLibrary; }
-
-namespace TR
-{
-   struct FilePointer
-      {
-
-      FilePointer(::FILE *stream);
-
-      void initialize(J9PortLibrary *portLib, int32_t fileId);
-      void initialize(::FILE *stream);
-
-      int32_t write(J9PortLibrary *portLib, char *buf, int32_t length);
-
-      void close(J9PortLibrary *portLib);
-
-      void flush(J9PortLibrary *portLib);
-
-      union
-         {
-         int32_t _fileId;
-         ::FILE *_stream;
-         };
-
-      static FILE *Null()   { return &_null; }
-      static FILE *Stdin()  { return &_stdin; }
-      static FILE *Stdout() { return &_stdout; }
-      static FILE *Stderr() { return &_stderr; }
-
-      private:
-
-      static FILE _null;
-      static FILE _stdin;
-      static FILE _stdout;
-      static FILE _stderr;
-
-      void swap();
-      uint8_t cipher(uint8_t c);
-
-      bool _useJ9IO;
-      };
-
+extern "C" {
+struct J9PortLibrary;
 }
 
+namespace TR {
+struct FilePointer {
+    FilePointer(::FILE *stream);
+
+    void initialize(J9PortLibrary *portLib, int32_t fileId);
+    void initialize(::FILE *stream);
+
+    int32_t write(J9PortLibrary *portLib, char *buf, int32_t length);
+
+    void close(J9PortLibrary *portLib);
+
+    void flush(J9PortLibrary *portLib);
+
+    union {
+        int32_t _fileId;
+        ::FILE *_stream;
+    };
+
+    static FILE *Null() { return &_null; }
+
+    static FILE *Stdin() { return &_stdin; }
+
+    static FILE *Stdout() { return &_stdout; }
+
+    static FILE *Stderr() { return &_stderr; }
+
+private:
+    static FILE _null;
+    static FILE _stdin;
+    static FILE _stdout;
+    static FILE _stderr;
+
+    void swap();
+    uint8_t cipher(uint8_t c);
+
+    bool _useJ9IO;
+};
+
+} // namespace TR
 
 #endif

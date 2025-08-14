@@ -29,16 +29,15 @@ namespace TR {
 class OptimizationManager;
 }
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE Optimization : public J9::OptimizationConnector
-   {
-   public:
+class OMR_EXTENSIBLE Optimization : public J9::OptimizationConnector {
+public:
+    Optimization(TR::OptimizationManager *manager)
+        : J9::OptimizationConnector(manager)
+    {}
+};
 
-   Optimization(TR::OptimizationManager *manager) : J9::OptimizationConnector(manager) {}
-   };
-
-}
+} // namespace TR
 
 #endif

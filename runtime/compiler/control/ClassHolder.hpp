@@ -33,15 +33,19 @@ struct J9Class;
 }
 
 // Data structure used mostly by compileClasses()
-class TR_ClassHolder : public TR_Link0<TR_ClassHolder>
-   {
+class TR_ClassHolder : public TR_Link0<TR_ClassHolder> {
 public:
-   TR_PERSISTENT_ALLOC(TR_Memory::PersistentInfo);
-   TR_ClassHolder(J9Class * clazz) : _clazz(clazz) { }
-   J9Class * getClass() const { return _clazz; }
+    TR_PERSISTENT_ALLOC(TR_Memory::PersistentInfo);
+
+    TR_ClassHolder(J9Class *clazz)
+        : _clazz(clazz)
+    {}
+
+    J9Class *getClass() const { return _clazz; }
+
 private:
-   J9Class * _clazz;
-   };
+    J9Class *_clazz;
+};
 
 #endif // CLASSHOLDER_HPP
 

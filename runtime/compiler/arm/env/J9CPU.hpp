@@ -28,10 +28,14 @@
  */
 #ifndef J9_CPU_CONNECTOR
 #define J9_CPU_CONNECTOR
+
 namespace J9 {
-namespace ARM { class CPU; }
-typedef J9::ARM::CPU CPUConnector;
+namespace ARM {
+class CPU;
 }
+
+typedef J9::ARM::CPU CPUConnector;
+} // namespace J9
 #else
 #error J9::ARM::CPU expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -39,27 +43,23 @@ typedef J9::ARM::CPU CPUConnector;
 #include "compiler/env/J9CPU.hpp"
 #include "env/ProcessorInfo.hpp"
 
-namespace J9
-{
+namespace J9 { namespace ARM {
 
-namespace ARM 
-{
-
-class OMR_EXTENSIBLE CPU : public J9::CPU
-   {
+class OMR_EXTENSIBLE CPU : public J9::CPU {
 protected:
+    CPU()
+        : J9::CPU()
+    {}
 
-   CPU() : J9::CPU() {}
-   CPU(const OMRProcessorDesc& processorDescription) : J9::CPU(processorDescription) {}
+    CPU(const OMRProcessorDesc &processorDescription)
+        : J9::CPU(processorDescription)
+    {}
 
 public:
+    OMRProcessorDesc getProcessorDescription();
+    bool isCompatible(const OMRProcessorDesc &processorDescription);
+};
 
-   OMRProcessorDesc getProcessorDescription();
-   bool isCompatible(const OMRProcessorDesc& processorDescription);
-   };
-
-}
-
-}
+}} // namespace J9::ARM
 
 #endif

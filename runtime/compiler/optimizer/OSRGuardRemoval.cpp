@@ -35,29 +35,26 @@
  * returns true, requesting this optimization may increase performance.
  */
 bool TR_OSRGuardRemoval::findMatchingOSRGuard(TR::Compilation *comp, TR::TreeTop *tt)
-   {
-   // Search for another yield before the end of the block
-   tt = tt->getNextTreeTop();
-   while (tt->getNode()->getOpCodeValue() != TR::BBEnd)
-      {
-      if (comp->isPotentialOSRPoint(tt->getNode()))
-         return false;
-      tt = tt->getNextTreeTop();
-      }
+{
+    // Search for another yield before the end of the block
+    tt = tt->getNextTreeTop();
+    while (tt->getNode()->getOpCodeValue() != TR::BBEnd) {
+        if (comp->isPotentialOSRPoint(tt->getNode()))
+            return false;
+        tt = tt->getNextTreeTop();
+    }
 
-   // If there was no yield between tt and the end of the block, check if there was an OSR guard
-   tt = tt->getNode()->getBlock()->getLastRealTreeTop();
-   if (tt->getNode()->isOSRGuard())
-      return true;
-   if (tt->getNode()->isTheVirtualGuardForAGuardedInlinedCall()
-       && comp->cg()->supportsMergingGuards())
-      {
-      TR_VirtualGuard *guardInfo = comp->findVirtualGuardInfo(tt->getNode());
-      return guardInfo->mergedWithOSRGuard();
-      }
+    // If there was no yield between tt and the end of the block, check if there was an OSR guard
+    tt = tt->getNode()->getBlock()->getLastRealTreeTop();
+    if (tt->getNode()->isOSRGuard())
+        return true;
+    if (tt->getNode()->isTheVirtualGuardForAGuardedInlinedCall() && comp->cg()->supportsMergingGuards()) {
+        TR_VirtualGuard *guardInfo = comp->findVirtualGuardInfo(tt->getNode());
+        return guardInfo->mergedWithOSRGuard();
+    }
 
-   return false;
-   }
+    return false;
+}
 
 /**
  * This optimization improves performance under NextGenHCR by identifying OSR guards that are no longer
@@ -69,85 +66,70 @@ bool TR_OSRGuardRemoval::findMatchingOSRGuard(TR::Compilation *comp, TR::TreeTop
  * return to the VM immediately.
  *
  * However, if this yield has been removed, the OSR guard may no longer be necessary. For example, DAA could convert
- * a call into an equivalent tree. If this call had an OSR guard it could be removed as long as no other yield 
+ * a call into an equivalent tree. If this call had an OSR guard it could be removed as long as no other yield
  * relied on it being there.
  */
 int32_t TR_OSRGuardRemoval::perform()
-   {
-   // isPotentialOSRPoint will test if OSR infrastructure has been removed
-   bool osrInfraRemoved = comp()->osrInfrastructureRemoved();
-   comp()->setOSRInfrastructureRemoved(false);
+{
+    // isPotentialOSRPoint will test if OSR infrastructure has been removed
+    bool osrInfraRemoved = comp()->osrInfrastructureRemoved();
+    comp()->setOSRInfrastructureRemoved(false);
 
-   // Perform the analysis and invalidate structure before its manipulated to reduce cost
-   TR_OSRGuardAnalysis guardAnalysis(comp(), optimizer(), comp()->getFlowGraph()->getStructure());
+    // Perform the analysis and invalidate structure before its manipulated to reduce cost
+    TR_OSRGuardAnalysis guardAnalysis(comp(), optimizer(), comp()->getFlowGraph()->getStructure());
 
-   bool modified = false;
-   for (TR::Block *block = comp()->getStartBlock(); block != NULL; block = block->getNextBlock())
-      {
-      if (guardAnalysis.shouldSkipBlock(block))
-         continue;
+    bool modified = false;
+    for (TR::Block *block = comp()->getStartBlock(); block != NULL; block = block->getNextBlock()) {
+        if (guardAnalysis.shouldSkipBlock(block))
+            continue;
 
-      // Whether or not this block contains an OSR guard, if yields reach it
-      // or it contains a yield, there is nothing that can be done
-      if (guardAnalysis.containsYields(block))
-         {
-         if (trace())
-            traceMsg(comp(), "Skipping block_%d, contains yields\n", block->getNumber());
-         continue;
-         }
-      if (!guardAnalysis._blockAnalysisInfo[block->getNumber()]->isEmpty())
-         {
-         if (trace())
-            traceMsg(comp(), "Skipping block_%d, reaching yields\n", block->getNumber());
-         continue;
-         }
+        // Whether or not this block contains an OSR guard, if yields reach it
+        // or it contains a yield, there is nothing that can be done
+        if (guardAnalysis.containsYields(block)) {
+            if (trace())
+                traceMsg(comp(), "Skipping block_%d, contains yields\n", block->getNumber());
+            continue;
+        }
+        if (!guardAnalysis._blockAnalysisInfo[block->getNumber()]->isEmpty()) {
+            if (trace())
+                traceMsg(comp(), "Skipping block_%d, reaching yields\n", block->getNumber());
+            continue;
+        }
 
-      TR::Node *node = block->getLastRealTreeTop()->getNode();
-      if (node->isOSRGuard()
-          && performTransformation(comp(), "O^O OSR GUARD REMOVAL: removing OSRGuard node n%dn\n", node->getGlobalIndex()))
-         {
-         if (!modified)
-            {
-            modified = true;
-            comp()->getFlowGraph()->invalidateStructure();
+        TR::Node *node = block->getLastRealTreeTop()->getNode();
+        if (node->isOSRGuard()
+            && performTransformation(comp(), "O^O OSR GUARD REMOVAL: removing OSRGuard node n%dn\n",
+                node->getGlobalIndex())) {
+            if (!modified) {
+                modified = true;
+                comp()->getFlowGraph()->invalidateStructure();
             }
 
-         TR_VirtualGuard *guardInfo = comp()->findVirtualGuardInfo(node);
-         block->removeBranch(comp());
+            TR_VirtualGuard *guardInfo = comp()->findVirtualGuardInfo(node);
+            block->removeBranch(comp());
 
-         TR::DebugCounter::prependDebugCounter(
-            comp(),
-            TR::DebugCounter::debugCounterName(comp(), "osrGuardRemoval/successfulRemoval"),
-            block->getExit());
-         } 
-      else if (node->isTheVirtualGuardForAGuardedInlinedCall()
-          && comp()->cg()->supportsMergingGuards()
-          && performTransformation(comp(), "O^O OSR GUARD REMOVAL: removing merged OSRGuard with VG node n%dn\n", node->getGlobalIndex()))
-         {
-         TR_VirtualGuard *guardInfo = comp()->findVirtualGuardInfo(node);
-         if (guardInfo->mergedWithOSRGuard())
-            {
-            if (!modified)
-               {
-               modified = true;
-               comp()->getFlowGraph()->invalidateStructure();
-               }
+            TR::DebugCounter::prependDebugCounter(comp(),
+                TR::DebugCounter::debugCounterName(comp(), "osrGuardRemoval/successfulRemoval"), block->getExit());
+        } else if (node->isTheVirtualGuardForAGuardedInlinedCall() && comp()->cg()->supportsMergingGuards()
+            && performTransformation(comp(), "O^O OSR GUARD REMOVAL: removing merged OSRGuard with VG node n%dn\n",
+                node->getGlobalIndex())) {
+            TR_VirtualGuard *guardInfo = comp()->findVirtualGuardInfo(node);
+            if (guardInfo->mergedWithOSRGuard()) {
+                if (!modified) {
+                    modified = true;
+                    comp()->getFlowGraph()->invalidateStructure();
+                }
 
-            guardInfo->setMergedWithOSRGuard(false);
-            TR::DebugCounter::prependDebugCounter(
-               comp(),
-               TR::DebugCounter::debugCounterName(comp(), "osrGuardRemoval/successfulUnmerge"),
-               block->getLastRealTreeTop()); 
+                guardInfo->setMergedWithOSRGuard(false);
+                TR::DebugCounter::prependDebugCounter(comp(),
+                    TR::DebugCounter::debugCounterName(comp(), "osrGuardRemoval/successfulUnmerge"),
+                    block->getLastRealTreeTop());
             }
-         }
-      }
+        }
+    }
 
-   comp()->setOSRInfrastructureRemoved(osrInfraRemoved);
-   return modified;
-   }
+    comp()->setOSRInfrastructureRemoved(osrInfraRemoved);
+    return modified;
+}
 
-const char *
-TR_OSRGuardRemoval::optDetailString() const throw()
-   {
-   return "O^O OSR GUARD REMOVAL: ";
-   }
+const char *TR_OSRGuardRemoval::optDetailString() const throw() { return "O^O OSR GUARD REMOVAL: "; }

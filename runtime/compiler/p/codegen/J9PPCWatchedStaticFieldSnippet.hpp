@@ -26,21 +26,23 @@
 #include "codegen/J9WatchedStaticFieldSnippet.hpp"
 #include "codegen/Instruction.hpp"
 
-
 namespace TR {
 
-class J9PPCWatchedStaticFieldSnippet: public TR::J9WatchedStaticFieldSnippet
-   {
-   private:
-   bool isloaded;
+class J9PPCWatchedStaticFieldSnippet : public TR::J9WatchedStaticFieldSnippet {
+private:
+    bool isloaded;
 
-   public:
-   J9PPCWatchedStaticFieldSnippet(TR::CodeGenerator *cg, TR::Node *node, J9Method *m, UDATA loc, void *fieldAddress, J9Class *fieldClass)
-      : TR::J9WatchedStaticFieldSnippet(cg, node, m, loc, fieldAddress, fieldClass), isloaded(false) {}
+public:
+    J9PPCWatchedStaticFieldSnippet(TR::CodeGenerator *cg, TR::Node *node, J9Method *m, UDATA loc, void *fieldAddress,
+        J9Class *fieldClass)
+        : TR::J9WatchedStaticFieldSnippet(cg, node, m, loc, fieldAddress, fieldClass)
+        , isloaded(false)
+    {}
 
-   void setLoadSnippet() {isloaded = true;}
-   bool isSnippetLoaded() {return isloaded;}
-   };
-}
+    void setLoadSnippet() { isloaded = true; }
+
+    bool isSnippetLoaded() { return isloaded; }
+};
+} // namespace TR
 
 #endif

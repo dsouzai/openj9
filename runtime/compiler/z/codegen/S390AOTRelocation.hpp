@@ -32,93 +32,86 @@ namespace TR {
 class CodeGenerator;
 class Instruction;
 class LabelSymbol;
-}
+} // namespace TR
 
 namespace TR {
 
-class S390Relocation
-   {
-   public:
-   TR_ALLOC(TR_Memory::S390Relocation)
+class S390Relocation {
+public:
+    TR_ALLOC(TR_Memory::S390Relocation)
 
-   S390Relocation(TR::Instruction *src,
-                  uint8_t           *trg,
-       TR_ExternalRelocationTargetKind k):
-      _srcInstruction(src), _relTarget(trg), _kind(k)
-      {}
+    S390Relocation(TR::Instruction *src, uint8_t *trg, TR_ExternalRelocationTargetKind k)
+        : _srcInstruction(src)
+        , _relTarget(trg)
+        , _kind(k)
+    {}
 
-   TR::Instruction *getSourceInstruction() {return _srcInstruction;}
-   void setSourceInstruction(TR::Instruction *i) {_srcInstruction = i;}
+    TR::Instruction *getSourceInstruction() { return _srcInstruction; }
 
-   uint8_t *getRelocationTarget() {return _relTarget;}
-   void setRelocationTarget(uint8_t *t) {_relTarget = t;}
+    void setSourceInstruction(TR::Instruction *i) { _srcInstruction = i; }
 
-   TR_ExternalRelocationTargetKind getKind() {return _kind;}
-   void setKind(TR_ExternalRelocationTargetKind k) {_kind = k;}
+    uint8_t *getRelocationTarget() { return _relTarget; }
 
-   virtual void mapRelocation(TR::CodeGenerator *cg) = 0;
+    void setRelocationTarget(uint8_t *t) { _relTarget = t; }
 
-   private:
-   TR::Instruction              *_srcInstruction;
-   uint8_t                         *_relTarget;
-   TR_ExternalRelocationTargetKind  _kind;
-   };
+    TR_ExternalRelocationTargetKind getKind() { return _kind; }
 
-class S390PairedRelocation: public TR::S390Relocation
-   {
-   public:
-   S390PairedRelocation(TR::Instruction *src1,
-                        TR::Instruction *src2,
-                        uint8_t           *trg,
-                        TR_ExternalRelocationTargetKind k) :
-      TR::S390Relocation(src1, trg, k), _src2Instruction(src2)
-      {}
+    void setKind(TR_ExternalRelocationTargetKind k) { _kind = k; }
 
-   TR::Instruction *getSource2Instruction() {return _src2Instruction;}
-   void setSource2Instruction(TR::Instruction *src) {_src2Instruction = src;}
+    virtual void mapRelocation(TR::CodeGenerator *cg) = 0;
 
-   virtual void mapRelocation(TR::CodeGenerator *cg);
+private:
+    TR::Instruction *_srcInstruction;
+    uint8_t *_relTarget;
+    TR_ExternalRelocationTargetKind _kind;
+};
 
-   private:
-   TR::Instruction              *_src2Instruction;
-   };
+class S390PairedRelocation : public TR::S390Relocation {
+public:
+    S390PairedRelocation(TR::Instruction *src1, TR::Instruction *src2, uint8_t *trg, TR_ExternalRelocationTargetKind k)
+        : TR::S390Relocation(src1, trg, k)
+        , _src2Instruction(src2)
+    {}
 
-class S390EncodingRelocation
-   {
-   public:
-   TR_ALLOC(TR_Memory::S390EncodingRelocation)
-   S390EncodingRelocation(TR_ExternalRelocationTargetKind rt,
-                          TR::SymbolReference  *sr,
-                          uintptr_t inlinedSiteIndex = -1)
-      : _reloType(rt),
-        _symbolReference(sr),
-        _inlinedSiteIndex(inlinedSiteIndex) {}
+    TR::Instruction *getSource2Instruction() { return _src2Instruction; }
 
-   TR_ExternalRelocationTargetKind _reloType;
-   TR::SymbolReference*           _symbolReference;
-   uintptr_t                     _inlinedSiteIndex;
+    void setSource2Instruction(TR::Instruction *src) { _src2Instruction = src; }
 
-   TR::SymbolReference* getSymbolReference() { return _symbolReference;}
-   TR::SymbolReference* setSymbolReference(TR::SymbolReference* sr)
-      {
-      return _symbolReference = sr;
-      }
+    virtual void mapRelocation(TR::CodeGenerator *cg);
 
-   TR_ExternalRelocationTargetKind getReloType() { return _reloType;}
-   TR_ExternalRelocationTargetKind setReloType(TR_ExternalRelocationTargetKind rt)
-      {
-      return _reloType = rt;
-      }
+private:
+    TR::Instruction *_src2Instruction;
+};
 
-   uintptr_t            getInlinedSiteIndex() { return _inlinedSiteIndex;}
-   uintptr_t            setInlinedSiteIndex(uintptr_t index)
-      {
-      return _inlinedSiteIndex = index;
-      }
+class S390EncodingRelocation {
+public:
+    TR_ALLOC(TR_Memory::S390EncodingRelocation)
 
-   virtual void addRelocation(TR::CodeGenerator *codeGen, uint8_t *cursor, char* file, uintptr_t line, TR::Node* node);
-   };
+    S390EncodingRelocation(TR_ExternalRelocationTargetKind rt, TR::SymbolReference *sr, uintptr_t inlinedSiteIndex = -1)
+        : _reloType(rt)
+        , _symbolReference(sr)
+        , _inlinedSiteIndex(inlinedSiteIndex)
+    {}
 
-}
+    TR_ExternalRelocationTargetKind _reloType;
+    TR::SymbolReference *_symbolReference;
+    uintptr_t _inlinedSiteIndex;
+
+    TR::SymbolReference *getSymbolReference() { return _symbolReference; }
+
+    TR::SymbolReference *setSymbolReference(TR::SymbolReference *sr) { return _symbolReference = sr; }
+
+    TR_ExternalRelocationTargetKind getReloType() { return _reloType; }
+
+    TR_ExternalRelocationTargetKind setReloType(TR_ExternalRelocationTargetKind rt) { return _reloType = rt; }
+
+    uintptr_t getInlinedSiteIndex() { return _inlinedSiteIndex; }
+
+    uintptr_t setInlinedSiteIndex(uintptr_t index) { return _inlinedSiteIndex = index; }
+
+    virtual void addRelocation(TR::CodeGenerator *codeGen, uint8_t *cursor, char *file, uintptr_t line, TR::Node *node);
+};
+
+} // namespace TR
 
 #endif

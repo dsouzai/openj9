@@ -28,10 +28,11 @@
  */
 #ifndef J9_OBJECTMODEL_CONNECTOR
 #define J9_OBJECTMODEL_CONNECTOR
+
 namespace J9 {
 class ObjectModel;
 typedef J9::ObjectModel ObjectModelConnector;
-}
+} // namespace J9
 #endif
 
 #include "env/OMRObjectModel.hpp"
@@ -42,137 +43,136 @@ typedef J9::ObjectModel ObjectModelConnector;
 namespace TR {
 class Node;
 class Compilation;
-}
+} // namespace TR
 
-namespace J9
-{
+namespace J9 {
 
-class ObjectModel : public OMR::ObjectModelConnector
-   {
+class ObjectModel : public OMR::ObjectModelConnector {
 public:
+    ObjectModel()
+        : OMR::ObjectModelConnector()
+        , _compressObjectReferences(false)
+        , _usesDiscontiguousArraylets(false)
+        , _arrayLetLeafSize(0)
+        , _arrayLetLeafLogSize(0)
+        , _readBarrierType(gc_modron_readbar_none)
+        , _writeBarrierType(gc_modron_wrtbar_none)
+        , _objectAlignmentInBytes(0)
+    {}
 
-   ObjectModel() :
-      OMR::ObjectModelConnector(),
-      _compressObjectReferences(false),
-      _usesDiscontiguousArraylets(false),
-      _arrayLetLeafSize(0),
-      _arrayLetLeafLogSize(0),
-      _readBarrierType(gc_modron_readbar_none),
-      _writeBarrierType(gc_modron_wrtbar_none),
-      _objectAlignmentInBytes(0)
-   {}
+    void initialize();
 
-   void initialize();
+    bool mayRequireSpineChecks();
 
-   bool mayRequireSpineChecks();
+    /**
+     * @brief Whether or not value object is enabled
+     */
+    bool areValueTypesEnabled();
 
-   /**
-    * @brief Whether or not value object is enabled
-    */
-   bool areValueTypesEnabled();
+    /**
+     * @brief Whether or not flattenable value object (aka null-restricted) type is enabled
+     */
+    bool areFlattenableValueTypesEnabled();
 
-   /**
-    * @brief Whether or not flattenable value object (aka null-restricted) type is enabled
-    */
-   bool areFlattenableValueTypesEnabled();
+    /**
+     * @brief Whether the check is enabled on monitor object being value based class type
+     */
+    bool areValueBasedMonitorChecksEnabled();
 
-   /**
-   * @brief Whether the check is enabled on monitor object being value based class type
-   */
-   bool areValueBasedMonitorChecksEnabled();
+    /**
+     * @brief Whether the array flattening is enabled for value types
+     */
+    bool isValueTypeArrayFlatteningEnabled();
 
-   /**
-    * @brief Whether the array flattening is enabled for value types
-    */
-   bool isValueTypeArrayFlatteningEnabled();
+    int32_t sizeofReferenceField();
+    bool isHotReferenceFieldRequired();
+    bool isOffHeapAllocationEnabled();
+    uintptr_t elementSizeOfBooleanArray();
+    uint32_t getSizeOfArrayElement(TR::Node *node);
+    int64_t maxArraySizeInElementsForAllocation(TR::Node *newArray, TR::Compilation *comp);
+    int64_t maxArraySizeInElements(int32_t knownMinElementSize, TR::Compilation *comp);
 
-   int32_t sizeofReferenceField();
-   bool isHotReferenceFieldRequired();
-   bool isOffHeapAllocationEnabled();
-   uintptr_t elementSizeOfBooleanArray();
-   uint32_t getSizeOfArrayElement(TR::Node *node);
-   int64_t maxArraySizeInElementsForAllocation(TR::Node *newArray, TR::Compilation *comp);
-   int64_t maxArraySizeInElements(int32_t knownMinElementSize, TR::Compilation *comp);
+    int32_t maxContiguousArraySizeInBytes();
 
-   int32_t maxContiguousArraySizeInBytes();
+    uintptr_t contiguousArrayHeaderSizeInBytes();
 
-   uintptr_t contiguousArrayHeaderSizeInBytes();
+    uintptr_t discontiguousArrayHeaderSizeInBytes();
 
-   uintptr_t discontiguousArrayHeaderSizeInBytes();
+    // For array access
+    bool isDiscontiguousArray(int32_t sizeInBytes);
+    bool isDiscontiguousArray(int32_t sizeInElements, int32_t elementSize);
+    bool isDiscontiguousArray(TR::Compilation *comp, uintptr_t objectPointer);
+    intptr_t getArrayLengthInElements(TR::Compilation *comp, uintptr_t objectPointer);
+    uintptr_t getArrayLengthInBytes(TR::Compilation *comp, uintptr_t objectPointer);
+    uintptr_t getArrayElementWidthInBytes(TR::DataType type);
+    uintptr_t getArrayElementWidthInBytes(TR::Compilation *comp, uintptr_t objectPointer);
+    uintptr_t getAddressOfElement(TR::Compilation *comp, uintptr_t objectPointer, int64_t offset);
+    uintptr_t decompressReference(TR::Compilation *comp, uintptr_t compressedReference);
 
-   // For array access
-   bool isDiscontiguousArray(int32_t sizeInBytes);
-   bool isDiscontiguousArray(int32_t sizeInElements, int32_t elementSize);
-   bool isDiscontiguousArray(TR::Compilation* comp, uintptr_t objectPointer);
-   intptr_t getArrayLengthInElements(TR::Compilation* comp, uintptr_t objectPointer);
-   uintptr_t getArrayLengthInBytes(TR::Compilation* comp, uintptr_t objectPointer);
-   uintptr_t getArrayElementWidthInBytes(TR::DataType type);
-   uintptr_t getArrayElementWidthInBytes(TR::Compilation* comp, uintptr_t objectPointer);
-   uintptr_t getAddressOfElement(TR::Compilation* comp, uintptr_t objectPointer, int64_t offset);
-   uintptr_t decompressReference(TR::Compilation* comp, uintptr_t compressedReference);
+    bool generateCompressedObjectHeaders();
 
-   bool generateCompressedObjectHeaders();
+    bool usesDiscontiguousArraylets();
 
-   bool usesDiscontiguousArraylets();
-   bool canGenerateArraylets() { return usesDiscontiguousArraylets(); }
-   bool useHybridArraylets() { return usesDiscontiguousArraylets(); }
-   int32_t arrayletLeafSize();
-   int32_t arrayletLeafLogSize();
+    bool canGenerateArraylets() { return usesDiscontiguousArraylets(); }
 
-   bool isIndexableDataAddrPresent();
+    bool useHybridArraylets() { return usesDiscontiguousArraylets(); }
 
-   int32_t compressedReferenceShiftOffset();
-   int32_t compressedReferenceShift();
+    int32_t arrayletLeafSize();
+    int32_t arrayletLeafLogSize();
 
-   bool nativeAddressesCanChangeSize();
+    bool isIndexableDataAddrPresent();
 
-   uintptr_t offsetOfObjectVftField();
+    int32_t compressedReferenceShiftOffset();
+    int32_t compressedReferenceShift();
 
-   uintptr_t offsetOfHeaderFlags();
+    bool nativeAddressesCanChangeSize();
 
-   uintptr_t maskOfObjectVftField();
+    uintptr_t offsetOfObjectVftField();
 
-   int32_t arraySpineShift(int32_t width);
-   int32_t arrayletMask(int32_t width);
-   int32_t arrayletLeafIndex(int32_t index, int32_t elementSize);
-   int32_t objectAlignmentInBytes();
-   uintptr_t offsetOfContiguousArraySizeField();
-   uintptr_t offsetOfDiscontiguousArraySizeField();
-   uintptr_t objectHeaderSizeInBytes();
-   uintptr_t offsetOfIndexableSizeField();
+    uintptr_t offsetOfHeaderFlags();
+
+    uintptr_t maskOfObjectVftField();
+
+    int32_t arraySpineShift(int32_t width);
+    int32_t arrayletMask(int32_t width);
+    int32_t arrayletLeafIndex(int32_t index, int32_t elementSize);
+    int32_t objectAlignmentInBytes();
+    uintptr_t offsetOfContiguousArraySizeField();
+    uintptr_t offsetOfDiscontiguousArraySizeField();
+    uintptr_t objectHeaderSizeInBytes();
+    uintptr_t offsetOfIndexableSizeField();
 #if defined(TR_TARGET_64BIT)
-   uintptr_t offsetOfContiguousDataAddrField();
-   uintptr_t offsetOfDiscontiguousDataAddrField();
+    uintptr_t offsetOfContiguousDataAddrField();
+    uintptr_t offsetOfDiscontiguousDataAddrField();
 #endif /* TR_TARGET_64BIT */
 
-   /**
-   * @brief Returns the read barrier type of VM's GC
-   */
-   MM_GCReadBarrierType  readBarrierType();
+    /**
+     * @brief Returns the read barrier type of VM's GC
+     */
+    MM_GCReadBarrierType readBarrierType();
 
-   /**
-   * @brief Returns the write barrier type of VM's GC
-   */
-   MM_GCWriteBarrierType writeBarrierType();
+    /**
+     * @brief Returns the write barrier type of VM's GC
+     */
+    MM_GCWriteBarrierType writeBarrierType();
 
-   /**
-   * @brief Returns whether or not object references are compressed
-   */
-   bool compressObjectReferences();
+    /**
+     * @brief Returns whether or not object references are compressed
+     */
+    bool compressObjectReferences();
 
-   int32_t getObjectAlignmentInBytes();
+    int32_t getObjectAlignmentInBytes();
 
 private:
+    bool _compressObjectReferences;
+    bool _usesDiscontiguousArraylets;
+    int32_t _arrayLetLeafSize;
+    int32_t _arrayLetLeafLogSize;
+    MM_GCReadBarrierType _readBarrierType;
+    MM_GCWriteBarrierType _writeBarrierType;
+    int32_t _objectAlignmentInBytes;
+};
 
-   bool                  _compressObjectReferences;
-   bool                  _usesDiscontiguousArraylets;
-   int32_t               _arrayLetLeafSize;
-   int32_t               _arrayLetLeafLogSize;
-   MM_GCReadBarrierType  _readBarrierType;
-   MM_GCWriteBarrierType _writeBarrierType;
-   int32_t               _objectAlignmentInBytes;
-   };
-
-}
+} // namespace J9
 
 #endif

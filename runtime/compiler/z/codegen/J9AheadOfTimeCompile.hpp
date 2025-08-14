@@ -25,10 +25,14 @@
 
 #ifndef J9_AHEADOFTIMECOMPILE_CONNECTOR
 #define J9_AHEADOFTIMECOMPILE_CONNECTOR
+
 namespace J9 {
-namespace Z { class AheadOfTimeCompile; }
-typedef J9::Z::AheadOfTimeCompile AheadOfTimeCompileConnector;
+namespace Z {
+class AheadOfTimeCompile;
 }
+
+typedef J9::Z::AheadOfTimeCompile AheadOfTimeCompileConnector;
+} // namespace J9
 #endif // J9_AHEADOFTIMECOMPILE_CONNECTOR
 
 #include "compiler/codegen/J9AheadOfTimeCompile.hpp"
@@ -40,35 +44,28 @@ namespace TR {
 class CodeGenerator;
 }
 
-namespace J9
-{
+namespace J9 { namespace Z {
 
-namespace Z
-{
+class OMR_EXTENSIBLE AheadOfTimeCompile : public J9::AheadOfTimeCompile {
+public:
+    AheadOfTimeCompile(TR::CodeGenerator *cg);
 
-class OMR_EXTENSIBLE AheadOfTimeCompile : public J9::AheadOfTimeCompile
-   {
-   public:
-     AheadOfTimeCompile(TR::CodeGenerator *cg);
+    virtual void processRelocations();
 
-    virtual void     processRelocations();
+    /**
+     * @brief Refer to J9::AheadOfTimeCompile::initializePlatformSpecificAOTRelocationHeader
+     */
+    bool initializePlatformSpecificAOTRelocationHeader(TR::IteratedExternalRelocation *relocation,
+        TR_RelocationTarget *reloTarget, TR_RelocationRecord *reloRecord, uint8_t targetKind);
 
-     /**
-      * @brief Refer to J9::AheadOfTimeCompile::initializePlatformSpecificAOTRelocationHeader
-      */
-    bool initializePlatformSpecificAOTRelocationHeader(TR::IteratedExternalRelocation *relocation, TR_RelocationTarget *reloTarget, TR_RelocationRecord *reloRecord, uint8_t targetKind);
+    TR::list<TR::S390Relocation *> &getRelocationList() { return _relocationList; }
 
-    TR::list<TR::S390Relocation*>& getRelocationList() {return _relocationList;}
-
-  private:
-    TR::list<TR::S390Relocation*>     _relocationList;
+private:
+    TR::list<TR::S390Relocation *> _relocationList;
     TR::CodeGenerator *_cg;
-   };
+};
 
-} // namespace Z
-
-} // namespace J9
+}} // namespace J9::Z
 
 #endif
-
 

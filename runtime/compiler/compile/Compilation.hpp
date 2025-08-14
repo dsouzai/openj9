@@ -29,46 +29,25 @@ class TR_FrontEnd;
 class TR_Memory;
 class TR_OptimizationPlan;
 class TR_ResolvedMethod;
+
 namespace TR {
 class IlGenRequest;
 class Options;
-}
+} // namespace TR
 struct J9VMThread;
 
-namespace TR
-{
-class OMR_EXTENSIBLE Compilation : public J9::CompilationConnector
-   {
-   public:
+namespace TR {
+class OMR_EXTENSIBLE Compilation : public J9::CompilationConnector {
+public:
+    Compilation(int32_t compThreadId, J9VMThread *j9vmThread, TR_FrontEnd *fe, TR_ResolvedMethod *method,
+        TR::IlGenRequest &request, TR::Options &options, TR::Region &heapMemoryRegion, TR_Memory *memory,
+        TR_OptimizationPlan *optimizationPlan, TR_RelocationRuntime *reloRuntime, TR::Environment *target = NULL)
+        : J9::CompilationConnector(compThreadId, j9vmThread, fe, method, request, options, heapMemoryRegion, memory,
+              optimizationPlan, reloRuntime, target)
+    {}
 
-   Compilation(
-         int32_t compThreadId,
-         J9VMThread *j9vmThread,
-         TR_FrontEnd *fe,
-         TR_ResolvedMethod *method,
-         TR::IlGenRequest &request,
-         TR::Options &options,
-         TR::Region &heapMemoryRegion,
-         TR_Memory *memory,
-         TR_OptimizationPlan *optimizationPlan,
-         TR_RelocationRuntime *reloRuntime,
-         TR::Environment *target = NULL) :
-      J9::CompilationConnector(
-         compThreadId,
-         j9vmThread,
-         fe,
-         method,
-         request,
-         options,
-         heapMemoryRegion,
-         memory,
-         optimizationPlan,
-         reloRuntime,
-         target)
-      {}
-
-   ~Compilation() {}
-   };
-}
+    ~Compilation() {}
+};
+} // namespace TR
 
 #endif

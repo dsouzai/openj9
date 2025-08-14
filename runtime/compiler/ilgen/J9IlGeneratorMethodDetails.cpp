@@ -36,255 +36,204 @@
 #include "ilgen/J9ByteCodeIlGenerator.hpp"
 #include "env/VMJ9.h"
 
+namespace J9 {
 
-
-namespace J9
+TR::IlGeneratorMethodDetails *IlGeneratorMethodDetails::clone(TR::IlGeneratorMethodDetails &storage,
+    const TR::IlGeneratorMethodDetails &other)
 {
+    // The if nest below covers every concrete subclass of IlGeneratorMethodDetails.
+    // If other is not one of these classes, then it will assert.
 
-TR::IlGeneratorMethodDetails *
-IlGeneratorMethodDetails::clone(TR::IlGeneratorMethodDetails &storage, const TR::IlGeneratorMethodDetails & other)
-   {
-   // The if nest below covers every concrete subclass of IlGeneratorMethodDetails.
-   // If other is not one of these classes, then it will assert.
+    if (other.isOrdinaryMethod())
+        return new (&storage) TR::IlGeneratorMethodDetails(static_cast<const TR::IlGeneratorMethodDetails &>(other));
+    else if (other.isJitDumpMethod())
+        return new (&storage) JitDumpMethodDetails(static_cast<const JitDumpMethodDetails &>(other));
+    else if (other.isNewInstanceThunk())
+        return new (&storage) NewInstanceThunkDetails(static_cast<const NewInstanceThunkDetails &>(other));
+    else if (other.isMethodInProgress())
+        return new (&storage) MethodInProgressDetails(static_cast<const MethodInProgressDetails &>(other));
+    else if (other.isMethodHandleThunk()) {
+        if (static_cast<const MethodHandleThunkDetails &>(other).isShareable())
+            return new (&storage)
+                ShareableInvokeExactThunkDetails(static_cast<const ShareableInvokeExactThunkDetails &>(other));
+        else if (static_cast<const MethodHandleThunkDetails &>(other).isCustom())
+            return new (&storage)
+                CustomInvokeExactThunkDetails(static_cast<const CustomInvokeExactThunkDetails &>(other));
+    }
 
-   if (other.isOrdinaryMethod())
-      return new (&storage) TR::IlGeneratorMethodDetails(static_cast<const TR::IlGeneratorMethodDetails &>(other));
-   else if (other.isJitDumpMethod())
-      return new (&storage) JitDumpMethodDetails(static_cast<const JitDumpMethodDetails &>(other));
-   else if (other.isNewInstanceThunk())
-      return new (&storage) NewInstanceThunkDetails(static_cast<const NewInstanceThunkDetails &>(other));
-   else if (other.isMethodInProgress())
-      return new (&storage) MethodInProgressDetails(static_cast<const MethodInProgressDetails &>(other));
-   else if (other.isMethodHandleThunk())
-      {
-      if (static_cast<const MethodHandleThunkDetails &>(other).isShareable())
-         return new (&storage) ShareableInvokeExactThunkDetails(static_cast<const ShareableInvokeExactThunkDetails &>(other));
-      else if (static_cast<const MethodHandleThunkDetails &>(other).isCustom())
-         return new (&storage) CustomInvokeExactThunkDetails(static_cast<const CustomInvokeExactThunkDetails &>(other));
-      }
-
-   TR_ASSERT(0, "Unexpected IlGeneratorMethodDetails object\n");
-   return NULL; // error case
-   }
-
+    TR_ASSERT(0, "Unexpected IlGeneratorMethodDetails object\n");
+    return NULL; // error case
+}
 
 #if defined(J9VM_OPT_JITSERVER)
-TR::IlGeneratorMethodDetails *
-IlGeneratorMethodDetails::clone(TR::IlGeneratorMethodDetails &storage, const TR::IlGeneratorMethodDetails & other, const IlGeneratorMethodDetailsType type)
-   {
-   // The if nest below covers every concrete subclass of IlGeneratorMethodDetails.
-   // If other is not one of these classes, then it will assert.
+TR::IlGeneratorMethodDetails *IlGeneratorMethodDetails::clone(TR::IlGeneratorMethodDetails &storage,
+    const TR::IlGeneratorMethodDetails &other, const IlGeneratorMethodDetailsType type)
+{
+    // The if nest below covers every concrete subclass of IlGeneratorMethodDetails.
+    // If other is not one of these classes, then it will assert.
 
-   if (type & ORDINARY_METHOD)
-      return new (&storage) TR::IlGeneratorMethodDetails(static_cast<const TR::IlGeneratorMethodDetails &>(other));
-   else if (type & DUMP_METHOD)
-      return new (&storage) JitDumpMethodDetails(static_cast<const JitDumpMethodDetails &>(other));
-   else if (type & NEW_INSTANCE_THUNK)
-      return new (&storage) NewInstanceThunkDetails(static_cast<const NewInstanceThunkDetails &>(other));
-   else if (type & METHOD_IN_PROGRESS)
-      return new (&storage) MethodInProgressDetails(static_cast<const MethodInProgressDetails &>(other));
-   else if (type & METHOD_HANDLE_THUNK)
-      {
-      if (type & SHAREABLE_THUNK)
-         return new (&storage) ShareableInvokeExactThunkDetails(static_cast<const ShareableInvokeExactThunkDetails &>(other));
-      else if (type & CUSTOM_THUNK)
-         return new (&storage) CustomInvokeExactThunkDetails(static_cast<const CustomInvokeExactThunkDetails &>(other));
-      }
+    if (type & ORDINARY_METHOD)
+        return new (&storage) TR::IlGeneratorMethodDetails(static_cast<const TR::IlGeneratorMethodDetails &>(other));
+    else if (type & DUMP_METHOD)
+        return new (&storage) JitDumpMethodDetails(static_cast<const JitDumpMethodDetails &>(other));
+    else if (type & NEW_INSTANCE_THUNK)
+        return new (&storage) NewInstanceThunkDetails(static_cast<const NewInstanceThunkDetails &>(other));
+    else if (type & METHOD_IN_PROGRESS)
+        return new (&storage) MethodInProgressDetails(static_cast<const MethodInProgressDetails &>(other));
+    else if (type & METHOD_HANDLE_THUNK) {
+        if (type & SHAREABLE_THUNK)
+            return new (&storage)
+                ShareableInvokeExactThunkDetails(static_cast<const ShareableInvokeExactThunkDetails &>(other));
+        else if (type & CUSTOM_THUNK)
+            return new (&storage)
+                CustomInvokeExactThunkDetails(static_cast<const CustomInvokeExactThunkDetails &>(other));
+    }
 
-   TR_ASSERT(0, "Unexpected IlGeneratorMethodDetails object\n");
-   return NULL; // error case
-   }
+    TR_ASSERT(0, "Unexpected IlGeneratorMethodDetails object\n");
+    return NULL; // error case
+}
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
-
-IlGeneratorMethodDetails::IlGeneratorMethodDetails(const TR::IlGeneratorMethodDetails & other) :
-   _method(other.getMethod())
-   {
-   }
-
+IlGeneratorMethodDetails::IlGeneratorMethodDetails(const TR::IlGeneratorMethodDetails &other)
+    : _method(other.getMethod())
+{}
 
 IlGeneratorMethodDetails::IlGeneratorMethodDetails(TR_ResolvedMethod *method)
-   {
-   _method = (J9Method *)(method->getPersistentIdentifier());
-   }
+{
+    _method = (J9Method *)(method->getPersistentIdentifier());
+}
 
-const J9ROMClass *
-IlGeneratorMethodDetails::getRomClass() const
-   {
-   return J9_CLASS_FROM_METHOD(self()->getMethod())->romClass;
-   }
+const J9ROMClass *IlGeneratorMethodDetails::getRomClass() const
+{
+    return J9_CLASS_FROM_METHOD(self()->getMethod())->romClass;
+}
 
-const J9ROMMethod *
-IlGeneratorMethodDetails::getRomMethod(TR_J9VMBase *fe)
-   {
-   return fe->getROMMethodFromRAMMethod(self()->getMethod());
-   }
+const J9ROMMethod *IlGeneratorMethodDetails::getRomMethod(TR_J9VMBase *fe)
+{
+    return fe->getROMMethodFromRAMMethod(self()->getMethod());
+}
 
 #if defined(J9VM_OPT_JITSERVER)
-IlGeneratorMethodDetailsType
-IlGeneratorMethodDetails::getType() const
-   {
-   int type = EMPTY;
-   if (self()->isOrdinaryMethod()) type |= ORDINARY_METHOD;
-   if (self()->isJitDumpMethod()) type |= DUMP_METHOD;
-   if (self()->isNewInstanceThunk()) type |= NEW_INSTANCE_THUNK;
-   if (self()->isMethodInProgress()) type |= METHOD_IN_PROGRESS;
-   if (self()->isArchetypeSpecimen()) type |= ARCHETYPE_SPECIMEN;
-   if (self()->isMethodHandleThunk())
-      {
-      type |= METHOD_HANDLE_THUNK;
-      if (static_cast<const MethodHandleThunkDetails *>(self())->isShareable())
-         type |= SHAREABLE_THUNK;
-      else if (static_cast<const MethodHandleThunkDetails *>(self())->isCustom())
-         type |= CUSTOM_THUNK;
-      }
-   return (IlGeneratorMethodDetailsType) type;
-   }
+IlGeneratorMethodDetailsType IlGeneratorMethodDetails::getType() const
+{
+    int type = EMPTY;
+    if (self()->isOrdinaryMethod())
+        type |= ORDINARY_METHOD;
+    if (self()->isJitDumpMethod())
+        type |= DUMP_METHOD;
+    if (self()->isNewInstanceThunk())
+        type |= NEW_INSTANCE_THUNK;
+    if (self()->isMethodInProgress())
+        type |= METHOD_IN_PROGRESS;
+    if (self()->isArchetypeSpecimen())
+        type |= ARCHETYPE_SPECIMEN;
+    if (self()->isMethodHandleThunk()) {
+        type |= METHOD_HANDLE_THUNK;
+        if (static_cast<const MethodHandleThunkDetails *>(self())->isShareable())
+            type |= SHAREABLE_THUNK;
+        else if (static_cast<const MethodHandleThunkDetails *>(self())->isCustom())
+            type |= CUSTOM_THUNK;
+    }
+    return (IlGeneratorMethodDetailsType)type;
+}
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
+bool IlGeneratorMethodDetails::sameAs(TR::IlGeneratorMethodDetails &other, TR_FrontEnd *fe)
+{
+    return other.isOrdinaryMethod() && self()->sameMethod(other);
+}
 
-bool
-IlGeneratorMethodDetails::sameAs(TR::IlGeneratorMethodDetails & other, TR_FrontEnd *fe)
-   {
-   return other.isOrdinaryMethod() && self()->sameMethod(other);
-   }
+bool IlGeneratorMethodDetails::sameMethod(TR::IlGeneratorMethodDetails &other)
+{
+    return (other.getMethod() == self()->getMethod());
+}
 
+TR::IlGeneratorMethodDetails &IlGeneratorMethodDetails::create(TR::IlGeneratorMethodDetails &target,
+    TR_ResolvedMethod *method)
+{
+    TR_ResolvedJ9Method *j9method = static_cast<TR_ResolvedJ9Method *>(method);
 
-bool
-IlGeneratorMethodDetails::sameMethod(TR::IlGeneratorMethodDetails & other)
-   {
-   return (other.getMethod() == self()->getMethod());
-   }
+    if (j9method->isNewInstanceImplThunk())
+        return *new (&target) NewInstanceThunkDetails((J9Method *)j9method->getNonPersistentIdentifier(),
+            (J9Class *)j9method->classOfMethod());
 
+    else if (j9method->convertToMethod()->isArchetypeSpecimen()) {
+        if (j9method->getMethodHandleLocation())
+            return *new (&target) CustomInvokeExactThunkDetails((J9Method *)j9method->getNonPersistentIdentifier(),
+                j9method->getMethodHandleLocation(), NULL);
+        else
+            return *new (&target) ArchetypeSpecimenDetails((J9Method *)j9method->getNonPersistentIdentifier());
+    }
 
-TR::IlGeneratorMethodDetails & IlGeneratorMethodDetails::create(
-      TR::IlGeneratorMethodDetails & target,
-      TR_ResolvedMethod *method)
-   {
+    return *new (&target) TR::IlGeneratorMethodDetails((J9Method *)j9method->getNonPersistentIdentifier());
+}
 
-   TR_ResolvedJ9Method * j9method = static_cast<TR_ResolvedJ9Method *>(method);
+TR_IlGenerator *IlGeneratorMethodDetails::getIlGenerator(TR::ResolvedMethodSymbol *methodSymbol, TR_FrontEnd *fe,
+    TR::Compilation *comp, TR::SymbolReferenceTable *symRefTab, bool forceClassLookahead,
+    TR_InlineBlocks *blocksToInline)
+{
+    TR_ASSERT((J9Method *)methodSymbol->getResolvedMethod()->getNonPersistentIdentifier() == self()->getMethod(),
+        "getIlGenerator methodSymbol must match _method");
 
-   if (j9method->isNewInstanceImplThunk())
-      return * new (&target) NewInstanceThunkDetails((J9Method *)j9method->getNonPersistentIdentifier(), (J9Class *)j9method->classOfMethod());
+    return new (comp->trHeapMemory()) TR_J9ByteCodeIlGenerator(*(self()), methodSymbol, static_cast<TR_J9VMBase *>(fe),
+        comp, symRefTab, forceClassLookahead, blocksToInline, -1);
+}
 
-   else if (j9method->convertToMethod()->isArchetypeSpecimen())
-      {
-      if (j9method->getMethodHandleLocation())
-         return * new (&target) CustomInvokeExactThunkDetails((J9Method *)j9method->getNonPersistentIdentifier(), j9method->getMethodHandleLocation(), NULL);
-      else
-         return * new (&target) ArchetypeSpecimenDetails((J9Method *)j9method->getNonPersistentIdentifier());
-      }
+void IlGeneratorMethodDetails::print(TR_FrontEnd *fe, TR::FILE *file)
+{
+    if (file == NULL)
+        return;
 
-   return * new (&target) TR::IlGeneratorMethodDetails((J9Method *)j9method->getNonPersistentIdentifier());
+    trfprintf(file, "%s(", self()->name());
+    self()->printDetails(fe, file);
+    trfprintf(file, ")");
+}
 
-   }
+void IlGeneratorMethodDetails::printDetails(TR_FrontEnd *fe, TR::FILE *file)
+{
+    trfprintf(file, "%s", fe->sampleSignature((TR_OpaqueMethodBlock *)(self()->getMethod())));
+}
 
+J9Class *IlGeneratorMethodDetails::getClass() const { return J9_CLASS_FROM_METHOD(self()->getMethod()); }
 
-TR_IlGenerator *
-IlGeneratorMethodDetails::getIlGenerator(TR::ResolvedMethodSymbol *methodSymbol,
-                                         TR_FrontEnd * fe,
-                                         TR::Compilation *comp,
-                                         TR::SymbolReferenceTable *symRefTab,
-                                         bool forceClassLookahead,
-                                         TR_InlineBlocks *blocksToInline)
-   {
-   TR_ASSERT((J9Method *)methodSymbol->getResolvedMethod()->getNonPersistentIdentifier() == self()->getMethod(),
-             "getIlGenerator methodSymbol must match _method");
+void IlGeneratorMethodDetailsOverrideForReplay::changeMethod(TR::IlGeneratorMethodDetails &details, J9Method *newMethod)
+{
+    details._method = newMethod;
+}
 
-   return new (comp->trHeapMemory()) TR_J9ByteCodeIlGenerator(*(self()),
-                                                              methodSymbol,
-                                                              static_cast<TR_J9VMBase *>(fe),
-                                                              comp,
-                                                              symRefTab,
-                                                              forceClassLookahead,
-                                                              blocksToInline,
-                                                              -1);
-   }
+void NewInstanceThunkDetails::printDetails(TR_FrontEnd *fe, TR::FILE *file)
+{
+    int32_t len;
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
+    char *className = fej9->getClassNameChars((TR_OpaqueClassBlock *)getClass(), len);
+    trfprintf(file, "%.*s.newInstancePrototype(Ljava/lang/Class;)Ljava/lang/Object;", len, className);
+}
 
+void MethodInProgressDetails::printDetails(TR_FrontEnd *fe, TR::FILE *file)
+{
+    trfprintf(file, "DLT %d,%s", getByteCodeIndex(), fe->sampleSignature((TR_OpaqueMethodBlock *)getMethod()));
+}
 
-void
-IlGeneratorMethodDetails::print(TR_FrontEnd *fe, TR::FILE *file)
-   {
-   if (file == NULL)
-      return;
+TR_IlGenerator *ArchetypeSpecimenDetails::getIlGenerator(TR::ResolvedMethodSymbol *methodSymbol, TR_FrontEnd *fe,
+    TR::Compilation *comp, TR::SymbolReferenceTable *symRefTab, bool forceClassLookahead,
+    TR_InlineBlocks *blocksToInline)
+{
+    TR_ASSERT((J9Method *)methodSymbol->getResolvedMethod()->getNonPersistentIdentifier() == getMethod(),
+        "getIlGenerator methodSymbol must match _method");
 
-   trfprintf(file, "%s(", self()->name());
-   self()->printDetails(fe, file);
-   trfprintf(file, ")");
-   }
+    // Figure out the argPlaceholderSlot, which is the slot number of the last argument.
+    // Note that this creates and discards a TR_ResolvedMethod.  TODO: A query
+    // on J9MethodBase could avoid this.
+    //
+    TR_ResolvedMethod *method = fe->createResolvedMethod(comp->trMemory(), (TR_OpaqueMethodBlock *)getMethod());
+    int32_t argPlaceholderSlot = method->numberOfParameterSlots() - 1; // Assumes the arg placeholder is a 1-slot type
 
+    return new (comp->trHeapMemory()) TR_J9ByteCodeIlGenerator(*this, methodSymbol, static_cast<TR_J9VMBase *>(fe),
+        comp, symRefTab, forceClassLookahead, blocksToInline, argPlaceholderSlot);
+}
 
-void
-IlGeneratorMethodDetails::printDetails(TR_FrontEnd *fe, TR::FILE *file)
-   {
-   trfprintf(file, "%s", fe->sampleSignature((TR_OpaqueMethodBlock *)(self()->getMethod())));
-   }
-
-J9Class *
-IlGeneratorMethodDetails::getClass() const
-   {
-   return J9_CLASS_FROM_METHOD(self()->getMethod());
-   }
-
-
-void
-IlGeneratorMethodDetailsOverrideForReplay::changeMethod(
-      TR::IlGeneratorMethodDetails & details,
-      J9Method *newMethod)
-   {
-   details._method = newMethod;
-   }
-
-
-void
-NewInstanceThunkDetails::printDetails(TR_FrontEnd *fe, TR::FILE *file)
-   {
-   int32_t len;
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
-   char *className = fej9->getClassNameChars((TR_OpaqueClassBlock *)getClass(), len);
-   trfprintf(file, "%.*s.newInstancePrototype(Ljava/lang/Class;)Ljava/lang/Object;", len, className);
-   }
-
-
-void
-MethodInProgressDetails::printDetails(TR_FrontEnd *fe, TR::FILE *file)
-   {
-   trfprintf(file, "DLT %d,%s", getByteCodeIndex(), fe->sampleSignature((TR_OpaqueMethodBlock *)getMethod()));
-   }
-
-
-TR_IlGenerator *
-ArchetypeSpecimenDetails::getIlGenerator(TR::ResolvedMethodSymbol *methodSymbol,
-                                         TR_FrontEnd * fe,
-                                         TR::Compilation *comp,
-                                         TR::SymbolReferenceTable *symRefTab,
-                                         bool forceClassLookahead,
-                                         TR_InlineBlocks *blocksToInline)
-   {
-   TR_ASSERT((J9Method *)methodSymbol->getResolvedMethod()->getNonPersistentIdentifier() == getMethod(),
-             "getIlGenerator methodSymbol must match _method");
-
-   // Figure out the argPlaceholderSlot, which is the slot number of the last argument.
-   // Note that this creates and discards a TR_ResolvedMethod.  TODO: A query
-   // on J9MethodBase could avoid this.
-   //
-   TR_ResolvedMethod *method = fe->createResolvedMethod(comp->trMemory(), (TR_OpaqueMethodBlock *)getMethod());
-   int32_t argPlaceholderSlot = method->numberOfParameterSlots()-1; // Assumes the arg placeholder is a 1-slot type
-
-   return new (comp->trHeapMemory()) TR_J9ByteCodeIlGenerator(*this,
-                                                              methodSymbol,
-                                                              static_cast<TR_J9VMBase *>(fe),
-                                                              comp,
-                                                              symRefTab,
-                                                              forceClassLookahead,
-                                                              blocksToInline,
-                                                              argPlaceholderSlot);
-   }
-
-
-void
-MethodHandleThunkDetails::printDetails(TR_FrontEnd *fe, TR::FILE *file)
-   {
+void MethodHandleThunkDetails::printDetails(TR_FrontEnd *fe, TR::FILE *file)
+{
 #if 0
    // annoying: knot can only be accessed from the compilation object which isn't always handy: wait for thread locals
    TR::KnownObjectTable *knot = fe->getKnownObjectTable();
@@ -292,68 +241,60 @@ MethodHandleThunkDetails::printDetails(TR_FrontEnd *fe, TR::FILE *file)
       trfprintf(file, "obj%d,%s", knot->getOrCreateIndexAt(getHandleRef()), fe->sampleSignature((TR_OpaqueMethodBlock *)getMethod()));
    else
 #endif
-      trfprintf(file, "%p,%s", getHandleRef(), fe->sampleSignature((TR_OpaqueMethodBlock *)getMethod()));
-   }
-
-
-bool
-MethodHandleThunkDetails::isSameThunk(MethodHandleThunkDetails &other, TR_J9VMBase *fe)
-   {
-   TR_ASSERT(0, "MethodHandleThunk must be either shareable or custom");
-   return false;
-   }
-
-
-bool
-ShareableInvokeExactThunkDetails::isSameThunk(MethodHandleThunkDetails & other, TR_J9VMBase *fe)
-   {
-   if (!other.isShareable())
-      return false;
-
-   uintptr_t thisThunkTuple, otherThunkTuple;
-
-   // Consider: there is a race condition here.  If there are two shareable thunks requested,
-   // and then we change the thunktuple of one of the handles, then this code will not detect
-   // the dup and we'll end up compiling two identical thunks.
-   //
-      {
-      TR::VMAccessCriticalSection isSameThunk(fe);
-      thisThunkTuple  = fe->getReferenceField(*this->getHandleRef(), "thunks", "Ljava/lang/invoke/ThunkTuple;");
-      otherThunkTuple = fe->getReferenceField(*other.getHandleRef(), "thunks", "Ljava/lang/invoke/ThunkTuple;");
-      }
-
-   // Same MethodHandle thunk request iff the two requests point to the same ThunkTuple
-   return thisThunkTuple == otherThunkTuple;
-   }
-
-
-bool
-CustomInvokeExactThunkDetails::isSameThunk(MethodHandleThunkDetails & other, TR_J9VMBase *fe)
-   {
-   if (!other.isCustom())
-      return false;
-
-   bool bothHaveNullArg = false;
-   if (this->getArgRef() == NULL)
-      {
-      if (other.getArgRef() == NULL)
-         bothHaveNullArg = true;
-      else
-         return false;
-      }
-   else if (other.getArgRef() == NULL)
-      return false;
-
-   bool sameHandle, sameArg;
-
-      {
-      TR::VMAccessCriticalSection isSameThunk(fe);
-      sameHandle = (*this->getHandleRef()) == (*other.getHandleRef());
-      sameArg    = bothHaveNullArg || ((*this->getArgRef()) == (*other.getArgRef()));
-      }
-
-   // Same thunk request iff it's for the same handle with the same arg
-   return sameHandle && sameArg;
-   }
-
+    trfprintf(file, "%p,%s", getHandleRef(), fe->sampleSignature((TR_OpaqueMethodBlock *)getMethod()));
 }
+
+bool MethodHandleThunkDetails::isSameThunk(MethodHandleThunkDetails &other, TR_J9VMBase *fe)
+{
+    TR_ASSERT(0, "MethodHandleThunk must be either shareable or custom");
+    return false;
+}
+
+bool ShareableInvokeExactThunkDetails::isSameThunk(MethodHandleThunkDetails &other, TR_J9VMBase *fe)
+{
+    if (!other.isShareable())
+        return false;
+
+    uintptr_t thisThunkTuple, otherThunkTuple;
+
+    // Consider: there is a race condition here.  If there are two shareable thunks requested,
+    // and then we change the thunktuple of one of the handles, then this code will not detect
+    // the dup and we'll end up compiling two identical thunks.
+    //
+    {
+        TR::VMAccessCriticalSection isSameThunk(fe);
+        thisThunkTuple = fe->getReferenceField(*this->getHandleRef(), "thunks", "Ljava/lang/invoke/ThunkTuple;");
+        otherThunkTuple = fe->getReferenceField(*other.getHandleRef(), "thunks", "Ljava/lang/invoke/ThunkTuple;");
+    }
+
+    // Same MethodHandle thunk request iff the two requests point to the same ThunkTuple
+    return thisThunkTuple == otherThunkTuple;
+}
+
+bool CustomInvokeExactThunkDetails::isSameThunk(MethodHandleThunkDetails &other, TR_J9VMBase *fe)
+{
+    if (!other.isCustom())
+        return false;
+
+    bool bothHaveNullArg = false;
+    if (this->getArgRef() == NULL) {
+        if (other.getArgRef() == NULL)
+            bothHaveNullArg = true;
+        else
+            return false;
+    } else if (other.getArgRef() == NULL)
+        return false;
+
+    bool sameHandle, sameArg;
+
+    {
+        TR::VMAccessCriticalSection isSameThunk(fe);
+        sameHandle = (*this->getHandleRef()) == (*other.getHandleRef());
+        sameArg = bothHaveNullArg || ((*this->getArgRef()) == (*other.getArgRef()));
+    }
+
+    // Same thunk request iff it's for the same handle with the same arg
+    return sameHandle && sameArg;
+}
+
+} // namespace J9

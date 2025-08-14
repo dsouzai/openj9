@@ -23,13 +23,13 @@
 #ifndef J9_CODECACHEMEMORYSEGMENT_INCL
 #define J9_CODECACHEMEMORYSEGMENT_INCL
 
-
 #ifndef J9_CODECACHEMEMORYSEGMENT_COMPOSED
 #define J9_CODECACHEMEMORYSEGMENT_COMPOSED
+
 namespace J9 {
 class CodeCacheMemorySegment;
 typedef CodeCacheMemorySegment CodeCacheMemorySegmentConnector;
-}
+} // namespace J9
 #endif
 
 #include "env/jittypes.h"
@@ -39,33 +39,35 @@ typedef CodeCacheMemorySegment CodeCacheMemorySegmentConnector;
 
 struct J9MemorySegment;
 
-namespace J9
-{
+namespace J9 {
 
-class OMR_EXTENSIBLE CodeCacheMemorySegment : public OMR::CodeCacheMemorySegmentConnector
-   {
+class OMR_EXTENSIBLE CodeCacheMemorySegment : public OMR::CodeCacheMemorySegmentConnector {
 public:
-   CodeCacheMemorySegment() : OMR::CodeCacheMemorySegmentConnector(), _segment(NULL)
-      { }
+    CodeCacheMemorySegment()
+        : OMR::CodeCacheMemorySegmentConnector()
+        , _segment(NULL)
+    {}
 
-   CodeCacheMemorySegment(uint8_t *memory, uint8_t *top) : OMR::CodeCacheMemorySegmentConnector(memory, top)
-      {
-      _segment = NULL;
-      }
+    CodeCacheMemorySegment(uint8_t *memory, uint8_t *top)
+        : OMR::CodeCacheMemorySegmentConnector(memory, top)
+    {
+        _segment = NULL;
+    }
 
-   CodeCacheMemorySegment(J9MemorySegment *segment);
+    CodeCacheMemorySegment(J9MemorySegment *segment);
 
-   void * operator new (size_t s, TR::CodeCacheMemorySegment *m) { return m; }
+    void *operator new(size_t s, TR::CodeCacheMemorySegment *m) { return m; }
 
-   J9MemorySegment *j9segment()                          { return _segment; }
-   void             setSegment(J9MemorySegment *segment) { _segment = segment; }
+    J9MemorySegment *j9segment() { return _segment; }
 
-   void free(TR::CodeCacheManager *manager);
+    void setSegment(J9MemorySegment *segment) { _segment = segment; }
+
+    void free(TR::CodeCacheManager *manager);
 
 private:
-   J9MemorySegment *_segment;
-   };
+    J9MemorySegment *_segment;
+};
 
-}
+} // namespace J9
 
 #endif

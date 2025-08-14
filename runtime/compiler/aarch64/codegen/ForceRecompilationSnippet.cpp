@@ -26,130 +26,126 @@
 #include "codegen/ForceRecompilationSnippet.hpp"
 #include "runtime/CodeCacheManager.hpp"
 
-uint8_t *
-TR::ARM64ForceRecompilationSnippet::emitSnippetBody()
-   {
-   uint8_t *cursor = cg()->getBinaryBufferCursor();
+uint8_t *TR::ARM64ForceRecompilationSnippet::emitSnippetBody()
+{
+    uint8_t *cursor = cg()->getBinaryBufferCursor();
 
-   TR::SymbolReference *induceRecompilationSymRef = cg()->symRefTab()->findOrCreateRuntimeHelper(TR_ARM64induceRecompilation);
-   intptr_t startPC = (intptr_t)(cg()->getCodeStart());
+    TR::SymbolReference *induceRecompilationSymRef
+        = cg()->symRefTab()->findOrCreateRuntimeHelper(TR_ARM64induceRecompilation);
+    intptr_t startPC = (intptr_t)(cg()->getCodeStart());
 
-   getSnippetLabel()->setCodeLocation(cursor);
+    getSnippetLabel()->setCodeLocation(cursor);
 
-   TR::RegisterDependencyConditions *deps = _restartLabel->getInstruction()->getDependencyConditions();
-   TR::RealRegister *startPCReg = cg()->machine()->getRealRegister(deps->getPostConditions()->getRegisterDependency(0)->getRealRegister());
+    TR::RegisterDependencyConditions *deps = _restartLabel->getInstruction()->getDependencyConditions();
+    TR::RealRegister *startPCReg
+        = cg()->machine()->getRealRegister(deps->getPostConditions()->getRegisterDependency(0)->getRealRegister());
 
-   // Put JIT entry point address in startPCReg
-   uint32_t llval = startPC & 0xffff;
-   uint32_t lhval = (startPC >> 16) & 0xffff;
-   uint32_t hlval = (startPC >> 32) & 0xffff;
-   uint32_t hhval = (startPC >> 48) & 0xffff;
+    // Put JIT entry point address in startPCReg
+    uint32_t llval = startPC & 0xffff;
+    uint32_t lhval = (startPC >> 16) & 0xffff;
+    uint32_t hlval = (startPC >> 32) & 0xffff;
+    uint32_t hhval = (startPC >> 48) & 0xffff;
 
-   *(uint32_t *)cursor = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::movzx) | (llval << 5);
-   startPCReg->setRegisterFieldRD((uint32_t *)cursor);
-   cursor += ARM64_INSTRUCTION_LENGTH;
-   *(uint32_t *)cursor = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::movkx) | ((lhval | TR::MOV_LSL16) << 5);
-   startPCReg->setRegisterFieldRD((uint32_t *)cursor);
-   cursor += ARM64_INSTRUCTION_LENGTH;
-   *(uint32_t *)cursor = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::movkx) | ((hlval | TR::MOV_LSL32) << 5);
-   startPCReg->setRegisterFieldRD((uint32_t *)cursor);
-   cursor += ARM64_INSTRUCTION_LENGTH;
-   *(uint32_t *)cursor = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::movkx) | ((hhval | TR::MOV_LSL48) << 5);
-   startPCReg->setRegisterFieldRD((uint32_t *)cursor);
-   cursor += ARM64_INSTRUCTION_LENGTH;
+    *(uint32_t *)cursor = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::movzx) | (llval << 5);
+    startPCReg->setRegisterFieldRD((uint32_t *)cursor);
+    cursor += ARM64_INSTRUCTION_LENGTH;
+    *(uint32_t *)cursor
+        = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::movkx) | ((lhval | TR::MOV_LSL16) << 5);
+    startPCReg->setRegisterFieldRD((uint32_t *)cursor);
+    cursor += ARM64_INSTRUCTION_LENGTH;
+    *(uint32_t *)cursor
+        = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::movkx) | ((hlval | TR::MOV_LSL32) << 5);
+    startPCReg->setRegisterFieldRD((uint32_t *)cursor);
+    cursor += ARM64_INSTRUCTION_LENGTH;
+    *(uint32_t *)cursor
+        = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::movkx) | ((hhval | TR::MOV_LSL48) << 5);
+    startPCReg->setRegisterFieldRD((uint32_t *)cursor);
+    cursor += ARM64_INSTRUCTION_LENGTH;
 
-   intptr_t helperAddress = (intptr_t)induceRecompilationSymRef->getMethodAddress();
-   intptr_t distance = helperAddress - (intptr_t)cursor;
-   if (!constantIsSignedImm28(distance))
-      {
-      helperAddress = TR::CodeCacheManager::instance()->findHelperTrampoline(induceRecompilationSymRef->getReferenceNumber(), (void *)cursor);
-      distance = helperAddress - (intptr_t)cursor;
-      TR_ASSERT_FATAL(constantIsSignedImm28(distance), "Trampoline too far away.");
-      }
+    intptr_t helperAddress = (intptr_t)induceRecompilationSymRef->getMethodAddress();
+    intptr_t distance = helperAddress - (intptr_t)cursor;
+    if (!constantIsSignedImm28(distance)) {
+        helperAddress = TR::CodeCacheManager::instance()->findHelperTrampoline(
+            induceRecompilationSymRef->getReferenceNumber(), (void *)cursor);
+        distance = helperAddress - (intptr_t)cursor;
+        TR_ASSERT_FATAL(constantIsSignedImm28(distance), "Trampoline too far away.");
+    }
 
-   // bl distance
-   *(uint32_t *)cursor = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::bl) | ((distance >> 2) & 0x03ffffff); // imm26
-   cg()->addExternalRelocation(
-      TR::ExternalRelocation::create(
-         cursor,
-         (uint8_t *)induceRecompilationSymRef,
-         TR_HelperAddress,
-         cg()),
-      __FILE__,
-      __LINE__,
-      getNode());
-   cursor += ARM64_INSTRUCTION_LENGTH;
+    // bl distance
+    *(uint32_t *)cursor
+        = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::bl) | ((distance >> 2) & 0x03ffffff); // imm26
+    cg()->addExternalRelocation(
+        TR::ExternalRelocation::create(cursor, (uint8_t *)induceRecompilationSymRef, TR_HelperAddress, cg()), __FILE__,
+        __LINE__, getNode());
+    cursor += ARM64_INSTRUCTION_LENGTH;
 
-   if (_restartLabel != NULL)
-      {
-      distance = (intptr_t)(_restartLabel->getCodeLocation()) - (intptr_t)cursor;
-      if (constantIsSignedImm28(distance))
-         {
-         // b distance
-         *(uint32_t *)cursor = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::b) | ((distance >> 2) & 0x3ffffff); // imm26
-         cursor += ARM64_INSTRUCTION_LENGTH;
-         }
-      else
-         {
-         TR_ASSERT_FATAL(false, "Target too far away.  Not supported yet");
-         }
-      }
+    if (_restartLabel != NULL) {
+        distance = (intptr_t)(_restartLabel->getCodeLocation()) - (intptr_t)cursor;
+        if (constantIsSignedImm28(distance)) {
+            // b distance
+            *(uint32_t *)cursor
+                = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::b) | ((distance >> 2) & 0x3ffffff); // imm26
+            cursor += ARM64_INSTRUCTION_LENGTH;
+        } else {
+            TR_ASSERT_FATAL(false, "Target too far away.  Not supported yet");
+        }
+    }
 
-   return cursor;
-   }
+    return cursor;
+}
 
-void
-TR_Debug::print(TR::FILE *pOutFile, TR::ARM64ForceRecompilationSnippet *snippet)
-   {
-   uint8_t *cursor = snippet->getSnippetLabel()->getCodeLocation();
+void TR_Debug::print(TR::FILE *pOutFile, TR::ARM64ForceRecompilationSnippet *snippet)
+{
+    uint8_t *cursor = snippet->getSnippetLabel()->getCodeLocation();
 
-   TR::LabelSymbol *restartLabel = snippet->getRestartLabel();
-   TR::RegisterDependencyConditions *deps = restartLabel->getInstruction()->getDependencyConditions();
-   TR::RealRegister *startPCReg = _cg->machine()->getRealRegister(deps->getPostConditions()->getRegisterDependency(0)->getRealRegister());
+    TR::LabelSymbol *restartLabel = snippet->getRestartLabel();
+    TR::RegisterDependencyConditions *deps = restartLabel->getInstruction()->getDependencyConditions();
+    TR::RealRegister *startPCReg
+        = _cg->machine()->getRealRegister(deps->getPostConditions()->getRegisterDependency(0)->getRealRegister());
 
-   printSnippetLabel(pOutFile, snippet->getSnippetLabel(), cursor, "Force Recompilation Snippet");
+    printSnippetLabel(pOutFile, snippet->getSnippetLabel(), cursor, "Force Recompilation Snippet");
 
-   int32_t value;
+    int32_t value;
 
-   printPrefix(pOutFile, NULL, cursor, 4);
-   value = (*((int32_t *)cursor) >> 5) & 0xffff;
-   trfprintf(pOutFile, "movzx \t%s, 0x%04x\t; Load jit entry point address", getName(startPCReg), value);
-   cursor += ARM64_INSTRUCTION_LENGTH;
+    printPrefix(pOutFile, NULL, cursor, 4);
+    value = (*((int32_t *)cursor) >> 5) & 0xffff;
+    trfprintf(pOutFile, "movzx \t%s, 0x%04x\t; Load jit entry point address", getName(startPCReg), value);
+    cursor += ARM64_INSTRUCTION_LENGTH;
 
-   printPrefix(pOutFile, NULL, cursor, 4);
-   value = (*((int32_t *)cursor) >> 5) & 0xffff;
-   trfprintf(pOutFile, "movkx \t%s, 0x%04x, LSL #16", getName(startPCReg), value);
-   cursor += ARM64_INSTRUCTION_LENGTH;
+    printPrefix(pOutFile, NULL, cursor, 4);
+    value = (*((int32_t *)cursor) >> 5) & 0xffff;
+    trfprintf(pOutFile, "movkx \t%s, 0x%04x, LSL #16", getName(startPCReg), value);
+    cursor += ARM64_INSTRUCTION_LENGTH;
 
-   printPrefix(pOutFile, NULL, cursor, 4);
-   value = (*((int32_t *)cursor) >> 5) & 0xffff;
-   trfprintf(pOutFile, "movkx \t%s, 0x%04x, LSL #32", getName(startPCReg), value);
-   cursor += ARM64_INSTRUCTION_LENGTH;
+    printPrefix(pOutFile, NULL, cursor, 4);
+    value = (*((int32_t *)cursor) >> 5) & 0xffff;
+    trfprintf(pOutFile, "movkx \t%s, 0x%04x, LSL #32", getName(startPCReg), value);
+    cursor += ARM64_INSTRUCTION_LENGTH;
 
-   printPrefix(pOutFile, NULL, cursor, 4);
-   value = (*((int32_t *)cursor) >> 5) & 0xffff;
-   trfprintf(pOutFile, "movkx \t%s, 0x%04x, LSL #48", getName(startPCReg), value);
-   cursor += ARM64_INSTRUCTION_LENGTH;
+    printPrefix(pOutFile, NULL, cursor, 4);
+    value = (*((int32_t *)cursor) >> 5) & 0xffff;
+    trfprintf(pOutFile, "movkx \t%s, 0x%04x, LSL #48", getName(startPCReg), value);
+    cursor += ARM64_INSTRUCTION_LENGTH;
 
-   char *info = "";
-   if (isBranchToTrampoline(_cg->getSymRef(TR_ARM64induceRecompilation), cursor, value))
-      info = " Through trampoline";
+    char *info = "";
+    if (isBranchToTrampoline(_cg->getSymRef(TR_ARM64induceRecompilation), cursor, value))
+        info = " Through trampoline";
 
-   printPrefix(pOutFile, NULL, cursor, 4);
-   value = (*((int32_t *)cursor) & 0x3ffffff) << 2;
-   value = (value << 4) >> 4; // sign extend
-   trfprintf(pOutFile, "bl \t0x%p\t; %s%s", (intptr_t)cursor + value, getName(_cg->getSymRef(TR_ARM64induceRecompilation)), info);
-   cursor += ARM64_INSTRUCTION_LENGTH;
+    printPrefix(pOutFile, NULL, cursor, 4);
+    value = (*((int32_t *)cursor) & 0x3ffffff) << 2;
+    value = (value << 4) >> 4; // sign extend
+    trfprintf(pOutFile, "bl \t0x%p\t; %s%s", (intptr_t)cursor + value,
+        getName(_cg->getSymRef(TR_ARM64induceRecompilation)), info);
+    cursor += ARM64_INSTRUCTION_LENGTH;
 
-   printPrefix(pOutFile, NULL, cursor, 4);
-   value = (*((int32_t *)cursor) & 0x3ffffff) << 2;
-   value = (value << 4) >> 4; // sign extend
-   trfprintf(pOutFile, "b \t0x%p\t; Back to ", (intptr_t)cursor + value);
-   print(pOutFile, restartLabel);
-   }
+    printPrefix(pOutFile, NULL, cursor, 4);
+    value = (*((int32_t *)cursor) & 0x3ffffff) << 2;
+    value = (value << 4) >> 4; // sign extend
+    trfprintf(pOutFile, "b \t0x%p\t; Back to ", (intptr_t)cursor + value);
+    print(pOutFile, restartLabel);
+}
 
-uint32_t
-TR::ARM64ForceRecompilationSnippet::getLength(int32_t estimatedSnippetStart)
-   {
-   return 6 * ARM64_INSTRUCTION_LENGTH;
-   }
+uint32_t TR::ARM64ForceRecompilationSnippet::getLength(int32_t estimatedSnippetStart)
+{
+    return 6 * ARM64_INSTRUCTION_LENGTH;
+}

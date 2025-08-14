@@ -28,107 +28,116 @@
 
 class TR_MHJ2IThunk;
 
-extern void     armCodeSync(uint8_t *codePointer, uint32_t codeSize);
+extern void armCodeSync(uint8_t *codePointer, uint32_t codeSize);
 
 namespace TR {
 
-class ARMCallSnippet : public TR::Snippet
-   {
-   int32_t  sizeOfArguments;
-   uint8_t *callRA;
+class ARMCallSnippet : public TR::Snippet {
+    int32_t sizeOfArguments;
+    uint8_t *callRA;
 
-   public:
+public:
+    ARMCallSnippet(TR::CodeGenerator *cg, TR::Node *c, TR::LabelSymbol *lab, int32_t s)
+        : TR::Snippet(cg, c, lab, false)
+        , sizeOfArguments(s)
+        , callRA(0)
+    {}
 
-   ARMCallSnippet(TR::CodeGenerator *cg, TR::Node *c, TR::LabelSymbol *lab, int32_t s)
-      : TR::Snippet(cg, c, lab, false), sizeOfArguments(s), callRA(0) {}
+    virtual Kind getKind() { return IsCall; }
 
-   virtual Kind getKind() { return IsCall; }
+    virtual uint8_t *emitSnippetBody();
 
-   virtual uint8_t *emitSnippetBody();
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
+    int32_t getSizeOfArguments() { return sizeOfArguments; }
 
-   int32_t getSizeOfArguments()          {return sizeOfArguments;}
-   int32_t setSizeOfArguments(int32_t s) {return (sizeOfArguments = s);}
+    int32_t setSizeOfArguments(int32_t s) { return (sizeOfArguments = s); }
 
-   uint8_t *getCallRA() {return callRA;}
-   uint8_t *setCallRA(uint8_t *ra) {return (callRA=ra);}
+    uint8_t *getCallRA() { return callRA; }
 
-   TR_RuntimeHelper getHelper();
+    uint8_t *setCallRA(uint8_t *ra) { return (callRA = ra); }
 
-   static uint8_t *generateVIThunk(TR::Node *callNode, int32_t argSize, TR::CodeGenerator *cg);
-   static TR_MHJ2IThunk *generateInvokeExactJ2IThunk(TR::Node *callNode, int32_t argSize, TR::CodeGenerator *cg, char *signature);
-   };
+    TR_RuntimeHelper getHelper();
 
-class ARMUnresolvedCallSnippet : public TR::ARMCallSnippet
-   {
+    static uint8_t *generateVIThunk(TR::Node *callNode, int32_t argSize, TR::CodeGenerator *cg);
+    static TR_MHJ2IThunk *generateInvokeExactJ2IThunk(TR::Node *callNode, int32_t argSize, TR::CodeGenerator *cg,
+        char *signature);
+};
 
-   public:
+class ARMUnresolvedCallSnippet : public TR::ARMCallSnippet {
+public:
+    ARMUnresolvedCallSnippet(TR::CodeGenerator *cg, TR::Node *c, TR::LabelSymbol *lab, int32_t s)
+        : TR::ARMCallSnippet(cg, c, lab, s)
+    {}
 
-   ARMUnresolvedCallSnippet(TR::CodeGenerator *cg, TR::Node *c, TR::LabelSymbol *lab, int32_t s)
-      : TR::ARMCallSnippet(cg, c, lab, s)
-      {
-      }
+    virtual Kind getKind() { return IsUnresolvedCall; }
 
-   virtual Kind getKind() { return IsUnresolvedCall; }
+    virtual uint8_t *emitSnippetBody();
 
-   virtual uint8_t *emitSnippetBody();
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
+};
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-   };
+class ARMVirtualSnippet : public TR::Snippet {
+    int32_t sizeOfArguments;
+    TR::LabelSymbol *returnLabel;
 
-class ARMVirtualSnippet : public TR::Snippet
-   {
-   int32_t  sizeOfArguments;
-   TR::LabelSymbol *returnLabel;
+public:
+    ARMVirtualSnippet(TR::CodeGenerator *cg, TR::Node *c, TR::LabelSymbol *lab, int32_t s, TR::LabelSymbol *retl)
+        : TR::Snippet(cg, c, lab, false)
+        , sizeOfArguments(s)
+        , returnLabel(retl)
+    {}
 
-   public:
+    TR::LabelSymbol *getReturnLabel() { return returnLabel; }
 
-   ARMVirtualSnippet(TR::CodeGenerator *cg, TR::Node *c, TR::LabelSymbol *lab, int32_t s, TR::LabelSymbol *retl)
-      : TR::Snippet(cg, c, lab, false), sizeOfArguments(s), returnLabel(retl)
-      {
-      }
+    TR::LabelSymbol *setReturnLabel(TR::LabelSymbol *rl) { return (returnLabel = rl); }
+};
 
-   TR::LabelSymbol *getReturnLabel() {return returnLabel;}
-   TR::LabelSymbol *setReturnLabel(TR::LabelSymbol *rl) {return (returnLabel=rl);}
-   };
+class ARMVirtualUnresolvedSnippet : public TR::ARMVirtualSnippet {
+    uint8_t *thunkAddress;
 
-class ARMVirtualUnresolvedSnippet : public TR::ARMVirtualSnippet
-   {
-   uint8_t *thunkAddress;
-   public:
+public:
+    ARMVirtualUnresolvedSnippet(TR::CodeGenerator *cg, TR::Node *c, TR::LabelSymbol *lab, int32_t s,
+        TR::LabelSymbol *retl)
+        : TR::ARMVirtualSnippet(cg, c, lab, s, retl)
+        , thunkAddress(NULL)
+    {}
 
-   ARMVirtualUnresolvedSnippet(TR::CodeGenerator *cg, TR::Node *c, TR::LabelSymbol *lab, int32_t s, TR::LabelSymbol *retl)
-      : TR::ARMVirtualSnippet(cg, c, lab, s, retl), thunkAddress(NULL) {}
+    ARMVirtualUnresolvedSnippet(TR::CodeGenerator *cg, TR::Node *c, TR::LabelSymbol *lab, int32_t s,
+        TR::LabelSymbol *retl, uint8_t *thunkPtr)
+        : TR::ARMVirtualSnippet(cg, c, lab, s, retl)
+        , thunkAddress(thunkPtr)
+    {}
 
-   ARMVirtualUnresolvedSnippet(TR::CodeGenerator *cg, TR::Node *c, TR::LabelSymbol *lab, int32_t s, TR::LabelSymbol *retl, uint8_t *thunkPtr)
-      : TR::ARMVirtualSnippet(cg, c, lab, s, retl), thunkAddress(thunkPtr) {}
+    virtual Kind getKind() { return IsVirtualUnresolved; }
 
-   virtual Kind getKind() { return IsVirtualUnresolved; }
+    virtual uint8_t *emitSnippetBody();
 
-   virtual uint8_t *emitSnippetBody();
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
+};
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-   };
+class ARMInterfaceCallSnippet : public TR::ARMVirtualSnippet {
+    uint8_t *thunkAddress;
 
-class ARMInterfaceCallSnippet : public TR::ARMVirtualSnippet
-   {
-   uint8_t *thunkAddress;
-   public:
+public:
+    ARMInterfaceCallSnippet(TR::CodeGenerator *cg, TR::Node *c, TR::LabelSymbol *lab, int32_t s, TR::LabelSymbol *retl)
+        : TR::ARMVirtualSnippet(cg, c, lab, s, retl)
+        , thunkAddress(NULL)
+    {}
 
-   ARMInterfaceCallSnippet(TR::CodeGenerator *cg, TR::Node *c, TR::LabelSymbol *lab, int32_t s, TR::LabelSymbol *retl)
-      : TR::ARMVirtualSnippet(cg, c, lab, s, retl), thunkAddress(NULL) {}
+    ARMInterfaceCallSnippet(TR::CodeGenerator *cg, TR::Node *c, TR::LabelSymbol *lab, int32_t s, TR::LabelSymbol *retl,
+        uint8_t *thunkPtr)
+        : TR::ARMVirtualSnippet(cg, c, lab, s, retl)
+        , thunkAddress(thunkPtr)
+    {}
 
-   ARMInterfaceCallSnippet(TR::CodeGenerator *cg, TR::Node *c, TR::LabelSymbol *lab, int32_t s, TR::LabelSymbol *retl
-, uint8_t *thunkPtr)
-      : TR::ARMVirtualSnippet(cg, c, lab, s, retl), thunkAddress(thunkPtr) {}
-   virtual Kind getKind() { return IsInterfaceCall; }
+    virtual Kind getKind() { return IsInterfaceCall; }
 
-   virtual uint8_t *emitSnippetBody();
+    virtual uint8_t *emitSnippetBody();
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-   };
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
+};
 
-}
+} // namespace TR
 
 #endif

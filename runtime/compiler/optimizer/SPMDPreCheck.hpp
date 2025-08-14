@@ -23,8 +23,7 @@
 #include "compile/Compilation.hpp"
 #include "optimizer/Structure.hpp"
 
-class SPMDPreCheck
-   {
-   public:
-   static bool isSPMDCandidate(TR::Compilation *comp, TR_RegionStructure *region);
-   };
+class SPMDPreCheck {
+public:
+    static bool isSPMDCandidate(TR::Compilation *comp, TR_RegionStructure *region);
+};

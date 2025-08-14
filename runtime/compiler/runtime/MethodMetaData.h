@@ -168,30 +168,27 @@ struct J9JITStackAtlas;
 typedef J9JITExceptionTable J9TR_MethodMetaData;
 typedef J9JITStackAtlas J9TR_StackAtlas;
 
-typedef struct TR_MapIterator
-   {
-   UDATA                 _rangeStartOffset;
-   UDATA                 _rangeEndOffset;
+typedef struct TR_MapIterator {
+    UDATA _rangeStartOffset;
+    UDATA _rangeEndOffset;
 
-   J9TR_MethodMetaData * _methodMetaData;
-   J9JITStackAtlas *     _stackAtlas;
-   U_8 *                 _currentMap;
-   U_8 *                 _currentStackMap;
-   U_8 *                 _currentInlineMap;
-   U_8 *                 _nextMap;
-   U_32                  _mapIndex;
-   } TR_MapIterator;
+    J9TR_MethodMetaData *_methodMetaData;
+    J9JITStackAtlas *_stackAtlas;
+    U_8 *_currentMap;
+    U_8 *_currentStackMap;
+    U_8 *_currentInlineMap;
+    U_8 *_nextMap;
+    U_32 _mapIndex;
+} TR_MapIterator;
 
-   struct GpuMetaData
-      {
-      char* methodSignature;    //pointer to method signature
-      int numPtxKernels;        //total number of PTX kernels in the method
-      int maxNumCachedDevices;  //maximum number of devices that CUmodules can be cached for
-      int* lineNumberArray;     //pointer to an array containing the source line number of each gpu kernel
-      char** ptxArray;          //PTX code is stored as a char* string. This is an array that points to each entry.
-      void* cuModuleArray;      //Array of cached CUmodules. One entry per PTX kernel and device combination
-      };
-
+struct GpuMetaData {
+    char *methodSignature; // pointer to method signature
+    int numPtxKernels; // total number of PTX kernels in the method
+    int maxNumCachedDevices; // maximum number of devices that CUmodules can be cached for
+    int *lineNumberArray; // pointer to an array containing the source line number of each gpu kernel
+    char **ptxArray; // PTX code is stored as a char* string. This is an array that points to each entry.
+    void *cuModuleArray; // Array of cached CUmodules. One entry per PTX kernel and device combination
+};
 
 /* @ddr_namespace: map_to_type=MethodMetaDataConstants */
 
@@ -201,55 +198,65 @@ typedef struct TR_MapIterator
 #define INTERNAL_PTR_REG_MASK 0x80000000
 #endif
 
-#define GET_BYTECODEINFO_VALUE(fourByteOffset, stackMap) (*((U_32 *)((U_8 *)stackMap + SIZEOF_MAP_OFFSET(fourByteOffset))))
+#define GET_BYTECODEINFO_VALUE(fourByteOffset, stackMap) \
+    (*((U_32 *)((U_8 *)stackMap + SIZEOF_MAP_OFFSET(fourByteOffset))))
 
-#define GET_REGISTER_MAP_CURSOR(fourByteOffset, stackMap) ((U_8 *)stackMap + SIZEOF_MAP_OFFSET(fourByteOffset) + 2*sizeof(U_32))
-#define GET_SIZEOF_STACK_MAP_HEADER(fourByteOffset) 3*sizeof(U_32) + SIZEOF_MAP_OFFSET(fourByteOffset)
-#define GET_REGISTER_SAVE_DESCRIPTION_CURSOR(fourByteOffset, stackMap) ((U_8 *)stackMap + SIZEOF_MAP_OFFSET(fourByteOffset) + sizeof(U_32))
-#define ADDRESS_OF_REGISTERMAP(fourByteOffset, stackMap) ((U_8 *)stackMap + SIZEOF_MAP_OFFSET(fourByteOffset) + 2*sizeof(U_32))
+#define GET_REGISTER_MAP_CURSOR(fourByteOffset, stackMap) \
+    ((U_8 *)stackMap + SIZEOF_MAP_OFFSET(fourByteOffset) + 2 * sizeof(U_32))
+#define GET_SIZEOF_STACK_MAP_HEADER(fourByteOffset) 3 * sizeof(U_32) + SIZEOF_MAP_OFFSET(fourByteOffset)
+#define GET_REGISTER_SAVE_DESCRIPTION_CURSOR(fourByteOffset, stackMap) \
+    ((U_8 *)stackMap + SIZEOF_MAP_OFFSET(fourByteOffset) + sizeof(U_32))
+#define ADDRESS_OF_REGISTERMAP(fourByteOffset, stackMap) \
+    ((U_8 *)stackMap + SIZEOF_MAP_OFFSET(fourByteOffset) + 2 * sizeof(U_32))
 
-#define GET_LOW_PC_OFFSET_VALUE(fourByteOffset, stackMap) (fourByteOffset ? *((U_32 *)ADDRESS_OF_LOW_PC_OFFSET_IN_STACK_MAP(fourByteOffset, stackMap)) : *((U_16 *)ADDRESS_OF_LOW_PC_OFFSET_IN_STACK_MAP(fourByteOffset, stackMap)))
+#define GET_LOW_PC_OFFSET_VALUE(fourByteOffset, stackMap)                                        \
+    (fourByteOffset ? *((U_32 *)ADDRESS_OF_LOW_PC_OFFSET_IN_STACK_MAP(fourByteOffset, stackMap)) \
+                    : *((U_16 *)ADDRESS_OF_LOW_PC_OFFSET_IN_STACK_MAP(fourByteOffset, stackMap)))
 
 #define GET_SIZEOF_BYTECODEINFO_MAP(fourByteOffset) sizeof(U_32) + SIZEOF_MAP_OFFSET(fourByteOffset)
 
-#define ADDRESS_OF_BYTECODEINFO_IN_STACK_MAP(fourByteOffset, stackMap) ((U_8 *)stackMap + SIZEOF_MAP_OFFSET(fourByteOffset))
+#define ADDRESS_OF_BYTECODEINFO_IN_STACK_MAP(fourByteOffset, stackMap) \
+    ((U_8 *)stackMap + SIZEOF_MAP_OFFSET(fourByteOffset))
 #define ADDRESS_OF_LOW_PC_OFFSET_IN_STACK_MAP(fourByteOffset, stackMap) stackMap
 
 /* { RTSJ Support begins */
-#define RANGE_NEEDS_FOUR_BYTE_OFFSET(r)   (((r) >= (USHRT_MAX   )) ? 1 : 0)
+#define RANGE_NEEDS_FOUR_BYTE_OFFSET(r) (((r) >= (USHRT_MAX)) ? 1 : 0)
 #define HAS_FOUR_BYTE_OFFSET(md) (((md)->flags & JIT_METADATA_GC_MAP_32_BIT_OFFSETS) ? 1 : 0)
 /* } RTSJ Support ends */
 #define SIZEOF_MAP_OFFSET(fourByteOffset) ((alignStackMaps || fourByteOffset) ? 4 : 2)
 
-#define IS_BYTECODEINFO_MAP(fourByteOffset, stackMap) (((struct TR_ByteCodeInfo *)ADDRESS_OF_BYTECODEINFO_IN_STACK_MAP(fourByteOffset, stackMap))->_doNotProfile ? 1: 0)
+#define IS_BYTECODEINFO_MAP(fourByteOffset, stackMap) \
+    (((struct TR_ByteCodeInfo *)ADDRESS_OF_BYTECODEINFO_IN_STACK_MAP(fourByteOffset, stackMap))->_doNotProfile ? 1 : 0)
 
-#define GET_NEXT_STACK_MAP(fourByteOffset, stackMap, atlas, nextStackMap) \
-   { \
-   nextStackMap = stackMap; \
-   if (IS_BYTECODEINFO_MAP(fourByteOffset, stackMap)) \
-      nextStackMap += GET_SIZEOF_BYTECODEINFO_MAP(fourByteOffset); \
-   else \
-      { \
-      nextStackMap = GET_REGISTER_MAP_CURSOR(fourByteOffset, stackMap); \
-      if ((*(U_32*)nextStackMap & INTERNAL_PTR_REG_MASK) && atlas->internalPointerMap) \
-         nextStackMap += (*(nextStackMap + 4) + 1);   \
-      nextStackMap += 3 + atlas->numberOfMapBytes; \
-      if (((*nextStackMap) & 128) != 0) \
-         nextStackMap += atlas->numberOfMapBytes; \
-      ++nextStackMap; \
-      } \
-   }
+#define GET_NEXT_STACK_MAP(fourByteOffset, stackMap, atlas, nextStackMap)                     \
+    {                                                                                         \
+        nextStackMap = stackMap;                                                              \
+        if (IS_BYTECODEINFO_MAP(fourByteOffset, stackMap))                                    \
+            nextStackMap += GET_SIZEOF_BYTECODEINFO_MAP(fourByteOffset);                      \
+        else {                                                                                \
+            nextStackMap = GET_REGISTER_MAP_CURSOR(fourByteOffset, stackMap);                 \
+            if ((*(U_32 *)nextStackMap & INTERNAL_PTR_REG_MASK) && atlas->internalPointerMap) \
+                nextStackMap += (*(nextStackMap + 4) + 1);                                    \
+            nextStackMap += 3 + atlas->numberOfMapBytes;                                      \
+            if (((*nextStackMap) & 128) != 0)                                                 \
+                nextStackMap += atlas->numberOfMapBytes;                                      \
+            ++nextStackMap;                                                                   \
+        }                                                                                     \
+    }
 
-void * getStackMapFromJitPC(J9VMThread * currentThread, J9JavaVM * vm, J9TR_MethodMetaData * exceptionTable, UDATA jitPC);
-void * getStackAllocMapFromJitPC(J9VMThread * currentThread, J9TR_MethodMetaData * exceptionTable, UDATA jitPC, void *curStackMap);
-UDATA jitExceptionHandlerSearch(J9VMThread * currentThread, J9StackWalkState * walkState);
-void * jitGetInlinerMapFromPC(J9VMThread * currentThread, J9JavaVM * vm, J9JITExceptionTable * exceptionTable, UDATA jitPC);
-void jitGetMapsFromPC(J9VMThread * currentThread, J9JavaVM * vm, J9JITExceptionTable * exceptionTable, UDATA jitPC, void * * inlineMap, void * * stackMap);
-void * getFirstInlineRange(TR_MapIterator * i, void * methodMetaData, UDATA * startOffset, UDATA * endOffset);
-void * getNextInlineRange(TR_MapIterator * i, UDATA * startOffset, UDATA * endOffset);
-void walkJITFrameSlotsForInternalPointers(J9StackWalkState * walkState,  U_8 ** jitDescriptionCursor, UDATA * scanCursor, void *stackMap, J9JITStackAtlas *gcStackAtlas);
-void jitAddSpilledRegistersForDataResolve(J9StackWalkState * walkState);
-void jitAddSpilledRegisters(J9StackWalkState * walkState, void *stackMap);
+void *getStackMapFromJitPC(J9VMThread *currentThread, J9JavaVM *vm, J9TR_MethodMetaData *exceptionTable, UDATA jitPC);
+void *getStackAllocMapFromJitPC(J9VMThread *currentThread, J9TR_MethodMetaData *exceptionTable, UDATA jitPC,
+    void *curStackMap);
+UDATA jitExceptionHandlerSearch(J9VMThread *currentThread, J9StackWalkState *walkState);
+void *jitGetInlinerMapFromPC(J9VMThread *currentThread, J9JavaVM *vm, J9JITExceptionTable *exceptionTable, UDATA jitPC);
+void jitGetMapsFromPC(J9VMThread *currentThread, J9JavaVM *vm, J9JITExceptionTable *exceptionTable, UDATA jitPC,
+    void **inlineMap, void **stackMap);
+void *getFirstInlineRange(TR_MapIterator *i, void *methodMetaData, UDATA *startOffset, UDATA *endOffset);
+void *getNextInlineRange(TR_MapIterator *i, UDATA *startOffset, UDATA *endOffset);
+void walkJITFrameSlotsForInternalPointers(J9StackWalkState *walkState, U_8 **jitDescriptionCursor, UDATA *scanCursor,
+    void *stackMap, J9JITStackAtlas *gcStackAtlas);
+void jitAddSpilledRegistersForDataResolve(J9StackWalkState *walkState);
+void jitAddSpilledRegisters(J9StackWalkState *walkState, void *stackMap);
 
 void aotFixEndian(UDATA j9dst_priv);
 void aotWideExceptionEntriesFixEndian(J9JITExceptionTable *exceptionTable);
@@ -259,61 +266,61 @@ void aotExceptionEntryFixEndian(J9JITExceptionTable *exceptionTable);
 void aotStackAtlasFixEndian(J9JITStackAtlas *stackAtlas, J9JITExceptionTable *exceptionTable);
 void aotMethodMetaDataFixEndian(J9JITExceptionTable *exceptionTable);
 
-UDATA * getObjectArgScanCursor(J9StackWalkState *walkState);
-UDATA * getObjectTempScanCursor(J9StackWalkState *walkState);
-I_32    hasSyncObjectTemp(J9StackWalkState *walkState);
-UDATA * getSyncObjectTempScanCursor(J9StackWalkState *walkState);
-U_8 getNextDescriptionBit(U_8 ** jitDescriptionCursor);
+UDATA *getObjectArgScanCursor(J9StackWalkState *walkState);
+UDATA *getObjectTempScanCursor(J9StackWalkState *walkState);
+I_32 hasSyncObjectTemp(J9StackWalkState *walkState);
+UDATA *getSyncObjectTempScanCursor(J9StackWalkState *walkState);
+U_8 getNextDescriptionBit(U_8 **jitDescriptionCursor);
 
-U_8 * getJitDescriptionCursor(void * stackMap, J9StackWalkState *walkState);
+U_8 *getJitDescriptionCursor(void *stackMap, J9StackWalkState *walkState);
 
-I_16   getJitTotalFrameSize(J9TR_MethodMetaData * md);
-I_16   getJitSlots(J9TR_MethodMetaData *md);
-I_16   getJitScalarTempSlots(J9TR_MethodMetaData * md);
-I_16   getJitObjectTempSlots(J9TR_MethodMetaData * md);
-void * getJitGCStackAtlas(J9TR_MethodMetaData * md);
-void * getJitInlinedCallInfo(J9TR_MethodMetaData * md);
+I_16 getJitTotalFrameSize(J9TR_MethodMetaData *md);
+I_16 getJitSlots(J9TR_MethodMetaData *md);
+I_16 getJitScalarTempSlots(J9TR_MethodMetaData *md);
+I_16 getJitObjectTempSlots(J9TR_MethodMetaData *md);
+void *getJitGCStackAtlas(J9TR_MethodMetaData *md);
+void *getJitInlinedCallInfo(J9TR_MethodMetaData *md);
 
-U_8* getJitInternalPointerMap(J9TR_StackAtlas * sa);
-U_16 getJitNumberOfMaps(J9TR_StackAtlas * sa);
-U_16 getJitNumberOfMapBytes(J9TR_StackAtlas * sa);
-I_16 getJitParmBaseOffset(J9TR_StackAtlas * sa);
-U_16 getJitNumberOfParmSlots(J9TR_StackAtlas * sa);
+U_8 *getJitInternalPointerMap(J9TR_StackAtlas *sa);
+U_16 getJitNumberOfMaps(J9TR_StackAtlas *sa);
+U_16 getJitNumberOfMapBytes(J9TR_StackAtlas *sa);
+I_16 getJitParmBaseOffset(J9TR_StackAtlas *sa);
+U_16 getJitNumberOfParmSlots(J9TR_StackAtlas *sa);
 
-U_8 * getVariablePortionInternalPtrRegMap(U_8 * mapBits, int fourByteOffsets);
-U_8 getVariableLengthSizeOfInternalPtrRegMap(U_8 * internalPtrMapLocation);
-U_8 getNumberOfPinningArrays(U_8 * internalPtrMapLocation);
-U_8 * getFirstPinningArray(U_8 * internalPtrMapLocation);
-U_8 * getNextPinningArray(U_8 * pinningArrayCursor);
-U_8 getNumberOfInternalPtrs(U_8 * pinningArrayCursor);
-U_8 * getFirstInternalPtr(U_8 * pinningArrayCursor);
+U_8 *getVariablePortionInternalPtrRegMap(U_8 *mapBits, int fourByteOffsets);
+U_8 getVariableLengthSizeOfInternalPtrRegMap(U_8 *internalPtrMapLocation);
+U_8 getNumberOfPinningArrays(U_8 *internalPtrMapLocation);
+U_8 *getFirstPinningArray(U_8 *internalPtrMapLocation);
+U_8 *getNextPinningArray(U_8 *pinningArrayCursor);
+U_8 getNumberOfInternalPtrs(U_8 *pinningArrayCursor);
+U_8 *getFirstInternalPtr(U_8 *pinningArrayCursor);
 
-U_8 * getNextInternalPtr(U_8 * pinningArrayCursor);
+U_8 *getNextInternalPtr(U_8 *pinningArrayCursor);
 
-U_8 getVariableLengthSizeOfInternalPtrMap(U_8 * internalPtrMapLocation);
-U_16 getIndexOfFirstInternalPtr(U_8 * internalPtrMapLocation);
-U_16 getOffsetOfFirstInternalPtr(U_8 * internalPtrMapLocation);
-U_8 getNumberOfPinningArraysOfInternalPtrMap(U_8 * internalPtrMapLocation);
-U_8 * getFirstInternalPtrMapPinningArrayCursor(U_8 * internalPtrMapLocation);
-U_8 * getNextInternalPtrMapPinningArrayCursor(U_8 * internalPtrMapPinningArrayCursor);
-UDATA hasFourByteOffset(J9TR_MethodMetaData * md);
+U_8 getVariableLengthSizeOfInternalPtrMap(U_8 *internalPtrMapLocation);
+U_16 getIndexOfFirstInternalPtr(U_8 *internalPtrMapLocation);
+U_16 getOffsetOfFirstInternalPtr(U_8 *internalPtrMapLocation);
+U_8 getNumberOfPinningArraysOfInternalPtrMap(U_8 *internalPtrMapLocation);
+U_8 *getFirstInternalPtrMapPinningArrayCursor(U_8 *internalPtrMapLocation);
+U_8 *getNextInternalPtrMapPinningArrayCursor(U_8 *internalPtrMapPinningArrayCursor);
+UDATA hasFourByteOffset(J9TR_MethodMetaData *md);
 
-U_32 getJitRegisterMap(J9TR_MethodMetaData *md, void * stackMap);
-U_8 * getNextDecriptionCursor(J9TR_MethodMetaData * md, void * stackMap, U_8 * jitDescriptionCursor);
-U_8 * getJitStackSlots(J9TR_MethodMetaData * metadata, void * stackMap);
-U_8 * getJitLiveMonitors(J9TR_MethodMetaData * metaData, void * stackMap);
-U_8 * getMonitorMask(J9TR_StackAtlas *, void * inlinedCallSite);
+U_32 getJitRegisterMap(J9TR_MethodMetaData *md, void *stackMap);
+U_8 *getNextDecriptionCursor(J9TR_MethodMetaData *md, void *stackMap, U_8 *jitDescriptionCursor);
+U_8 *getJitStackSlots(J9TR_MethodMetaData *metadata, void *stackMap);
+U_8 *getJitLiveMonitors(J9TR_MethodMetaData *metaData, void *stackMap);
+U_8 *getMonitorMask(J9TR_StackAtlas *, void *inlinedCallSite);
 
-UDATA * getTempBase(UDATA * bp, J9TR_MethodMetaData * metaData);
+UDATA *getTempBase(UDATA *bp, J9TR_MethodMetaData *metaData);
 
-U_32 getNumInlinedCallSites(J9JITExceptionTable * methodMetaData);
-void * getFirstInlinedCallSiteWithByteCodeInfo(J9TR_MethodMetaData * methodMetaData, void * stackMap, void * byteCodeInfo);
-void * getFirstInlinedCallSite(J9TR_MethodMetaData * metaData, void * stackMap);
-void * getNextInlinedCallSite(J9TR_MethodMetaData * metaData, void *inlinedCallSite);
-UDATA hasMoreInlinedMethods(void * inlinedCallSite);
-void * getInlinedMethod(void * inlinedCallSite);
+U_32 getNumInlinedCallSites(J9JITExceptionTable *methodMetaData);
+void *getFirstInlinedCallSiteWithByteCodeInfo(J9TR_MethodMetaData *methodMetaData, void *stackMap, void *byteCodeInfo);
+void *getFirstInlinedCallSite(J9TR_MethodMetaData *metaData, void *stackMap);
+void *getNextInlinedCallSite(J9TR_MethodMetaData *metaData, void *inlinedCallSite);
+UDATA hasMoreInlinedMethods(void *inlinedCallSite);
+void *getInlinedMethod(void *inlinedCallSite);
 
-void markClassesInInlineRanges(void * methodMetaData, J9StackWalkState * walkState);
+void markClassesInInlineRanges(void *methodMetaData, J9StackWalkState *walkState);
 U_8 isUnloadedInlinedMethod(J9Method *method);
 
 U_32 isPatchedValue(J9Method *m);
@@ -323,7 +330,8 @@ UDATA etByteCodeIndex(void *inlinedCallSite);
 UDATA getJitInlineDepthFromCallSite(J9TR_MethodMetaData *metaData, void *inlinedCallSite);
 UDATA getByteCodeIndexFromStackMap(J9TR_MethodMetaData *metaData, void *stackMap);
 
-UDATA getCurrentByteCodeIndexAndIsSameReceiver(J9TR_MethodMetaData *metaData, void *stackMap, void *inlinedCallSite, UDATA *isSameReceiver);
+UDATA getCurrentByteCodeIndexAndIsSameReceiver(J9TR_MethodMetaData *metaData, void *stackMap, void *inlinedCallSite,
+    UDATA *isSameReceiver);
 
 UDATA getJitPCOffsetFromExceptionHandler(J9TR_MethodMetaData *metaData, void *jitPC);
 
@@ -333,17 +341,17 @@ UDATA getJitVirtualMethodResolvePushes(void);
 UDATA getJitDataResolvePushes(void);
 UDATA getJitSlotsBeforeSavesInDataResolve(void);
 
-U_8 * getInlinedCallSiteArrayElement(J9TR_MethodMetaData * methodMetaData, int cix);
+U_8 *getInlinedCallSiteArrayElement(J9TR_MethodMetaData *methodMetaData, int cix);
 
 /* OSR -- On-Stack Replacement */
 /* returns OSR start address */
-void* preOSR  (J9VMThread* currentThread, J9JITExceptionTable *metaData, void *pc);
+void *preOSR(J9VMThread *currentThread, J9JITExceptionTable *metaData, void *pc);
 /* returns non-zero for "must force decompile" */
-UDATA postOSR (J9VMThread* currentThread, J9JITExceptionTable *metaData, void *pc);
+UDATA postOSR(J9VMThread *currentThread, J9JITExceptionTable *metaData, void *pc);
 /* returns 0 for FSD, non-zero for OSR */
-UDATA usesOSR (J9VMThread* currentThread, J9JITExceptionTable *metaData);
+UDATA usesOSR(J9VMThread *currentThread, J9JITExceptionTable *metaData);
 /* returns the size required for the scratch buffer */
-UDATA osrScratchBufferSize(J9VMThread* currentThread, J9JITExceptionTable *metaData, void *pc);
+UDATA osrScratchBufferSize(J9VMThread *currentThread, J9JITExceptionTable *metaData, void *pc);
 
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
 J9JITInvokeBasicCallSite *jitGetInvokeBasicCallSiteFromPC(struct J9VMThread *vmThread, UDATA jitPC);
@@ -355,7 +363,7 @@ J9JITInvokeBasicCallSite *jitGetInvokeBasicCallSiteFromPC(struct J9VMThread *vmT
 #define alignStackMaps 0
 #endif
 
-J9JITExceptionTable * jitGetMetaDataFromPC(J9VMThread* currentThread, UDATA pc);
+J9JITExceptionTable *jitGetMetaDataFromPC(J9VMThread *currentThread, UDATA pc);
 
 #ifdef __cplusplus
 }

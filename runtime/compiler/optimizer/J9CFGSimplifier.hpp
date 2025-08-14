@@ -25,59 +25,56 @@
 
 #include "optimizer/OMRCFGSimplifier.hpp"
 
-namespace J9
-{
+namespace J9 {
 
 // Performs local common subexpression elimination within
 // a basic block.
 //
 
-class CFGSimplifier : public OMR::CFGSimplifier
-   {
-   public:
+class CFGSimplifier : public OMR::CFGSimplifier {
+public:
+    CFGSimplifier(TR::OptimizationManager *manager)
+        : OMR::CFGSimplifier(manager)
+    {}
 
-   CFGSimplifier(TR::OptimizationManager *manager) : OMR::CFGSimplifier(manager)
-      {}
+protected:
+    /**
+     * \brief
+     *    This virtual function calls individual routines to try to match different `if` control flow structures
+     *    for simplification.
+     *
+     * \parm needToDuplicateTree
+     *    Boolean to indicate whether or not to duplicate node.
+     *
+     * \return Boolean that indicates whether tranformation is performed based on a matched pattern
+     */
+    virtual bool simplifyIfPatterns(bool needToDuplicateTree);
 
-   protected:
-   /**
-    * \brief
-    *    This virtual function calls individual routines to try to match different `if` control flow structures 
-    *    for simplification.
-    *
-    * \parm needToDuplicateTree
-    *    Boolean to indicate whether or not to duplicate node.
-    *
-    * \return Boolean that indicates whether tranformation is performed based on a matched pattern
-    */
-   virtual bool simplifyIfPatterns(bool needToDuplicateTree);
+    /**
+     * \brief
+     *    This function tries to match an `ifacmpeq/ifacmpne` of NULL node with a throw of an NPE exception
+     *    for the unresolved case and replace with a NULLCHK node
+     *
+     * \parm needToDuplicateTree
+     *    Boolean to indicate whether or not to duplicate node.
+     *
+     * \return Boolean that indicates true if tranformation is performed based on a matched pattern.
+     */
+    bool simplifyUnresolvedRequireNonNull(bool needToDuplicateTree);
 
-   /**
-    * \brief
-    *    This function tries to match an `ifacmpeq/ifacmpne` of NULL node with a throw of an NPE exception 
-    *    for the unresolved case and replace with a NULLCHK node
-    *
-    * \parm needToDuplicateTree
-    *    Boolean to indicate whether or not to duplicate node.
-    *
-    * \return Boolean that indicates true if tranformation is performed based on a matched pattern.
-    */
-   bool simplifyUnresolvedRequireNonNull(bool needToDuplicateTree);
+    /**
+     * \brief
+     *    This function tries to match an `ifacmpeq/ifacmpne` of NULL node with a throw of an NPE exception
+     *    for the resolved case and replace with a NULLCHK node
+     *
+     * \parm needToDuplicateTree
+     *    Boolean to indicate whether or not to duplicate node.
+     *
+     * \return Boolean that indicates true if tranformation is performed based on a matched pattern.
+     */
+    bool simplifyResolvedRequireNonNull(bool needToDuplicateTree);
+};
 
-   /**
-    * \brief
-    *    This function tries to match an `ifacmpeq/ifacmpne` of NULL node with a throw of an NPE exception 
-    *    for the resolved case and replace with a NULLCHK node
-    *
-    * \parm needToDuplicateTree
-    *    Boolean to indicate whether or not to duplicate node.
-    *
-    * \return Boolean that indicates true if tranformation is performed based on a matched pattern.
-    */
-   bool simplifyResolvedRequireNonNull(bool needToDuplicateTree);
-
-   };
-
-}
+} // namespace J9
 
 #endif

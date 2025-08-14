@@ -22,10 +22,4 @@
 
 #include "codegen/Snippet.hpp"
 
-
-
-TR::X86GuardedDevirtualSnippet *
-J9::X86::Snippet::getGuardedDevirtualSnippet()
-   {
-   return NULL;
-   }
+TR::X86GuardedDevirtualSnippet *J9::X86::Snippet::getGuardedDevirtualSnippet() { return NULL; }

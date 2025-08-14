@@ -26,17 +26,15 @@
 #include "env/J9ArithEnv.hpp"
 #include "infra/Annotations.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE ArithEnv : public J9::ArithEnvConnector
-   {
+class OMR_EXTENSIBLE ArithEnv : public J9::ArithEnvConnector {
 public:
+    ArithEnv()
+        : J9::ArithEnvConnector()
+    {}
+};
 
-   ArithEnv() : J9::ArithEnvConnector() {}
-
-   };
-
-}
+} // namespace TR
 
 #endif

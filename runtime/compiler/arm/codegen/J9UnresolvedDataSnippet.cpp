@@ -30,111 +30,86 @@
 #include "il/StaticSymbol_inlines.hpp"
 #include "il/Symbol.hpp"
 
-TR_RuntimeHelper
-J9::ARM::UnresolvedDataSnippet::getHelper()
-   {
-   if (getDataSymbol()->getShadowSymbol() != NULL)           // instance data
-      {
-      if (resolveForStore())
-         return TR_ARMinterpreterUnresolvedInstanceDataStoreGlue;
-      else
-         return TR_ARMinterpreterUnresolvedInstanceDataGlue;
-      }
-   if (getDataSymbol()->isClassObject())                // class object
-      {
-      if (getDataSymbol()->addressIsCPIndexOfStatic())
-         return TR_ARMinterpreterUnresolvedClassGlue2;
-      return TR_ARMinterpreterUnresolvedClassGlue;
-      }
+TR_RuntimeHelper J9::ARM::UnresolvedDataSnippet::getHelper()
+{
+    if (getDataSymbol()->getShadowSymbol() != NULL) // instance data
+    {
+        if (resolveForStore())
+            return TR_ARMinterpreterUnresolvedInstanceDataStoreGlue;
+        else
+            return TR_ARMinterpreterUnresolvedInstanceDataGlue;
+    }
+    if (getDataSymbol()->isClassObject()) // class object
+    {
+        if (getDataSymbol()->addressIsCPIndexOfStatic())
+            return TR_ARMinterpreterUnresolvedClassGlue2;
+        return TR_ARMinterpreterUnresolvedClassGlue;
+    }
 
-   if (getDataSymbol()->isConstString())                // const string
-      return TR_ARMinterpreterUnresolvedStringGlue;
+    if (getDataSymbol()->isConstString()) // const string
+        return TR_ARMinterpreterUnresolvedStringGlue;
 
-   if (getDataSymbol()->isConstMethodType())
-      return TR_interpreterUnresolvedMethodTypeGlue;
+    if (getDataSymbol()->isConstMethodType())
+        return TR_interpreterUnresolvedMethodTypeGlue;
 
-   if (getDataSymbol()->isConstMethodHandle())
-      return TR_interpreterUnresolvedMethodHandleGlue;
+    if (getDataSymbol()->isConstMethodHandle())
+        return TR_interpreterUnresolvedMethodHandleGlue;
 
-   if (getDataSymbol()->isCallSiteTableEntry())
-      return TR_interpreterUnresolvedCallSiteTableEntryGlue;
+    if (getDataSymbol()->isCallSiteTableEntry())
+        return TR_interpreterUnresolvedCallSiteTableEntryGlue;
 
-   if (getDataSymbol()->isMethodTypeTableEntry())
-      return TR_interpreterUnresolvedMethodTypeTableEntryGlue;
+    if (getDataSymbol()->isMethodTypeTableEntry())
+        return TR_interpreterUnresolvedMethodTypeTableEntryGlue;
 
-   if (resolveForStore())
-         return TR_ARMinterpreterUnresolvedStaticDataStoreGlue;
-      else
-         return TR_ARMinterpreterUnresolvedStaticDataGlue;
+    if (resolveForStore())
+        return TR_ARMinterpreterUnresolvedStaticDataStoreGlue;
+    else
+        return TR_ARMinterpreterUnresolvedStaticDataGlue;
+}
 
-   }
+uint8_t *J9::ARM::UnresolvedDataSnippet::emitSnippetBody()
+{
+    uint8_t *cursor = cg()->getBinaryBufferCursor();
 
-uint8_t *
-J9::ARM::UnresolvedDataSnippet::emitSnippetBody()
-   {
-   uint8_t            *cursor = cg()->getBinaryBufferCursor();
+    getSnippetLabel()->setCodeLocation(cursor);
 
-   getSnippetLabel()->setCodeLocation(cursor);
+    *(int32_t *)cursor = encodeHelperBranchAndLink(cg()->symRefTab()->findOrCreateRuntimeHelper(getHelper()), cursor,
+        getNode(), cg()); // BL resolve
+    cursor += 4;
 
-   *(int32_t *)cursor = encodeHelperBranchAndLink(cg()->symRefTab()->findOrCreateRuntimeHelper(getHelper()), cursor, getNode(), cg());  // BL resolve
-   cursor += 4;
+    *(int32_t *)cursor = (intptr_t)getAddressOfDataReference(); // Code Cache RA
+    cg()->addExternalRelocation(TR::ExternalRelocation::create(cursor, NULL, TR_AbsoluteMethodAddress, cg()), __FILE__,
+        __LINE__, getNode());
+    cursor += 4;
 
-   *(int32_t *)cursor = (intptr_t)getAddressOfDataReference();   // Code Cache RA
-   cg()->addExternalRelocation(
-      TR::ExternalRelocation::create(
-         cursor,
-         NULL,
-         TR_AbsoluteMethodAddress,
-         cg()),
-      __FILE__,
-      __LINE__,
-      getNode());
-   cursor += 4;
+    if (getDataSymbol()->isCallSiteTableEntry()) {
+        *(int32_t *)cursor = getDataSymbol()->castToCallSiteTableEntrySymbol()->getCallSiteIndex();
+    } else if (getDataSymbol()->isMethodTypeTableEntry()) {
+        *(int32_t *)cursor = getDataSymbol()->castToMethodTypeTableEntrySymbol()->getMethodTypeIndex();
+    } else {
+        *(int32_t *)cursor = getDataSymbolReference()->getCPIndex(); // CP index
+    }
+    cursor += 4;
 
-   if (getDataSymbol()->isCallSiteTableEntry())
-      {
-      *(int32_t *)cursor = getDataSymbol()->castToCallSiteTableEntrySymbol()->getCallSiteIndex();
-      }
-   else if (getDataSymbol()->isMethodTypeTableEntry())
-      {
-      *(int32_t *)cursor = getDataSymbol()->castToMethodTypeTableEntrySymbol()->getMethodTypeIndex();
-      }
-   else
-      {
-      *(int32_t *)cursor = getDataSymbolReference()->getCPIndex();  // CP index
-      }
-   cursor += 4;
+    *(int32_t *)cursor = (intptr_t)getDataSymbolReference()->getOwningMethod(cg()->comp())->constantPool(); // CP
+    cg()->addExternalRelocation(TR::ExternalRelocation::create(cursor, *(uint8_t **)cursor,
+                                    getNode() ? (uint8_t *)getNode()->getInlinedSiteIndex() : (uint8_t *)-1,
+                                    TR_ConstantPool, cg()),
+        __FILE__, __LINE__, getNode());
+    cursor += 4;
 
-   *(int32_t *)cursor = (intptr_t)getDataSymbolReference()->getOwningMethod(cg()->comp())->constantPool();  // CP
-   cg()->addExternalRelocation(
-      TR::ExternalRelocation::create(
-         cursor,
-         *(uint8_t **)cursor,
-         getNode() ? (uint8_t *)getNode()->getInlinedSiteIndex() : (uint8_t *)-1,
-         TR_ConstantPool,
-         cg()),
-      __FILE__,
-      __LINE__,
-      getNode());
-   cursor += 4;
+    *(int32_t *)cursor = getMemoryReference()->getOffset(); // offset
+    if (getDataSymbol()->isConstObjectRef()) {
+        // reset the offset to NULL
+        // the resolve + picbuilder will fully provide the addr to use
+        *(int32_t *)cursor = 0;
+    }
+    cursor += 4;
 
-   *(int32_t *)cursor = getMemoryReference()->getOffset(); // offset
-   if (getDataSymbol()->isConstObjectRef())
-      {
-      // reset the offset to NULL
-      // the resolve + picbuilder will fully provide the addr to use
-      *(int32_t *)cursor = 0;
-      }
-   cursor += 4;
+    *(int32_t *)cursor = 0xE3A00000; // Template (mov immed)
+    toRealRegister(getMemoryReference()->getModBase())->setRegisterFieldRD((uint32_t *)cursor);
+    return cursor + 4;
+}
 
-   *(int32_t *)cursor = 0xE3A00000;                        // Template (mov immed)
-   toRealRegister(getMemoryReference()->getModBase())->setRegisterFieldRD((uint32_t *)cursor);
-   return cursor+4;
-   }
-
-uint32_t
-J9::ARM::UnresolvedDataSnippet::getLength(int32_t estimatedSnippetStart)
-   {
-   return 6 * 4;
-   }
+uint32_t J9::ARM::UnresolvedDataSnippet::getLength(int32_t estimatedSnippetStart) { return 6 * 4; }
 

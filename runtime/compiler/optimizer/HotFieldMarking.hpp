@@ -23,41 +23,43 @@
 #ifndef HOTFIELDMARKING_INCL
 #define HOTFIELDMARKING_INCL
 
-#include <stdint.h>                           // for int32_t
-#include "optimizer/Optimization.hpp"         // for Optimization
-#include "optimizer/OptimizationManager.hpp"  // for OptimizationManager
+#include <stdint.h> // for int32_t
+#include "optimizer/Optimization.hpp" // for Optimization
+#include "optimizer/OptimizationManager.hpp" // for OptimizationManager
 
 namespace TR {
-class Block; class Node;
-}
+class Block;
+class Node;
+} // namespace TR
 
-class TR_HotFieldMarking : public TR::Optimization
-   {
-   public:
-   TR_HotFieldMarking(TR::OptimizationManager *manager)
-      : TR::Optimization(manager)
-      {}
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_HotFieldMarking(manager);
-      }
+class TR_HotFieldMarking : public TR::Optimization {
+public:
+    TR_HotFieldMarking(TR::OptimizationManager *manager)
+        : TR::Optimization(manager)
+    {}
 
-   /**
-    * @brief Perform the hot field marking pass
-    * @return 1 on success, 0 on failure or if hot field marking is disabled
-    */
-   virtual int32_t perform();
-   
-   /**
-    * @brief Returns optimization string details
-    */
-   virtual const char * optDetailString() const throw();
-   
-   /**
-    * @brief Return the hot field marking pass scaling factor based on the opt level of the current compilation
-    * @return Scaling factors can be overriden by environment variables; default scaling factors of 1 for opt level warm and below, 10 for opt level hot or very hot, and 100 for opt level scorching
-    */
-   int32_t getUtilization();
-   };
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_HotFieldMarking(manager);
+    }
+
+    /**
+     * @brief Perform the hot field marking pass
+     * @return 1 on success, 0 on failure or if hot field marking is disabled
+     */
+    virtual int32_t perform();
+
+    /**
+     * @brief Returns optimization string details
+     */
+    virtual const char *optDetailString() const throw();
+
+    /**
+     * @brief Return the hot field marking pass scaling factor based on the opt level of the current compilation
+     * @return Scaling factors can be overriden by environment variables; default scaling factors of 1 for opt level
+     * warm and below, 10 for opt level hot or very hot, and 100 for opt level scorching
+     */
+    int32_t getUtilization();
+};
 
 #endif

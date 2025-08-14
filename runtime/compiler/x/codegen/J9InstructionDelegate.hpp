@@ -27,10 +27,14 @@
  */
 #ifndef J9_INSTRUCTIONDELEGATE_CONNECTOR
 #define J9_INSTRUCTIONDELEGATE_CONNECTOR
+
 namespace J9 {
-namespace X86 { class InstructionDelegate; }
-typedef J9::X86::InstructionDelegate InstructionDelegateConnector;
+namespace X86 {
+class InstructionDelegate;
 }
+
+typedef J9::X86::InstructionDelegate InstructionDelegateConnector;
+} // namespace J9
 #else
 #error J9::X86::InstructionDelegate expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -38,22 +42,13 @@ typedef J9::X86::InstructionDelegate InstructionDelegateConnector;
 #include "compiler/codegen/J9InstructionDelegate.hpp"
 #include "infra/Annotations.hpp"
 
-namespace J9
-{
+namespace J9 { namespace X86 {
 
-namespace X86
-{
-
-class OMR_EXTENSIBLE InstructionDelegate : public J9::InstructionDelegate
-   {
+class OMR_EXTENSIBLE InstructionDelegate : public J9::InstructionDelegate {
 protected:
+    InstructionDelegate() {}
+};
 
-   InstructionDelegate() {}
-
-   };
-
-}
-
-}
+}} // namespace J9::X86
 
 #endif

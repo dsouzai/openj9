@@ -24,18 +24,16 @@
 #include "codegen/CodeGenerator.hpp"
 #include "il/Block.hpp"
 
-uint8_t *
-J9::Snippet::emitSnippet()
-   {
-   uint32_t startOffset = self()->cg()->getBinaryBufferCursor() - self()->cg()->getCodeStart();
-   uint8_t *endPC = self()->emitSnippetBody();
+uint8_t *J9::Snippet::emitSnippet()
+{
+    uint32_t startOffset = self()->cg()->getBinaryBufferCursor() - self()->cg()->getCodeStart();
+    uint8_t *endPC = self()->emitSnippetBody();
 
-   if (self()->needsExceptionTableEntry() && _block && !_block->getExceptionSuccessors().empty())
-      {
-      uint32_t endOffset = endPC - self()->cg()->getCodeStart();
-      _block->addExceptionRangeForSnippet(startOffset, endOffset);
-      }
+    if (self()->needsExceptionTableEntry() && _block && !_block->getExceptionSuccessors().empty()) {
+        uint32_t endOffset = endPC - self()->cg()->getCodeStart();
+        _block->addExceptionRangeForSnippet(startOffset, endOffset);
+    }
 
-   return endPC;
-   }
+    return endPC;
+}
 

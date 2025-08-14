@@ -34,44 +34,40 @@ namespace TR {
 class CodeGenerator;
 class LabelSymbol;
 class Node;
-}
+} // namespace TR
 
 namespace TR {
 
-class ARMHelperCallSnippet : public TR::Snippet
-   {
-   TR::SymbolReference      *_destination;
-   TR::LabelSymbol          *_restartLabel;
+class ARMHelperCallSnippet : public TR::Snippet {
+    TR::SymbolReference *_destination;
+    TR::LabelSymbol *_restartLabel;
 
-   public:
+public:
+    ARMHelperCallSnippet(TR::CodeGenerator *cg, TR::Node *node, TR::LabelSymbol *snippetlab,
+        TR::SymbolReference *helper, TR::LabelSymbol *restartLabel = NULL)
+        : TR::Snippet(cg, node, snippetlab, (restartLabel != NULL && helper->canCauseGC()))
+        , _destination(helper)
+        , _restartLabel(restartLabel)
+    {}
 
-   ARMHelperCallSnippet(TR::CodeGenerator    *cg,
-                           TR::Node             *node,
-                           TR::LabelSymbol      *snippetlab,
-                           TR::SymbolReference  *helper,
-                           TR::LabelSymbol      *restartLabel=NULL)
-      : TR::Snippet(cg, node, snippetlab, (restartLabel!=NULL && helper->canCauseGC())),
-        _destination(helper),
-        _restartLabel(restartLabel)
-      {
-      }
+    virtual Kind getKind() { return IsHelperCall; }
 
-   virtual Kind getKind() { return IsHelperCall; }
+    TR::SymbolReference *getDestination() { return _destination; }
 
-   TR::SymbolReference *getDestination()             {return _destination;}
-   TR::SymbolReference *setDestination(TR::SymbolReference *s) {return (_destination = s);}
+    TR::SymbolReference *setDestination(TR::SymbolReference *s) { return (_destination = s); }
 
-   TR::LabelSymbol      *getRestartLabel() {return _restartLabel;}
-   TR::LabelSymbol      *setRestartLabel(TR::LabelSymbol *l) {return (_restartLabel=l);}
+    TR::LabelSymbol *getRestartLabel() { return _restartLabel; }
 
-   uint8_t *genHelperCall(uint8_t *cursor);
-   uint32_t getHelperCallLength();
+    TR::LabelSymbol *setRestartLabel(TR::LabelSymbol *l) { return (_restartLabel = l); }
 
-   virtual uint8_t *emitSnippetBody();
+    uint8_t *genHelperCall(uint8_t *cursor);
+    uint32_t getHelperCallLength();
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-   };
+    virtual uint8_t *emitSnippetBody();
 
-}
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
+};
+
+} // namespace TR
 
 #endif

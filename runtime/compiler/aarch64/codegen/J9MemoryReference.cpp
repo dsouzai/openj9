@@ -27,328 +27,269 @@
 #include "codegen/Relocation.hpp"
 #include "codegen/UnresolvedDataSnippet.hpp"
 
-J9::ARM64::MemoryReference::MemoryReference(
-      TR::Node *node,
-      TR::CodeGenerator *cg)
-   : OMR::MemoryReferenceConnector(node, cg), _j9Flags(0)
-   {
-   self()->setupCausesImplicitNullPointerException(cg);
-   if (self()->getUnresolvedSnippet())
-      self()->adjustForResolution(cg);
-   }
+J9::ARM64::MemoryReference::MemoryReference(TR::Node *node, TR::CodeGenerator *cg)
+    : OMR::MemoryReferenceConnector(node, cg)
+    , _j9Flags(0)
+{
+    self()->setupCausesImplicitNullPointerException(cg);
+    if (self()->getUnresolvedSnippet())
+        self()->adjustForResolution(cg);
+}
 
-J9::ARM64::MemoryReference::MemoryReference(
-      TR::Node *node,
-      TR::SymbolReference *symRef,
-      TR::CodeGenerator *cg)
-   : OMR::MemoryReferenceConnector(node, symRef, cg), _j9Flags(0)
-   {
-   self()->setupCausesImplicitNullPointerException(cg);
-   if (self()->getUnresolvedSnippet())
-      self()->adjustForResolution(cg);
-   }
+J9::ARM64::MemoryReference::MemoryReference(TR::Node *node, TR::SymbolReference *symRef, TR::CodeGenerator *cg)
+    : OMR::MemoryReferenceConnector(node, symRef, cg)
+    , _j9Flags(0)
+{
+    self()->setupCausesImplicitNullPointerException(cg);
+    if (self()->getUnresolvedSnippet())
+        self()->adjustForResolution(cg);
+}
 
 void J9::ARM64::MemoryReference::setupCausesImplicitNullPointerException(TR::CodeGenerator *cg)
-   {
-   auto topNode = cg->getCurrentEvaluationTreeTop()->getNode();
-   if (cg->getHasResumableTrapHandler() &&
-      (topNode->getOpCode().isNullCheck() || topNode->chkFoldedImplicitNULLCHK()))
-      {
-      self()->setCausesImplicitNullPointerException();
-      }
-   }
+{
+    auto topNode = cg->getCurrentEvaluationTreeTop()->getNode();
+    if (cg->getHasResumableTrapHandler()
+        && (topNode->getOpCode().isNullCheck() || topNode->chkFoldedImplicitNULLCHK())) {
+        self()->setCausesImplicitNullPointerException();
+    }
+}
 
-void
-J9::ARM64::MemoryReference::adjustForResolution(TR::CodeGenerator *cg)
-   {
-   self()->setExtraRegister(cg->allocateRegister());
-   }
+void J9::ARM64::MemoryReference::adjustForResolution(TR::CodeGenerator *cg)
+{
+    self()->setExtraRegister(cg->allocateRegister());
+}
 
-void
-J9::ARM64::MemoryReference::assignRegisters(TR::Instruction *currentInstruction, TR::CodeGenerator *cg)
-   {
-   TR::Machine *machine = cg->machine();
-   TR::Register *baseRegister = self()->getBaseRegister();
-   TR::Register *indexRegister = self()->getIndexRegister();
-   TR::Register *extraRegister = self()->getExtraRegister();
-   TR::RealRegister *assignedBaseRegister;
-   TR::RealRegister *assignedIndexRegister;
-   TR::RealRegister *assignedExtraRegister;
+void J9::ARM64::MemoryReference::assignRegisters(TR::Instruction *currentInstruction, TR::CodeGenerator *cg)
+{
+    TR::Machine *machine = cg->machine();
+    TR::Register *baseRegister = self()->getBaseRegister();
+    TR::Register *indexRegister = self()->getIndexRegister();
+    TR::Register *extraRegister = self()->getExtraRegister();
+    TR::RealRegister *assignedBaseRegister;
+    TR::RealRegister *assignedIndexRegister;
+    TR::RealRegister *assignedExtraRegister;
 
-   if (baseRegister != NULL)
-      {
-      assignedBaseRegister = baseRegister->getAssignedRealRegister();
-      if (indexRegister != NULL)
-         {
-         indexRegister->block();
-         }
-      if (extraRegister != NULL)
-         {
-         extraRegister->block();
-         }
+    if (baseRegister != NULL) {
+        assignedBaseRegister = baseRegister->getAssignedRealRegister();
+        if (indexRegister != NULL) {
+            indexRegister->block();
+        }
+        if (extraRegister != NULL) {
+            extraRegister->block();
+        }
 
-      if (assignedBaseRegister == NULL)
-         {
-         if (baseRegister->getTotalUseCount() == baseRegister->getFutureUseCount())
-            {
-            if ((assignedBaseRegister = machine->findBestFreeRegister(currentInstruction, TR_GPR, true, baseRegister)) == NULL)
-               {
-               assignedBaseRegister = machine->freeBestRegister(currentInstruction, baseRegister);
-               }
+        if (assignedBaseRegister == NULL) {
+            if (baseRegister->getTotalUseCount() == baseRegister->getFutureUseCount()) {
+                if ((assignedBaseRegister
+                        = machine->findBestFreeRegister(currentInstruction, TR_GPR, true, baseRegister))
+                    == NULL) {
+                    assignedBaseRegister = machine->freeBestRegister(currentInstruction, baseRegister);
+                }
+            } else {
+                assignedBaseRegister = machine->reverseSpillState(currentInstruction, baseRegister);
             }
-         else
-            {
-            assignedBaseRegister = machine->reverseSpillState(currentInstruction, baseRegister);
+            baseRegister->setAssignedRegister(assignedBaseRegister);
+            assignedBaseRegister->setAssignedRegister(baseRegister);
+            assignedBaseRegister->setState(TR::RealRegister::Assigned);
+        }
+
+        if (indexRegister != NULL) {
+            indexRegister->unblock();
+        }
+        if (extraRegister != NULL) {
+            extraRegister->unblock();
+        }
+    }
+
+    if (indexRegister != NULL) {
+        if (baseRegister != NULL) {
+            baseRegister->block();
+        }
+        if (extraRegister != NULL) {
+            extraRegister->block();
+        }
+
+        assignedIndexRegister = indexRegister->getAssignedRealRegister();
+        if (assignedIndexRegister == NULL) {
+            if (indexRegister->getTotalUseCount() == indexRegister->getFutureUseCount()) {
+                if ((assignedIndexRegister
+                        = machine->findBestFreeRegister(currentInstruction, TR_GPR, false, indexRegister))
+                    == NULL) {
+                    assignedIndexRegister = machine->freeBestRegister(currentInstruction, indexRegister);
+                }
+            } else {
+                assignedIndexRegister = machine->reverseSpillState(currentInstruction, indexRegister);
             }
-         baseRegister->setAssignedRegister(assignedBaseRegister);
-         assignedBaseRegister->setAssignedRegister(baseRegister);
-         assignedBaseRegister->setState(TR::RealRegister::Assigned);
-         }
+            indexRegister->setAssignedRegister(assignedIndexRegister);
+            assignedIndexRegister->setAssignedRegister(indexRegister);
+            assignedIndexRegister->setState(TR::RealRegister::Assigned);
+        }
 
-      if (indexRegister != NULL)
-         {
-         indexRegister->unblock();
-         }
-      if (extraRegister != NULL)
-         {
-         extraRegister->unblock();
-         }
-      }
+        if (baseRegister != NULL) {
+            baseRegister->unblock();
+        }
+        if (extraRegister != NULL) {
+            extraRegister->unblock();
+        }
+    }
 
-   if (indexRegister != NULL)
-      {
-      if (baseRegister != NULL)
-         {
-         baseRegister->block();
-         }
-      if (extraRegister != NULL)
-         {
-         extraRegister->block();
-         }
+    if (extraRegister != NULL) {
+        if (baseRegister != NULL) {
+            baseRegister->block();
+        }
+        if (indexRegister != NULL) {
+            indexRegister->block();
+        }
 
-      assignedIndexRegister = indexRegister->getAssignedRealRegister();
-      if (assignedIndexRegister == NULL)
-         {
-         if (indexRegister->getTotalUseCount() == indexRegister->getFutureUseCount())
-            {
-            if ((assignedIndexRegister = machine->findBestFreeRegister(currentInstruction, TR_GPR, false, indexRegister)) == NULL)
-               {
-               assignedIndexRegister = machine->freeBestRegister(currentInstruction, indexRegister);
-               }
+        assignedExtraRegister = extraRegister->getAssignedRealRegister();
+        if (assignedExtraRegister == NULL) {
+            if (extraRegister->getTotalUseCount() == extraRegister->getFutureUseCount()) {
+                if ((assignedExtraRegister
+                        = machine->findBestFreeRegister(currentInstruction, TR_GPR, false, extraRegister))
+                    == NULL) {
+                    assignedExtraRegister = machine->freeBestRegister(currentInstruction, extraRegister);
+                }
+            } else {
+                assignedExtraRegister = machine->reverseSpillState(currentInstruction, extraRegister);
             }
-         else
-            {
-            assignedIndexRegister = machine->reverseSpillState(currentInstruction, indexRegister);
+            extraRegister->setAssignedRegister(assignedExtraRegister);
+            assignedExtraRegister->setAssignedRegister(extraRegister);
+            assignedExtraRegister->setState(TR::RealRegister::Assigned);
+        }
+
+        if (baseRegister != NULL) {
+            baseRegister->unblock();
+        }
+        if (indexRegister != NULL) {
+            indexRegister->unblock();
+        }
+    }
+
+    if (baseRegister != NULL) {
+        machine->decFutureUseCountAndUnlatch(currentInstruction, baseRegister);
+        self()->setBaseRegister(assignedBaseRegister);
+    }
+
+    if (indexRegister != NULL) {
+        machine->decFutureUseCountAndUnlatch(currentInstruction, indexRegister);
+        self()->setIndexRegister(assignedIndexRegister);
+    }
+
+    if (extraRegister != NULL) {
+        machine->decFutureUseCountAndUnlatch(currentInstruction, extraRegister);
+        TR_ASSERT(extraRegister->getFutureUseCount() == 0, "Unexpected future use count for extraReg");
+        self()->setExtraRegister(assignedExtraRegister);
+    }
+
+    if (self()->getUnresolvedSnippet() != NULL) {
+        currentInstruction->ARM64NeedsGCMap(cg, 0xFFFFFFFF);
+    }
+}
+
+uint8_t *J9::ARM64::MemoryReference::generateBinaryEncoding(TR::Instruction *currentInstruction, uint8_t *cursor,
+    TR::CodeGenerator *cg)
+{
+    TR::UnresolvedDataSnippet *snippet = self()->getUnresolvedSnippet();
+
+    if (snippet) {
+        if (self()->getIndexRegister()) {
+            TR_ASSERT(false, "Unresolved indexed snippet is not supported");
+            return NULL;
+        } else {
+            uint32_t *wcursor = (uint32_t *)cursor;
+            uint32_t preserve = *wcursor; // original instruction
+            snippet->setAddressOfDataReference(cursor);
+            snippet->setMemoryReference(self());
+            cg->addRelocation(
+                new (cg->trHeapMemory()) TR::LabelRelative32BitRelocation(cursor, snippet->getSnippetLabel()));
+            *wcursor = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::b); // b snippetLabel
+            wcursor++;
+            cursor += ARM64_INSTRUCTION_LENGTH;
+
+            TR_ASSERT(self()->getExtraRegister(), "extraReg must have been allocated");
+            TR::RealRegister *extraReg = toRealRegister(self()->getExtraRegister());
+
+            // insert instructions for computing the address of the resolved field;
+            // the actual immediate operands are patched in by L_mergedDataResolve
+            // in PicBuilder.spp
+
+            // movk extraReg, #0, LSL #16
+            *wcursor = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::movkx) | (TR::MOV_LSL16 << 5);
+            extraReg->setRegisterFieldRD(wcursor);
+            wcursor++;
+            cursor += ARM64_INSTRUCTION_LENGTH;
+
+            // movk extraReg, #0, LSL #32
+            *wcursor = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::movkx) | (TR::MOV_LSL32 << 5);
+            extraReg->setRegisterFieldRD(wcursor);
+            wcursor++;
+            cursor += ARM64_INSTRUCTION_LENGTH;
+
+            // movk extraReg, #0, LSL #48
+            *wcursor = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::movkx) | (TR::MOV_LSL48 << 5);
+            extraReg->setRegisterFieldRD(wcursor);
+            wcursor++;
+            cursor += ARM64_INSTRUCTION_LENGTH;
+
+            // finally, encode the original instruction
+            *wcursor = preserve;
+            TR::RealRegister *base = self()->getBaseRegister() ? toRealRegister(self()->getBaseRegister()) : NULL;
+            TR::InstOpCode::Mnemonic op = currentInstruction->getOpCodeValue();
+            if (op != TR::InstOpCode::addx) {
+                // load/store instruction
+                if (op == TR::InstOpCode::ldrimmx || op == TR::InstOpCode::strimmx || op == TR::InstOpCode::ldrimmw
+                    || op == TR::InstOpCode::strimmw || op == TR::InstOpCode::ldrhimm || op == TR::InstOpCode::strhimm
+                    || op == TR::InstOpCode::ldrshimmx || op == TR::InstOpCode::ldrshimmw
+                    || op == TR::InstOpCode::ldrbimm || op == TR::InstOpCode::strbimm || op == TR::InstOpCode::ldrsbimmx
+                    || op == TR::InstOpCode::ldrsbimmw || op == TR::InstOpCode::vldrimmd
+                    || op == TR::InstOpCode::vstrimmd || op == TR::InstOpCode::vldrimms
+                    || op == TR::InstOpCode::vstrimms) {
+                    if (base) {
+                        // if the load or store had a base, add it in as an index.
+                        base->setRegisterFieldRN(wcursor);
+                        extraReg->setRegisterFieldRM(wcursor);
+                        // Rewrite the instruction from "ldr Rt, [Rn, #imm]" to "ldr Rt, [Rn, Rm]"
+                        cursor[1] |= 0x68; // Set bits 11, 13, 14
+                        cursor[2] |= 0x20; // Set bit 21
+                        cursor[3] &= 0xFE; // Clear bit 24
+                    } else {
+                        // ldr Rt, [Rn]
+                        extraReg->setRegisterFieldRN(wcursor);
+                    }
+                } else {
+                    TR_ASSERT_FATAL(false, "Unsupported load/store instruction for unresolved data snippet");
+                }
+            } else {
+                // loadaddrEvaluator() uses addx in generateTrgMemInstruction
+                if (base) {
+                    // addx Rt, Rn, Rm
+                    base->setRegisterFieldRN(wcursor);
+                    extraReg->setRegisterFieldRM(wcursor);
+                } else {
+                    extraReg->setRegisterFieldRN(wcursor);
+                    // Rewrite the instruction from "addx Rd, Rn, Rm" to "addimmx Rd, Rn, #0"
+                    cursor[3] = (uint8_t)0x91;
+                }
             }
-         indexRegister->setAssignedRegister(assignedIndexRegister);
-         assignedIndexRegister->setAssignedRegister(indexRegister);
-         assignedIndexRegister->setState(TR::RealRegister::Assigned);
-         }
+            cursor += ARM64_INSTRUCTION_LENGTH;
 
-      if (baseRegister != NULL)
-         {
-         baseRegister->unblock();
-         }
-      if (extraRegister != NULL)
-         {
-         extraRegister->unblock();
-         }
-      }
+            return cursor;
+        }
+    } else {
+        return OMR::MemoryReferenceConnector::generateBinaryEncoding(currentInstruction, cursor, cg);
+    }
+}
 
-   if (extraRegister != NULL)
-      {
-      if (baseRegister != NULL)
-         {
-         baseRegister->block();
-         }
-      if (indexRegister != NULL)
-         {
-         indexRegister->block();
-         }
-
-      assignedExtraRegister = extraRegister->getAssignedRealRegister();
-      if (assignedExtraRegister == NULL)
-         {
-         if (extraRegister->getTotalUseCount() == extraRegister->getFutureUseCount())
-            {
-            if ((assignedExtraRegister = machine->findBestFreeRegister(currentInstruction, TR_GPR, false, extraRegister)) == NULL)
-               {
-               assignedExtraRegister = machine->freeBestRegister(currentInstruction, extraRegister);
-               }
-            }
-         else
-            {
-            assignedExtraRegister = machine->reverseSpillState(currentInstruction, extraRegister);
-            }
-         extraRegister->setAssignedRegister(assignedExtraRegister);
-         assignedExtraRegister->setAssignedRegister(extraRegister);
-         assignedExtraRegister->setState(TR::RealRegister::Assigned);
-         }
-
-      if (baseRegister != NULL)
-         {
-         baseRegister->unblock();
-         }
-      if (indexRegister != NULL)
-         {
-         indexRegister->unblock();
-         }
-      }
-
-   if (baseRegister != NULL)
-      {
-      machine->decFutureUseCountAndUnlatch(currentInstruction, baseRegister);
-      self()->setBaseRegister(assignedBaseRegister);
-      }
-
-   if (indexRegister != NULL)
-      {
-      machine->decFutureUseCountAndUnlatch(currentInstruction, indexRegister);
-      self()->setIndexRegister(assignedIndexRegister);
-      }
-
-   if (extraRegister != NULL)
-      {
-      machine->decFutureUseCountAndUnlatch(currentInstruction, extraRegister);
-      TR_ASSERT(extraRegister->getFutureUseCount() == 0, "Unexpected future use count for extraReg");
-      self()->setExtraRegister(assignedExtraRegister);
-      }
-
-   if (self()->getUnresolvedSnippet() != NULL)
-      {
-      currentInstruction->ARM64NeedsGCMap(cg, 0xFFFFFFFF);
-      }
-   }
-
-uint8_t *
-J9::ARM64::MemoryReference::generateBinaryEncoding(TR::Instruction *currentInstruction, uint8_t *cursor, TR::CodeGenerator *cg)
-   {
-   TR::UnresolvedDataSnippet *snippet = self()->getUnresolvedSnippet();
-
-   if (snippet)
-      {
-      if (self()->getIndexRegister())
-         {
-         TR_ASSERT(false, "Unresolved indexed snippet is not supported");
-         return NULL;
-         }
-      else
-         {
-         uint32_t *wcursor = (uint32_t *)cursor;
-         uint32_t preserve = *wcursor; // original instruction
-         snippet->setAddressOfDataReference(cursor);
-         snippet->setMemoryReference(self());
-         cg->addRelocation(new (cg->trHeapMemory()) TR::LabelRelative32BitRelocation(cursor, snippet->getSnippetLabel()));
-         *wcursor = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::b); // b snippetLabel
-         wcursor++;
-         cursor += ARM64_INSTRUCTION_LENGTH;
-
-         TR_ASSERT(self()->getExtraRegister(), "extraReg must have been allocated");
-         TR::RealRegister *extraReg = toRealRegister(self()->getExtraRegister());
-
-         // insert instructions for computing the address of the resolved field;
-         // the actual immediate operands are patched in by L_mergedDataResolve
-         // in PicBuilder.spp
-
-         // movk extraReg, #0, LSL #16
-         *wcursor = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::movkx) | (TR::MOV_LSL16 << 5);
-         extraReg->setRegisterFieldRD(wcursor);
-         wcursor++;
-         cursor += ARM64_INSTRUCTION_LENGTH;
-
-         // movk extraReg, #0, LSL #32
-         *wcursor = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::movkx) | (TR::MOV_LSL32 << 5);
-         extraReg->setRegisterFieldRD(wcursor);
-         wcursor++;
-         cursor += ARM64_INSTRUCTION_LENGTH;
-
-         // movk extraReg, #0, LSL #48
-         *wcursor = TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::movkx) | (TR::MOV_LSL48 << 5);
-         extraReg->setRegisterFieldRD(wcursor);
-         wcursor++;
-         cursor += ARM64_INSTRUCTION_LENGTH;
-
-         // finally, encode the original instruction
-         *wcursor = preserve;
-         TR::RealRegister *base = self()->getBaseRegister() ? toRealRegister(self()->getBaseRegister()) : NULL;
-         TR::InstOpCode::Mnemonic op = currentInstruction->getOpCodeValue();
-         if (op != TR::InstOpCode::addx)
-            {
-            // load/store instruction
-            if (op == TR::InstOpCode::ldrimmx || op == TR::InstOpCode::strimmx
-                || op == TR::InstOpCode::ldrimmw || op == TR::InstOpCode::strimmw
-                || op == TR::InstOpCode::ldrhimm || op == TR::InstOpCode::strhimm
-                || op == TR::InstOpCode::ldrshimmx || op == TR::InstOpCode::ldrshimmw
-                || op == TR::InstOpCode::ldrbimm || op == TR::InstOpCode::strbimm
-                || op == TR::InstOpCode::ldrsbimmx || op == TR::InstOpCode::ldrsbimmw
-                || op == TR::InstOpCode::vldrimmd || op == TR::InstOpCode::vstrimmd
-                || op == TR::InstOpCode::vldrimms || op == TR::InstOpCode::vstrimms)
-               {
-               if (base)
-                  {
-                  // if the load or store had a base, add it in as an index.
-                  base->setRegisterFieldRN(wcursor);
-                  extraReg->setRegisterFieldRM(wcursor);
-                  // Rewrite the instruction from "ldr Rt, [Rn, #imm]" to "ldr Rt, [Rn, Rm]"
-                  cursor[1] |= 0x68; // Set bits 11, 13, 14
-                  cursor[2] |= 0x20; // Set bit 21
-                  cursor[3] &= 0xFE; // Clear bit 24
-                  }
-               else
-                  {
-                  // ldr Rt, [Rn]
-                  extraReg->setRegisterFieldRN(wcursor);
-                  }
-               }
-            else
-               {
-               TR_ASSERT_FATAL(false, "Unsupported load/store instruction for unresolved data snippet");
-               }
-            }
-         else
-            {
-            // loadaddrEvaluator() uses addx in generateTrgMemInstruction
-            if (base)
-               {
-               // addx Rt, Rn, Rm
-               base->setRegisterFieldRN(wcursor);
-               extraReg->setRegisterFieldRM(wcursor);
-               }
-            else
-               {
-               extraReg->setRegisterFieldRN(wcursor);
-               // Rewrite the instruction from "addx Rd, Rn, Rm" to "addimmx Rd, Rn, #0"
-               cursor[3] = (uint8_t)0x91;
-               }
-            }
-         cursor += ARM64_INSTRUCTION_LENGTH;
-
-         return cursor;
-         }
-      }
-   else
-      {
-      return OMR::MemoryReferenceConnector::generateBinaryEncoding(currentInstruction, cursor, cg);
-      }
-   }
-
-uint32_t
-J9::ARM64::MemoryReference::estimateBinaryLength(TR::InstOpCode op)
-   {
-   if (self()->getUnresolvedSnippet())
-      {
-      if (self()->getIndexRegister())
-         {
-         TR_ASSERT(false, "Unresolved indexed snippet is not supported");
-         return 0;
-         }
-      else
-         {
-         return 5 * ARM64_INSTRUCTION_LENGTH;
-         }
-      }
-   else
-      {
-      return OMR::MemoryReferenceConnector::estimateBinaryLength(op);
-      }
-   }
+uint32_t J9::ARM64::MemoryReference::estimateBinaryLength(TR::InstOpCode op)
+{
+    if (self()->getUnresolvedSnippet()) {
+        if (self()->getIndexRegister()) {
+            TR_ASSERT(false, "Unresolved indexed snippet is not supported");
+            return 0;
+        } else {
+            return 5 * ARM64_INSTRUCTION_LENGTH;
+        }
+    } else {
+        return OMR::MemoryReferenceConnector::estimateBinaryLength(op);
+    }
+}

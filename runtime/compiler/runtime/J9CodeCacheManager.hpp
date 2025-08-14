@@ -25,16 +25,17 @@
 
 #ifndef J9_CODECACHEMANAGER_COMPOSED
 #define J9_CODECACHEMANAGER_COMPOSED
+
 namespace J9 {
 class CodeCacheManager;
 typedef CodeCacheManager CodeCacheManagerConnector;
-}
+} // namespace J9
 #endif
 
 #include "control/Options.hpp"
 #include "env/jittypes.h"
-//#include "runtime/CodeCacheMemorySegment.hpp"
-//#include "runtime/CodeCache.hpp"
+// #include "runtime/CodeCacheMemorySegment.hpp"
+// #include "runtime/CodeCache.hpp"
 #include "runtime/OMRCodeCacheManager.hpp"
 #include "env/IO.hpp"
 #include "env/VMJ9.h"
@@ -46,129 +47,131 @@ struct J9ClassLoader;
 namespace TR {
 class CodeCacheMemorySegment;
 class CodeCache;
-}
+} // namespace TR
 
 namespace J9 {
 
-class OMR_EXTENSIBLE CodeCacheManager : public OMR::CodeCacheManagerConnector
-   {
-   TR::CodeCacheManager *self();
+class OMR_EXTENSIBLE CodeCacheManager : public OMR::CodeCacheManagerConnector {
+    TR::CodeCacheManager *self();
 
 public:
-   CodeCacheManager(TR_FrontEnd *fe, TR::RawAllocator rawAllocator) :
-      OMR::CodeCacheManagerConnector(rawAllocator),
-      _fe(fe)
-      {
-      _codeCacheManager = reinterpret_cast<TR::CodeCacheManager *>(this);
-      _disclaimEnabled = TR::Options::getCmdLineOptions()->getOption(TR_EnableCodeCacheDisclaiming);
-      }
+    CodeCacheManager(TR_FrontEnd *fe, TR::RawAllocator rawAllocator)
+        : OMR::CodeCacheManagerConnector(rawAllocator)
+        , _fe(fe)
+    {
+        _codeCacheManager = reinterpret_cast<TR::CodeCacheManager *>(this);
+        _disclaimEnabled = TR::Options::getCmdLineOptions()->getOption(TR_EnableCodeCacheDisclaiming);
+    }
 
-   void *operator new(size_t s, TR::CodeCacheManager *m) { return m; }
-   void operator delete (void *, TR::CodeCacheManager *m) {}
+    void *operator new(size_t s, TR::CodeCacheManager *m) { return m; }
 
-   static TR::CodeCacheManager *instance() { return _codeCacheManager; }
-   static J9JITConfig *jitConfig()         { return _jitConfig; }
-   static J9JavaVM *javaVM()               { return _javaVM; }
+    void operator delete(void *, TR::CodeCacheManager *m) {}
 
-   TR_FrontEnd *fe();
-   TR_J9VMBase *fej9();
+    static TR::CodeCacheManager *instance() { return _codeCacheManager; }
 
-   TR::CodeCache *initialize(bool useConsolidatedCache, uint32_t numberOfCodeCachesToCreateAtStartup);
+    static J9JITConfig *jitConfig() { return _jitConfig; }
 
-   bool isSufficientPhysicalMemoryAvailableForAllocation(size_t requestedCodeCacheSize);
-   void addCodeCache(TR::CodeCache *codeCache);
+    static J9JavaVM *javaVM() { return _javaVM; }
 
-   TR::CodeCacheMemorySegment *allocateCodeCacheSegment(size_t segmentSize,
-                                                        size_t &codeCacheSizeToAllocate,
-                                                        void *preferredStartAddress);
-   void *chooseCacheStartAddress(size_t repositorySize);
+    TR_FrontEnd *fe();
+    TR_J9VMBase *fej9();
 
-   void addFaintCacheBlock(OMR::MethodExceptionData *metaData, uint8_t bytesToSaveAtStart);
-   void freeFaintCacheBlock(OMR::FaintCacheBlock *block, uint8_t *startPC);
+    TR::CodeCache *initialize(bool useConsolidatedCache, uint32_t numberOfCodeCachesToCreateAtStartup);
 
-   // reclaim the whole method body (which is guaranteed to be fully dead already - hence
-   // no need for leaving stumps at the head or the tail
-   void purgeClassLoaderFromFaintBlocks(J9ClassLoader *classLoader);
-   void onClassUnloading(J9ClassLoader *loaderPtr);
+    bool isSufficientPhysicalMemoryAvailableForAllocation(size_t requestedCodeCacheSize);
+    void addCodeCache(TR::CodeCache *codeCache);
 
-   TR::CodeCache * reserveCodeCache(bool compilationCodeAllocationsMustBeContiguous,
-                                    size_t sizeEstimate,
-                                    int32_t compThreadID,
-                                    int32_t *numReserved,
-                                    TR::CodeCacheKind kind);
+    TR::CodeCacheMemorySegment *allocateCodeCacheSegment(size_t segmentSize, size_t &codeCacheSizeToAllocate,
+        void *preferredStartAddress);
+    void *chooseCacheStartAddress(size_t repositorySize);
 
-   TR::CodeCacheMemorySegment *setupMemorySegmentFromRepository(uint8_t *start,
-                                                                uint8_t *end,
-                                                                size_t & codeCacheSizeToAllocate);
-   void freeMemorySegment(TR::CodeCacheMemorySegment *segment);
+    void addFaintCacheBlock(OMR::MethodExceptionData *metaData, uint8_t bytesToSaveAtStart);
+    void freeFaintCacheBlock(OMR::FaintCacheBlock *block, uint8_t *startPC);
 
-   void reportCodeLoadEvents();
+    // reclaim the whole method body (which is guaranteed to be fully dead already - hence
+    // no need for leaving stumps at the head or the tail
+    void purgeClassLoaderFromFaintBlocks(J9ClassLoader *classLoader);
+    void onClassUnloading(J9ClassLoader *loaderPtr);
 
-   static const uint32_t SAFE_DISTANCE_REPOSITORY_JITLIBRARY = 64 * 1024 * 1024;  // 64MB to account for some safe JIT library size
-   static const uintptr_t MAX_DISTANCE_NEAR_JITLIBRARY_TO_AVOID_TRAMPOLINE = 0x80000000 - 64 * 1024 * 1024; // 2GB - 64MB
+    TR::CodeCache *reserveCodeCache(bool compilationCodeAllocationsMustBeContiguous, size_t sizeEstimate,
+        int32_t compThreadID, int32_t *numReserved, TR::CodeCacheKind kind);
 
-   void setCodeCacheFull();
+    TR::CodeCacheMemorySegment *setupMemorySegmentFromRepository(uint8_t *start, uint8_t *end,
+        size_t &codeCacheSizeToAllocate);
+    void freeMemorySegment(TR::CodeCacheMemorySegment *segment);
 
-   void onFSDDecompile();
-   void onClassRedefinition(TR_OpaqueMethodBlock *oldMethod, TR_OpaqueMethodBlock *newMethod);
+    void reportCodeLoadEvents();
 
-   uintptr_t getSomeJitLibraryAddress();
-   bool isInRange(uintptr_t address1, uintptr_t address2, uintptr_t range);
+    static const uint32_t SAFE_DISTANCE_REPOSITORY_JITLIBRARY
+        = 64 * 1024 * 1024; // 64MB to account for some safe JIT library size
+    static const uintptr_t MAX_DISTANCE_NEAR_JITLIBRARY_TO_AVOID_TRAMPOLINE
+        = 0x80000000 - 64 * 1024 * 1024; // 2GB - 64MB
 
-   /**
-    * @brief Reserve a trampoline for an interface PIC slot.
-    *
-    * @param[in] callSite : address in the code cache of the call instruction
-    * @param[in] method : J9Method for the interface
-    */
-   void reservationInterfaceCache(void *callSite, TR_OpaqueMethodBlock *method);
+    void setCodeCacheFull();
 
-   /**
-    * @brief Re-do the helper trampoline initialization for existing codeCaches
-    */
-   void lateInitialization();
+    void onFSDDecompile();
+    void onClassRedefinition(TR_OpaqueMethodBlock *oldMethod, TR_OpaqueMethodBlock *newMethod);
 
-   /**
-    * @brief Add block defined by metaData to the freeBlockList.  The caller
-    *        should expect that the block may not always be added.
-    */
-   void addFreeBlock(void *metaData, uint8_t *startPC);
+    uintptr_t getSomeJitLibraryAddress();
+    bool isInRange(uintptr_t address1, uintptr_t address2, uintptr_t range);
 
-   /**
-    * @brief Answers whether the total code cache capacity is nearly used up.
-    *        This code is executed by compilation thread and by application
-    *        threads when trying to induce a profiling compilation. Acquires
-    *        codeCacheList.mutex.
-    *
-    * @return true if capacity nearly reached; false otherwise.
-    */
-   bool almostOutOfCodeCache();
+    /**
+     * @brief Reserve a trampoline for an interface PIC slot.
+     *
+     * @param[in] callSite : address in the code cache of the call instruction
+     * @param[in] method : J9Method for the interface
+     */
+    void reservationInterfaceCache(void *callSite, TR_OpaqueMethodBlock *method);
 
-   /**
-    * @brief Print some code cache usage statistics
-    */
-   void printMccStats();
+    /**
+     * @brief Re-do the helper trampoline initialization for existing codeCaches
+     */
+    void lateInitialization();
 
-   /**
-    * @brief Print space remaining in each code cache
-    */
-   void printRemainingSpaceInCodeCaches();
+    /**
+     * @brief Add block defined by metaData to the freeBlockList.  The caller
+     *        should expect that the block may not always be added.
+     */
+    void addFreeBlock(void *metaData, uint8_t *startPC);
 
-   /**
-    * @brief Print occupancy stats for each code cache
-    */
-   void printOccupancyStats();
-   bool isDisclaimEnabled() const { return _disclaimEnabled; }
-   void setDisclaimEnabled(bool value)  { _disclaimEnabled = value; }
-   int32_t disclaimAllCodeCaches();
+    /**
+     * @brief Answers whether the total code cache capacity is nearly used up.
+     *        This code is executed by compilation thread and by application
+     *        threads when trying to induce a profiling compilation. Acquires
+     *        codeCacheList.mutex.
+     *
+     * @return true if capacity nearly reached; false otherwise.
+     */
+    bool almostOutOfCodeCache();
 
-private :
-   TR_FrontEnd *_fe;
-   static TR::CodeCacheManager *_codeCacheManager;
-   static J9JITConfig *_jitConfig;
-   static J9JavaVM *_javaVM;
-   bool  _disclaimEnabled; // If true, code cache can be disclaimed to a file or swap
-   };
+    /**
+     * @brief Print some code cache usage statistics
+     */
+    void printMccStats();
+
+    /**
+     * @brief Print space remaining in each code cache
+     */
+    void printRemainingSpaceInCodeCaches();
+
+    /**
+     * @brief Print occupancy stats for each code cache
+     */
+    void printOccupancyStats();
+
+    bool isDisclaimEnabled() const { return _disclaimEnabled; }
+
+    void setDisclaimEnabled(bool value) { _disclaimEnabled = value; }
+
+    int32_t disclaimAllCodeCaches();
+
+private:
+    TR_FrontEnd *_fe;
+    static TR::CodeCacheManager *_codeCacheManager;
+    static J9JITConfig *_jitConfig;
+    static J9JavaVM *_javaVM;
+    bool _disclaimEnabled; // If true, code cache can be disclaimed to a file or swap
+};
 
 } // namespace J9
 

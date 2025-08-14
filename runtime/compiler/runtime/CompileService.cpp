@@ -29,39 +29,36 @@
 // Routine called when a new connection request has been received at the server
 // Executed by the listener thread
 void J9CompileDispatcher::compile(JITServer::ServerStream *stream)
-   {
-   TR::CompilationInfo * compInfo = getCompilationInfo(_jitConfig);
-   TR_MethodToBeCompiled *entry = NULL;
-   bool disableFurtherCompilation = false;
-   if (TR::Options::getVerboseOption(TR_VerboseJITServer))
-      TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Server received request for stream %p", stream);
-      {
-      // Grab the compilation monitor to queue this entry and notify a compilation thread
-      OMR::CriticalSection compilationMonitorLock(compInfo->getCompilationMonitor());
-      if (!(disableFurtherCompilation = compInfo->getPersistentInfo()->getDisableFurtherCompilation()))
-         {
-         if (compInfo->addOutOfProcessMethodToBeCompiled(stream))
-            {
-            // successfully queued the new entry, so notify a thread
-            compInfo->getCompilationMonitor()->notifyAll();
-            return;
+{
+    TR::CompilationInfo *compInfo = getCompilationInfo(_jitConfig);
+    TR_MethodToBeCompiled *entry = NULL;
+    bool disableFurtherCompilation = false;
+    if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+        TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Server received request for stream %p", stream);
+    {
+        // Grab the compilation monitor to queue this entry and notify a compilation thread
+        OMR::CriticalSection compilationMonitorLock(compInfo->getCompilationMonitor());
+        if (!(disableFurtherCompilation = compInfo->getPersistentInfo()->getDisableFurtherCompilation())) {
+            if (compInfo->addOutOfProcessMethodToBeCompiled(stream)) {
+                // successfully queued the new entry, so notify a thread
+                compInfo->getCompilationMonitor()->notifyAll();
+                return;
             }
-         }
-      } // end critical section
-      
-   // If we reached this point, either there was a memory allocation failure
-   // or compilations are disabled
-   if (disableFurtherCompilation)
-      {
-      // Server disabled further compilations but client sent a compilation request anyway.
-      if (TR::Options::getVerboseOption(TR_VerboseJITServer))
-         TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Server rejected compilation request for stream %p because compilations are disabled", stream);
-      stream->writeError(compilationStreamFailure);
-      }
-   else
-      {
-      if (TR::Options::getVerboseOption(TR_VerboseJITServer))
-         TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Server rejected compilation request for stream %p because of lack of memory", stream);
-      stream->writeError(compilationLowPhysicalMemory, (uint64_t) JITServer::ServerMemoryState::VERY_LOW);
-      }
-   }
+        }
+    } // end critical section
+
+    // If we reached this point, either there was a memory allocation failure
+    // or compilations are disabled
+    if (disableFurtherCompilation) {
+        // Server disabled further compilations but client sent a compilation request anyway.
+        if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+            TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
+                "Server rejected compilation request for stream %p because compilations are disabled", stream);
+        stream->writeError(compilationStreamFailure);
+    } else {
+        if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+            TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
+                "Server rejected compilation request for stream %p because of lack of memory", stream);
+        stream->writeError(compilationLowPhysicalMemory, (uint64_t)JITServer::ServerMemoryState::VERY_LOW);
+    }
+}

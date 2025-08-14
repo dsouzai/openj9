@@ -29,22 +29,21 @@ namespace TR {
 class CodeGenerator;
 class LabelSymbol;
 class Node;
-}
+} // namespace TR
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE Snippet : public J9::SnippetConnector
-   {
-   public:
+class OMR_EXTENSIBLE Snippet : public J9::SnippetConnector {
+public:
+    Snippet(TR::CodeGenerator *cg, TR::Node *node, TR::LabelSymbol *label, bool isGCSafePoint)
+        : J9::SnippetConnector(cg, node, label, isGCSafePoint)
+    {}
 
-   Snippet(TR::CodeGenerator *cg, TR::Node *node, TR::LabelSymbol *label, bool isGCSafePoint) :
-      J9::SnippetConnector(cg, node, label, isGCSafePoint) {}
+    Snippet(TR::CodeGenerator *cg, TR::Node *node, TR::LabelSymbol *label)
+        : J9::SnippetConnector(cg, node, label)
+    {}
+};
 
-   Snippet(TR::CodeGenerator *cg, TR::Node *node, TR::LabelSymbol *label) :
-      J9::SnippetConnector(cg, node, label) {}
-   };
-
-}
+} // namespace TR
 
 #endif

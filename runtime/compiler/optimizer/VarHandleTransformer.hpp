@@ -21,27 +21,26 @@
  *******************************************************************************/
 
 #ifndef VARHANDLETRANSFORMER_INCL
-#define VARHANDLETRANSFORMER_INCL 
+#define VARHANDLETRANSFORMER_INCL
 
 #include <stdint.h>
 #include "il/Node.hpp"
 #include "optimizer/Optimization.hpp"
 #include "optimizer/OptimizationManager.hpp"
 
-class TR_VarHandleTransformer : public TR::Optimization
-   {
-   public:
+class TR_VarHandleTransformer : public TR::Optimization {
+public:
+    TR_VarHandleTransformer(TR::OptimizationManager *manager)
+        : TR::Optimization(manager)
+    {}
 
-   TR_VarHandleTransformer(TR::OptimizationManager *manager)
-      : TR::Optimization(manager)
-      {}
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_VarHandleTransformer(manager);
-      }
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_VarHandleTransformer(manager);
+    }
 
-   TR::RecognizedMethod getVarHandleAccessMethod(TR::Node* node);
-   virtual int32_t perform();
-   virtual const char * optDetailString() const throw();
-   };
+    TR::RecognizedMethod getVarHandleAccessMethod(TR::Node *node);
+    virtual int32_t perform();
+    virtual const char *optDetailString() const throw();
+};
 #endif

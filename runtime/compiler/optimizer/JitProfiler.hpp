@@ -34,70 +34,77 @@ class Block;
 class CFG;
 class SymbolReference;
 class TreeTop;
-}
+} // namespace TR
 
 /*
  * Prototype of profiling in the jit during cold compiles
  */
 
-class TR_JitProfiler : public TR::Optimization
-   {
-   public:
-   TR_JitProfiler(TR::OptimizationManager *manager);
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_JitProfiler(manager);
-      }
+class TR_JitProfiler : public TR::Optimization {
+public:
+    TR_JitProfiler(TR::OptimizationManager *manager);
 
-   virtual int32_t perform();
-   virtual const char * optDetailString() const throw();
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_JitProfiler(manager);
+    }
 
-   enum ProfilingBlocksBypassBranchFlag { addProfilingBypass, addInlineProfilingTrees };
+    virtual int32_t perform();
+    virtual const char *optDetailString() const throw();
 
-   private:
-   int32_t    performOnNode(TR::Node *node, TR::TreeTop *tt);
-   TR::Block *appendBranchTree(TR::Node *profilingNode, TR::Block *currentBlock);
-   TR::Block *createProfilingBlocks(TR::Node *profilingNode, TR::Block *ifBlock, int32_t bufferSizeRequired);
-   void       addBranchProfiling(TR::Node *branchNode, TR::TreeTop* tt, TR::Block *currentBlock, ProfilingBlocksBypassBranchFlag addBypassBranch);
-   void       addInstanceProfiling(TR::Node *instanceNode, TR::TreeTop *tt, TR::Block *currentBlock, ProfilingBlocksBypassBranchFlag addBypassBranch);
-   void       addCallProfiling(TR::Node *callNode, TR::TreeTop *tt, TR::Block *currentBlock, ProfilingBlocksBypassBranchFlag addBypassBranch);
+    enum ProfilingBlocksBypassBranchFlag {
+        addProfilingBypass,
+        addInlineProfilingTrees
+    };
 
- 
-   TR::CFG           *_cfg;
-   TR::TreeTop       *_lastTreeTop;
-   TR::NodeChecklist *_checklist;
+private:
+    int32_t performOnNode(TR::Node *node, TR::TreeTop *tt);
+    TR::Block *appendBranchTree(TR::Node *profilingNode, TR::Block *currentBlock);
+    TR::Block *createProfilingBlocks(TR::Node *profilingNode, TR::Block *ifBlock, int32_t bufferSizeRequired);
+    void addBranchProfiling(TR::Node *branchNode, TR::TreeTop *tt, TR::Block *currentBlock,
+        ProfilingBlocksBypassBranchFlag addBypassBranch);
+    void addInstanceProfiling(TR::Node *instanceNode, TR::TreeTop *tt, TR::Block *currentBlock,
+        ProfilingBlocksBypassBranchFlag addBypassBranch);
+    void addCallProfiling(TR::Node *callNode, TR::TreeTop *tt, TR::Block *currentBlock,
+        ProfilingBlocksBypassBranchFlag addBypassBranch);
 
+    TR::CFG *_cfg;
+    TR::TreeTop *_lastTreeTop;
+    TR::NodeChecklist *_checklist;
 
-   class ProfileBlockPair
-      {
-      public:
-      ProfileBlockPair(TR::Block *trueBlock, TR::Block *falseBlock) { this->trueBlock = trueBlock; this->falseBlock = falseBlock; }
+    class ProfileBlockPair {
+    public:
+        ProfileBlockPair(TR::Block *trueBlock, TR::Block *falseBlock)
+        {
+            this->trueBlock = trueBlock;
+            this->falseBlock = falseBlock;
+        }
 
-      TR::Block *trueBlock;
-      TR::Block *falseBlock;
-      };
+        TR::Block *trueBlock;
+        TR::Block *falseBlock;
+    };
 
-   class ProfileBlockCreator
-      {
-      // This class handles the population of profiling blocks - blocks that contain trees to record profiling info
-      // It holds a reference to a profiling block, and it's API allows for a standard profiling tree to be added
-      // On deletion, it also adds a goto to the appropriate block.
-      public:
-      ProfileBlockCreator(TR_JitProfiler *jp, TR::Block *profilingBlock, TR::Block *successorBlock, TR::Node *profilingNode, int32_t currentOffset = 0);
-      ~ProfileBlockCreator();
+    class ProfileBlockCreator {
+        // This class handles the population of profiling blocks - blocks that contain trees to record profiling info
+        // It holds a reference to a profiling block, and it's API allows for a standard profiling tree to be added
+        // On deletion, it also adds a goto to the appropriate block.
+    public:
+        ProfileBlockCreator(TR_JitProfiler *jp, TR::Block *profilingBlock, TR::Block *successorBlock,
+            TR::Node *profilingNode, int32_t currentOffset = 0);
+        ~ProfileBlockCreator();
 
-      void addProfilingTree(TR::ILOpCodes storeType, TR::Node *storeValue, int32_t storeWidth);
-      ProfileBlockPair addConditionTree(TR::ILOpCodes conditionType, TR::Node *firstChild, TR::Node *secondChild);
+        void addProfilingTree(TR::ILOpCodes storeType, TR::Node *storeValue, int32_t storeWidth);
+        ProfileBlockPair addConditionTree(TR::ILOpCodes conditionType, TR::Node *firstChild, TR::Node *secondChild);
 
-      private:
-      TR_JitProfiler *_jitProfiler;
-      TR::Block      *_profilingBlock;
-      TR::Block      *_successorBlock;
-      TR::Node       *_profilingNode;
-      TR::Node       *_cursor;
-      int32_t         _currentOffset;
-      bool            _createdConditional;
-      };
-   };
+    private:
+        TR_JitProfiler *_jitProfiler;
+        TR::Block *_profilingBlock;
+        TR::Block *_successorBlock;
+        TR::Node *_profilingNode;
+        TR::Node *_cursor;
+        int32_t _currentOffset;
+        bool _createdConditional;
+    };
+};
 
 #endif

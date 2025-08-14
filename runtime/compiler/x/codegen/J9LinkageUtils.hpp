@@ -27,17 +27,16 @@ namespace TR {
 class CodeGenerator;
 class Node;
 class Register;
-}
+} // namespace TR
 
-namespace TR
-{
-class J9LinkageUtils
-   {
-   public:
-   static void switchToMachineCStack(TR::Node *callNode, TR::CodeGenerator *cg);
-   static void switchToJavaStack(TR::Node *callNode, TR::CodeGenerator *cg);
-   static void cleanupReturnValue(TR::Node *callNode, TR::Register *linkageReturnReg, TR::Register *targetReg, TR::CodeGenerator *cg);
-   };
-}
+namespace TR {
+class J9LinkageUtils {
+public:
+    static void switchToMachineCStack(TR::Node *callNode, TR::CodeGenerator *cg);
+    static void switchToJavaStack(TR::Node *callNode, TR::CodeGenerator *cg);
+    static void cleanupReturnValue(TR::Node *callNode, TR::Register *linkageReturnReg, TR::Register *targetReg,
+        TR::CodeGenerator *cg);
+};
+} // namespace TR
 
 #endif

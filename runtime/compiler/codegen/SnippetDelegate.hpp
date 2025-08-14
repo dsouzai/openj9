@@ -26,20 +26,18 @@
 #include "codegen/J9SnippetDelegate.hpp"
 #include "infra/Annotations.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE SnippetDelegate : public J9::SnippetDelegateConnector
-   {
-   // SnippetDelegate cannot be instantiated.  It can only
-   // contain static members.
-   //
+class OMR_EXTENSIBLE SnippetDelegate : public J9::SnippetDelegateConnector {
+    // SnippetDelegate cannot be instantiated.  It can only
+    // contain static members.
+    //
 private:
+    SnippetDelegate()
+        : J9::SnippetDelegateConnector()
+    {}
+};
 
-   SnippetDelegate() : J9::SnippetDelegateConnector() {}
-
-   };
-
-}
+} // namespace TR
 
 #endif

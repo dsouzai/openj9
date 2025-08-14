@@ -28,10 +28,14 @@
  */
 #ifndef J9_SNIPPET_CONNECTOR
 #define J9_SNIPPET_CONNECTOR
+
 namespace J9 {
-namespace X86 { class Snippet; }
-typedef J9::X86::Snippet SnippetConnector;
+namespace X86 {
+class Snippet;
 }
+
+typedef J9::X86::Snippet SnippetConnector;
+} // namespace J9
 #endif
 
 #include "compiler/codegen/J9Snippet.hpp"
@@ -40,33 +44,23 @@ namespace TR {
 class CodeGenerator;
 class LabelSymbol;
 class Node;
-}
+} // namespace TR
 
-namespace J9
-{
-    
-namespace X86
-{
-    
-class OMR_EXTENSIBLE Snippet : public J9::Snippet
-   {
-   public:
+namespace J9 { namespace X86 {
 
-   Snippet(TR::CodeGenerator *cg, TR::Node *node, TR::LabelSymbol *label, bool isGCSafePoint) :
-      J9::Snippet(cg, node, label, isGCSafePoint)
-      {
-      }
+class OMR_EXTENSIBLE Snippet : public J9::Snippet {
+public:
+    Snippet(TR::CodeGenerator *cg, TR::Node *node, TR::LabelSymbol *label, bool isGCSafePoint)
+        : J9::Snippet(cg, node, label, isGCSafePoint)
+    {}
 
-   Snippet(TR::CodeGenerator *cg, TR::Node *node, TR::LabelSymbol *label) :
-      J9::Snippet(cg, node, label)
-      {
-      }
+    Snippet(TR::CodeGenerator *cg, TR::Node *node, TR::LabelSymbol *label)
+        : J9::Snippet(cg, node, label)
+    {}
 
     virtual TR::X86GuardedDevirtualSnippet *getGuardedDevirtualSnippet();
-   };
+};
 
-} // namespace X86
-
-} // namespace J9
+}} // namespace J9::X86
 
 #endif

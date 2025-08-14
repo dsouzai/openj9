@@ -35,28 +35,27 @@ struct J9MemorySegment;
 
 namespace J9 {
 
-class SegmentAllocator : public J9SegmentProvider
-   {
+class SegmentAllocator : public J9SegmentProvider {
 public:
-   SegmentAllocator(int32_t segmentType, J9JavaVM &javaVM) throw();
-   ~SegmentAllocator() throw();
-   J9MemorySegment &allocate(const size_t segmentSize);
-   J9MemorySegment *allocate(const size_t segmentSize, const std::nothrow_t &tag) throw();
-   void deallocate(J9MemorySegment &unusedSegment) throw();
+    SegmentAllocator(int32_t segmentType, J9JavaVM &javaVM) throw();
+    ~SegmentAllocator() throw();
+    J9MemorySegment &allocate(const size_t segmentSize);
+    J9MemorySegment *allocate(const size_t segmentSize, const std::nothrow_t &tag) throw();
+    void deallocate(J9MemorySegment &unusedSegment) throw();
 
-   J9MemorySegment &request(size_t segmentSize);
-   void release(J9MemorySegment &unusedSegment) throw();
+    J9MemorySegment &request(size_t segmentSize);
+    void release(J9MemorySegment &unusedSegment) throw();
 
-   size_t pageSize() throw();
-   size_t pageAlign(const size_t requestedSize) throw();
+    size_t pageSize() throw();
+    size_t pageAlign(const size_t requestedSize) throw();
 
 private:
-   void preventAllocationOfBTLMemory(J9MemorySegment * &segment, J9JavaVM * javaVM, int32_t segmentType);
+    void preventAllocationOfBTLMemory(J9MemorySegment *&segment, J9JavaVM *javaVM, int32_t segmentType);
 
-   const int32_t _segmentType;
-   J9JavaVM &_javaVM;
-   };
+    const int32_t _segmentType;
+    J9JavaVM &_javaVM;
+};
 
-}
+} // namespace J9
 
 #endif // SEGMENT_ALLOCATOR_HPP

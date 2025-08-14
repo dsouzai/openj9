@@ -28,98 +28,78 @@
 
 #include "codegen/RegisterDependency.hpp" // @@@@
 
-namespace TR
-{
+namespace TR {
 class Instruction;
 
-class OMR_EXTENSIBLE Instruction : public J9::InstructionConnector
-   {
+class OMR_EXTENSIBLE Instruction : public J9::InstructionConnector {
+public:
+    // TODO: need to fix the InstOpCode initialization
+    inline Instruction(TR::Node *node, TR::CodeGenerator *cg);
 
-   public:
+    inline Instruction(TR::InstOpCode::Mnemonic op, TR::Node *node, TR::CodeGenerator *cg);
 
-   // TODO: need to fix the InstOpCode initialization
-   inline Instruction(TR::Node *node, TR::CodeGenerator *cg);
+    inline Instruction(TR::Instruction *precedingInstruction, TR::InstOpCode::Mnemonic op, TR::Node *node,
+        TR::CodeGenerator *cg);
 
-   inline Instruction(TR::InstOpCode::Mnemonic op, TR::Node *node, TR::CodeGenerator *cg);
+    inline Instruction(TR::InstOpCode::Mnemonic op, TR::Node *node, TR::RegisterDependencyConditions *cond,
+        TR::CodeGenerator *cg);
 
-   inline Instruction(TR::Instruction   *precedingInstruction,
-               TR::InstOpCode::Mnemonic     op,
-               TR::Node          *node,
-               TR::CodeGenerator *cg);
+    inline Instruction(TR::Instruction *precedingInstruction, TR::InstOpCode::Mnemonic op, TR::Node *node,
+        TR::RegisterDependencyConditions *cond, TR::CodeGenerator *cg);
+};
 
-   inline Instruction(TR::InstOpCode::Mnemonic                       op,
-               TR::Node                            *node,
-               TR::RegisterDependencyConditions    *cond,
-               TR::CodeGenerator                   *cg);
-
-   inline Instruction(TR::Instruction                     *precedingInstruction,
-               TR::InstOpCode::Mnemonic                       op,
-               TR::Node                            *node,
-               TR::RegisterDependencyConditions    *cond,
-               TR::CodeGenerator                   *cg);
-   };
-
-}
+} // namespace TR
 
 #include "codegen/J9Instruction_inlines.hpp"
 
 TR::Instruction::Instruction(TR::Node *node, TR::CodeGenerator *cg)
-   : J9::InstructionConnector(cg, InstOpCode::bad, node)
-   {
-   self()->setOpCodeValue(TR::InstOpCode::bad);
-   self()->setConditionCode(ARMConditionCodeAL);
-   self()->setDependencyConditions(NULL);
-   }
+    : J9::InstructionConnector(cg, InstOpCode::bad, node)
+{
+    self()->setOpCodeValue(TR::InstOpCode::bad);
+    self()->setConditionCode(ARMConditionCodeAL);
+    self()->setDependencyConditions(NULL);
+}
 
 TR::Instruction::Instruction(TR::InstOpCode::Mnemonic op, TR::Node *node, TR::CodeGenerator *cg)
-   : J9::InstructionConnector(cg, InstOpCode::bad, node)
-   {
-   self()->setOpCodeValue(op);
-   self()->setConditionCode(ARMConditionCodeAL);
-   self()->setDependencyConditions(NULL);
-   }
+    : J9::InstructionConnector(cg, InstOpCode::bad, node)
+{
+    self()->setOpCodeValue(op);
+    self()->setConditionCode(ARMConditionCodeAL);
+    self()->setDependencyConditions(NULL);
+}
 
-TR::Instruction::Instruction(TR::Instruction   *precedingInstruction,
-                         TR::InstOpCode::Mnemonic     op,
-                         TR::Node          *node,
-                         TR::CodeGenerator *cg)
-   : J9::InstructionConnector(cg, precedingInstruction, InstOpCode::bad, node)
-   {
-   self()->setOpCodeValue(op);
-   self()->setConditionCode(ARMConditionCodeAL);
-   self()->setDependencyConditions(NULL);
-   }
+TR::Instruction::Instruction(TR::Instruction *precedingInstruction, TR::InstOpCode::Mnemonic op, TR::Node *node,
+    TR::CodeGenerator *cg)
+    : J9::InstructionConnector(cg, precedingInstruction, InstOpCode::bad, node)
+{
+    self()->setOpCodeValue(op);
+    self()->setConditionCode(ARMConditionCodeAL);
+    self()->setDependencyConditions(NULL);
+}
 
-TR::Instruction::Instruction(TR::InstOpCode::Mnemonic                       op,
-                         TR::Node                            *node,
-                         TR::RegisterDependencyConditions    *cond,
-                         TR::CodeGenerator                   *cg)
-   : J9::InstructionConnector(cg, InstOpCode::bad, node)
-   {
-   self()->setOpCodeValue(op);
-   self()->setConditionCode(ARMConditionCodeAL);
-   self()->setDependencyConditions(cond);
-   if (cond)
-      cond->incRegisterTotalUseCounts(cg);
-   }
+TR::Instruction::Instruction(TR::InstOpCode::Mnemonic op, TR::Node *node, TR::RegisterDependencyConditions *cond,
+    TR::CodeGenerator *cg)
+    : J9::InstructionConnector(cg, InstOpCode::bad, node)
+{
+    self()->setOpCodeValue(op);
+    self()->setConditionCode(ARMConditionCodeAL);
+    self()->setDependencyConditions(cond);
+    if (cond)
+        cond->incRegisterTotalUseCounts(cg);
+}
 
+TR::Instruction::Instruction(TR::Instruction *precedingInstruction, TR::InstOpCode::Mnemonic op, TR::Node *node,
+    TR::RegisterDependencyConditions *cond, TR::CodeGenerator *cg)
+    : J9::InstructionConnector(cg, precedingInstruction, InstOpCode::bad, node)
+{
+    self()->setOpCodeValue(op);
+    self()->setConditionCode(ARMConditionCodeAL);
+    self()->setDependencyConditions(cond);
+    if (cond)
+        cond->incRegisterTotalUseCounts(cg);
+}
 
-TR::Instruction::Instruction(TR::Instruction                     *precedingInstruction,
-                         TR::InstOpCode::Mnemonic                       op,
-                         TR::Node                            *node,
-                         TR::RegisterDependencyConditions    *cond,
-                         TR::CodeGenerator                   *cg)
-   : J9::InstructionConnector(cg, precedingInstruction, InstOpCode::bad, node)
-   {
-   self()->setOpCodeValue(op);
-   self()->setConditionCode(ARMConditionCodeAL);
-   self()->setDependencyConditions(cond);
-   if (cond)
-      cond->incRegisterTotalUseCounts(cg);
-   }
-
-
-//TODO: these downcasts everywhere need to be removed
-inline uint32_t        * toARMCursor(uint8_t *i) { return (uint32_t *)i; }
+// TODO: these downcasts everywhere need to be removed
+inline uint32_t *toARMCursor(uint8_t *i) { return (uint32_t *)i; }
 
 #endif

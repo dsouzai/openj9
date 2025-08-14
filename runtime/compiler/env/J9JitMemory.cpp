@@ -32,51 +32,43 @@
 #include "env/J9JitMemory.hpp"
 #include "env/VMJ9.h"
 
-void preventAllocationOfBTLMemory(J9MemorySegment * &segment, J9JavaVM * javaVM, TR_AllocationKind segmentType, bool freeSegmentOverride)
-   {
-#if  defined(J9ZOS390)
-   // Special code for zOS. If we allocated BTL memory (first 16MB), then we must
-   // release this segment, failing the compilation and forcing to use only one compilation thread
-   if (TR::Options::getCmdLineOptions()->getOption(TR_DontAllocateScratchBTL) &&
-      segment && ((uintptr_t)(segment->heapBase) < (uintptr_t)(1 << 24)))
-      {
-      // If applicable, reduce the number of compilation threads to 1
-      TR::CompilationInfo * compInfo = TR::CompilationInfo::get((J9JITConfig*)jitConfig);
-      if (compInfo)
-         {
-         if (!compInfo->getRampDownMCT())
-            {
-            compInfo->setRampDownMCT();
-            if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCompilationThreads))
-               {
-               TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "t=%u setRampDownMCT because JIT allocated BTL memory", (uint32_t)compInfo->getPersistentInfo()->getElapsedTime());
-               }
-            }
-         else
-            {
-            // Perhaps we should consider lowering the compilation aggressiveness
-            if (!TR::Options::getAOTCmdLineOptions()->getOption(TR_NoOptServer))
-               {
-               TR::Options::getAOTCmdLineOptions()->setOption(TR_NoOptServer);
-               }
-            if (!TR::Options::getJITCmdLineOptions()->getOption(TR_NoOptServer))
-               {
-               TR::Options::getJITCmdLineOptions()->setOption(TR_NoOptServer);
-               }
+void preventAllocationOfBTLMemory(J9MemorySegment *&segment, J9JavaVM *javaVM, TR_AllocationKind segmentType,
+    bool freeSegmentOverride)
+{
+#if defined(J9ZOS390)
+    // Special code for zOS. If we allocated BTL memory (first 16MB), then we must
+    // release this segment, failing the compilation and forcing to use only one compilation thread
+    if (TR::Options::getCmdLineOptions()->getOption(TR_DontAllocateScratchBTL) && segment
+        && ((uintptr_t)(segment->heapBase) < (uintptr_t)(1 << 24))) {
+        // If applicable, reduce the number of compilation threads to 1
+        TR::CompilationInfo *compInfo = TR::CompilationInfo::get((J9JITConfig *)jitConfig);
+        if (compInfo) {
+            if (!compInfo->getRampDownMCT()) {
+                compInfo->setRampDownMCT();
+                if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCompilationThreads)) {
+                    TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "t=%u setRampDownMCT because JIT allocated BTL memory",
+                        (uint32_t)compInfo->getPersistentInfo()->getElapsedTime());
+                }
+            } else {
+                // Perhaps we should consider lowering the compilation aggressiveness
+                if (!TR::Options::getAOTCmdLineOptions()->getOption(TR_NoOptServer)) {
+                    TR::Options::getAOTCmdLineOptions()->setOption(TR_NoOptServer);
+                }
+                if (!TR::Options::getJITCmdLineOptions()->getOption(TR_NoOptServer)) {
+                    TR::Options::getJITCmdLineOptions()->setOption(TR_NoOptServer);
+                }
             }
 
-         // For scratch memory refuse to return memory below the line. Free the segment and let the compilation fail
-         // Compilation will be retried at lower opt level.
-         if (freeSegmentOverride || segmentType == heapAlloc || segmentType == stackAlloc)
-            {
-            J9VMThread *crtVMThread = javaVM->internalVMFunctions->currentVMThread(javaVM);
-            if (compInfo->getCompInfoForThread(crtVMThread))
-               {
-               javaVM->internalVMFunctions->freeMemorySegment(javaVM, segment, TRUE);
-               segment = NULL;
-               }
+            // For scratch memory refuse to return memory below the line. Free the segment and let the compilation fail
+            // Compilation will be retried at lower opt level.
+            if (freeSegmentOverride || segmentType == heapAlloc || segmentType == stackAlloc) {
+                J9VMThread *crtVMThread = javaVM->internalVMFunctions->currentVMThread(javaVM);
+                if (compInfo->getCompInfoForThread(crtVMThread)) {
+                    javaVM->internalVMFunctions->freeMemorySegment(javaVM, segment, TRUE);
+                    segment = NULL;
+                }
             }
-         }
-      }
+        }
+    }
 #endif // defined(J9ZOS390)
-   }
+}

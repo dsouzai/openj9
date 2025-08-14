@@ -39,23 +39,24 @@
  * String will become persistently allocated only through the copy constructor.
  * Assignment and custom constructors will just set fields.
  */
-TR_ByteInfo::TR_ByteInfo(const TR_ByteInfo &orig) : length(orig.length), chars(NULL)
-   {
-   if (orig.chars && orig.length > 0)
-      {
-      chars = (char const *) TR_Memory::jitPersistentAlloc(orig.length * sizeof(char));
-      memcpy((char*) chars, orig.chars, orig.length);
-      }
-   }
+TR_ByteInfo::TR_ByteInfo(const TR_ByteInfo &orig)
+    : length(orig.length)
+    , chars(NULL)
+{
+    if (orig.chars && orig.length > 0) {
+        chars = (char const *)TR_Memory::jitPersistentAlloc(orig.length * sizeof(char));
+        memcpy((char *)chars, orig.chars, orig.length);
+    }
+}
 
 /**
  * Deallocate the persistent char list.
  */
 TR_ByteInfo::~TR_ByteInfo()
-   {
-   if (chars)
-      TR_Memory::jitPersistentFree((void*)chars);
-   }
+{
+    if (chars)
+        TR_Memory::jitPersistentFree((void *)chars);
+}
 
 /**
  * Wrap a TR_AbstractProfilerInfo in its matching TR_AbstractInfo,
@@ -64,207 +65,190 @@ TR_ByteInfo::~TR_ByteInfo()
  * \param region Region to allocate the result in.
  * \return Allocated TR_AbstractInfo to extract profiling information.
  */
-TR_AbstractInfo *
-TR_AbstractProfilerInfo::getAbstractInfo(TR::Region &region)
-   {
-   TR_AbstractInfo *valueInfo = NULL;
-   switch (getKind())
-      {
-      case ValueInfo:
-         valueInfo = new (region) TR_ValueInfo(this);
-         break;
-      case LongValueInfo:
-         valueInfo = new (region) TR_LongValueInfo(this);
-         break;
-      case AddressInfo:
-         valueInfo = new (region) TR_AddressInfo(this);
-         break;
-      case BigDecimalInfo:
-         valueInfo = new (region) TR_BigDecimalValueInfo(this);
-         break;
-      case StringInfo:
-         valueInfo = new (region) TR_StringValueInfo(this);
-         break;
-      default:
-         break;
-      }
+TR_AbstractInfo *TR_AbstractProfilerInfo::getAbstractInfo(TR::Region &region)
+{
+    TR_AbstractInfo *valueInfo = NULL;
+    switch (getKind()) {
+        case ValueInfo:
+            valueInfo = new (region) TR_ValueInfo(this);
+            break;
+        case LongValueInfo:
+            valueInfo = new (region) TR_LongValueInfo(this);
+            break;
+        case AddressInfo:
+            valueInfo = new (region) TR_AddressInfo(this);
+            break;
+        case BigDecimalInfo:
+            valueInfo = new (region) TR_BigDecimalValueInfo(this);
+            break;
+        case StringInfo:
+            valueInfo = new (region) TR_StringValueInfo(this);
+            break;
+        default:
+            break;
+    }
 
-   return valueInfo;
-   }
+    return valueInfo;
+}
 
 /**
  * Return scale and set flag.
  */
-int32_t
-TR_BigDecimalValueInfo::getTopValue(int32_t &flag)
-   {
-   TR_BigDecimalInfo bdi;
-   if (!TR_GenericValueInfo<uint64_t>::getTopValue(bdi.value))
-      return 0;
-   flag = bdi.flag;
-   return bdi.scale;
-   }
+int32_t TR_BigDecimalValueInfo::getTopValue(int32_t &flag)
+{
+    TR_BigDecimalInfo bdi;
+    if (!TR_GenericValueInfo<uint64_t>::getTopValue(bdi.value))
+        return 0;
+    flag = bdi.flag;
+    return bdi.scale;
+}
 
 /**
  * Convert each class to the method at the specified vft slot.
  * It will not sort the results.
  */
-void
-TR_AddressInfo::getMethodsList(TR::Compilation *comp, TR_ResolvedMethod *callerMethod, TR_OpaqueClassBlock *calleeClass, int32_t vftSlot, MethodVector &vec)
-   {
-   if (!calleeClass)
-      return;
+void TR_AddressInfo::getMethodsList(TR::Compilation *comp, TR_ResolvedMethod *callerMethod,
+    TR_OpaqueClassBlock *calleeClass, int32_t vftSlot, MethodVector &vec)
+{
+    if (!calleeClass)
+        return;
 
-   // Grab a copy of the profiling information
-   _profiler->getList((Vector&) vec);
+    // Grab a copy of the profiling information
+    _profiler->getList((Vector &)vec);
 
-   // Remove entries that are not compatible with the callee class
-   // Also replace class with method in _value
-   for (auto iterClass = vec.begin(); iterClass != vec.end(); ++iterClass)
-      {
-      if (!iterClass->_value)
-         continue;
+    // Remove entries that are not compatible with the callee class
+    // Also replace class with method in _value
+    for (auto iterClass = vec.begin(); iterClass != vec.end(); ++iterClass) {
+        if (!iterClass->_value)
+            continue;
 
-      TR_OpaqueClassBlock *methodClass = reinterpret_cast<TR_OpaqueClassBlock *>(iterClass->_value);
-      if (comp->fej9()->isInstanceOf(methodClass, calleeClass, true, true, true))
-         {
-         TR_ResolvedMethod *method = callerMethod->getResolvedVirtualMethod(comp, methodClass, vftSlot);
-         iterClass->_value = method;
-         }
-      else
-         {
-         iterClass->_value = 0;
-         iterClass->_frequency = 0;
-         }
-      }
+        TR_OpaqueClassBlock *methodClass = reinterpret_cast<TR_OpaqueClassBlock *>(iterClass->_value);
+        if (comp->fej9()->isInstanceOf(methodClass, calleeClass, true, true, true)) {
+            TR_ResolvedMethod *method = callerMethod->getResolvedVirtualMethod(comp, methodClass, vftSlot);
+            iterClass->_value = method;
+        } else {
+            iterClass->_value = 0;
+            iterClass->_frequency = 0;
+        }
+    }
 
-   // Add the frequencies of the same method to the first entry containing the method in the vector
-   for (auto iterMethod = vec.begin(); iterMethod != vec.end(); ++iterMethod)
-      {
-      if (!iterMethod->_value)
-         continue;
+    // Add the frequencies of the same method to the first entry containing the method in the vector
+    for (auto iterMethod = vec.begin(); iterMethod != vec.end(); ++iterMethod) {
+        if (!iterMethod->_value)
+            continue;
 
-      TR_ResolvedMethod* method = reinterpret_cast<TR_ResolvedMethod *>(iterMethod->_value);
-      for (auto iter = iterMethod + 1; iter != vec.end(); ++iter)
-         {
-         if (iter->_value && method->isSameMethod(reinterpret_cast<TR_ResolvedMethod *>(iter->_value)))
-            {
-            iterMethod->_frequency += iter->_frequency;
-            iter->_value = 0;
-            iter->_frequency = 0;
+        TR_ResolvedMethod *method = reinterpret_cast<TR_ResolvedMethod *>(iterMethod->_value);
+        for (auto iter = iterMethod + 1; iter != vec.end(); ++iter) {
+            if (iter->_value && method->isSameMethod(reinterpret_cast<TR_ResolvedMethod *>(iter->_value))) {
+                iterMethod->_frequency += iter->_frequency;
+                iter->_value = 0;
+                iter->_frequency = 0;
             }
-         }
-      }
-   }
+        }
+    }
+}
 
-void
-TR_AddressInfo::getMethodsList(TR::Compilation *comp, TR_ResolvedMethod *callerMethod, TR_OpaqueClassBlock *calleeClass, int32_t vftSlot, List<ProfiledMethod> *sortedList)
-   {
-   ListElement<ProfiledMethod> *listHead = NULL, *tail = NULL;
+void TR_AddressInfo::getMethodsList(TR::Compilation *comp, TR_ResolvedMethod *callerMethod,
+    TR_OpaqueClassBlock *calleeClass, int32_t vftSlot, List<ProfiledMethod> *sortedList)
+{
+    ListElement<ProfiledMethod> *listHead = NULL, *tail = NULL;
 
-   TR::Region &region = comp->trMemory()->currentStackRegion();
-   auto vec = new (region) MethodVector(region);
-   getMethodsList(comp, callerMethod, calleeClass, vftSlot, *vec);
+    TR::Region &region = comp->trMemory()->currentStackRegion();
+    auto vec = new (region) MethodVector(region);
+    getMethodsList(comp, callerMethod, calleeClass, vftSlot, *vec);
 
-   for (auto iter = vec->begin(); iter != vec->end(); ++iter)
-      {
-      if (!iter->_value)
-         continue;
+    for (auto iter = vec->begin(); iter != vec->end(); ++iter) {
+        if (!iter->_value)
+            continue;
 
-      ListElement<ProfiledMethod> *newProfiledValue = new (comp->trStackMemory()) ListElement<ProfiledMethod>(&(*iter));
-      if (tail)
-         tail->setNextElement(newProfiledValue);
-      else
-         listHead = newProfiledValue;
-      tail = newProfiledValue;
-      }
+        ListElement<ProfiledMethod> *newProfiledValue
+            = new (comp->trStackMemory()) ListElement<ProfiledMethod>(&(*iter));
+        if (tail)
+            tail->setNextElement(newProfiledValue);
+        else
+            listHead = newProfiledValue;
+        tail = newProfiledValue;
+    }
 
-   sortedList->setListHead(listHead);
-   }
+    sortedList->setListHead(listHead);
+}
 
-template <> void
-TR_LinkedListProfilerInfo<TR_ByteInfo>::dumpInfo(TR::FILE *logFile)
-   {
-   OMR::CriticalSection lock(vpMonitor);
+template<> void TR_LinkedListProfilerInfo<TR_ByteInfo>::dumpInfo(TR::FILE *logFile)
+{
+    OMR::CriticalSection lock(vpMonitor);
 
-   trfprintf(logFile, "   Linked List Profiling Info %p\n", this);
-   trfprintf(logFile, "   Kind: %d BCI: %d:%d\n Values:\n", _kind,
-      TR_AbstractProfilerInfo::getByteCodeInfo().getCallerIndex(),
-      TR_AbstractProfilerInfo::getByteCodeInfo().getByteCodeIndex());
+    trfprintf(logFile, "   Linked List Profiling Info %p\n", this);
+    trfprintf(logFile, "   Kind: %d BCI: %d:%d\n Values:\n", _kind,
+        TR_AbstractProfilerInfo::getByteCodeInfo().getCallerIndex(),
+        TR_AbstractProfilerInfo::getByteCodeInfo().getByteCodeIndex());
 
-   size_t count = 0;
-   for (auto iter = getFirst(); iter; iter = iter->getNext())
-      trfprintf(logFile, "    %d: %d %s", count++, iter->_frequency, iter->_value.chars);
+    size_t count = 0;
+    for (auto iter = getFirst(); iter; iter = iter->getNext())
+        trfprintf(logFile, "    %d: %d %s", count++, iter->_frequency, iter->_value.chars);
 
-   trfprintf(logFile, "   Num: %d Total Frequency: %d\n", count, getTotalFrequency());
-   }
+    trfprintf(logFile, "   Num: %d Total Frequency: %d\n", count, getTotalFrequency());
+}
 
 /**
  * Lock access to the map, blocking if necessary.
  */
-void
-TR_AbstractHashTableProfilerInfo::lock()
-   {
-   while (!tryLock())
-      {
-      VM_AtomicSupport::nop();
-      }
-   }
+void TR_AbstractHashTableProfilerInfo::lock()
+{
+    while (!tryLock()) {
+        VM_AtomicSupport::nop();
+    }
+}
 
 /**
  * Try to lock access to the map.
  *
  * \param disableJITAccess This will trigger the short circuit test in jitted code.
  */
-bool
-TR_AbstractHashTableProfilerInfo::tryLock(bool disableJITAccess)
-   {
-   // Current state must be unlocked
-   MetaData unlocked;
-   unlocked.rawData = *(volatile uint32_t*)&_metaData.rawData;
-   unlocked.lock = 0;
+bool TR_AbstractHashTableProfilerInfo::tryLock(bool disableJITAccess)
+{
+    // Current state must be unlocked
+    MetaData unlocked;
+    unlocked.rawData = *(volatile uint32_t *)&_metaData.rawData;
+    unlocked.lock = 0;
 
-   // Set lock and, if desired, clear high bit in other index
-   MetaData locked = unlocked;
-   if (disableJITAccess && locked.otherIndex < 0)
-      locked.otherIndex = ~locked.otherIndex;
-   locked.lock = 1;
+    // Set lock and, if desired, clear high bit in other index
+    MetaData locked = unlocked;
+    if (disableJITAccess && locked.otherIndex < 0)
+        locked.otherIndex = ~locked.otherIndex;
+    locked.lock = 1;
 
-   if (unlocked.rawData == VM_AtomicSupport::lockCompareExchangeU32(&_metaData.rawData, unlocked.rawData, locked.rawData))
-      {
-      VM_AtomicSupport::readBarrier();
-      return true;
-      }
-   else
-      {
-      return false;
-      }
-   }
+    if (unlocked.rawData
+        == VM_AtomicSupport::lockCompareExchangeU32(&_metaData.rawData, unlocked.rawData, locked.rawData)) {
+        VM_AtomicSupport::readBarrier();
+        return true;
+    } else {
+        return false;
+    }
+}
 
 /**
  * Unlock the map.
  *
  * \param enableJITAccess This will disable the short circuit test in jitted code.
  */
-void
-TR_AbstractHashTableProfilerInfo::unlock(bool enableJITAccess)
-   {
-   MetaData locked = _metaData;
-   MetaData unlocked = _metaData;
+void TR_AbstractHashTableProfilerInfo::unlock(bool enableJITAccess)
+{
+    MetaData locked = _metaData;
+    MetaData unlocked = _metaData;
 
-   VM_AtomicSupport::writeBarrier();
+    VM_AtomicSupport::writeBarrier();
 
-   do {
-      locked.rawData = _metaData.rawData;
+    do {
+        locked.rawData = _metaData.rawData;
 
-      // Clear lock and, if desired, set high bit in other index
-      unlocked.rawData = _metaData.rawData;
-      if (enableJITAccess && unlocked.otherIndex > -1)
-         unlocked.otherIndex = ~unlocked.otherIndex;
-      unlocked.lock = 0;
-      }
-   while (locked.rawData != VM_AtomicSupport::lockCompareExchangeU32((uint32_t*) &_metaData, locked.rawData, unlocked.rawData));
-   }
+        // Clear lock and, if desired, set high bit in other index
+        unlocked.rawData = _metaData.rawData;
+        if (enableJITAccess && unlocked.otherIndex > -1)
+            unlocked.otherIndex = ~unlocked.otherIndex;
+        unlocked.lock = 0;
+    } while (locked.rawData
+        != VM_AtomicSupport::lockCompareExchangeU32((uint32_t *)&_metaData, locked.rawData, unlocked.rawData));
+}
 
 #if defined(TR_HOST_POWER)
 JIT_HELPER(_jitProfileValue);
@@ -277,15 +261,15 @@ JIT_HELPER(jProfile32BitValue);
 JIT_HELPER(jProfile64BitValue);
 
 void PPCinitializeValueProfiler()
-   {
-   #define SET runtimeHelpers.setAddress
-   SET(TR_jitProfileWarmCompilePICAddress, (void *) _jitProfileWarmCompilePICAddress, TR_Helper);
-   SET(TR_jitProfileAddress,               (void *) _jitProfileAddress,               TR_Helper);
-   SET(TR_jitProfileValue,                 (void *) _jitProfileValue,                 TR_Helper);
-   SET(TR_jitProfileLongValue,             (void *) _jitProfileLongValue,             TR_Helper);
-   SET(TR_jitProfileBigDecimalValue,       (void *) _jitProfileBigDecimalValue,       TR_Helper);
-   SET(TR_jitProfileStringValue,           (void *) _jitProfileStringValue,           TR_Helper);
-   SET(TR_jProfile32BitValue,              (void *) jProfile32BitValue,               TR_Helper);
-   SET(TR_jProfile64BitValue,              (void *) jProfile64BitValue,               TR_Helper);
-   }
+{
+#define SET runtimeHelpers.setAddress
+    SET(TR_jitProfileWarmCompilePICAddress, (void *)_jitProfileWarmCompilePICAddress, TR_Helper);
+    SET(TR_jitProfileAddress, (void *)_jitProfileAddress, TR_Helper);
+    SET(TR_jitProfileValue, (void *)_jitProfileValue, TR_Helper);
+    SET(TR_jitProfileLongValue, (void *)_jitProfileLongValue, TR_Helper);
+    SET(TR_jitProfileBigDecimalValue, (void *)_jitProfileBigDecimalValue, TR_Helper);
+    SET(TR_jitProfileStringValue, (void *)_jitProfileStringValue, TR_Helper);
+    SET(TR_jProfile32BitValue, (void *)jProfile32BitValue, TR_Helper);
+    SET(TR_jProfile64BitValue, (void *)jProfile64BitValue, TR_Helper);
+}
 #endif

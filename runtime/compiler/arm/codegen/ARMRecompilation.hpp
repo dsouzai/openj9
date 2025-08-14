@@ -27,19 +27,17 @@
 #include "control/RecompilationInfo.hpp"
 class TR_ResolvedMethod;
 
-class TR_ARMRecompilation : public TR::Recompilation
-   {
-   public:
+class TR_ARMRecompilation : public TR::Recompilation {
+public:
+    TR_ARMRecompilation(TR::Compilation *);
 
-   TR_ARMRecompilation(TR::Compilation *);
+    static TR::Recompilation *allocate(TR::Compilation *);
 
-   static TR::Recompilation * allocate(TR::Compilation *);
+    virtual TR_PersistentMethodInfo *getExistingMethodInfo(TR_ResolvedMethod *method);
+    virtual TR::Instruction *generatePrePrologue();
+    virtual TR::Instruction *generatePrologue(TR::Instruction *);
 
-   virtual TR_PersistentMethodInfo *getExistingMethodInfo(TR_ResolvedMethod *method);
-   virtual TR::Instruction          *generatePrePrologue();
-   virtual TR::Instruction          *generatePrologue(TR::Instruction *);
-
-   TR::CodeGenerator *cg() { return _compilation->cg(); }
-   };
+    TR::CodeGenerator *cg() { return _compilation->cg(); }
+};
 
 #endif

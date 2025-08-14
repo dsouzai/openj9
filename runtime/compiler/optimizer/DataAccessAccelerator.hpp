@@ -138,125 +138,123 @@ class TreeTop;
  *  - com/ibm/dataaccess/PackedDecimal.equalsPackedDecimal_([BII[BII)Z
  *
  */
-class TR_DataAccessAccelerator : public TR::Optimization
-   {
-   public:
-   typedef TR::typed_allocator< TR::TreeTop *, TR::Region & > TreeTopContainerAllocator;
-   typedef std::vector< TR::TreeTop*, TreeTopContainerAllocator > TreeTopContainer;
-   typedef TR::typed_allocator< TR::Block *, TR::Region & > BlockContainerAllocator;
-   typedef std::vector< TR::Block*, BlockContainerAllocator > BlockContainer;
+class TR_DataAccessAccelerator : public TR::Optimization {
+public:
+    typedef TR::typed_allocator<TR::TreeTop *, TR::Region &> TreeTopContainerAllocator;
+    typedef std::vector<TR::TreeTop *, TreeTopContainerAllocator> TreeTopContainer;
+    typedef TR::typed_allocator<TR::Block *, TR::Region &> BlockContainerAllocator;
+    typedef std::vector<TR::Block *, BlockContainerAllocator> BlockContainer;
 
-   TR_DataAccessAccelerator(TR::OptimizationManager* manager);
+    TR_DataAccessAccelerator(TR::OptimizationManager *manager);
 
-   /** \brief
-    *     Helper function to create an instance of the StringBuilderTransformer optimization using the
-    *     OptimizationManager's default allocator.
-    *
-    *  \param manager
-    *     The optimization manager.
-    */
-   static TR::Optimization* create(TR::OptimizationManager* manager)
-      {
-      return new (manager->allocator()) TR_DataAccessAccelerator(manager);
-      }
+    /** \brief
+     *     Helper function to create an instance of the StringBuilderTransformer optimization using the
+     *     OptimizationManager's default allocator.
+     *
+     *  \param manager
+     *     The optimization manager.
+     */
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_DataAccessAccelerator(manager);
+    }
 
-   /** \brief
-    *     Performs the optimization on this compilation unit.
-    *
-    *  \return
-    *     1 if any transformation was performed; 0 otherwise.
-    */
-   virtual int32_t perform();
+    /** \brief
+     *     Performs the optimization on this compilation unit.
+     *
+     *  \return
+     *     1 if any transformation was performed; 0 otherwise.
+     */
+    virtual int32_t perform();
 
-   /** \brief
-    *     Performs the optimization on a specific block within this compilation unit.
-    *
-    *  \param block
-    *     The block on which to perform this optimization.
-    *
-    *  \param variableCallTreeTops
-    *     A vector of TR::TreeTop*. Used to build a list of variable precision calls to be used
-    *     later
-    *
-    *  \return
-    *     1 if any transformation was performed; 0 otherwise.
-    */
-   virtual int32_t performOnBlock(TR::Block* block, TreeTopContainer* variableCallTreeTops);
+    /** \brief
+     *     Performs the optimization on a specific block within this compilation unit.
+     *
+     *  \param block
+     *     The block on which to perform this optimization.
+     *
+     *  \param variableCallTreeTops
+     *     A vector of TR::TreeTop*. Used to build a list of variable precision calls to be used
+     *     later
+     *
+     *  \return
+     *     1 if any transformation was performed; 0 otherwise.
+     */
+    virtual int32_t performOnBlock(TR::Block *block, TreeTopContainer *variableCallTreeTops);
 
-   /** \brief
-    *     Performs inlining of variable precision API calls after iterating through the entire tree
-    *
-    *  \detail
-    *     Unlike constant precision DAA call inlining which can be done in-place without introducing extra blocks,
-    *     each variable precision call node has to be bloated into multiple
-    *     basic blocks to form a precision diamond. This disrupts the CFG and invalidates block iterator and
-    *     TreeTop iterator that might be in use. As a result of this, it's difficult to inline variable precision
-    *     calls while iterating the entire tree. The solution to this problem is to build a list of variable
-    *     precision TreeTops during the tree traversal phase. And after that, go through this list and inline each one of them.
-    *
-    *  \param variableCallTreeTops
-    *     A vector of TR::TreeTop*. All variable precision calls listed here will be inlined.
-    *
-    *  \return
-    *     1 if any transformation was performed; 0 otherwise.
-    */
-   virtual int32_t processVariableCalls(TreeTopContainer* variableCallTreeTops);
+    /** \brief
+     *     Performs inlining of variable precision API calls after iterating through the entire tree
+     *
+     *  \detail
+     *     Unlike constant precision DAA call inlining which can be done in-place without introducing extra blocks,
+     *     each variable precision call node has to be bloated into multiple
+     *     basic blocks to form a precision diamond. This disrupts the CFG and invalidates block iterator and
+     *     TreeTop iterator that might be in use. As a result of this, it's difficult to inline variable precision
+     *     calls while iterating the entire tree. The solution to this problem is to build a list of variable
+     *     precision TreeTops during the tree traversal phase. And after that, go through this list and inline each one
+     * of them.
+     *
+     *  \param variableCallTreeTops
+     *     A vector of TR::TreeTop*. All variable precision calls listed here will be inlined.
+     *
+     *  \return
+     *     1 if any transformation was performed; 0 otherwise.
+     */
+    virtual int32_t processVariableCalls(TreeTopContainer *variableCallTreeTops);
 
-   virtual const char * optDetailString() const throw();
+    virtual const char *optDetailString() const throw();
 
-   bool isChildConst (TR::Node* node, int32_t child);
+    bool isChildConst(TR::Node *node, int32_t child);
 
-   TR::Node* insertIntegerGetIntrinsic(TR::TreeTop* callTreeTop, TR::Node* callNode, int32_t sourceNumBytes, int32_t targetNumBytes);
-   TR::Node* insertIntegerSetIntrinsic(TR::TreeTop* callTreeTop, TR::Node* callNode, int32_t sourceNumBytes, int32_t targetNumBytes);
+    TR::Node *insertIntegerGetIntrinsic(TR::TreeTop *callTreeTop, TR::Node *callNode, int32_t sourceNumBytes,
+        int32_t targetNumBytes);
+    TR::Node *insertIntegerSetIntrinsic(TR::TreeTop *callTreeTop, TR::Node *callNode, int32_t sourceNumBytes,
+        int32_t targetNumBytes);
 
-   TR::Node* insertDecimalGetIntrinsic(TR::TreeTop* callTreeTop, TR::Node* callNode, int32_t sourceNumBytes, int32_t targetNumBytes);
-   TR::Node* insertDecimalSetIntrinsic(TR::TreeTop* callTreeTop, TR::Node* callNode, int32_t sourceNumBytes, int32_t targetNumBytes);
+    TR::Node *insertDecimalGetIntrinsic(TR::TreeTop *callTreeTop, TR::Node *callNode, int32_t sourceNumBytes,
+        int32_t targetNumBytes);
+    TR::Node *insertDecimalSetIntrinsic(TR::TreeTop *callTreeTop, TR::Node *callNode, int32_t sourceNumBytes,
+        int32_t targetNumBytes);
 
-   bool inlineCheckPackedDecimal(TR::TreeTop* callTreeTop, TR::Node* callNode);
-   bool inlineCheckExternalDecimal(TR::TreeTop* callTreeTop, TR::Node* callNode);
+    bool inlineCheckPackedDecimal(TR::TreeTop *callTreeTop, TR::Node *callNode);
+    bool inlineCheckExternalDecimal(TR::TreeTop *callTreeTop, TR::Node *callNode);
 
-   private:
+private:
+    TR::Node *constructAddressNode(TR::Node *callNode, TR::Node *arrayNode, TR::Node *offsetNodee,
+        bool isUnicodeOrExternalDecimalInvolved = false, bool isSrcOrTargetUnicodeDecimal = false);
 
-   TR::Node* constructAddressNode(TR::Node* callNode, TR::Node* arrayNode, TR::Node* offsetNodee, bool isUnicodeOrExternalDecimalInvolved = false, bool isSrcOrTargetUnicodeDecimal = false);
+    void createPrecisionDiamond(TR::Compilation *comp, TR::TreeTop *treeTop, TR::TreeTop *fastTree,
+        TR::TreeTop *slowTree, bool isPD2I, uint32_t numPrecisionNodes, ...);
 
-   void createPrecisionDiamond(TR::Compilation* comp,
-                               TR::TreeTop* treeTop,
-                               TR::TreeTop* fastTree, TR::TreeTop* slowTree,
-                               bool isPD2I,
-                               uint32_t numPrecisionNodes,
-                               ...);
+    TR::Node *restructureVariablePrecisionCallNode(TR::TreeTop *treeTop, TR::Node *callNode);
 
-   TR::Node* restructureVariablePrecisionCallNode(TR::TreeTop* treeTop, TR::Node* callNode);
+    bool generatePD2I(TR::TreeTop *treeTop, TR::Node *callNode, bool isPD2i, bool isByteBuffer);
+    bool generatePD2IVariableParameter(TR::TreeTop *treeTop, TR::Node *callNode, bool isPD2i, bool isByteBuffer);
+    bool generatePD2IConstantParameter(TR::TreeTop *treeTop, TR::Node *callNode, bool isPD2i, bool isByteBuffer);
+    bool generateI2PD(TR::TreeTop *treeTop, TR::Node *callNode, bool isI2PD, bool isByteBuffer);
+    bool genArithmeticIntrinsic(TR::TreeTop *treeTop, TR::Node *callNode, TR::ILOpCodes opCode);
+    bool genComparisionIntrinsic(TR::TreeTop *treeTop, TR::Node *callNode, TR::ILOpCodes opCode);
+    bool genShiftLeftIntrinsic(TR::TreeTop *treeTop, TR::Node *callNode);
+    bool genShiftRightIntrinsic(TR::TreeTop *treeTop, TR::Node *callNode);
+    bool generateUD2PD(TR::TreeTop *treeTop, TR::Node *callNode, bool isSrcUnicodeDecimal);
+    bool generatePD2UD(TR::TreeTop *treeTop, TR::Node *callNode, bool isTargetUnicodeDecimal);
 
-   bool generatePD2I(TR::TreeTop* treeTop, TR::Node* callNode, bool isPD2i, bool isByteBuffer);
-   bool generatePD2IVariableParameter(TR::TreeTop* treeTop, TR::Node* callNode, bool isPD2i, bool isByteBuffer);
-   bool generatePD2IConstantParameter(TR::TreeTop* treeTop, TR::Node* callNode, bool isPD2i, bool isByteBuffer);
-   bool generateI2PD(TR::TreeTop* treeTop, TR::Node* callNode, bool isI2PD, bool isByteBuffer);
-   bool genArithmeticIntrinsic(TR::TreeTop* treeTop, TR::Node* callNode, TR::ILOpCodes opCode);
-   bool genComparisionIntrinsic(TR::TreeTop* treeTop, TR::Node* callNode, TR::ILOpCodes opCode);
-   bool genShiftLeftIntrinsic(TR::TreeTop* treeTop, TR::Node* callNode);
-   bool genShiftRightIntrinsic(TR::TreeTop* treeTop, TR::Node* callNode);
-   bool generateUD2PD(TR::TreeTop* treeTop, TR::Node* callNode, bool isSrcUnicodeDecimal);
-   bool generatePD2UD(TR::TreeTop* treeTop, TR::Node* callNode, bool isTargetUnicodeDecimal);
+    void insertByteArrayNULLCHK(TR::TreeTop *callTreeTop, TR::Node *callNode, TR::Node *byteArrayNode);
+    void insertByteArrayBNDCHK(TR::TreeTop *callTreeTop, TR::Node *callNode, TR::Node *byteArrayNode,
+        TR::Node *offsetNode, int32_t index);
 
-   void insertByteArrayNULLCHK(TR::TreeTop* callTreeTop, TR::Node* callNode, TR::Node* byteArrayNode);
-   void insertByteArrayBNDCHK(TR::TreeTop* callTreeTop, TR::Node* callNode, TR::Node* byteArrayNode, TR::Node* offsetNode, int32_t index);
-
-
-   bool printInliningStatus(bool status, TR::Node* node, const char* reason = "")
-      {
-      if (trace()) 
-         {
+    bool printInliningStatus(bool status, TR::Node *node, const char *reason = "")
+    {
+        if (trace()) {
             if (status)
-               traceMsg(comp(), "DataAccessAccelerator: Intrinsics on node %p : SUCCESS\n", node);
-            else
-               {
-               traceMsg(comp(), "DataAccessAccelerator: Intrinsics on node %p : FAILED\n", node);
-               traceMsg(comp(), "DataAccessAccelerator:     Reason : %s\n", reason);
-               }
-         }
-      return status;
-      }
-   };
+                traceMsg(comp(), "DataAccessAccelerator: Intrinsics on node %p : SUCCESS\n", node);
+            else {
+                traceMsg(comp(), "DataAccessAccelerator: Intrinsics on node %p : FAILED\n", node);
+                traceMsg(comp(), "DataAccessAccelerator:     Reason : %s\n", reason);
+            }
+        }
+        return status;
+    }
+};
 
 #endif

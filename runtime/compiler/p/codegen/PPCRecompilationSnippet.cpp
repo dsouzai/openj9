@@ -43,79 +43,72 @@
 #include "runtime/CodeCacheManager.hpp"
 
 uint8_t *TR::PPCRecompilationSnippet::emitSnippetBody()
-   {
-   uint8_t             *buffer = cg()->getBinaryBufferCursor();
-   TR::Compilation *comp = cg()->comp();
-   TR::SymbolReference  *countingRecompMethodSymRef = cg()->symRefTab()->findOrCreateRuntimeHelper(TR_PPCcountingRecompileMethod);
-   bool                 longPrologue = getBranchToSnippet()->getFarRelocation();
+{
+    uint8_t *buffer = cg()->getBinaryBufferCursor();
+    TR::Compilation *comp = cg()->comp();
+    TR::SymbolReference *countingRecompMethodSymRef
+        = cg()->symRefTab()->findOrCreateRuntimeHelper(TR_PPCcountingRecompileMethod);
+    bool longPrologue = getBranchToSnippet()->getFarRelocation();
 
-   getSnippetLabel()->setCodeLocation(buffer);
+    getSnippetLabel()->setCodeLocation(buffer);
 
-   intptr_t helperAddress = (intptr_t)countingRecompMethodSymRef->getMethodAddress();
-   if (cg()->directCallRequiresTrampoline(helperAddress, (intptr_t)buffer))
-      {
-      helperAddress = TR::CodeCacheManager::instance()->findHelperTrampoline(countingRecompMethodSymRef->getReferenceNumber(), (void *)buffer);
-      TR_ASSERT_FATAL(comp->target().cpu.isTargetWithinIFormBranchRange(helperAddress, (intptr_t)buffer), "Helper address is out of range");
-      }
+    intptr_t helperAddress = (intptr_t)countingRecompMethodSymRef->getMethodAddress();
+    if (cg()->directCallRequiresTrampoline(helperAddress, (intptr_t)buffer)) {
+        helperAddress = TR::CodeCacheManager::instance()->findHelperTrampoline(
+            countingRecompMethodSymRef->getReferenceNumber(), (void *)buffer);
+        TR_ASSERT_FATAL(comp->target().cpu.isTargetWithinIFormBranchRange(helperAddress, (intptr_t)buffer),
+            "Helper address is out of range");
+    }
 
-   // bl distance
-   *(int32_t *)buffer = 0x48000001 | ((helperAddress - (intptr_t)buffer) & 0x03ffffff);
-   cg()->addExternalRelocation(
-      TR::ExternalRelocation::create(
-         buffer,
-         (uint8_t *)countingRecompMethodSymRef,
-         TR_HelperAddress,
-         cg()),
-      __FILE__,
-      __LINE__,
-      getNode());
+    // bl distance
+    *(int32_t *)buffer = 0x48000001 | ((helperAddress - (intptr_t)buffer) & 0x03ffffff);
+    cg()->addExternalRelocation(
+        TR::ExternalRelocation::create(buffer, (uint8_t *)countingRecompMethodSymRef, TR_HelperAddress, cg()), __FILE__,
+        __LINE__, getNode());
 
-   buffer += 4;
+    buffer += 4;
 
-   // bodyinfo
-   uintptr_t valueBits = (uintptr_t)comp->getRecompilationInfo()->getJittedBodyInfo();
-   *(uintptr_t *)buffer = valueBits;
+    // bodyinfo
+    uintptr_t valueBits = (uintptr_t)comp->getRecompilationInfo()->getJittedBodyInfo();
+    *(uintptr_t *)buffer = valueBits;
 
-   buffer += sizeof(uintptr_t);
+    buffer += sizeof(uintptr_t);
 
-   // startPC
-   valueBits = (uintptr_t)cg()->getCodeStart() | (longPrologue?1:0);
-   *(uintptr_t *)buffer = valueBits;
+    // startPC
+    valueBits = (uintptr_t)cg()->getCodeStart() | (longPrologue ? 1 : 0);
+    *(uintptr_t *)buffer = valueBits;
 
-   return buffer + sizeof(uintptr_t);
-   }
+    return buffer + sizeof(uintptr_t);
+}
 
+void TR_Debug::print(TR::FILE *pOutFile, TR::PPCRecompilationSnippet *snippet)
+{
+    uint8_t *cursor = snippet->getSnippetLabel()->getCodeLocation();
 
-void
-TR_Debug::print(TR::FILE *pOutFile, TR::PPCRecompilationSnippet * snippet)
-   {
-   uint8_t             *cursor        = snippet->getSnippetLabel()->getCodeLocation();
+    printSnippetLabel(pOutFile, snippet->getSnippetLabel(), cursor, "Counting Recompilation Snippet");
 
-   printSnippetLabel(pOutFile, snippet->getSnippetLabel(), cursor, "Counting Recompilation Snippet");
+    const char *info = "";
+    int32_t distance;
+    if (isBranchToTrampoline(_cg->getSymRef(TR_PPCcountingRecompileMethod), cursor, distance))
+        info = " Through trampoline";
 
-   const char *info = "";
-   int32_t    distance;
-   if (isBranchToTrampoline(_cg->getSymRef(TR_PPCcountingRecompileMethod), cursor, distance))
-      info = " Through trampoline";
+    printPrefix(pOutFile, NULL, cursor, 4);
+    distance = *((int32_t *)cursor) & 0x03fffffc;
+    distance = (distance << 6) >> 6; // sign extend
+    trfprintf(pOutFile, "bl \t" POINTER_PRINTF_FORMAT "\t\t;%s", (intptr_t)cursor + distance, info);
+    cursor += 4;
 
-   printPrefix(pOutFile, NULL, cursor, 4);
-   distance = *((int32_t *) cursor) & 0x03fffffc;
-   distance = (distance << 6) >> 6;   // sign extend
-   trfprintf(pOutFile, "bl \t" POINTER_PRINTF_FORMAT "\t\t;%s", (intptr_t)cursor + distance, info);
-   cursor += 4;
+    // methodInfo
+    printPrefix(pOutFile, NULL, cursor, 4);
+    trfprintf(pOutFile, ".long \t0x%08x\t\t;%s", _comp->getRecompilationInfo()->getMethodInfo(), "methodInfo");
+    cursor += 4;
 
-   // methodInfo
-   printPrefix(pOutFile, NULL, cursor, 4);
-   trfprintf(pOutFile, ".long \t0x%08x\t\t;%s", _comp->getRecompilationInfo()->getMethodInfo(), "methodInfo");
-   cursor += 4;
-
-   // startPC
-   printPrefix(pOutFile, NULL, cursor, 4);
-   trfprintf(pOutFile, ".long \t0x%08x\t\t; startPC | longPrologue", _cg->getCodeStart());
-   }
-
+    // startPC
+    printPrefix(pOutFile, NULL, cursor, 4);
+    trfprintf(pOutFile, ".long \t0x%08x\t\t; startPC | longPrologue", _cg->getCodeStart());
+}
 
 uint32_t TR::PPCRecompilationSnippet::getLength(int32_t estimatedSnippetStart)
-   {
-   return(cg()->comp()->target().is64Bit()? 20 : 12);
-   }
+{
+    return (cg()->comp()->target().is64Bit() ? 20 : 12);
+}

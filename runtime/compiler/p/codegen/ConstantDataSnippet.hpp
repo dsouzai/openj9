@@ -29,17 +29,13 @@ namespace TR {
 class CodeGenerator;
 }
 
-namespace TR
-   {
-   class ConstantDataSnippet : public J9::ConstantDataSnippetConnector
-      {
-      public:
-
-      ConstantDataSnippet(TR::CodeGenerator *cg) :
-         J9::ConstantDataSnippetConnector(cg)
-         {
-         }
-      };
-   }
+namespace TR {
+class ConstantDataSnippet : public J9::ConstantDataSnippetConnector {
+public:
+    ConstantDataSnippet(TR::CodeGenerator *cg)
+        : J9::ConstantDataSnippetConnector(cg)
+    {}
+};
+} // namespace TR
 
 #endif

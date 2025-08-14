@@ -26,103 +26,45 @@
 #include "j9port.h"
 
 #ifdef J9VM_JIT_CLASS_UNLOAD_RWMONITOR
-void
-J9::RWMonitor::enter_read()
-   {
-   j9thread_rwmutex_enter_read(_monitor);
-   }
+void J9::RWMonitor::enter_read() { j9thread_rwmutex_enter_read(_monitor); }
 
+void J9::RWMonitor::enter_write() { j9thread_rwmutex_enter_write(_monitor); }
 
-void
-J9::RWMonitor::enter_write()
-   {
-   j9thread_rwmutex_enter_write(_monitor);
-   }
+void J9::RWMonitor::exit_read() { j9thread_rwmutex_exit_read(_monitor); }
 
+void J9::RWMonitor::exit_write() { j9thread_rwmutex_exit_write(_monitor); }
 
-void
-J9::RWMonitor::exit_read()
-   {
-   j9thread_rwmutex_exit_read(_monitor);
-   }
+void J9::RWMonitor::destroy() { j9thread_rwmutex_destroy(_monitor); }
 
+bool J9::RWMonitor::init(const char *name) { return j9thread_rwmutex_init(&_monitor, 0, name) == 0 ? true : false; }
 
-void
-J9::RWMonitor::exit_write()
-   {
-   j9thread_rwmutex_exit_write(_monitor);
-   }
-
-
-void
-J9::RWMonitor::destroy()
-   {
-   j9thread_rwmutex_destroy(_monitor);
-   }
-
-
-bool
-J9::RWMonitor::init(const char *name)
-   {
-   return j9thread_rwmutex_init(&_monitor, 0, name) == 0 ? true : false;
-   }
-
-
-bool
-J9::RWMonitor::initFromVMMutex(void *mutex)
-   {
-   _monitor = (RWMutex*)mutex;
-   return true;
-   }
+bool J9::RWMonitor::initFromVMMutex(void *mutex)
+{
+    _monitor = (RWMutex *)mutex;
+    return true;
+}
 
 #else
 
-void
-J9::RWMonitor::enter_read()
-   {
-   j9thread_monitor_enter(_monitor);
-   }
+void J9::RWMonitor::enter_read() { j9thread_monitor_enter(_monitor); }
 
+void J9::RWMonitor::enter_write() { j9thread_monitor_enter(_monitor); }
 
-void
-J9::RWMonitor::enter_write()
-   {
-   j9thread_monitor_enter(_monitor);
-   }
+void J9::RWMonitor::exit_read() { j9thread_monitor_exit(_monitor); }
 
+void J9::RWMonitor::exit_write() { j9thread_monitor_exit(_monitor); }
 
-void
-J9::RWMonitor::exit_read()
-   {
-   j9thread_monitor_exit(_monitor);
-   }
+void J9::RWMonitor::destroy() { j9thread_monitor_destroy(_monitor); }
 
+bool J9::RWMonitor::init(const char *name)
+{
+    return j9thread_monitor_init_with_name((J9ThreadMonitor **)&_monitor, 0, name) == 0 ? true : false;
+}
 
-void
-J9::RWMonitor::exit_write()
-   {
-   j9thread_monitor_exit(_monitor);
-   }
-
-
-void
-J9::RWMonitor::destroy()
-   {
-   j9thread_monitor_destroy(_monitor);
-   }
-
-
-bool
-J9::RWMonitor::init(const char *name)
-   {
-   return j9thread_monitor_init_with_name((J9ThreadMonitor**)&_monitor, 0, name) == 0 ? true : false;
-   }
-
-
-bool
-J9::RWMonitor::initFromVMMutex(void *mutex)
-   {
-   _monitor = (J9ThreadMonitor*)mutex; return true;
-   }
+bool J9::RWMonitor::initFromVMMutex(void *mutex)
+{
+    _monitor = (J9ThreadMonitor *)mutex;
+    return true;
+}
 
 #endif

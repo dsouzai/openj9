@@ -20,9 +20,9 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0 OR GPL-2.0-only WITH OpenJDK-assembly-exception-1.0
  *******************************************************************************/
 
-#pragma csect(CODE,"TRJ9PeepholeBase#C")
-#pragma csect(STATIC,"TRJ9PeepholeBase#S")
-#pragma csect(TEST,"TRJ9PeepholeBase#T")
+#pragma csect(CODE, "TRJ9PeepholeBase#C")
+#pragma csect(STATIC, "TRJ9PeepholeBase#S")
+#pragma csect(TEST, "TRJ9PeepholeBase#T")
 
 #include "codegen/Peephole.hpp"
 
@@ -31,24 +31,21 @@
 #include "codegen/S390GenerateInstructions.hpp"
 #include "codegen/S390Instruction.hpp"
 
-J9::Z::Peephole::Peephole(TR::Compilation* comp) :
-   OMR::PeepholeConnector(comp)
-   {}
+J9::Z::Peephole::Peephole(TR::Compilation *comp)
+    : OMR::PeepholeConnector(comp)
+{}
 
-bool
-J9::Z::Peephole::performOnInstruction(TR::Instruction* cursor)
-   {
-   bool performed = false;
+bool J9::Z::Peephole::performOnInstruction(TR::Instruction *cursor)
+{
+    bool performed = false;
 
-   if (self()->cg()->afterRA())
-      {
-      if (cursor->getNode() != NULL && cursor->getNode()->getOpCodeValue() == TR::BBStart)
-         {
-         self()->comp()->setCurrentBlock(cursor->getNode()->getBlock());
-         }
-      }
+    if (self()->cg()->afterRA()) {
+        if (cursor->getNode() != NULL && cursor->getNode()->getOpCodeValue() == TR::BBStart) {
+            self()->comp()->setCurrentBlock(cursor->getNode()->getBlock());
+        }
+    }
 
-   performed |= OMR::PeepholeConnector::performOnInstruction(cursor);
+    performed |= OMR::PeepholeConnector::performOnInstruction(cursor);
 
-   return performed;
-   }
+    return performed;
+}

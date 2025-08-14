@@ -20,28 +20,20 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0 OR GPL-2.0-only WITH OpenJDK-assembly-exception-1.0
  *******************************************************************************/
 
-//#include "codegen/ARMCodeGenerator.hpp"
+// #include "codegen/ARMCodeGenerator.hpp"
 #include "arm/codegen/ARMInstruction.hpp"
 #include "arm/codegen/ARMAOTRelocation.hpp"
 
 void TR::ARMPairedRelocation::mapRelocation(TR::CodeGenerator *cg)
-   {
-   //if(isSmall()) return;
-   
-   if (TR::comp()->compileRelocatableCode())
-      {
-      cg->addExternalRelocation(
-         new (cg->trHeapMemory()) TR::ExternalOrderedPair32BitRelocation(
-            getSourceInstruction()->getBinaryEncoding(),
-            NULL,
-   /*         getSource2Instruction()->getBinaryEncoding(),*/
-            getRelocationTarget(),
-            getKind(),
-            cg),
-         __FILE__,
-         __LINE__,
-         getNode());
-      }
-   }
+{
+    // if(isSmall()) return;
 
+    if (TR::comp()->compileRelocatableCode()) {
+        cg->addExternalRelocation(new (cg->trHeapMemory()) TR::ExternalOrderedPair32BitRelocation(
+                                      getSourceInstruction()->getBinaryEncoding(), NULL,
+                                      /*         getSource2Instruction()->getBinaryEncoding(),*/
+                                      getRelocationTarget(), getKind(), cg),
+            __FILE__, __LINE__, getNode());
+    }
+}
 

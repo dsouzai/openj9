@@ -27,20 +27,17 @@
 #include "env/RawAllocator.hpp"
 #include "env/J9CompilerEnv.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE CompilerEnv : public J9::CompilerEnvConnector
-   {
+class OMR_EXTENSIBLE CompilerEnv : public J9::CompilerEnvConnector {
 public:
-
-   CompilerEnv(J9JavaVM *vm, RawAllocator raw, const TR::PersistentAllocatorKit &persistentAllocatorKit) :
-         J9::CompilerEnvConnector(vm, raw, persistentAllocatorKit)
-      {}
-   };
+    CompilerEnv(J9JavaVM *vm, RawAllocator raw, const TR::PersistentAllocatorKit &persistentAllocatorKit)
+        : J9::CompilerEnvConnector(vm, raw, persistentAllocatorKit)
+    {}
+};
 
 extern CompilerEnv *Compiler;
 
-}
+} // namespace TR
 
 #endif

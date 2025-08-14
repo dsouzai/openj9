@@ -25,61 +25,64 @@
 
 #include "compile/Compilation.hpp"
 
-
-class TR_SharedMemoryField
-   {
+class TR_SharedMemoryField {
 public:
-   TR_SharedMemoryField(char *fieldName, int32_t fieldNameLength,
-                       char *fieldSig, int32_t fieldSigLength, int32_t size)
-           : _fieldName(fieldName),
-             _fieldNameLength(fieldNameLength),  
-             _fieldSig(fieldSig),
-             _fieldSigLength(fieldSigLength),  
-             _size(size),
-             _parmNum(-1) {}
+    TR_SharedMemoryField(char *fieldName, int32_t fieldNameLength, char *fieldSig, int32_t fieldSigLength, int32_t size)
+        : _fieldName(fieldName)
+        , _fieldNameLength(fieldNameLength)
+        , _fieldSig(fieldSig)
+        , _fieldSigLength(fieldSigLength)
+        , _size(size)
+        , _parmNum(-1)
+    {}
 
-   char   *getFieldName() { return _fieldName; }
-   int32_t getFieldNameLength() { return _fieldNameLength; }
-   char   *getFieldSig() { return _fieldSig; }
-   int32_t getFieldSigLength() { return _fieldSigLength; }
-   int32_t getSize() { return _size; }
-   int32_t getParmNum() { return _parmNum; }
-   void    setParmNum(int32_t num) { _parmNum = num; }
-   int32_t getOffset() { return _offset; }
-   void    setOffset(int32_t offset) { _offset = offset; }
+    char *getFieldName() { return _fieldName; }
+
+    int32_t getFieldNameLength() { return _fieldNameLength; }
+
+    char *getFieldSig() { return _fieldSig; }
+
+    int32_t getFieldSigLength() { return _fieldSigLength; }
+
+    int32_t getSize() { return _size; }
+
+    int32_t getParmNum() { return _parmNum; }
+
+    void setParmNum(int32_t num) { _parmNum = num; }
+
+    int32_t getOffset() { return _offset; }
+
+    void setOffset(int32_t offset) { _offset = offset; }
 
 private:
-   char *  _fieldName;
-   int32_t _fieldNameLength;  
-   char *  _fieldSig;
-   int32_t _fieldSigLength;  
-   int32_t _size;
-   int32_t _parmNum;
-   int32_t _offset;
+    char *_fieldName;
+    int32_t _fieldNameLength;
+    char *_fieldSig;
+    int32_t _fieldSigLength;
+    int32_t _size;
+    int32_t _parmNum;
+    int32_t _offset;
 
+    friend class TR_SharedMemoryAnnotations;
+};
 
-friend class TR_SharedMemoryAnnotations;
+class TR_SharedMemoryAnnotations {
+public:
+    TR_SharedMemoryAnnotations(TR::Compilation *comp)
+        : _sharedMemoryFields(getTypedAllocator<TR_SharedMemoryField>(comp->allocator()))
+    {
+        loadAnnotations(comp);
+    }
 
-   };
+    TR_SharedMemoryField find(TR::Compilation *comp, TR::SymbolReference *symRef);
+    void setParmNum(TR::Compilation *comp, TR::SymbolReference *symRef, int32_t num);
 
-class TR_SharedMemoryAnnotations 
-   {
-   public:
-   TR_SharedMemoryAnnotations(TR::Compilation *comp) : _sharedMemoryFields(getTypedAllocator<TR_SharedMemoryField>(comp->allocator()))
-      {
-      loadAnnotations(comp);
-      }
+    TR::list<TR_SharedMemoryField> &getSharedMemoryFields() { return _sharedMemoryFields; }
 
-   TR_SharedMemoryField find(TR::Compilation *comp, TR::SymbolReference *symRef);
-   void setParmNum(TR::Compilation *comp, TR::SymbolReference *symRef, int32_t num);
-
-   TR::list<TR_SharedMemoryField> &getSharedMemoryFields() { return _sharedMemoryFields; }
-
-   private:
-   void loadAnnotations(TR::Compilation *comp);
-   TR::list<TR_SharedMemoryField> _sharedMemoryFields;
-   };
-
+private:
+    void loadAnnotations(TR::Compilation *comp);
+    TR::list<TR_SharedMemoryField> _sharedMemoryFields;
+};
 
 bool currentMethodHasFpreductionAnnotation(TR::Compilation *comp, bool trace);
 

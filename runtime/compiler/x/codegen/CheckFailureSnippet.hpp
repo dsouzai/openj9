@@ -35,184 +35,139 @@ namespace TR {
 class CodeGenerator;
 class LabelSymbol;
 class Symbol;
-}
+} // namespace TR
 
-#define TR_BREAKONTHROW_NPE  1
+#define TR_BREAKONTHROW_NPE 1
 #define TR_BREAKONTHROW_AIOB 2
 
 namespace TR {
 
-class X86CheckFailureSnippet : public TR::Snippet
-   {
-   TR::SymbolReference *_destination;
-   TR::Instruction     *_checkInstruction;
-   bool                _requiresFPstackPop;
-   uint8_t             _breakOnThrowType;
+class X86CheckFailureSnippet : public TR::Snippet {
+    TR::SymbolReference *_destination;
+    TR::Instruction *_checkInstruction;
+    bool _requiresFPstackPop;
+    uint8_t _breakOnThrowType;
 
-   public:
+public:
+    X86CheckFailureSnippet(TR::CodeGenerator *cg, TR::SymbolReference *dest, TR::LabelSymbol *lab,
+        TR::Instruction *checkInstruction, bool popFPstack = false, uint8_t breakOnThrowType = 0)
+        : TR::Snippet(cg, checkInstruction->getNode(), lab, dest->canCauseGC())
+        , _destination(dest)
+        , _checkInstruction(checkInstruction)
+        , _requiresFPstackPop(popFPstack)
+        , _breakOnThrowType(breakOnThrowType)
+    {
+        // No registers preserved at this call
+        //
+        gcMap().setGCRegisterMask(0);
+        checkBreakOnThrowOption();
+    }
 
-   X86CheckFailureSnippet(
-      TR::CodeGenerator   * cg,
-      TR::SymbolReference * dest,
-      TR::LabelSymbol      * lab,
-      TR::Instruction     * checkInstruction,
-      bool                 popFPstack = false,
-      uint8_t              breakOnThrowType = 0)
-      : TR::Snippet(cg, checkInstruction->getNode(), lab, dest->canCauseGC()),
-        _destination(dest),
-        _checkInstruction(checkInstruction),
-        _requiresFPstackPop(popFPstack),
-        _breakOnThrowType(breakOnThrowType)
-      {
-      // No registers preserved at this call
-      //
-      gcMap().setGCRegisterMask(0);
-      checkBreakOnThrowOption();
-      }
+    virtual Kind getKind() { return IsCheckFailure; }
 
-   virtual Kind getKind() { return IsCheckFailure; }
+    TR::SymbolReference *getDestination() { return _destination; }
 
-   TR::SymbolReference *getDestination()                      {return _destination;}
-   TR::SymbolReference *setDestination(TR::SymbolReference *s) {return (_destination = s);}
+    TR::SymbolReference *setDestination(TR::SymbolReference *s) { return (_destination = s); }
 
-   TR::Instruction *getCheckInstruction()                   {return _checkInstruction;}
-   TR::Instruction *setCheckInstruction(TR::Instruction *ci) {return (_checkInstruction = ci);}
+    TR::Instruction *getCheckInstruction() { return _checkInstruction; }
 
-   bool getRequiredFPstackPop() { return _requiresFPstackPop; }
+    TR::Instruction *setCheckInstruction(TR::Instruction *ci) { return (_checkInstruction = ci); }
 
-   virtual uint8_t *emitSnippetBody();
-   uint8_t *emitCheckFailureSnippetBody(uint8_t *buffer);
+    bool getRequiredFPstackPop() { return _requiresFPstackPop; }
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-   void checkBreakOnThrowOption();
+    virtual uint8_t *emitSnippetBody();
+    uint8_t *emitCheckFailureSnippetBody(uint8_t *buffer);
 
-   };
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
+    void checkBreakOnThrowOption();
+};
 
+class X86BoundCheckWithSpineCheckSnippet : public TR::X86CheckFailureSnippet {
+    TR::LabelSymbol *_restartLabel;
 
-class X86BoundCheckWithSpineCheckSnippet : public TR::X86CheckFailureSnippet
-   {
-   TR::LabelSymbol *_restartLabel;
+public:
+    X86BoundCheckWithSpineCheckSnippet(TR::CodeGenerator *cg, TR::SymbolReference *bndchkSymRef,
+        TR::LabelSymbol *snippetLabel, TR::LabelSymbol *restartLabel, TR::Instruction *checkInstruction,
+        bool popFPstack = false)
+        : TR::X86CheckFailureSnippet(cg, bndchkSymRef, snippetLabel, checkInstruction, popFPstack)
+        , _restartLabel(restartLabel)
+    {}
 
-   public:
+    virtual Kind getKind() { return IsBoundCheckWithSpineCheck; }
 
-   X86BoundCheckWithSpineCheckSnippet(
-      TR::CodeGenerator   *cg,
-      TR::SymbolReference *bndchkSymRef,
-      TR::LabelSymbol      *snippetLabel,
-      TR::LabelSymbol      *restartLabel,
-      TR::Instruction     *checkInstruction,
-      bool                popFPstack = false) :
-         TR::X86CheckFailureSnippet(
-            cg,
-            bndchkSymRef,
-            snippetLabel,
-            checkInstruction,
-            popFPstack),
-            _restartLabel(restartLabel)
-            {
-            }
+    virtual uint8_t *emitSnippetBody();
 
-   virtual Kind getKind() { return IsBoundCheckWithSpineCheck; }
-
-   virtual uint8_t *emitSnippetBody();
-
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-
-   };
-
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
+};
 
 // This is not the final shape of this snippet.  Its just here to
 // make everything compile.
 //
-class X86SpineCheckSnippet : public TR::X86CheckFailureSnippet
-   {
-   TR::LabelSymbol *_restartLabel;
+class X86SpineCheckSnippet : public TR::X86CheckFailureSnippet {
+    TR::LabelSymbol *_restartLabel;
 
-   public:
+public:
+    X86SpineCheckSnippet(TR::CodeGenerator *cg, TR::SymbolReference *bndchkSymRef, TR::LabelSymbol *snippetLabel,
+        TR::LabelSymbol *restartLabel, TR::Instruction *checkInstruction, bool popFPstack = false)
+        : TR::X86CheckFailureSnippet(cg, bndchkSymRef, snippetLabel, checkInstruction, popFPstack)
+        , _restartLabel(restartLabel)
+    {}
 
-   X86SpineCheckSnippet(
-      TR::CodeGenerator   *cg,
-      TR::SymbolReference *bndchkSymRef,
-      TR::LabelSymbol      *snippetLabel,
-      TR::LabelSymbol      *restartLabel,
-      TR::Instruction     *checkInstruction,
-      bool                popFPstack = false) :
-         TR::X86CheckFailureSnippet(
-            cg,
-            bndchkSymRef,
-            snippetLabel,
-            checkInstruction,
-            popFPstack),
-            _restartLabel(restartLabel)
-            {
-            }
+    virtual Kind getKind() { return IsSpineCheck; }
 
-   virtual Kind getKind() { return IsSpineCheck; }
+    virtual uint8_t *emitSnippetBody();
 
-   virtual uint8_t *emitSnippetBody();
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
+};
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
+class X86CheckFailureSnippetWithResolve : public TR::X86CheckFailureSnippet {
+    TR::SymbolReference *_dataSymbolReference;
+    flags8_t _flags;
+    TR_RuntimeHelper _helper;
+    uint8_t _numLiveX87FPRs;
 
-   };
+    enum {
+        hasLiveXMMRs = 0x04
+    };
 
+public:
+    X86CheckFailureSnippetWithResolve(TR::CodeGenerator *cg, TR::SymbolReference *dest,
+        TR::SymbolReference *dataSymbolRef, TR_RuntimeHelper resolverCall, TR::LabelSymbol *snippetLabel,
+        TR::Instruction *checkInstruction, bool popFPstack = false)
+        : TR::X86CheckFailureSnippet(cg, dest, snippetLabel, checkInstruction)
+        , _dataSymbolReference(dataSymbolRef)
+        , _helper(resolverCall)
+        , _numLiveX87FPRs(0)
+        , _flags(0)
+    {}
 
-class X86CheckFailureSnippetWithResolve : public TR::X86CheckFailureSnippet
-   {
-   TR::SymbolReference *_dataSymbolReference;
-   flags8_t            _flags;
-   TR_RuntimeHelper    _helper;
-   uint8_t             _numLiveX87FPRs;
+    virtual Kind getKind() { return IsCheckFailureWithResolve; }
 
-   enum
-      {
-      hasLiveXMMRs = 0x04
-      };
+    TR::Symbol *getDataSymbol() { return _dataSymbolReference->getSymbol(); }
 
-   public:
+    TR::SymbolReference *getDataSymbolReference() { return _dataSymbolReference; }
 
-   X86CheckFailureSnippetWithResolve(
-      TR::CodeGenerator   *cg,
-      TR::SymbolReference *dest,
-      TR::SymbolReference *dataSymbolRef,
-      TR_RuntimeHelper    resolverCall,
-      TR::LabelSymbol      *snippetLabel,
-      TR::Instruction     *checkInstruction,
-      bool                popFPstack = false) :
-         TR::X86CheckFailureSnippet(
-            cg,
-            dest,
-            snippetLabel,
-            checkInstruction),
-            _dataSymbolReference(dataSymbolRef),
-            _helper(resolverCall),
-            _numLiveX87FPRs(0),
-            _flags(0)
-         {
-         }
+    TR::SymbolReference *setDataSymbolReference(TR::SymbolReference *sr) { return (_dataSymbolReference = sr); }
 
-   virtual Kind getKind() { return IsCheckFailureWithResolve; }
+    TR_RuntimeHelper getHelper() { return _helper; }
 
-   TR::Symbol *getDataSymbol() {return _dataSymbolReference->getSymbol();}
+    virtual uint8_t *emitSnippetBody();
 
-   TR::SymbolReference *getDataSymbolReference() {return _dataSymbolReference;}
-   TR::SymbolReference *setDataSymbolReference(TR::SymbolReference *sr) {return (_dataSymbolReference = sr);}
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
 
-   TR_RuntimeHelper getHelper() { return _helper; }
+    bool getHasLiveXMMRs() { return _flags.testAny(hasLiveXMMRs); }
 
-   virtual uint8_t *emitSnippetBody();
+    void setHasLiveXMMRs() { _flags.set(hasLiveXMMRs); }
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
+    void resetHasLiveXMMRs() { _flags.reset(hasLiveXMMRs); }
 
-   bool getHasLiveXMMRs()       {return _flags.testAny(hasLiveXMMRs);}
-   void setHasLiveXMMRs()       {_flags.set(hasLiveXMMRs);}
-   void resetHasLiveXMMRs()     {_flags.reset(hasLiveXMMRs);}
-   void setHasLiveXMMRs(bool b) {_flags.set(hasLiveXMMRs, b);}
+    void setHasLiveXMMRs(bool b) { _flags.set(hasLiveXMMRs, b); }
 
-   uint8_t setNumLiveX87Registers(uint8_t l) {return (_numLiveX87FPRs = l);}
-   uint8_t getNumLiveX87Registers()          {return _numLiveX87FPRs;}
+    uint8_t setNumLiveX87Registers(uint8_t l) { return (_numLiveX87FPRs = l); }
 
-   };
+    uint8_t getNumLiveX87Registers() { return _numLiveX87FPRs; }
+};
 
-}
+} // namespace TR
 
 #endif

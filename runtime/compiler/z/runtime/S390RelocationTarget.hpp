@@ -37,25 +37,27 @@ class Compilation;
 //    relocation records.
 // This is intended to be a base class that should not be itself instantiated
 
-class TR_S390RelocationTarget : public TR_RelocationTarget
-   {
-   public:
-      TR_ALLOC(TR_Memory::Relocation)
-      void * operator new(size_t, J9JITConfig *);
-      TR_S390RelocationTarget(TR_RelocationRuntime *reloRuntime) : TR_RelocationTarget(reloRuntime) {}
+class TR_S390RelocationTarget : public TR_RelocationTarget {
+public:
+    TR_ALLOC(TR_Memory::Relocation)
+    void *operator new(size_t, J9JITConfig *);
 
-      virtual uint8_t *eipBaseForCallOffset(uint8_t *reloLocation);
-      virtual void storeCallTarget(uint8_t *callTarget, uint8_t *reloLocation);
-      virtual void storeRelativeTarget(uintptr_t callTarget, uint8_t *reloLocation);
-      virtual uint8_t *loadAddressSequence(uint8_t *reloLocation);
-      virtual void storeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber);
-      virtual uint32_t loadCPIndex(uint8_t *reloLocation);
-      virtual uintptr_t loadThunkCPIndex(uint8_t *reloLocation);
+    TR_S390RelocationTarget(TR_RelocationRuntime *reloRuntime)
+        : TR_RelocationTarget(reloRuntime)
+    {}
 
-      virtual void performThunkRelocation(uint8_t *thunkAddress, uintptr_t vmHelper);
+    virtual uint8_t *eipBaseForCallOffset(uint8_t *reloLocation);
+    virtual void storeCallTarget(uint8_t *callTarget, uint8_t *reloLocation);
+    virtual void storeRelativeTarget(uintptr_t callTarget, uint8_t *reloLocation);
+    virtual uint8_t *loadAddressSequence(uint8_t *reloLocation);
+    virtual void storeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber);
+    virtual uint32_t loadCPIndex(uint8_t *reloLocation);
+    virtual uintptr_t loadThunkCPIndex(uint8_t *reloLocation);
 
-      virtual bool useTrampoline(uint8_t * helperAddress, uint8_t *baseLocation);
-      virtual uint8_t *arrayCopyHelperAddress(J9JavaVM *javaVM);
-   };
+    virtual void performThunkRelocation(uint8_t *thunkAddress, uintptr_t vmHelper);
 
-#endif   // S390RELOCATION_TARGET_INCL
+    virtual bool useTrampoline(uint8_t *helperAddress, uint8_t *baseLocation);
+    virtual uint8_t *arrayCopyHelperAddress(J9JavaVM *javaVM);
+};
+
+#endif // S390RELOCATION_TARGET_INCL

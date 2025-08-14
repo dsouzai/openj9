@@ -26,7 +26,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
-#define  TIME_RESOLUTION 1000000
+#define TIME_RESOLUTION 1000000
 #endif
 
 #if defined(_MSC_VER)
@@ -64,7 +64,8 @@
 #include "ilgen/IlGeneratorMethodDetails_inlines.hpp"
 #include "omrformatconsts.h"
 
-#if defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) || defined(TR_HOST_ARM64)
+#if defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) \
+    || defined(TR_HOST_ARM64)
 #include "codegen/PicHelpers.hpp"
 #include "control/Recompilation.hpp"
 #endif
@@ -73,17 +74,14 @@
 #include "x/runtime/X86Runtime.hpp"
 #endif
 
-
 #if defined(J9ZOS390)
-static UDATA sliphandle=0;
-static UDATA do_slip_func=0;
-static void (*fptrl)(char*,char*,void*,void*,char*,char*,char*)=0;
-extern "C"{
+static UDATA sliphandle = 0;
+static UDATA do_slip_func = 0;
+static void (*fptrl)(char *, char *, void *, void *, char *, char *, char *) = 0;
+extern "C" {
 #include "atoe.h"
 }
 #endif
-
-
 
 //---------------------------------------------------------------------
 // TR::Recompilation
@@ -97,292 +95,247 @@ int32_t J9::Recompilation::limitMethodsCompiled = 0;
 int32_t J9::Recompilation::hotThresholdMethodsCompiled = 0;
 int32_t J9::Recompilation::scorchingThresholdMethodsCompiled = 0;
 
-bool
-J9::Recompilation::isAlreadyBeingCompiled(
-      TR_OpaqueMethodBlock *methodInfo,
-      void *startPC,
-      TR_FrontEnd *fe)
-   {
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
-   if (fej9->isAsyncCompilation())
-      return fej9->isBeingCompiled(methodInfo, startPC);
-   return TR::Recompilation::isAlreadyPreparedForRecompile(startPC);
-   }
+bool J9::Recompilation::isAlreadyBeingCompiled(TR_OpaqueMethodBlock *methodInfo, void *startPC, TR_FrontEnd *fe)
+{
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
+    if (fej9->isAsyncCompilation())
+        return fej9->isBeingCompiled(methodInfo, startPC);
+    return TR::Recompilation::isAlreadyPreparedForRecompile(startPC);
+}
 
 void setDllSlip(const char *CodeStart, const char *CodeEnd, const char *dllName, TR::Compilation *comp)
 {
 #if defined(J9ZOS390)
-   char errBuf[512];
-   UDATA rc = 0;
-   J9PortLibrary *portLib = jitConfig->javaVM->portLibrary;
-   PORT_ACCESS_FROM_PORT(portLib);
+    char errBuf[512];
+    UDATA rc = 0;
+    J9PortLibrary *portLib = jitConfig->javaVM->portLibrary;
+    PORT_ACCESS_FROM_PORT(portLib);
 
-   TR_ASSERT(comp, "Logging requires a compilation object");
-   traceMsg(comp, "code start 0x%016p , code end 0x%016p ,size = %d\n", CodeStart, CodeEnd, CodeStart - CodeEnd);
+    TR_ASSERT(comp, "Logging requires a compilation object");
+    traceMsg(comp, "code start 0x%016p , code end 0x%016p ,size = %d\n", CodeStart, CodeEnd, CodeStart - CodeEnd);
 
-   if (sliphandle == 0)
-      {
-      rc = j9sl_open_shared_library(const_cast<char *>(dllName), &sliphandle, FALSE);
-      if (rc)
-         {
-         traceMsg(comp, "Failed to open SLIP DLL: %s (%s) %016p\n", dllName, j9error_last_error_message(), sliphandle);
-         }
-      }
+    if (sliphandle == 0) {
+        rc = j9sl_open_shared_library(const_cast<char *>(dllName), &sliphandle, FALSE);
+        if (rc) {
+            traceMsg(comp, "Failed to open SLIP DLL: %s (%s) %016p\n", dllName, j9error_last_error_message(),
+                sliphandle);
+        }
+    }
 
-   if (sliphandle != 0)
-      {
-      if (do_slip_func == 0)
-         j9sl_lookup_name(sliphandle, "do_slip", &do_slip_func, (char *)NULL);
-      if (do_slip_func != 0)
-         {
-         fptrl=(void (*)(char *, char *, void *, void *, char *, char *, char *))do_slip_func;
-         (*fptrl)(const_cast<char *>(CodeStart),
-                  const_cast<char *>(CodeEnd),
-                  (void *)NULL,
-                  (void *)NULL,
-                  (char *)NULL,
-                  (char *)NULL,
-                  (char *)NULL
-                 );
-         }
-      else if (comp)
-         {
-         traceMsg(comp, "\nCannot find do_slip function within SLIP DLL\n");
-         }
-      }
-   else if (comp)
-      {
-      traceMsg(comp, "Cannot load slip/trap DLL\n");
-      }
+    if (sliphandle != 0) {
+        if (do_slip_func == 0)
+            j9sl_lookup_name(sliphandle, "do_slip", &do_slip_func, (char *)NULL);
+        if (do_slip_func != 0) {
+            fptrl = (void (*)(char *, char *, void *, void *, char *, char *, char *))do_slip_func;
+            (*fptrl)(const_cast<char *>(CodeStart), const_cast<char *>(CodeEnd), (void *)NULL, (void *)NULL,
+                (char *)NULL, (char *)NULL, (char *)NULL);
+        } else if (comp) {
+            traceMsg(comp, "\nCannot find do_slip function within SLIP DLL\n");
+        }
+    } else if (comp) {
+        traceMsg(comp, "Cannot load slip/trap DLL\n");
+    }
 #endif
-   return;
-
+    return;
 }
-
 
 // This method is called at runtime to sample a method
 //
-void
-J9::Recompilation::sampleMethod(
-      void *thread,
-      TR_FrontEnd *fe,
-      void *startPC,
-      int32_t codeSize,
-      void *samplePC,
-      void *methodInfo,
-      int32_t tickCount)
-   {
-   TR_J9VMBase *feJ9 = (TR_J9VMBase *)fe;
-   J9VMThread *vmThread = (J9VMThread *)thread;
-   TR::Options * cmdLineOptions = TR::Options::getJITCmdLineOptions();
-   J9JITConfig *jitConfig = getJ9JitConfigFromFE(feJ9);
-   TR::CompilationInfo *compInfo = 0;
-   if (jitConfig)
-      compInfo = TR::CompilationInfo::get(jitConfig);
+void J9::Recompilation::sampleMethod(void *thread, TR_FrontEnd *fe, void *startPC, int32_t codeSize, void *samplePC,
+    void *methodInfo, int32_t tickCount)
+{
+    TR_J9VMBase *feJ9 = (TR_J9VMBase *)fe;
+    J9VMThread *vmThread = (J9VMThread *)thread;
+    TR::Options *cmdLineOptions = TR::Options::getJITCmdLineOptions();
+    J9JITConfig *jitConfig = getJ9JitConfigFromFE(feJ9);
+    TR::CompilationInfo *compInfo = 0;
+    if (jitConfig)
+        compInfo = TR::CompilationInfo::get(jitConfig);
 
-   int32_t totalSampleCount = globalSampleCount;
+    int32_t totalSampleCount = globalSampleCount;
 
-   J9Method * j9method = (J9Method *) methodInfo;
+    J9Method *j9method = (J9Method *)methodInfo;
 
-   /* Reject samples to native methods */
-   if (J9_ROM_METHOD_FROM_RAM_METHOD(j9method)->modifiers & J9AccNative)
-      return;
+    /* Reject samples to native methods */
+    if (J9_ROM_METHOD_FROM_RAM_METHOD(j9method)->modifiers & J9AccNative)
+        return;
 
-   char msg[350];  // size should be big enough to hold the whole one-line msg
-   char *curMsg = msg;
-   msg[0] = 0;
-   bool logSampling = feJ9->isLogSamplingSet() || TrcEnabled_Trc_JIT_Sampling || TrcEnabled_Trc_JIT_Sampling_Detail;
+    char msg[350]; // size should be big enough to hold the whole one-line msg
+    char *curMsg = msg;
+    msg[0] = 0;
+    bool logSampling = feJ9->isLogSamplingSet() || TrcEnabled_Trc_JIT_Sampling || TrcEnabled_Trc_JIT_Sampling_Detail;
 #define SIG_SZ 150
 
-   if (startPC == NULL)
-      {
-      TR_MethodEvent event;
-      event._eventType = TR_MethodEvent::InterpretedMethodSample;
-      event._j9method = j9method;
-      event._oldStartPC = 0;
-      event._vmThread = vmThread;
-      event._classNeedingThunk = 0;
-      bool newPlanCreated;
-      TR_OptimizationPlan *plan = TR::CompilationController::getCompilationStrategy()->processEvent(&event, &newPlanCreated);
-      // the plan needs to be created only when async compilation is possible
-      // Otherwise the compilation will be triggered on next invocation
-      if (plan)
-         {
-         bool queued = false;
-         feJ9->startAsyncCompile((TR_OpaqueMethodBlock *) j9method, 0, &queued, plan);
-         if (!queued && newPlanCreated)
-            TR_OptimizationPlan::freeOptimizationPlan(plan);
-         }
-      }
-   else  // Sampling a compiled method
-      {
-      TR_MethodEvent event;
-      event._eventType = TR_MethodEvent::JittedMethodSample;
-      event._j9method = j9method;
-      event._oldStartPC = startPC;
-      event._samplePC = samplePC;
-      event._vmThread = vmThread;
-      event._classNeedingThunk = 0;
-      bool newPlanCreated;
-      TR_OptimizationPlan *plan = TR::CompilationController::getCompilationStrategy()->processEvent(&event, &newPlanCreated);
-      if (plan)
-         {
-         bool queued = false;
-         bool rc = TR::Recompilation::induceRecompilation(feJ9, startPC, &queued, plan);
-         if (!queued && newPlanCreated)
-            TR_OptimizationPlan::freeOptimizationPlan(plan);
-         if (rc)
-            TR::Recompilation::jitRecompilationsInduced++;
-         }
-      }
-   }
+    if (startPC == NULL) {
+        TR_MethodEvent event;
+        event._eventType = TR_MethodEvent::InterpretedMethodSample;
+        event._j9method = j9method;
+        event._oldStartPC = 0;
+        event._vmThread = vmThread;
+        event._classNeedingThunk = 0;
+        bool newPlanCreated;
+        TR_OptimizationPlan *plan
+            = TR::CompilationController::getCompilationStrategy()->processEvent(&event, &newPlanCreated);
+        // the plan needs to be created only when async compilation is possible
+        // Otherwise the compilation will be triggered on next invocation
+        if (plan) {
+            bool queued = false;
+            feJ9->startAsyncCompile((TR_OpaqueMethodBlock *)j9method, 0, &queued, plan);
+            if (!queued && newPlanCreated)
+                TR_OptimizationPlan::freeOptimizationPlan(plan);
+        }
+    } else // Sampling a compiled method
+    {
+        TR_MethodEvent event;
+        event._eventType = TR_MethodEvent::JittedMethodSample;
+        event._j9method = j9method;
+        event._oldStartPC = startPC;
+        event._samplePC = samplePC;
+        event._vmThread = vmThread;
+        event._classNeedingThunk = 0;
+        bool newPlanCreated;
+        TR_OptimizationPlan *plan
+            = TR::CompilationController::getCompilationStrategy()->processEvent(&event, &newPlanCreated);
+        if (plan) {
+            bool queued = false;
+            bool rc = TR::Recompilation::induceRecompilation(feJ9, startPC, &queued, plan);
+            if (!queued && newPlanCreated)
+                TR_OptimizationPlan::freeOptimizationPlan(plan);
+            if (rc)
+                TR::Recompilation::jitRecompilationsInduced++;
+        }
+    }
+}
 
-void J9::Recompilation::invalidateMethodBody(
-   void *startPC, TR_FrontEnd *fe, TR_JitBodyInvalidations::Reason reason)
-   {
-   // Make the method no longer runnable and schedule it for sync recompilation
-   // or switch to interpreter
-   J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
-   TR_PersistentJittedBodyInfo *bodyInfo = getJittedBodyInfoFromPC(startPC);
-   bodyInfo->setIsInvalidated(reason); // bodyInfo must exist
+void J9::Recompilation::invalidateMethodBody(void *startPC, TR_FrontEnd *fe, TR_JitBodyInvalidations::Reason reason)
+{
+    // Make the method no longer runnable and schedule it for sync recompilation
+    // or switch to interpreter
+    J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
+    TR_PersistentJittedBodyInfo *bodyInfo = getJittedBodyInfoFromPC(startPC);
+    bodyInfo->setIsInvalidated(reason); // bodyInfo must exist
 
-   // If the compilation has been attempted before then we are fine (in case of success,
-   // each caller is being re-directed to the new method -- in case if failure, all callers
-   // are being sent to the interpreter)
-   //
-   if (linkageInfo->recompilationAttempted())
-      return;
+    // If the compilation has been attempted before then we are fine (in case of success,
+    // each caller is being re-directed to the new method -- in case if failure, all callers
+    // are being sent to the interpreter)
+    //
+    if (linkageInfo->recompilationAttempted())
+        return;
 
-   fixUpMethodCode(startPC);
-   }
+    fixUpMethodCode(startPC);
+}
 
-bool
-J9::Recompilation::induceRecompilation(
-      TR_FrontEnd *fe,
-      void *startPC,
-      bool *queued,
-      TR_OptimizationPlan *optimizationPlan)
-   {
-   J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
-   TR_PersistentMethodInfo     *methodInfo;
-   TR_PersistentJittedBodyInfo *bodyInfo;
+bool J9::Recompilation::induceRecompilation(TR_FrontEnd *fe, void *startPC, bool *queued,
+    TR_OptimizationPlan *optimizationPlan)
+{
+    J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
+    TR_PersistentMethodInfo *methodInfo;
+    TR_PersistentJittedBodyInfo *bodyInfo;
 
-   if (linkageInfo->recompilationAttempted())
-      {
-      // Do nothing.  Whether or not the other recomp attempt succeeds,
-      // anything we do here would only interfere.
-      return false;
-      }
-   bodyInfo = getJittedBodyInfoFromPC(startPC);
-   TR_ASSERT(bodyInfo, "A method that can be recompiled must have bodyInfo");
-   methodInfo = bodyInfo->getMethodInfo();
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
+    if (linkageInfo->recompilationAttempted()) {
+        // Do nothing.  Whether or not the other recomp attempt succeeds,
+        // anything we do here would only interfere.
+        return false;
+    }
+    bodyInfo = getJittedBodyInfoFromPC(startPC);
+    TR_ASSERT(bodyInfo, "A method that can be recompiled must have bodyInfo");
+    methodInfo = bodyInfo->getMethodInfo();
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
 
-   if (fej9->isThunkArchetype(fej9->convertMethodOffsetToMethodPtr(methodInfo->getMethodInfo())))
-      {
-      // Do nothing. A thunk archetype should be not compiled as if it were a java ordinary method
-      return false;
-      }
+    if (fej9->isThunkArchetype(fej9->convertMethodOffsetToMethodPtr(methodInfo->getMethodInfo()))) {
+        // Do nothing. A thunk archetype should be not compiled as if it were a java ordinary method
+        return false;
+    }
 
-   // If there is no plan (EDO triggered) we could create one
-   //
-   TR_ASSERT(optimizationPlan, "Must have an optimization plan");
-   if (fej9->isAsyncCompilation())
-      {
-      // Schedule the compilation asynchronously
-      //
-      return fej9->startAsyncCompile(methodInfo->getMethodInfo(), startPC, queued, optimizationPlan);
-      }
-   else
-      {
-
-      // Save the optimization plan for later
-      //
-      TR_OptimizationPlan::_optimizationPlanMonitor->enter();
-      if (methodInfo->_optimizationPlan)
-         {
-         if (TR::CompilationController::verbose() >= TR::CompilationController::LEVEL1)
-            fprintf(stderr, "induceRecompilation: already having an optPlan saved in methodInfo\n");
-         }
-      else
-         {
-         methodInfo->_optimizationPlan  = optimizationPlan;
-         if (TR::CompilationController::verbose() >= TR::CompilationController::LEVEL1)
-            fprintf(stderr, "induceRecompilation: saving the plan into methodInfo\n");
-         *queued = true; // to prevent the plan being deallocated by creator
-         methodInfo->setNextCompileLevel(methodInfo->_optimizationPlan->getOptLevel(),
-                                         methodInfo->_optimizationPlan->insertInstrumentation());
-         }
-       TR_OptimizationPlan::_optimizationPlanMonitor->exit();
-      // Change the current method to trigger a recompilation on the next invocation
-      //
-      fixUpMethodCode(startPC);
-      return true;
-      }
-   }
+    // If there is no plan (EDO triggered) we could create one
+    //
+    TR_ASSERT(optimizationPlan, "Must have an optimization plan");
+    if (fej9->isAsyncCompilation()) {
+        // Schedule the compilation asynchronously
+        //
+        return fej9->startAsyncCompile(methodInfo->getMethodInfo(), startPC, queued, optimizationPlan);
+    } else {
+        // Save the optimization plan for later
+        //
+        TR_OptimizationPlan::_optimizationPlanMonitor->enter();
+        if (methodInfo->_optimizationPlan) {
+            if (TR::CompilationController::verbose() >= TR::CompilationController::LEVEL1)
+                fprintf(stderr, "induceRecompilation: already having an optPlan saved in methodInfo\n");
+        } else {
+            methodInfo->_optimizationPlan = optimizationPlan;
+            if (TR::CompilationController::verbose() >= TR::CompilationController::LEVEL1)
+                fprintf(stderr, "induceRecompilation: saving the plan into methodInfo\n");
+            *queued = true; // to prevent the plan being deallocated by creator
+            methodInfo->setNextCompileLevel(methodInfo->_optimizationPlan->getOptLevel(),
+                methodInfo->_optimizationPlan->insertInstrumentation());
+        }
+        TR_OptimizationPlan::_optimizationPlanMonitor->exit();
+        // Change the current method to trigger a recompilation on the next invocation
+        //
+        fixUpMethodCode(startPC);
+        return true;
+    }
+}
 
 void induceRecompilation_unwrapper(void **argsPtr, void **resultPtr)
-   {
-   J9VMThread  *vmThread  = (J9VMThread*)argsPtr[1];
-   void        *startPC   =              argsPtr[0];
+{
+    J9VMThread *vmThread = (J9VMThread *)argsPtr[1];
+    void *startPC = argsPtr[0];
 
-   J9JITConfig *jitConfig = vmThread->javaVM->jitConfig;
-   TR_FrontEnd * fe = TR_J9VMBase::get(jitConfig, vmThread);
+    J9JITConfig *jitConfig = vmThread->javaVM->jitConfig;
+    TR_FrontEnd *fe = TR_J9VMBase::get(jitConfig, vmThread);
 
-   // When compilation controller is used we need to create an optimization plan
-   bool queued = false;
-   TR_PersistentJittedBodyInfo *bodyInfo = TR::Recompilation::getJittedBodyInfoFromPC(startPC);
-   TR_ASSERT(bodyInfo, "A method that can be recompiled must have bodyInfo");
-   TR_PersistentMethodInfo  *methodInfo = bodyInfo->getMethodInfo();
-   if (bodyInfo->getHasEdoSnippet())
-      methodInfo->setReasonForRecompilation(TR_PersistentMethodInfo::RecompDueToEdo);
-   TR_Hotness level = TR::Options::getJITCmdLineOptions()->getNextHotnessLevel(bodyInfo->getHasLoops(), bodyInfo->getHotness());
-   // If there is no next level, lets keep the current one
-   if (level == unknownHotness)
-      level = bodyInfo->getHotness();
-   // TODO shouldn't we increase the level here?
-   TR_OptimizationPlan *optimizationPlan = TR_OptimizationPlan::alloc(level);
-   if (optimizationPlan)
-      {
-      TR::Recompilation::induceRecompilation(fe, startPC, &queued, optimizationPlan);
-      if (!queued)
-         TR_OptimizationPlan::freeOptimizationPlan(optimizationPlan);
-      }
-   else // OOM
-      {
-      // very rare case
-      // It's safe to ignore the compilations because these are not invalidations
-      TR::CompilationInfo * compInfo = getCompilationInfo(jitConfig);
-      compInfo->getPersistentInfo()->setDisableFurtherCompilation(true);
-      if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance))
-         {
-         TR_VerboseLog::writeLineLocked(TR_Vlog_PERF,"t=%6u Disable further compilation due to OOM while inducing a recompilation", (uint32_t)compInfo->getPersistentInfo()->getElapsedTime());
-         }
-      }
-   }
-
-
+    // When compilation controller is used we need to create an optimization plan
+    bool queued = false;
+    TR_PersistentJittedBodyInfo *bodyInfo = TR::Recompilation::getJittedBodyInfoFromPC(startPC);
+    TR_ASSERT(bodyInfo, "A method that can be recompiled must have bodyInfo");
+    TR_PersistentMethodInfo *methodInfo = bodyInfo->getMethodInfo();
+    if (bodyInfo->getHasEdoSnippet())
+        methodInfo->setReasonForRecompilation(TR_PersistentMethodInfo::RecompDueToEdo);
+    TR_Hotness level
+        = TR::Options::getJITCmdLineOptions()->getNextHotnessLevel(bodyInfo->getHasLoops(), bodyInfo->getHotness());
+    // If there is no next level, lets keep the current one
+    if (level == unknownHotness)
+        level = bodyInfo->getHotness();
+    // TODO shouldn't we increase the level here?
+    TR_OptimizationPlan *optimizationPlan = TR_OptimizationPlan::alloc(level);
+    if (optimizationPlan) {
+        TR::Recompilation::induceRecompilation(fe, startPC, &queued, optimizationPlan);
+        if (!queued)
+            TR_OptimizationPlan::freeOptimizationPlan(optimizationPlan);
+    } else // OOM
+    {
+        // very rare case
+        // It's safe to ignore the compilations because these are not invalidations
+        TR::CompilationInfo *compInfo = getCompilationInfo(jitConfig);
+        compInfo->getPersistentInfo()->setDisableFurtherCompilation(true);
+        if (TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerbosePerformance)) {
+            TR_VerboseLog::writeLineLocked(TR_Vlog_PERF,
+                "t=%6u Disable further compilation due to OOM while inducing a recompilation",
+                (uint32_t)compInfo->getPersistentInfo()->getElapsedTime());
+        }
+    }
+}
 
 extern "C" {
 
-
 void J9FASTCALL _jitProfileParseBuffer(uintptr_t vmThread)
-   {
-   J9VMThread *currentThread = (J9VMThread *)vmThread;
-   J9JITConfig * jitConfg = currentThread->javaVM->jitConfig;
-   TR_J9VMBase *fe = NULL;
+{
+    J9VMThread *currentThread = (J9VMThread *)vmThread;
+    J9JITConfig *jitConfg = currentThread->javaVM->jitConfig;
+    TR_J9VMBase *fe = NULL;
 
-   if (jitConfig)
-      fe = TR_J9VMBase::get(jitConfig, currentThread);
-   else
-      return; //If we ever get in here we are having a really bad day.
-   TR_ASSERT(fe, "FrontEnd must exist\n");
+    if (jitConfig)
+        fe = TR_J9VMBase::get(jitConfig, currentThread);
+    else
+        return; // If we ever get in here we are having a really bad day.
+    TR_ASSERT(fe, "FrontEnd must exist\n");
 
-   TR_IProfiler *iProfiler = fe->getIProfiler();
-   TR_ASSERT(iProfiler, "iProfiler must exist\n");
+    TR_IProfiler *iProfiler = fe->getIProfiler();
+    TR_ASSERT(iProfiler, "iProfiler must exist\n");
 
-   iProfiler->jitProfileParseBuffer(currentThread);
-   }
+    iProfiler->jitProfileParseBuffer(currentThread);
+}
 }
 
 //-------------------------------------------------------------------------
@@ -394,670 +347,587 @@ void J9FASTCALL _jitProfileParseBuffer(uintptr_t vmThread)
 
 extern "C" {
 
-void J9FASTCALL _jitProfileWarmCompilePICAddress(uintptr_t address, TR_ArrayProfilerInfo<uintptr_t> *info, int32_t maxNumValuesProfiled, int32_t *recompilationCounter)
-   {
-   if (recompilationCounter)
-      {
-      if (*recompilationCounter > 0)
-         *recompilationCounter = (*recompilationCounter) >> 1;
-      else
-         {
-         *recompilationCounter = 0;
-         return;
-         }
-      }
-   else
-      return;
+void J9FASTCALL _jitProfileWarmCompilePICAddress(uintptr_t address, TR_ArrayProfilerInfo<uintptr_t> *info,
+    int32_t maxNumValuesProfiled, int32_t *recompilationCounter)
+{
+    if (recompilationCounter) {
+        if (*recompilationCounter > 0)
+            *recompilationCounter = (*recompilationCounter) >> 1;
+        else {
+            *recompilationCounter = 0;
+            return;
+        }
+    } else
+        return;
 
-   info->incrementOrCreate(address);
-   }
-
-void J9FASTCALL _jitProfileAddress(uintptr_t value, TR_LinkedListProfilerInfo<uintptr_t> *info, int32_t maxNumValuesProfiled, int32_t *recompilationCounter)
-   {
-   if (recompilationCounter)
-      {
-      if (*recompilationCounter > 0)
-         *recompilationCounter = (*recompilationCounter) - 1 ;
-      else
-         {
-         *recompilationCounter = 0;
-         return;
-         }
-      }
-
-   OMR::CriticalSection profilingAddress(vpMonitor);
-
-   uintptr_t *addrOfTotalFrequency;
-   uint32_t totalFrequency = info->getTotalFrequency(&addrOfTotalFrequency);
-   TR_LinkedListProfilerInfo<uintptr_t>::Element *first = info->getFirst();
-
-   if (totalFrequency == 0)
-      first->_value = value;
-   if (first->_value == value)
-      {
-      if (totalFrequency < 0x7fffffff)
-         {
-         first->_frequency++;
-         totalFrequency++;
-         }
-      else
-         {
-         TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
-         return;
-         }
-      *addrOfTotalFrequency = totalFrequency;
-      }
-   else
-      {
-      if (totalFrequency >= 0x7fffffff)
-         {
-         TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
-         return;
-         }
-
-      if (maxNumValuesProfiled)
-         info->incrementOrCreate(value, &addrOfTotalFrequency, maxNumValuesProfiled);
-      else
-         {
-         totalFrequency++;
-         *addrOfTotalFrequency = totalFrequency;
-         }
-      }
-   }
+    info->incrementOrCreate(address);
 }
 
+void J9FASTCALL _jitProfileAddress(uintptr_t value, TR_LinkedListProfilerInfo<uintptr_t> *info,
+    int32_t maxNumValuesProfiled, int32_t *recompilationCounter)
+{
+    if (recompilationCounter) {
+        if (*recompilationCounter > 0)
+            *recompilationCounter = (*recompilationCounter) - 1;
+        else {
+            *recompilationCounter = 0;
+            return;
+        }
+    }
 
+    OMR::CriticalSection profilingAddress(vpMonitor);
 
-extern "C" {
+    uintptr_t *addrOfTotalFrequency;
+    uint32_t totalFrequency = info->getTotalFrequency(&addrOfTotalFrequency);
+    TR_LinkedListProfilerInfo<uintptr_t>::Element *first = info->getFirst();
 
-void J9FASTCALL jProfile32BitValue(uint32_t value, TR_HashTableProfilerInfo<uint32_t> *table)
-   {
-   table->addKey(value);
-   }
+    if (totalFrequency == 0)
+        first->_value = value;
+    if (first->_value == value) {
+        if (totalFrequency < 0x7fffffff) {
+            first->_frequency++;
+            totalFrequency++;
+        } else {
+            TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
+            return;
+        }
+        *addrOfTotalFrequency = totalFrequency;
+    } else {
+        if (totalFrequency >= 0x7fffffff) {
+            TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
+            return;
+        }
 
-void J9FASTCALL jProfile64BitValue(uint64_t value, TR_HashTableProfilerInfo<uint64_t> *table)
-   {
-   table->addKey(value);
-   }
-
+        if (maxNumValuesProfiled)
+            info->incrementOrCreate(value, &addrOfTotalFrequency, maxNumValuesProfiled);
+        else {
+            totalFrequency++;
+            *addrOfTotalFrequency = totalFrequency;
+        }
+    }
+}
 }
 
 extern "C" {
-void J9FASTCALL _jitProfileLongValue(uint64_t value, TR_LinkedListProfilerInfo<uint64_t> *info, int32_t maxNumValuesProfiled, int32_t *recompilationCounter)
-   {
-   if (recompilationCounter)
-      {
-      if (*recompilationCounter > 0)
-         *recompilationCounter = (*recompilationCounter) - 1 ;
-      else
-         {
-         *recompilationCounter = 0;
-         return;
-         }
-      }
 
-   OMR::CriticalSection profilingLongValue(vpMonitor);
+void J9FASTCALL jProfile32BitValue(uint32_t value, TR_HashTableProfilerInfo<uint32_t> *table) { table->addKey(value); }
 
-   uintptr_t *addrOfTotalFrequency;
-   uintptr_t totalFrequency = info->getTotalFrequency(&addrOfTotalFrequency);
-   TR_LinkedListProfilerInfo<uint64_t>::Element *first = info->getFirst();
-
-   if (totalFrequency == 0)
-      first->_value = value;
-   if (first->_value == value)
-      {
-      if (totalFrequency < 0x7fffffff)
-         {
-         first->_frequency++;
-         totalFrequency++;
-         }
-      else
-         {
-         TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
-         return;
-         }
-      *addrOfTotalFrequency = totalFrequency;
-      }
-   else
-      {
-      if (totalFrequency >= 0x7fffffff)
-         {
-         TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
-         return;
-         }
-
-      if (maxNumValuesProfiled)
-         info->incrementOrCreate(value, &addrOfTotalFrequency, maxNumValuesProfiled);
-      else
-         {
-         totalFrequency++;
-         *addrOfTotalFrequency = totalFrequency;
-         }
-      }
-   }
+void J9FASTCALL jProfile64BitValue(uint64_t value, TR_HashTableProfilerInfo<uint64_t> *table) { table->addKey(value); }
 }
 
+extern "C" {
+void J9FASTCALL _jitProfileLongValue(uint64_t value, TR_LinkedListProfilerInfo<uint64_t> *info,
+    int32_t maxNumValuesProfiled, int32_t *recompilationCounter)
+{
+    if (recompilationCounter) {
+        if (*recompilationCounter > 0)
+            *recompilationCounter = (*recompilationCounter) - 1;
+        else {
+            *recompilationCounter = 0;
+            return;
+        }
+    }
 
+    OMR::CriticalSection profilingLongValue(vpMonitor);
 
+    uintptr_t *addrOfTotalFrequency;
+    uintptr_t totalFrequency = info->getTotalFrequency(&addrOfTotalFrequency);
+    TR_LinkedListProfilerInfo<uint64_t>::Element *first = info->getFirst();
+
+    if (totalFrequency == 0)
+        first->_value = value;
+    if (first->_value == value) {
+        if (totalFrequency < 0x7fffffff) {
+            first->_frequency++;
+            totalFrequency++;
+        } else {
+            TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
+            return;
+        }
+        *addrOfTotalFrequency = totalFrequency;
+    } else {
+        if (totalFrequency >= 0x7fffffff) {
+            TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
+            return;
+        }
+
+        if (maxNumValuesProfiled)
+            info->incrementOrCreate(value, &addrOfTotalFrequency, maxNumValuesProfiled);
+        else {
+            totalFrequency++;
+            *addrOfTotalFrequency = totalFrequency;
+        }
+    }
+}
+}
 
 extern "C" {
 /*this is a work around for GCC 4.4 that caused a seg fault in this method. the detail is in CMVC 198085*/
 #if defined(LINUX) && defined(TR_TARGET_S390)
-     #if __GNUC__ > 4 || \
-         (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)
-void _jitProfileBigDecimalValue(uintptr_t value, uintptr_t bigdecimalj9class, int32_t scaleOffset, int32_t flagOffset, TR_LinkedListProfilerInfo<uint64_t> *info, int32_t maxNumValuesProfiled, int32_t *recompilationCounter)  __attribute__((optimize(0)));
-    #endif
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)
+void _jitProfileBigDecimalValue(uintptr_t value, uintptr_t bigdecimalj9class, int32_t scaleOffset, int32_t flagOffset,
+    TR_LinkedListProfilerInfo<uint64_t> *info, int32_t maxNumValuesProfiled, int32_t *recompilationCounter)
+    __attribute__((optimize(0)));
+#endif
 #endif
 
-void J9FASTCALL _jitProfileBigDecimalValue(uintptr_t value, uintptr_t bigdecimalj9class, int32_t scaleOffset, int32_t flagOffset, TR_LinkedListProfilerInfo<uint64_t> *info, int32_t maxNumValuesProfiled, int32_t *recompilationCounter)
-   {
-   if (recompilationCounter)
-      {
-      if (*recompilationCounter > 0)
-         *recompilationCounter = (*recompilationCounter) - 1 ;
-      else
-         {
-         *recompilationCounter = 0;
-         return;
-         }
-      }
-
-   OMR::CriticalSection profilingBigDecimalValue(vpMonitor);
-
-   uintptr_t *addrOfTotalFrequency;
-   uintptr_t totalFrequency = info->getTotalFrequency(&addrOfTotalFrequency);
-
-   int32_t scale;
-   int32_t flag;
-   bool readValues = false;
-   if (value)
-      {
-	  uintptr_t objectClass = TR::Compiler->om.compressObjectReferences() ? ((J9ObjectCompressed*)value)->clazz : ((J9ObjectFull*)value)->clazz;
-      if ((objectClass & (UDATA)(-J9_REQUIRED_CLASS_ALIGNMENT)) == bigdecimalj9class)
-         {
-         readValues = true;
-         scale = *((int32_t *) (value + scaleOffset));
-
-         flag = *((int32_t *) (value + flagOffset));
-         flag = flag & 1;
-
-         //printf("Called new profiling routine for BD %p with scale %d flags %d\n", bigdecimalj9class, scale, flag); fflush(stdout);
-         }
-      }
-
-   if (!readValues)
-      {
-      totalFrequency++;
-      *addrOfTotalFrequency = totalFrequency;
-      return;
-      }
-
-   TR_LinkedListProfilerInfo<uint64_t>::Element *first = info->getFirst();
-   TR_BigDecimalInfo bdi;
-   bdi.scale = scale;
-   bdi.flag = flag;
-
-   if (totalFrequency == 0)
-      first->_value = bdi.value;
-
-   if (first->_value == bdi.value)
-      {
-      if (totalFrequency < 0x7fffffff)
-         {
-         first->_frequency++;
-         totalFrequency++;
-         }
-      else
-         {
-         TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
-         return;
-         }
-      *addrOfTotalFrequency = totalFrequency;
-      }
-   else
-      {
-      if (totalFrequency >= 0x7fffffff)
-         {
-         TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
-         return;
-         }
-
-      if (maxNumValuesProfiled)
-         info->incrementOrCreate(bdi.value, &addrOfTotalFrequency, maxNumValuesProfiled);
-      else
-         {
-         totalFrequency++;
-         *addrOfTotalFrequency = totalFrequency;
-         }
-      }
-   }
-}
-
-
-extern "C" {
-void J9FASTCALL _jitProfileStringValue(uintptr_t value, int32_t charsOffset, int32_t lengthOffset, TR_LinkedListProfilerInfo<TR_ByteInfo> *info, int32_t maxNumValuesProfiled, int32_t *recompilationCounter)
-   {
-
-   // charsOffset is the offset to the 'value' field in a String object relative to the start of the object.
-   // lengthOffset is the offset to the 'count' field in a String object relative to the start of the object.
-
-   if (recompilationCounter)
-      {
-      if (*recompilationCounter > 0)
-         *recompilationCounter = (*recompilationCounter) - 1 ;
-      else
-         {
-         *recompilationCounter = 0;
-         return;
-         }
-      }
-
-   OMR::CriticalSection profilingStringValue(vpMonitor);
-
-   uintptr_t *addrOfTotalFrequency;
-   uintptr_t totalFrequency = info->getTotalFrequency(&addrOfTotalFrequency);
-
-   char *chars;
-   int32_t length;
-   bool readValues = false;
-   if (value)
-      {
-      readValues = true;
-
-      uintptr_t startOfData = value;
-#if defined(J9VM_GC_SPARSE_HEAP_ALLOCATION)
-      if (TR::Compiler->om.isOffHeapAllocationEnabled())
-         {
-         startOfData = *((uintptr_t *) (value + TR::Compiler->om.offsetOfContiguousDataAddrField()));
-         }
-#endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
-
-      if (TR::Compiler->om.compressObjectReferences())
-         {
-         J9JavaVM *jvm = jitConfig->javaVM;
-         if (!jvm)
+void J9FASTCALL _jitProfileBigDecimalValue(uintptr_t value, uintptr_t bigdecimalj9class, int32_t scaleOffset,
+    int32_t flagOffset, TR_LinkedListProfilerInfo<uint64_t> *info, int32_t maxNumValuesProfiled,
+    int32_t *recompilationCounter)
+{
+    if (recompilationCounter) {
+        if (*recompilationCounter > 0)
+            *recompilationCounter = (*recompilationCounter) - 1;
+        else {
+            *recompilationCounter = 0;
             return;
+        }
+    }
 
-         J9MemoryManagerFunctions * mmf = jvm->memoryManagerFunctions;
-         J9VMThread *vmThread = jvm->internalVMFunctions->currentVMThread(jvm);
-         int32_t result = mmf->j9gc_objaccess_compressedPointersShift(vmThread);
+    OMR::CriticalSection profilingBigDecimalValue(vpMonitor);
 
-         chars = (char *) (( (uintptr_t) (*((uint32_t *) (startOfData + charsOffset)))) << result);
-         }
-      else
-         chars = *((char **) (startOfData + charsOffset));
+    uintptr_t *addrOfTotalFrequency;
+    uintptr_t totalFrequency = info->getTotalFrequency(&addrOfTotalFrequency);
 
-#if defined(J9VM_GC_SPARSE_HEAP_ALLOCATION)
-      if (!TR::Compiler->om.isOffHeapAllocationEnabled())
-#endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
-      {
-      chars = chars + (TR::Compiler->om.contiguousArrayHeaderSizeInBytes());
-      }
+    int32_t scale;
+    int32_t flag;
+    bool readValues = false;
+    if (value) {
+        uintptr_t objectClass = TR::Compiler->om.compressObjectReferences() ? ((J9ObjectCompressed *)value)->clazz
+                                                                            : ((J9ObjectFull *)value)->clazz;
+        if ((objectClass & (UDATA)(-J9_REQUIRED_CLASS_ALIGNMENT)) == bigdecimalj9class) {
+            readValues = true;
+            scale = *((int32_t *)(value + scaleOffset));
 
-      length = *((int32_t *) (value + lengthOffset));
-      if (length > 128)
-         readValues = false;
+            flag = *((int32_t *)(value + flagOffset));
+            flag = flag & 1;
 
-      //printf("Called new profiling routine for BD %p with scale %d flags %d\n", bigdecimalj9class, scale, flag); fflush(stdout);
-      }
+            // printf("Called new profiling routine for BD %p with scale %d flags %d\n", bigdecimalj9class, scale,
+            // flag); fflush(stdout);
+        }
+    }
 
-   if (!readValues)
-      {
-      totalFrequency++;
-      *addrOfTotalFrequency = totalFrequency;
-      return;
-      }
+    if (!readValues) {
+        totalFrequency++;
+        *addrOfTotalFrequency = totalFrequency;
+        return;
+    }
 
-   TR_ByteInfo bi(chars, 2 * length);
+    TR_LinkedListProfilerInfo<uint64_t>::Element *first = info->getFirst();
+    TR_BigDecimalInfo bdi;
+    bdi.scale = scale;
+    bdi.flag = flag;
 
-   TR_LinkedListProfilerInfo<TR_ByteInfo>::Element *first = info->getFirst();
+    if (totalFrequency == 0)
+        first->_value = bdi.value;
 
-   if (totalFrequency == 0)
-      first->_value = TR_ByteInfo(bi);
+    if (first->_value == bdi.value) {
+        if (totalFrequency < 0x7fffffff) {
+            first->_frequency++;
+            totalFrequency++;
+        } else {
+            TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
+            return;
+        }
+        *addrOfTotalFrequency = totalFrequency;
+    } else {
+        if (totalFrequency >= 0x7fffffff) {
+            TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
+            return;
+        }
 
-   if (bi == first->_value)
-      {
-      if (totalFrequency < 0x7fffffff)
-         {
-         first->_frequency++;
-         totalFrequency++;
-         }
-      else
-         {
-         TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
-         return;
-         }
-
-      *addrOfTotalFrequency = totalFrequency;
-      }
-   else
-      {
-      if (totalFrequency >= 0x7fffffff)
-         {
-         TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
-         return;
-         }
-
-      if (maxNumValuesProfiled)
-         info->incrementOrCreate(bi, &addrOfTotalFrequency, maxNumValuesProfiled);
-      else
-         {
-         totalFrequency++;
-         *addrOfTotalFrequency = totalFrequency;
-         }
-      }
-   }
+        if (maxNumValuesProfiled)
+            info->incrementOrCreate(bdi.value, &addrOfTotalFrequency, maxNumValuesProfiled);
+        else {
+            totalFrequency++;
+            *addrOfTotalFrequency = totalFrequency;
+        }
+    }
+}
 }
 
 extern "C" {
-void J9FASTCALL _jitProfileValue(uint32_t value, TR_LinkedListProfilerInfo<uint32_t> *info, int32_t maxNumValuesProfiled, int32_t *recompilationCounter)
-   {
-   if (recompilationCounter)
-      {
-      if (*recompilationCounter > 0)
-         *recompilationCounter = (*recompilationCounter) - 1 ;
-      else
-         {
-         *recompilationCounter = 0;
-         return;
-         }
-      }
+void J9FASTCALL _jitProfileStringValue(uintptr_t value, int32_t charsOffset, int32_t lengthOffset,
+    TR_LinkedListProfilerInfo<TR_ByteInfo> *info, int32_t maxNumValuesProfiled, int32_t *recompilationCounter)
+{
+    // charsOffset is the offset to the 'value' field in a String object relative to the start of the object.
+    // lengthOffset is the offset to the 'count' field in a String object relative to the start of the object.
 
-   OMR::CriticalSection profilingValue(vpMonitor);
+    if (recompilationCounter) {
+        if (*recompilationCounter > 0)
+            *recompilationCounter = (*recompilationCounter) - 1;
+        else {
+            *recompilationCounter = 0;
+            return;
+        }
+    }
 
-   uintptr_t *addrOfTotalFrequency;
-   uintptr_t totalFrequency = info->getTotalFrequency(&addrOfTotalFrequency);
-   TR_LinkedListProfilerInfo<uint32_t>::Element *first = info->getFirst();
+    OMR::CriticalSection profilingStringValue(vpMonitor);
 
-   if (totalFrequency == 0)
-      first->_value = value;
-   if (first->_value == value)
-      {
-      if (totalFrequency < 0x7fffffff)
-         {
-         first->_frequency++;
-         totalFrequency++;
-         }
-      else
-         {
-         TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
-         return;
-         }
-      *addrOfTotalFrequency = totalFrequency;
-      }
-   else
-      {
-      if (totalFrequency >= 0x7fffffff)
-         {
-         TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
-         return;
-         }
+    uintptr_t *addrOfTotalFrequency;
+    uintptr_t totalFrequency = info->getTotalFrequency(&addrOfTotalFrequency);
 
-      if (maxNumValuesProfiled)
-         info->incrementOrCreate(value, &addrOfTotalFrequency, maxNumValuesProfiled);
-      else
-         {
-         totalFrequency++;
-         *addrOfTotalFrequency = totalFrequency;
-         }
-      }
-   }
+    char *chars;
+    int32_t length;
+    bool readValues = false;
+    if (value) {
+        readValues = true;
+
+        uintptr_t startOfData = value;
+#if defined(J9VM_GC_SPARSE_HEAP_ALLOCATION)
+        if (TR::Compiler->om.isOffHeapAllocationEnabled()) {
+            startOfData = *((uintptr_t *)(value + TR::Compiler->om.offsetOfContiguousDataAddrField()));
+        }
+#endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
+
+        if (TR::Compiler->om.compressObjectReferences()) {
+            J9JavaVM *jvm = jitConfig->javaVM;
+            if (!jvm)
+                return;
+
+            J9MemoryManagerFunctions *mmf = jvm->memoryManagerFunctions;
+            J9VMThread *vmThread = jvm->internalVMFunctions->currentVMThread(jvm);
+            int32_t result = mmf->j9gc_objaccess_compressedPointersShift(vmThread);
+
+            chars = (char *)(((uintptr_t)(*((uint32_t *)(startOfData + charsOffset)))) << result);
+        } else
+            chars = *((char **)(startOfData + charsOffset));
+
+#if defined(J9VM_GC_SPARSE_HEAP_ALLOCATION)
+        if (!TR::Compiler->om.isOffHeapAllocationEnabled())
+#endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
+        {
+            chars = chars + (TR::Compiler->om.contiguousArrayHeaderSizeInBytes());
+        }
+
+        length = *((int32_t *)(value + lengthOffset));
+        if (length > 128)
+            readValues = false;
+
+        // printf("Called new profiling routine for BD %p with scale %d flags %d\n", bigdecimalj9class, scale, flag);
+        // fflush(stdout);
+    }
+
+    if (!readValues) {
+        totalFrequency++;
+        *addrOfTotalFrequency = totalFrequency;
+        return;
+    }
+
+    TR_ByteInfo bi(chars, 2 * length);
+
+    TR_LinkedListProfilerInfo<TR_ByteInfo>::Element *first = info->getFirst();
+
+    if (totalFrequency == 0)
+        first->_value = TR_ByteInfo(bi);
+
+    if (bi == first->_value) {
+        if (totalFrequency < 0x7fffffff) {
+            first->_frequency++;
+            totalFrequency++;
+        } else {
+            TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
+            return;
+        }
+
+        *addrOfTotalFrequency = totalFrequency;
+    } else {
+        if (totalFrequency >= 0x7fffffff) {
+            TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
+            return;
+        }
+
+        if (maxNumValuesProfiled)
+            info->incrementOrCreate(bi, &addrOfTotalFrequency, maxNumValuesProfiled);
+        else {
+            totalFrequency++;
+            *addrOfTotalFrequency = totalFrequency;
+        }
+    }
+}
+}
+
+extern "C" {
+void J9FASTCALL _jitProfileValue(uint32_t value, TR_LinkedListProfilerInfo<uint32_t> *info,
+    int32_t maxNumValuesProfiled, int32_t *recompilationCounter)
+{
+    if (recompilationCounter) {
+        if (*recompilationCounter > 0)
+            *recompilationCounter = (*recompilationCounter) - 1;
+        else {
+            *recompilationCounter = 0;
+            return;
+        }
+    }
+
+    OMR::CriticalSection profilingValue(vpMonitor);
+
+    uintptr_t *addrOfTotalFrequency;
+    uintptr_t totalFrequency = info->getTotalFrequency(&addrOfTotalFrequency);
+    TR_LinkedListProfilerInfo<uint32_t>::Element *first = info->getFirst();
+
+    if (totalFrequency == 0)
+        first->_value = value;
+    if (first->_value == value) {
+        if (totalFrequency < 0x7fffffff) {
+            first->_frequency++;
+            totalFrequency++;
+        } else {
+            TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
+            return;
+        }
+        *addrOfTotalFrequency = totalFrequency;
+    } else {
+        if (totalFrequency >= 0x7fffffff) {
+            TR_ASSERT(0, "Total profiling frequency seems to be very large\n");
+            return;
+        }
+
+        if (maxNumValuesProfiled)
+            info->incrementOrCreate(value, &addrOfTotalFrequency, maxNumValuesProfiled);
+        else {
+            totalFrequency++;
+            *addrOfTotalFrequency = totalFrequency;
+        }
+    }
+}
 }
 
 extern "C" {
 
 #if defined(WINDOWS)
 static uint64_t QueryCounter()
-   {
-   LARGE_INTEGER start;
-   QueryPerformanceCounter(&start);
-   return (uint64_t)start.QuadPart;
-   }
+{
+    LARGE_INTEGER start;
+    QueryPerformanceCounter(&start);
+    return (uint64_t)start.QuadPart;
+}
 #elif defined(AIXPPC)
 static uint64_t QueryCounter()
-   {
-   timebasestruct_t tb;
-   read_real_time(&tb, sizeof(tb));
-   uint64_t result = (((uint64_t)tb.tb_high) << 32) | tb.tb_low;
-   return result;
-   }
+{
+    timebasestruct_t tb;
+    read_real_time(&tb, sizeof(tb));
+    uint64_t result = (((uint64_t)tb.tb_high) << 32) | tb.tb_low;
+    return result;
+}
 #else
 static uint64_t QueryCounter()
-   {
-   struct timeval  tvalue;
+{
+    struct timeval tvalue;
 
-   gettimeofday(&tvalue, 0);
-   return (uint64_t)tvalue.tv_sec*TIME_RESOLUTION+(uint64_t)tvalue.tv_usec;
-   }
+    gettimeofday(&tvalue, 0);
+    return (uint64_t)tvalue.tv_sec * TIME_RESOLUTION + (uint64_t)tvalue.tv_usec;
+}
 #endif // WINDOWS
 
 void dumpMethodsForClass(::FILE *fp, J9Class *classPointer)
-   {
-   J9Method * resolvedMethods = (J9Method *) classPointer->ramMethods;
-   uint32_t i;
-   uint32_t numMethods = classPointer->romClass->romMethodCount;
+{
+    J9Method *resolvedMethods = (J9Method *)classPointer->ramMethods;
+    uint32_t i;
+    uint32_t numMethods = classPointer->romClass->romMethodCount;
 
-   for (i=0; i<numMethods; i++)
-      {
-      J9UTF8 * nameUTF8;
-      J9UTF8 * signatureUTF8;
-      J9UTF8 * clazzUTRF8;
-      getClassNameSignatureFromMethod(((J9Method *)&(resolvedMethods[i])), clazzUTRF8, nameUTF8, signatureUTF8);
+    for (i = 0; i < numMethods; i++) {
+        J9UTF8 *nameUTF8;
+        J9UTF8 *signatureUTF8;
+        J9UTF8 *clazzUTRF8;
+        getClassNameSignatureFromMethod(((J9Method *)&(resolvedMethods[i])), clazzUTRF8, nameUTF8, signatureUTF8);
 
-      fprintf(fp, "\t%" OMR_PRIuPTR ", %.*s.%.*s%.*s\n", (uintptr_t)&(resolvedMethods[i]), J9UTF8_LENGTH(clazzUTRF8), J9UTF8_DATA(clazzUTRF8), J9UTF8_LENGTH(nameUTF8), J9UTF8_DATA(nameUTF8), J9UTF8_LENGTH(signatureUTF8), J9UTF8_DATA(signatureUTF8));
-      }
-   }
-
-void dumpInstanceFieldsForClass(::FILE *fp, J9Class *instanceClass, J9VMThread *vmThread)
-   {
-  J9JavaVM *javaVM = vmThread->javaVM;
-   UDATA superclassIndex, depth;
-
-   depth = J9CLASS_DEPTH(instanceClass);
-   for (superclassIndex = 0; superclassIndex <= depth; superclassIndex++)
-      {
-      J9ROMFieldWalkState fieldWalkState;
-      J9ROMFieldShape *romFieldCursor;
-      J9Class* superclass;
-
-      if (superclassIndex == depth)
-         {
-         superclass = instanceClass;
-         }
-      else
-         {
-         superclass = instanceClass->superclasses[superclassIndex];
-         }
-
-      romFieldCursor = romFieldsStartDo(superclass->romClass, &fieldWalkState);
-      while (romFieldCursor)
-         {
-         if ((romFieldCursor->modifiers & J9AccStatic) == 0)
-            {
-            J9UTF8* nameUTF = J9ROMFIELDSHAPE_NAME(romFieldCursor);
-            J9UTF8* sigUTF = J9ROMFIELDSHAPE_SIGNATURE(romFieldCursor);
-            IDATA offset;
-
-            fprintf(fp, "%" OMR_PRIuPTR ", %.*s, %.*s, %08x, ", (uintptr_t)instanceClass, J9UTF8_LENGTH(sigUTF), J9UTF8_DATA(sigUTF), J9UTF8_LENGTH(nameUTF), J9UTF8_DATA(nameUTF), romFieldCursor->modifiers);
-
-            offset = javaVM->internalVMFunctions->instanceFieldOffset(vmThread, superclass, J9UTF8_DATA(nameUTF), J9UTF8_LENGTH(nameUTF), J9UTF8_DATA(sigUTF), J9UTF8_LENGTH(sigUTF), NULL, NULL, J9_LOOK_NO_JAVA);
-
-            if (offset >= 0)
-               {
-               fprintf(fp, "%" OMR_PRIuPTR "\n", offset + TR::Compiler->om.objectHeaderSizeInBytes());
-               }
-            else
-               {
-               fprintf(fp, "UNKNOWN\n");
-               }
-            }
-
-         romFieldCursor = romFieldsNextDo(&fieldWalkState);
-         }
-      }
-   }
-
-
-void dumpClassStaticsForClass(::FILE *fp, J9Class *clazz, J9VMThread *vmThread)
-   {
-   J9JavaVM *javaVM = vmThread->javaVM;
-   J9ROMClass *romClazz = clazz->romClass;
-   J9ROMFieldShape* romFieldCursor;
-   J9ROMFieldWalkState state;
-
-   romFieldCursor = romFieldsStartDo(romClazz, &state);
-   while (romFieldCursor != NULL)
-      {
-      if (romFieldCursor->modifiers & J9AccStatic)
-         {
-         J9UTF8* nameUTF = J9ROMFIELDSHAPE_NAME(romFieldCursor);
-         J9UTF8* sigUTF = J9ROMFIELDSHAPE_SIGNATURE(romFieldCursor);
-
-         fprintf(fp, "%" OMR_PRIuPTR ", %.*s, %.*s, %08x, ", (uintptr_t)clazz, J9UTF8_LENGTH(sigUTF), J9UTF8_DATA(sigUTF), J9UTF8_LENGTH(nameUTF), J9UTF8_DATA(nameUTF), romFieldCursor->modifiers);
-
-         void *address = javaVM->internalVMFunctions->staticFieldAddress(vmThread, clazz, J9UTF8_DATA(nameUTF), J9UTF8_LENGTH(nameUTF), J9UTF8_DATA(sigUTF), J9UTF8_LENGTH(sigUTF), NULL, NULL, J9_LOOK_NO_JAVA, NULL);
-
-         if (address)
-            {
-            fprintf(fp, "%p\n", address);
-            }
-         else
-            {
-            fprintf(fp, "UNKNOWN\n");
-            }
-         }
-
-      romFieldCursor = romFieldsNextDo(&state);
-      }
-   }
-
-
-void dumpAllClasses(J9VMThread *vmThread)
-   {
-   J9JavaVM * javaVM = vmThread->javaVM;
-   J9JITConfig * jitConfg = javaVM->jitConfig;
-   PORT_ACCESS_FROM_JAVAVM(javaVM);
-   J9ClassWalkState classWalkState;
-   ::FILE *fp = NULL;
-   ::FILE *methodFP = NULL;
-   ::FILE *fieldFP = NULL;
-   ::FILE *staticsFP = NULL;
-
-   char fileName[256];
-   J9Class * clazz = NULL;
-
-   snprintf(fileName, sizeof(fileName), "tracer-classdump-%p.txt", vmThread);
-
-   if (!(fp = fopen(fileName, "at")))
-      {
-      fprintf(stderr, "Cannot open file\n");
-      return;
-      }
-
-   snprintf(fileName, sizeof(fileName), "tracer-methoddump-%p.txt", vmThread);
-
-   if (!(methodFP = fopen(fileName, "at")))
-      {
-      fprintf(stderr, "Cannot open file\n");
-      return;
-      }
-
-   snprintf(fileName, sizeof(fileName), "tracer-fielddump-%p.txt", vmThread);
-
-   if (!(fieldFP = fopen(fileName, "at")))
-      {
-      fprintf(stderr, "Cannot open file\n");
-      return;
-      }
-
-   snprintf(fileName, sizeof(fileName), "tracer-staticsdump-%p.txt", vmThread);
-
-   if (!(staticsFP = fopen(fileName, "at")))
-      {
-      fprintf(stderr, "Cannot open file\n");
-      return;
-      }
-
-   clazz = javaVM->internalVMFunctions->allClassesStartDo(&classWalkState, javaVM, NULL);
-   IDATA foundClassToCompile = 0;
-   while (clazz)
-      {
-      J9UTF8 * clazzUTRF8 = J9ROMCLASS_CLASSNAME(clazz->romClass);
-
-      // print the class address
-      fprintf(fp, "%" OMR_PRIuPTR ", ", (uintptr_t)clazz);
-
-      J9ROMClass *romClass = clazz->romClass;
-      // print the class name, for arrays get to the leaf array class and print that
-      if (J9ROMCLASS_IS_ARRAY(romClass))
-         {
-         J9ArrayClass *arrayClass = (J9ArrayClass*) clazz;
-         UDATA arity = arrayClass->arity;
-         J9ROMClass *leafRomClass = arrayClass->leafComponentType->romClass;
-         J9UTF8 *arrayClazzUTRF8;
-         while(--arity) { fprintf(fp, "["); }
-         if (J9ROMCLASS_IS_PRIMITIVE_TYPE(leafRomClass))
-            {
-            arity = arrayClass->arity;
-            J9ArrayClass *leafParentClass = arrayClass;
-            while(--arity) { leafParentClass = (J9ArrayClass *) leafParentClass->componentType; }
-            arrayClazzUTRF8 = J9ROMCLASS_CLASSNAME(leafParentClass->romClass);
-
-            fprintf(fp, "%.*s", J9UTF8_LENGTH(arrayClazzUTRF8), J9UTF8_DATA(arrayClazzUTRF8));
-            }
-         else
-            {
-            arrayClazzUTRF8 = J9ROMCLASS_CLASSNAME(leafRomClass);
-            fprintf(fp, "[L%.*s;", J9UTF8_LENGTH(arrayClazzUTRF8), J9UTF8_DATA(arrayClazzUTRF8));
-            }
-         fprintf(fp, "\n");
-         }
-      else
-         {
-         fprintf(fp, "%.*s\n", J9UTF8_LENGTH(clazzUTRF8), J9UTF8_DATA(clazzUTRF8));
-         }
-
-      // now print the methods with address and name
-      dumpMethodsForClass (methodFP, clazz);
-
-      // Dump instance fields.
-      //
-      dumpInstanceFieldsForClass(fieldFP, clazz, vmThread);
-
-      // Dump class statics.
-      //
-      dumpClassStaticsForClass(staticsFP, clazz, vmThread);
-
-      clazz = javaVM->internalVMFunctions->allClassesNextDo(&classWalkState);
-      }
-   fclose(fp);
-   fclose(methodFP);
-   fclose(fieldFP);
-   fclose(staticsFP);
-
-   javaVM->internalVMFunctions->allClassesEndDo(&classWalkState);
-
-   }
-
+        fprintf(fp, "\t%" OMR_PRIuPTR ", %.*s.%.*s%.*s\n", (uintptr_t) & (resolvedMethods[i]),
+            J9UTF8_LENGTH(clazzUTRF8), J9UTF8_DATA(clazzUTRF8), J9UTF8_LENGTH(nameUTF8), J9UTF8_DATA(nameUTF8),
+            J9UTF8_LENGTH(signatureUTF8), J9UTF8_DATA(signatureUTF8));
+    }
 }
 
+void dumpInstanceFieldsForClass(::FILE *fp, J9Class *instanceClass, J9VMThread *vmThread)
+{
+    J9JavaVM *javaVM = vmThread->javaVM;
+    UDATA superclassIndex, depth;
+
+    depth = J9CLASS_DEPTH(instanceClass);
+    for (superclassIndex = 0; superclassIndex <= depth; superclassIndex++) {
+        J9ROMFieldWalkState fieldWalkState;
+        J9ROMFieldShape *romFieldCursor;
+        J9Class *superclass;
+
+        if (superclassIndex == depth) {
+            superclass = instanceClass;
+        } else {
+            superclass = instanceClass->superclasses[superclassIndex];
+        }
+
+        romFieldCursor = romFieldsStartDo(superclass->romClass, &fieldWalkState);
+        while (romFieldCursor) {
+            if ((romFieldCursor->modifiers & J9AccStatic) == 0) {
+                J9UTF8 *nameUTF = J9ROMFIELDSHAPE_NAME(romFieldCursor);
+                J9UTF8 *sigUTF = J9ROMFIELDSHAPE_SIGNATURE(romFieldCursor);
+                IDATA offset;
+
+                fprintf(fp, "%" OMR_PRIuPTR ", %.*s, %.*s, %08x, ", (uintptr_t)instanceClass, J9UTF8_LENGTH(sigUTF),
+                    J9UTF8_DATA(sigUTF), J9UTF8_LENGTH(nameUTF), J9UTF8_DATA(nameUTF), romFieldCursor->modifiers);
+
+                offset = javaVM->internalVMFunctions->instanceFieldOffset(vmThread, superclass, J9UTF8_DATA(nameUTF),
+                    J9UTF8_LENGTH(nameUTF), J9UTF8_DATA(sigUTF), J9UTF8_LENGTH(sigUTF), NULL, NULL, J9_LOOK_NO_JAVA);
+
+                if (offset >= 0) {
+                    fprintf(fp, "%" OMR_PRIuPTR "\n", offset + TR::Compiler->om.objectHeaderSizeInBytes());
+                } else {
+                    fprintf(fp, "UNKNOWN\n");
+                }
+            }
+
+            romFieldCursor = romFieldsNextDo(&fieldWalkState);
+        }
+    }
+}
+
+void dumpClassStaticsForClass(::FILE *fp, J9Class *clazz, J9VMThread *vmThread)
+{
+    J9JavaVM *javaVM = vmThread->javaVM;
+    J9ROMClass *romClazz = clazz->romClass;
+    J9ROMFieldShape *romFieldCursor;
+    J9ROMFieldWalkState state;
+
+    romFieldCursor = romFieldsStartDo(romClazz, &state);
+    while (romFieldCursor != NULL) {
+        if (romFieldCursor->modifiers & J9AccStatic) {
+            J9UTF8 *nameUTF = J9ROMFIELDSHAPE_NAME(romFieldCursor);
+            J9UTF8 *sigUTF = J9ROMFIELDSHAPE_SIGNATURE(romFieldCursor);
+
+            fprintf(fp, "%" OMR_PRIuPTR ", %.*s, %.*s, %08x, ", (uintptr_t)clazz, J9UTF8_LENGTH(sigUTF),
+                J9UTF8_DATA(sigUTF), J9UTF8_LENGTH(nameUTF), J9UTF8_DATA(nameUTF), romFieldCursor->modifiers);
+
+            void *address = javaVM->internalVMFunctions->staticFieldAddress(vmThread, clazz, J9UTF8_DATA(nameUTF),
+                J9UTF8_LENGTH(nameUTF), J9UTF8_DATA(sigUTF), J9UTF8_LENGTH(sigUTF), NULL, NULL, J9_LOOK_NO_JAVA, NULL);
+
+            if (address) {
+                fprintf(fp, "%p\n", address);
+            } else {
+                fprintf(fp, "UNKNOWN\n");
+            }
+        }
+
+        romFieldCursor = romFieldsNextDo(&state);
+    }
+}
+
+void dumpAllClasses(J9VMThread *vmThread)
+{
+    J9JavaVM *javaVM = vmThread->javaVM;
+    J9JITConfig *jitConfg = javaVM->jitConfig;
+    PORT_ACCESS_FROM_JAVAVM(javaVM);
+    J9ClassWalkState classWalkState;
+    ::FILE *fp = NULL;
+    ::FILE *methodFP = NULL;
+    ::FILE *fieldFP = NULL;
+    ::FILE *staticsFP = NULL;
+
+    char fileName[256];
+    J9Class *clazz = NULL;
+
+    snprintf(fileName, sizeof(fileName), "tracer-classdump-%p.txt", vmThread);
+
+    if (!(fp = fopen(fileName, "at"))) {
+        fprintf(stderr, "Cannot open file\n");
+        return;
+    }
+
+    snprintf(fileName, sizeof(fileName), "tracer-methoddump-%p.txt", vmThread);
+
+    if (!(methodFP = fopen(fileName, "at"))) {
+        fprintf(stderr, "Cannot open file\n");
+        return;
+    }
+
+    snprintf(fileName, sizeof(fileName), "tracer-fielddump-%p.txt", vmThread);
+
+    if (!(fieldFP = fopen(fileName, "at"))) {
+        fprintf(stderr, "Cannot open file\n");
+        return;
+    }
+
+    snprintf(fileName, sizeof(fileName), "tracer-staticsdump-%p.txt", vmThread);
+
+    if (!(staticsFP = fopen(fileName, "at"))) {
+        fprintf(stderr, "Cannot open file\n");
+        return;
+    }
+
+    clazz = javaVM->internalVMFunctions->allClassesStartDo(&classWalkState, javaVM, NULL);
+    IDATA foundClassToCompile = 0;
+    while (clazz) {
+        J9UTF8 *clazzUTRF8 = J9ROMCLASS_CLASSNAME(clazz->romClass);
+
+        // print the class address
+        fprintf(fp, "%" OMR_PRIuPTR ", ", (uintptr_t)clazz);
+
+        J9ROMClass *romClass = clazz->romClass;
+        // print the class name, for arrays get to the leaf array class and print that
+        if (J9ROMCLASS_IS_ARRAY(romClass)) {
+            J9ArrayClass *arrayClass = (J9ArrayClass *)clazz;
+            UDATA arity = arrayClass->arity;
+            J9ROMClass *leafRomClass = arrayClass->leafComponentType->romClass;
+            J9UTF8 *arrayClazzUTRF8;
+            while (--arity) {
+                fprintf(fp, "[");
+            }
+            if (J9ROMCLASS_IS_PRIMITIVE_TYPE(leafRomClass)) {
+                arity = arrayClass->arity;
+                J9ArrayClass *leafParentClass = arrayClass;
+                while (--arity) {
+                    leafParentClass = (J9ArrayClass *)leafParentClass->componentType;
+                }
+                arrayClazzUTRF8 = J9ROMCLASS_CLASSNAME(leafParentClass->romClass);
+
+                fprintf(fp, "%.*s", J9UTF8_LENGTH(arrayClazzUTRF8), J9UTF8_DATA(arrayClazzUTRF8));
+            } else {
+                arrayClazzUTRF8 = J9ROMCLASS_CLASSNAME(leafRomClass);
+                fprintf(fp, "[L%.*s;", J9UTF8_LENGTH(arrayClazzUTRF8), J9UTF8_DATA(arrayClazzUTRF8));
+            }
+            fprintf(fp, "\n");
+        } else {
+            fprintf(fp, "%.*s\n", J9UTF8_LENGTH(clazzUTRF8), J9UTF8_DATA(clazzUTRF8));
+        }
+
+        // now print the methods with address and name
+        dumpMethodsForClass(methodFP, clazz);
+
+        // Dump instance fields.
+        //
+        dumpInstanceFieldsForClass(fieldFP, clazz, vmThread);
+
+        // Dump class statics.
+        //
+        dumpClassStaticsForClass(staticsFP, clazz, vmThread);
+
+        clazz = javaVM->internalVMFunctions->allClassesNextDo(&classWalkState);
+    }
+    fclose(fp);
+    fclose(methodFP);
+    fclose(fieldFP);
+    fclose(staticsFP);
+
+    javaVM->internalVMFunctions->allClassesEndDo(&classWalkState);
+}
+}
 
 // _patchJNICallSite
 #if defined(TR_HOST_X86)
-  #if !defined(TR_HOST_64BIT)
-extern "C" void _patchJNICallSite(J9Method *method, uint8_t *callPC, uint8_t *newAddress, TR_FrontEnd *fe, int32_t smpFlag)
-   {
-   intptr_t offset = newAddress - callPC - 5; // distance relative to the next instruction
-   *(uint32_t*)(callPC+1) = offset; // patch the immediate in the call instruction
-   }
-  #else
-extern "C" void _patchJNICallSite(J9Method *method, uint8_t *callPC, uint8_t *newAddress, TR_FrontEnd *fe, int32_t smpFlag)
-   {
-   // The code below is disabled because of a problem with direct call to JNI methods
-   // through trampoline. The problem is that at the time of generation of the trampoline
-   // we don't know if we did directToJNI call or we are calling the native thunk. In case
-   // we are calling the thunk the code below won't work and it will give the caller address
-   // of the C native and we crash.
+#if !defined(TR_HOST_64BIT)
+extern "C" void _patchJNICallSite(J9Method *method, uint8_t *callPC, uint8_t *newAddress, TR_FrontEnd *fe,
+    int32_t smpFlag)
+{
+    intptr_t offset = newAddress - callPC - 5; // distance relative to the next instruction
+    *(uint32_t *)(callPC + 1) = offset; // patch the immediate in the call instruction
+}
+#else
+extern "C" void _patchJNICallSite(J9Method *method, uint8_t *callPC, uint8_t *newAddress, TR_FrontEnd *fe,
+    int32_t smpFlag)
+{
+    // The code below is disabled because of a problem with direct call to JNI methods
+    // through trampoline. The problem is that at the time of generation of the trampoline
+    // we don't know if we did directToJNI call or we are calling the native thunk. In case
+    // we are calling the thunk the code below won't work and it will give the caller address
+    // of the C native and we crash.
 #if 0
    TR::CodeCache *codeCache  = TR::CodeCacheManager::instance()->findCodeCacheFromPC(callPC);
    uint8_t        *trampoline = (uint8_t*)codeCache->findTrampoline(method);
@@ -1078,91 +948,95 @@ extern "C" void _patchJNICallSite(J9Method *method, uint8_t *callPC, uint8_t *ne
    TR_ASSERT((intptr_t)(int32_t)offset == offset, "trampoline is not reachable!");
    *(uint32_t*)(callPC+1) = (uint32_t)offset;
 #else
-   // The code in directToJNI would look like
-   // 49 bb ?? ?? ?? ?? ?? ?? ?? ??     mov r11, 0xaddress <--we patch here
-   // 41 ff d3                          call r11
-   *(uintptr_t*)(callPC+2) = (uintptr_t)newAddress;
+    // The code in directToJNI would look like
+    // 49 bb ?? ?? ?? ?? ?? ?? ?? ??     mov r11, 0xaddress <--we patch here
+    // 41 ff d3                          call r11
+    *(uintptr_t *)(callPC + 2) = (uintptr_t)newAddress;
 #endif
-   }
-  #endif
+}
+#endif
 #elif defined(TR_HOST_ARM)
 extern "C" void _patchJNICallSite(J9Method *method, uint8_t *pc, uint8_t *newAddress, TR_FrontEnd *fe, int32_t smpFlag)
-   {
-   uint32_t *cursor = (uint32_t*) pc;
-   TR_ASSERT(*cursor == 0xe28fe004, "unexpected JNI call sequence at %p: %p", cursor, *cursor); // add lr, pc, #4
-   cursor++;
-   TR_ASSERT(*cursor == 0xe51ff004, "unexpected JNI call sequence at %p: %p", cursor, *cursor); // ldr pc, [pc, #-4]
-   cursor++;
-   *cursor = (uint32_t)newAddress;
-   TR::CodeGenerator::syncCode(pc, 12);
-   }
+{
+    uint32_t *cursor = (uint32_t *)pc;
+    TR_ASSERT(*cursor == 0xe28fe004, "unexpected JNI call sequence at %p: %p", cursor, *cursor); // add lr, pc, #4
+    cursor++;
+    TR_ASSERT(*cursor == 0xe51ff004, "unexpected JNI call sequence at %p: %p", cursor, *cursor); // ldr pc, [pc, #-4]
+    cursor++;
+    *cursor = (uint32_t)newAddress;
+    TR::CodeGenerator::syncCode(pc, 12);
+}
 #elif defined(TR_HOST_POWER)
 extern "C" void _patchJNICallSite(J9Method *method, uint8_t *pc, uint8_t *newAddress, TR_FrontEnd *fe, int32_t smpFlag)
-   {
-   uintptr_t address = (uintptr_t) newAddress;
-   uint32_t  *cursor = (uint32_t*) pc;
+{
+    uintptr_t address = (uintptr_t)newAddress;
+    uint32_t *cursor = (uint32_t *)pc;
 
 #if defined(TR_HOST_64BIT)
-   // We expect the following code sequence:
-   // 3d60 ????     lis gr11, imm16           <- patch1
-   // 616b ????     ori gr11, gr11, imm16     <- patch2
-   // 796b 07c6     rldicr gr11, gr11, 0x20, 0xffffffff00000000
-   // 656b ????     oris gr11, gr11, imm16    <- patch3
-   // 616b ????     ori  gr11, gr11, imm16
-   //
-   TR_ASSERT((*cursor & 0xffff0000) == 0x3d600000, "unexpected JNI call sequence at %p: %p", cursor, *cursor);
-   *cursor = (*cursor & 0xffff0000) | (address >> 48 & 0x0ffff); cursor++;
-   TR_ASSERT((*cursor & 0xffff0000) == 0x616b0000, "unexpected JNI call sequence at %p: %p", cursor, *cursor);
-   *cursor = (*cursor & 0xffff0000) | (address >> 32 & 0x0ffff); cursor++;
-   TR_ASSERT(*cursor == 0x796b07c6, "unexpected JNI call sequence at %p: %p", cursor, *cursor);
-   cursor++; // skip the rldicr
-   TR_ASSERT((*cursor & 0xffff0000) == 0x656b0000, "unexpected JNI call sequence at %p: %p", cursor, *cursor);
-   *cursor = (*cursor & 0xffff0000) | (address >> 16 & 0x0ffff); cursor++;
-   TR_ASSERT((*cursor & 0xffff0000) == 0x616b0000, "unexpected JNI call sequence at %p: %p", cursor, *cursor);
-   *cursor = (*cursor & 0xffff0000) | (address & 0x0ffff);
-   TR::CodeGenerator::syncCode(pc, 20);
+    // We expect the following code sequence:
+    // 3d60 ????     lis gr11, imm16           <- patch1
+    // 616b ????     ori gr11, gr11, imm16     <- patch2
+    // 796b 07c6     rldicr gr11, gr11, 0x20, 0xffffffff00000000
+    // 656b ????     oris gr11, gr11, imm16    <- patch3
+    // 616b ????     ori  gr11, gr11, imm16
+    //
+    TR_ASSERT((*cursor & 0xffff0000) == 0x3d600000, "unexpected JNI call sequence at %p: %p", cursor, *cursor);
+    *cursor = (*cursor & 0xffff0000) | (address >> 48 & 0x0ffff);
+    cursor++;
+    TR_ASSERT((*cursor & 0xffff0000) == 0x616b0000, "unexpected JNI call sequence at %p: %p", cursor, *cursor);
+    *cursor = (*cursor & 0xffff0000) | (address >> 32 & 0x0ffff);
+    cursor++;
+    TR_ASSERT(*cursor == 0x796b07c6, "unexpected JNI call sequence at %p: %p", cursor, *cursor);
+    cursor++; // skip the rldicr
+    TR_ASSERT((*cursor & 0xffff0000) == 0x656b0000, "unexpected JNI call sequence at %p: %p", cursor, *cursor);
+    *cursor = (*cursor & 0xffff0000) | (address >> 16 & 0x0ffff);
+    cursor++;
+    TR_ASSERT((*cursor & 0xffff0000) == 0x616b0000, "unexpected JNI call sequence at %p: %p", cursor, *cursor);
+    *cursor = (*cursor & 0xffff0000) | (address & 0x0ffff);
+    TR::CodeGenerator::syncCode(pc, 20);
 #else
-   // We expect the following code sequence:
-   // 3d60 ????     lis gr11, imm16
-   // 616b ????     ori gr11, gr11, imm16
-   TR_ASSERT((*cursor & 0xffff0000) == 0x3d600000, "unexpected JNI call sequence at %p: %p", cursor, *cursor);
-   *cursor = (*cursor & 0xffff0000) | (address >> 16 & 0x0ffff); cursor++;
-   TR_ASSERT((*cursor & 0xffff0000) == 0x616b0000, "unexpected JNI call sequence at %p: %p", cursor, *cursor);
-   *cursor = (*cursor & 0xffff0000) | (address & 0x0ffff);
-   TR::CodeGenerator::syncCode(pc, 8);
+    // We expect the following code sequence:
+    // 3d60 ????     lis gr11, imm16
+    // 616b ????     ori gr11, gr11, imm16
+    TR_ASSERT((*cursor & 0xffff0000) == 0x3d600000, "unexpected JNI call sequence at %p: %p", cursor, *cursor);
+    *cursor = (*cursor & 0xffff0000) | (address >> 16 & 0x0ffff);
+    cursor++;
+    TR_ASSERT((*cursor & 0xffff0000) == 0x616b0000, "unexpected JNI call sequence at %p: %p", cursor, *cursor);
+    *cursor = (*cursor & 0xffff0000) | (address & 0x0ffff);
+    TR::CodeGenerator::syncCode(pc, 8);
 #endif
-   }
+}
 #elif defined(TR_HOST_S390)
 extern "C" void _patchJNICallSite(J9Method *method, uint8_t *pc, uint8_t *newAddress, TR_FrontEnd *fe, int32_t smpFlag)
-   {
-   // pc corresponds to a slot in the literal pool area.
-   // simply patch in the new address
-   *(uint8_t**)pc = newAddress;
-   }
+{
+    // pc corresponds to a slot in the literal pool area.
+    // simply patch in the new address
+    *(uint8_t **)pc = newAddress;
+}
 #elif defined(TR_HOST_ARM64)
 extern "C" void _patchJNICallSite(J9Method *method, uint8_t *pc, uint8_t *newAddress, TR_FrontEnd *fe, int32_t smpFlag)
-   {
-   // We expect the following code sequence:
-   // movzx scratchReg, imm16
-   // movkx scratchReg, imm16, LSL16
-   // movkx scratchReg, imm16, LSL32
-   // movkx scratchReg, imm16, LSL48
-   uintptr_t address = reinterpret_cast<uintptr_t>(newAddress);
-   uint32_t *cursor = reinterpret_cast<uint32_t*>(pc);
+{
+    // We expect the following code sequence:
+    // movzx scratchReg, imm16
+    // movkx scratchReg, imm16, LSL16
+    // movkx scratchReg, imm16, LSL32
+    // movkx scratchReg, imm16, LSL48
+    uintptr_t address = reinterpret_cast<uintptr_t>(newAddress);
+    uint32_t *cursor = reinterpret_cast<uint32_t *>(pc);
 
-   TR_ASSERT((*cursor & 0xffe00000) == 0xd2800000, "unexpected JNI call sequence at %p: 0x%08x", cursor, *cursor);
-   *cursor = (*cursor & 0xffe0001f) | ((address & 0x0000ffff) << 5);
-   cursor++;
-   TR_ASSERT((*cursor & 0xffe00000) == 0xf2a00000, "unexpected JNI call sequence at %p: 0x%08x", cursor, *cursor);
-   *cursor = (*cursor & 0xffe0001f) | (((address >> 16) & 0x0000ffff) << 5);
-   cursor++;
-   TR_ASSERT((*cursor & 0xffe00000) == 0xf2c00000, "unexpected JNI call sequence at %p: 0x%08x", cursor, *cursor);
-   *cursor = (*cursor & 0xffe0001f) | (((address >> 32) & 0x0000ffff) << 5);
-   cursor++;
-   TR_ASSERT((*cursor & 0xffe00000) == 0xf2e00000, "unexpected JNI call sequence at %p: 0x%08x", cursor, *cursor);
-   *cursor = (*cursor & 0xffe0001f) | (((address >> 48) & 0x0000ffff) << 5);
-   TR::CodeGenerator::syncCode(pc, 16);
-   }
+    TR_ASSERT((*cursor & 0xffe00000) == 0xd2800000, "unexpected JNI call sequence at %p: 0x%08x", cursor, *cursor);
+    *cursor = (*cursor & 0xffe0001f) | ((address & 0x0000ffff) << 5);
+    cursor++;
+    TR_ASSERT((*cursor & 0xffe00000) == 0xf2a00000, "unexpected JNI call sequence at %p: 0x%08x", cursor, *cursor);
+    *cursor = (*cursor & 0xffe0001f) | (((address >> 16) & 0x0000ffff) << 5);
+    cursor++;
+    TR_ASSERT((*cursor & 0xffe00000) == 0xf2c00000, "unexpected JNI call sequence at %p: 0x%08x", cursor, *cursor);
+    *cursor = (*cursor & 0xffe0001f) | (((address >> 32) & 0x0000ffff) << 5);
+    cursor++;
+    TR_ASSERT((*cursor & 0xffe00000) == 0xf2e00000, "unexpected JNI call sequence at %p: 0x%08x", cursor, *cursor);
+    *cursor = (*cursor & 0xffe0001f) | (((address >> 48) & 0x0000ffff) << 5);
+    TR::CodeGenerator::syncCode(pc, 16);
+}
 #endif
 
 #if defined(TR_HOST_X86)
@@ -1229,473 +1103,459 @@ JIT_HELPER(jProfile32BitValueWrapper);
 JIT_HELPER(jProfile64BitValueWrapper);
 #endif
 
-
 void initializeJitRuntimeHelperTable(char isSMP)
-   {
-   #define SET runtimeHelpers.setAddress
-   #define SET_CONST runtimeHelpers.setConstant
+{
+#define SET runtimeHelpers.setAddress
+#define SET_CONST runtimeHelpers.setConstant
 
 #if defined(TR_HOST_POWER)
-   PPCinitializeValueProfiler();
+    PPCinitializeValueProfiler();
 #elif defined(TR_HOST_S390)
-   SET(TR_jitProfileAddress,                    (void *)_jitProfileAddressWrap,           TR_Helper);
-   SET(TR_jitProfileValue,                      (void *)_jitProfileValueWrap,             TR_Helper);
-   SET(TR_jitProfileLongValue,                  (void *)_jitProfileLongValueWrap,         TR_Helper);
-   SET(TR_jitProfileBigDecimalValue,            (void *)_jitProfileBigDecimalValueWrap,   TR_Helper);
-   SET(TR_jitProfileStringValue,                (void *)_jitProfileStringValueWrap,       TR_Helper);
-   SET(TR_jitProfileParseBuffer,                (void *)_jitProfileParseBuffer,           TR_Helper);
-   SET_CONST(TR_jProfile32BitValue,             (void *)jProfile32BitValue);
-   SET_CONST(TR_jProfile64BitValue,             (void *)jProfile64BitValue);
+    SET(TR_jitProfileAddress, (void *)_jitProfileAddressWrap, TR_Helper);
+    SET(TR_jitProfileValue, (void *)_jitProfileValueWrap, TR_Helper);
+    SET(TR_jitProfileLongValue, (void *)_jitProfileLongValueWrap, TR_Helper);
+    SET(TR_jitProfileBigDecimalValue, (void *)_jitProfileBigDecimalValueWrap, TR_Helper);
+    SET(TR_jitProfileStringValue, (void *)_jitProfileStringValueWrap, TR_Helper);
+    SET(TR_jitProfileParseBuffer, (void *)_jitProfileParseBuffer, TR_Helper);
+    SET_CONST(TR_jProfile32BitValue, (void *)jProfile32BitValue);
+    SET_CONST(TR_jProfile64BitValue, (void *)jProfile64BitValue);
 #elif defined(TR_HOST_X86)
-   SET(TR_jitProfileWarmCompilePICAddress,      (void *)_jitProfileWarmCompilePICAddress, TR_CHelper);
-   SET(TR_jitProfileAddress,                    (void *)_jitProfileAddress,               TR_CHelper);
-   SET(TR_jitProfileValue,                      (void *)_jitProfileValue,                 TR_CHelper);
-   SET(TR_jitProfileLongValue,                  (void *)_jitProfileLongValue,             TR_CHelper);
-   SET(TR_jitProfileBigDecimalValue,            (void *)_jitProfileBigDecimalValue,       TR_CHelper);
-   SET(TR_jitProfileStringValue,                (void *)_jitProfileStringValue,           TR_CHelper);
-   SET(TR_jitProfileParseBuffer,                (void *)_jitProfileParseBuffer,           TR_CHelper);
+    SET(TR_jitProfileWarmCompilePICAddress, (void *)_jitProfileWarmCompilePICAddress, TR_CHelper);
+    SET(TR_jitProfileAddress, (void *)_jitProfileAddress, TR_CHelper);
+    SET(TR_jitProfileValue, (void *)_jitProfileValue, TR_CHelper);
+    SET(TR_jitProfileLongValue, (void *)_jitProfileLongValue, TR_CHelper);
+    SET(TR_jitProfileBigDecimalValue, (void *)_jitProfileBigDecimalValue, TR_CHelper);
+    SET(TR_jitProfileStringValue, (void *)_jitProfileStringValue, TR_CHelper);
+    SET(TR_jitProfileParseBuffer, (void *)_jitProfileParseBuffer, TR_CHelper);
 #if defined(TR_HOST_64BIT)
-   SET(TR_jProfile32BitValue,                   (void *)jProfile32BitValueWrapper,        TR_CHelper);
-   SET(TR_jProfile64BitValue,                   (void *)jProfile64BitValueWrapper,        TR_CHelper);
+    SET(TR_jProfile32BitValue, (void *)jProfile32BitValueWrapper, TR_CHelper);
+    SET(TR_jProfile64BitValue, (void *)jProfile64BitValueWrapper, TR_CHelper);
 #else
-   SET(TR_jProfile32BitValue,                   (void *)jProfile32BitValue,        TR_CHelper);
-   SET(TR_jProfile64BitValue,                   (void *)jProfile64BitValue,        TR_CHelper);
+    SET(TR_jProfile32BitValue, (void *)jProfile32BitValue, TR_CHelper);
+    SET(TR_jProfile64BitValue, (void *)jProfile64BitValue, TR_CHelper);
 #endif
 #else
-   SET(TR_jitProfileWarmCompilePICAddress,      (void *)_jitProfileWarmCompilePICAddress, TR_Helper);
-   SET(TR_jitProfileAddress,                    (void *)_jitProfileAddress,               TR_Helper);
-   SET(TR_jitProfileValue,                      (void *)_jitProfileValue,                 TR_Helper);
-   SET(TR_jitProfileLongValue,                  (void *)_jitProfileLongValue,             TR_Helper);
-   SET(TR_jitProfileBigDecimalValue,            (void *)_jitProfileBigDecimalValue,       TR_Helper);
-   SET(TR_jitProfileStringValue,                (void *)_jitProfileStringValue,           TR_Helper);
-   SET(TR_jitProfileParseBuffer,                (void *)_jitProfileParseBuffer,           TR_Helper);
-   SET(TR_jProfile32BitValue,                   (void *)jProfile32BitValue,              TR_Helper);
-   SET(TR_jProfile64BitValue,                   (void *)jProfile64BitValue,              TR_Helper);
+    SET(TR_jitProfileWarmCompilePICAddress, (void *)_jitProfileWarmCompilePICAddress, TR_Helper);
+    SET(TR_jitProfileAddress, (void *)_jitProfileAddress, TR_Helper);
+    SET(TR_jitProfileValue, (void *)_jitProfileValue, TR_Helper);
+    SET(TR_jitProfileLongValue, (void *)_jitProfileLongValue, TR_Helper);
+    SET(TR_jitProfileBigDecimalValue, (void *)_jitProfileBigDecimalValue, TR_Helper);
+    SET(TR_jitProfileStringValue, (void *)_jitProfileStringValue, TR_Helper);
+    SET(TR_jitProfileParseBuffer, (void *)_jitProfileParseBuffer, TR_Helper);
+    SET(TR_jProfile32BitValue, (void *)jProfile32BitValue, TR_Helper);
+    SET(TR_jProfile64BitValue, (void *)jProfile64BitValue, TR_Helper);
 #endif
 
 #if defined(J9ZOS390)
-   SET_CONST(TR_prepareForOSR,                  (void *)_prepareForOSR);
+    SET_CONST(TR_prepareForOSR, (void *)_prepareForOSR);
 #elif defined(TR_HOST_X86)
-   SET(TR_prepareForOSR,                        (void *)prepareForOSR, TR_Helper);
+    SET(TR_prepareForOSR, (void *)prepareForOSR, TR_Helper);
 #else
-   SET(TR_prepareForOSR,                        (void *)_prepareForOSR, TR_Helper);
+    SET(TR_prepareForOSR, (void *)_prepareForOSR, TR_Helper);
 #endif /* TR_HOST_X86 */
 
 #ifdef TR_HOST_X86
 
 #if defined(TR_HOST_64BIT)
-   SET(TR_AMD64samplingRecompileMethod,         (void *)samplingRecompileMethod, TR_Helper);
-   SET(TR_AMD64countingRecompileMethod,         (void *)countingRecompileMethod, TR_Helper);
-   SET(TR_AMD64samplingPatchCallSite,           (void *)samplingPatchCallSite,   TR_Helper);
-   SET(TR_AMD64countingPatchCallSite,           (void *)countingPatchCallSite,   TR_Helper);
-   SET(TR_AMD64induceRecompilation,             (void *)induceRecompilation,     TR_Helper);
+    SET(TR_AMD64samplingRecompileMethod, (void *)samplingRecompileMethod, TR_Helper);
+    SET(TR_AMD64countingRecompileMethod, (void *)countingRecompileMethod, TR_Helper);
+    SET(TR_AMD64samplingPatchCallSite, (void *)samplingPatchCallSite, TR_Helper);
+    SET(TR_AMD64countingPatchCallSite, (void *)countingPatchCallSite, TR_Helper);
+    SET(TR_AMD64induceRecompilation, (void *)induceRecompilation, TR_Helper);
 #else /* TR_HOST_64BIT */
-   SET(TR_IA32samplingRecompileMethod,          (void *)samplingRecompileMethod, TR_Helper);
-   SET(TR_IA32countingRecompileMethod,          (void *)countingRecompileMethod, TR_Helper);
-   SET(TR_IA32samplingPatchCallSite,            (void *)samplingPatchCallSite,   TR_Helper);
-   SET(TR_IA32countingPatchCallSite,            (void *)countingPatchCallSite,   TR_Helper);
-   SET(TR_IA32induceRecompilation,              (void *)induceRecompilation,     TR_Helper);
+    SET(TR_IA32samplingRecompileMethod, (void *)samplingRecompileMethod, TR_Helper);
+    SET(TR_IA32countingRecompileMethod, (void *)countingRecompileMethod, TR_Helper);
+    SET(TR_IA32samplingPatchCallSite, (void *)samplingPatchCallSite, TR_Helper);
+    SET(TR_IA32countingPatchCallSite, (void *)countingPatchCallSite, TR_Helper);
+    SET(TR_IA32induceRecompilation, (void *)induceRecompilation, TR_Helper);
 #endif /* TR_HOST_64BIT */
 
 #elif defined(TR_HOST_POWER)
 
-   SET(TR_PPCsamplingRecompileMethod,           (void *)_samplingRecompileMethod, TR_Helper);
-   SET(TR_PPCcountingRecompileMethod,           (void *)_countingRecompileMethod, TR_Helper);
-   SET(TR_PPCsamplingPatchCallSite,             (void *)_samplingPatchCallSite,   TR_Helper);
-   SET(TR_PPCcountingPatchCallSite,             (void *)_countingPatchCallSite,   TR_Helper);
-   SET(TR_PPCinduceRecompilation,               (void *)_induceRecompilation,     TR_Helper);
-   SET(TR_PPCrevertToInterpreterGlue,           (void *)_revertToInterpreterGlue, TR_Helper);
+    SET(TR_PPCsamplingRecompileMethod, (void *)_samplingRecompileMethod, TR_Helper);
+    SET(TR_PPCcountingRecompileMethod, (void *)_countingRecompileMethod, TR_Helper);
+    SET(TR_PPCsamplingPatchCallSite, (void *)_samplingPatchCallSite, TR_Helper);
+    SET(TR_PPCcountingPatchCallSite, (void *)_countingPatchCallSite, TR_Helper);
+    SET(TR_PPCinduceRecompilation, (void *)_induceRecompilation, TR_Helper);
+    SET(TR_PPCrevertToInterpreterGlue, (void *)_revertToInterpreterGlue, TR_Helper);
 
 #elif defined(TR_HOST_ARM)
-   SET(TR_ARMsamplingRecompileMethod,           (void *)_samplingRecompileMethod, TR_Helper);
-   SET(TR_ARMcountingRecompileMethod,           (void *)_countingRecompileMethod, TR_Helper);
-   SET(TR_ARMsamplingPatchCallSite,             (void *)_samplingPatchCallSite,   TR_Helper);
-   SET(TR_ARMcountingPatchCallSite,             (void *)_countingPatchCallSite,   TR_Helper);
-   SET(TR_ARMinduceRecompilation,               (void *)_induceRecompilation,     TR_Helper);
-   SET(TR_ARMrevertToInterpreterGlue,           (void *)_revertToInterpreterGlue, TR_Helper);
+    SET(TR_ARMsamplingRecompileMethod, (void *)_samplingRecompileMethod, TR_Helper);
+    SET(TR_ARMcountingRecompileMethod, (void *)_countingRecompileMethod, TR_Helper);
+    SET(TR_ARMsamplingPatchCallSite, (void *)_samplingPatchCallSite, TR_Helper);
+    SET(TR_ARMcountingPatchCallSite, (void *)_countingPatchCallSite, TR_Helper);
+    SET(TR_ARMinduceRecompilation, (void *)_induceRecompilation, TR_Helper);
+    SET(TR_ARMrevertToInterpreterGlue, (void *)_revertToInterpreterGlue, TR_Helper);
 
 #elif defined(TR_HOST_ARM64)
-   SET(TR_ARM64countingRecompileMethod,         (void *)_countingRecompileMethod, TR_Helper);
-   SET(TR_ARM64samplingRecompileMethod,         (void *)_samplingRecompileMethod, TR_Helper);
-   SET(TR_ARM64countingPatchCallSite,           (void *)_countingPatchCallSite,   TR_Helper);
-   SET(TR_ARM64samplingPatchCallSite,           (void *)_samplingPatchCallSite,   TR_Helper);
-   SET(TR_ARM64induceRecompilation,             (void *)_induceRecompilation,     TR_Helper);
-   SET(TR_ARM64revertToInterpreterGlue,         (void *)_revertToInterpreterGlue, TR_Helper);
+    SET(TR_ARM64countingRecompileMethod, (void *)_countingRecompileMethod, TR_Helper);
+    SET(TR_ARM64samplingRecompileMethod, (void *)_samplingRecompileMethod, TR_Helper);
+    SET(TR_ARM64countingPatchCallSite, (void *)_countingPatchCallSite, TR_Helper);
+    SET(TR_ARM64samplingPatchCallSite, (void *)_samplingPatchCallSite, TR_Helper);
+    SET(TR_ARM64induceRecompilation, (void *)_induceRecompilation, TR_Helper);
+    SET(TR_ARM64revertToInterpreterGlue, (void *)_revertToInterpreterGlue, TR_Helper);
 
 #elif defined(TR_HOST_S390)
-   SET(TR_S390samplingRecompileMethod,          (void *)_samplingRecompileMethod,   TR_Helper);
-   SET(TR_S390countingRecompileMethod,          (void *)_countingRecompileMethod,   TR_Helper);
-   SET(TR_S390samplingPatchCallSite,            (void *)_samplingPatchCallSite,     TR_Helper);
-   SET(TR_S390countingPatchCallSite,            (void *)_countingPatchCallSite,     TR_Helper);
-   SET(TR_S390jitProfileAddressC,               (void *)_jitProfileAddress,         TR_Helper);
-   SET(TR_S390jitProfileValueC,                 (void *)_jitProfileValue,           TR_Helper);
-   SET(TR_S390jitProfileLongValueC,             (void *)_jitProfileLongValue,       TR_Helper);
-   SET(TR_S390jitProfileBigDecimalValueC,       (void *)_jitProfileBigDecimalValue, TR_Helper);
-   SET(TR_S390jitProfileStringValueC,           (void *)_jitProfileStringValue,     TR_Helper);
-   SET(TR_S390induceRecompilation,              (void *)_induceRecompilation,       TR_Helper);
-   SET_CONST(TR_S390induceRecompilation_unwrapper, (void *) induceRecompilation_unwrapper);
-   SET_CONST(TR_S390CEnvironmentAddress,(void *)TOC_UNWRAP_ENV((void *)_jitProfileValue));
+    SET(TR_S390samplingRecompileMethod, (void *)_samplingRecompileMethod, TR_Helper);
+    SET(TR_S390countingRecompileMethod, (void *)_countingRecompileMethod, TR_Helper);
+    SET(TR_S390samplingPatchCallSite, (void *)_samplingPatchCallSite, TR_Helper);
+    SET(TR_S390countingPatchCallSite, (void *)_countingPatchCallSite, TR_Helper);
+    SET(TR_S390jitProfileAddressC, (void *)_jitProfileAddress, TR_Helper);
+    SET(TR_S390jitProfileValueC, (void *)_jitProfileValue, TR_Helper);
+    SET(TR_S390jitProfileLongValueC, (void *)_jitProfileLongValue, TR_Helper);
+    SET(TR_S390jitProfileBigDecimalValueC, (void *)_jitProfileBigDecimalValue, TR_Helper);
+    SET(TR_S390jitProfileStringValueC, (void *)_jitProfileStringValue, TR_Helper);
+    SET(TR_S390induceRecompilation, (void *)_induceRecompilation, TR_Helper);
+    SET_CONST(TR_S390induceRecompilation_unwrapper, (void *)induceRecompilation_unwrapper);
+    SET_CONST(TR_S390CEnvironmentAddress, (void *)TOC_UNWRAP_ENV((void *)_jitProfileValue));
 
 #endif
 
 #if defined(TR_HOST_ARM)
-   SET(TR_releaseVMAccess, (void *)(jitConfig->javaVM->internalVMFunctions->internalReleaseVMAccess), TR_Helper);
+    SET(TR_releaseVMAccess, (void *)(jitConfig->javaVM->internalVMFunctions->internalReleaseVMAccess), TR_Helper);
 #endif
 
-   #undef SET
-   }
+#undef SET
+}
 
-#if defined (TR_HOST_S390)
-extern "C" int32_t _CompareAndSwap4(int32_t * addr, uint32_t, uint32_t);
-#elif defined (TR_HOST_PPC)
-extern "C" _tr_try_lock(uint32_t *a, uint32_t b, uint32_t c); // return 1 if compareAndSwap "c" successfully into "a"; otherwise 0;
-extern "C" _tr_unlock(uint32_t *a, uint32_t b, uint32_t c);   // store "c" into "a", and returns 1;
+#if defined(TR_HOST_S390)
+extern "C" int32_t _CompareAndSwap4(int32_t *addr, uint32_t, uint32_t);
+#elif defined(TR_HOST_PPC)
+extern "C" _tr_try_lock(uint32_t *a, uint32_t b,
+    uint32_t c); // return 1 if compareAndSwap "c" successfully into "a"; otherwise 0;
+extern "C" _tr_unlock(uint32_t *a, uint32_t b, uint32_t c); // store "c" into "a", and returns 1;
 #endif
 
-#define PLATFORM_MONITOR_LOCKED    1
-#define PLATFORM_MONITOR_UNLOCKED  0
+#define PLATFORM_MONITOR_LOCKED 1
+#define PLATFORM_MONITOR_UNLOCKED 0
 
 extern "C" {
 uint8_t platformLightweightLockingIsSupported()
-   {
-#if defined (TR_TARGET_X86) || defined (TR_HOST_S390) || defined (TR_HOST_PPC)
-   return 1;
+{
+#if defined(TR_TARGET_X86) || defined(TR_HOST_S390) || defined(TR_HOST_PPC)
+    return 1;
 #else
-   return 0;
+    return 0;
 #endif
-   }
-
-uint32_t platformTryLock(uint32_t *ptr)
-   {
-#if defined(TR_TARGET_X86)
-   return AtomicCompareAndSwap(ptr, PLATFORM_MONITOR_UNLOCKED, PLATFORM_MONITOR_LOCKED);
-#elif defined (TR_HOST_S390)
-   return _CompareAndSwap4((int32_t *)ptr, PLATFORM_MONITOR_UNLOCKED, PLATFORM_MONITOR_LOCKED);
-#elif defined (TR_HOST_PPC)
-   return _tr_try_lock (ptr, PLATFORM_MONITOR_UNLOCKED, PLATFORM_MONITOR_LOCKED);
-#else // monitor implementation
-   return 0;
-#endif
-   }
-
-void platformUnlock(uint32_t *ptr)
-   {
-#if defined(TR_TARGET_X86)
-   AtomicCompareAndSwap(ptr, PLATFORM_MONITOR_LOCKED, PLATFORM_MONITOR_UNLOCKED);
-#elif defined (TR_HOST_S390)
-   _CompareAndSwap4((int32_t *)ptr, PLATFORM_MONITOR_LOCKED, PLATFORM_MONITOR_UNLOCKED);
-#elif defined (TR_HOST_PPC)
-   _tr_unlock (ptr, PLATFORM_MONITOR_LOCKED, PLATFORM_MONITOR_UNLOCKED);
-#endif
-   }
 }
 
-#if defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) || defined(TR_HOST_ARM64)
-uint32_t *getLinkageInfo(void *startPC)
-   {
-   return (uint32_t *)J9::PrivateLinkage::LinkageInfo::get(startPC);
-   }
+uint32_t platformTryLock(uint32_t *ptr)
+{
+#if defined(TR_TARGET_X86)
+    return AtomicCompareAndSwap(ptr, PLATFORM_MONITOR_UNLOCKED, PLATFORM_MONITOR_LOCKED);
+#elif defined(TR_HOST_S390)
+    return _CompareAndSwap4((int32_t *)ptr, PLATFORM_MONITOR_UNLOCKED, PLATFORM_MONITOR_LOCKED);
+#elif defined(TR_HOST_PPC)
+    return _tr_try_lock(ptr, PLATFORM_MONITOR_UNLOCKED, PLATFORM_MONITOR_LOCKED);
+#else // monitor implementation
+    return 0;
+#endif
+}
+
+void platformUnlock(uint32_t *ptr)
+{
+#if defined(TR_TARGET_X86)
+    AtomicCompareAndSwap(ptr, PLATFORM_MONITOR_LOCKED, PLATFORM_MONITOR_UNLOCKED);
+#elif defined(TR_HOST_S390)
+    _CompareAndSwap4((int32_t *)ptr, PLATFORM_MONITOR_LOCKED, PLATFORM_MONITOR_UNLOCKED);
+#elif defined(TR_HOST_PPC)
+    _tr_unlock(ptr, PLATFORM_MONITOR_LOCKED, PLATFORM_MONITOR_UNLOCKED);
+#endif
+}
+}
+
+#if defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) \
+    || defined(TR_HOST_ARM64)
+uint32_t *getLinkageInfo(void *startPC) { return (uint32_t *)J9::PrivateLinkage::LinkageInfo::get(startPC); }
 
 uint32_t isRecompMethBody(void *li)
-   {
-   J9::PrivateLinkage::LinkageInfo *linkageInfo = (J9::PrivateLinkage::LinkageInfo *)li;
-   return linkageInfo->isRecompMethodBody();
-   }
+{
+    J9::PrivateLinkage::LinkageInfo *linkageInfo = (J9::PrivateLinkage::LinkageInfo *)li;
+    return linkageInfo->isRecompMethodBody();
+}
 
 // This method MUST be used only for methods that were AOTed and then relocated
 // It marks the BodyInfo that this is an aoted method.
 void fixPersistentMethodInfo(void *table, bool isJITClientAOTLoad)
-   {
-   J9JITExceptionTable *exceptionTable = (J9JITExceptionTable *)table;
-   TR_PersistentJittedBodyInfo *bodyInfo = (TR_PersistentJittedBodyInfo *)exceptionTable->bodyInfo;
-   void *vmMethodInfo = (void *)exceptionTable->ramMethod;
-   TR_PersistentMethodInfo *methodInfo;
+{
+    J9JITExceptionTable *exceptionTable = (J9JITExceptionTable *)table;
+    TR_PersistentJittedBodyInfo *bodyInfo = (TR_PersistentJittedBodyInfo *)exceptionTable->bodyInfo;
+    void *vmMethodInfo = (void *)exceptionTable->ramMethod;
+    TR_PersistentMethodInfo *methodInfo;
 
-   if (!isJITClientAOTLoad)
-      {
-      methodInfo = (TR_PersistentMethodInfo *)((char *)bodyInfo + sizeof(TR_PersistentJittedBodyInfo));
-      bodyInfo->setMethodInfo(methodInfo);
-      }
-   else
-      {
-      methodInfo = bodyInfo->getMethodInfo();
-      }
+    if (!isJITClientAOTLoad) {
+        methodInfo = (TR_PersistentMethodInfo *)((char *)bodyInfo + sizeof(TR_PersistentJittedBodyInfo));
+        bodyInfo->setMethodInfo(methodInfo);
+    } else {
+        methodInfo = bodyInfo->getMethodInfo();
+    }
 
-   methodInfo->setMethodInfo(vmMethodInfo);
+    methodInfo->setMethodInfo(vmMethodInfo);
 
-   if (TR::Options::getCmdLineOptions()->getOption(TR_EnableHCR))
-      {
-      createClassRedefinitionPicSite(vmMethodInfo, (void *)methodInfo->getAddressOfMethodInfo(), sizeof(UDATA), 0, (OMR::RuntimeAssumption**)(&exceptionTable->runtimeAssumptionList));
-      }
+    if (TR::Options::getCmdLineOptions()->getOption(TR_EnableHCR)) {
+        createClassRedefinitionPicSite(vmMethodInfo, (void *)methodInfo->getAddressOfMethodInfo(), sizeof(UDATA), 0,
+            (OMR::RuntimeAssumption **)(&exceptionTable->runtimeAssumptionList));
+    }
 
-   bodyInfo->setStartCount(TR::Recompilation::globalSampleCount);
-   bodyInfo->setOldStartCountDelta(TR::Options::_sampleThreshold);
-   bodyInfo->setHotStartCountDelta(0);
-   bodyInfo->setSampleIntervalCount(0);
-   bodyInfo->setProfileInfo(NULL);
+    bodyInfo->setStartCount(TR::Recompilation::globalSampleCount);
+    bodyInfo->setOldStartCountDelta(TR::Options::_sampleThreshold);
+    bodyInfo->setHotStartCountDelta(0);
+    bodyInfo->setSampleIntervalCount(0);
+    bodyInfo->setProfileInfo(NULL);
 
-   if (!isJITClientAOTLoad)
-      {
-      bodyInfo->setIsAotedBody(true);
-      }
-   }
+    if (!isJITClientAOTLoad) {
+        bodyInfo->setIsAotedBody(true);
+    }
+}
 #endif
 
-static void printMethodHandleArgs(j9object_t methodHandle, void **stack, J9VMThread *vmThread, TR_VlogTag vlogTag, TR_FrontEnd *fe)
-   {
-   // Note: 'stack' points at the MethodHandle on the stack
+static void printMethodHandleArgs(j9object_t methodHandle, void **stack, J9VMThread *vmThread, TR_VlogTag vlogTag,
+    TR_FrontEnd *fe)
+{
+    // Note: 'stack' points at the MethodHandle on the stack
 
-   if (stack[0] != methodHandle && TR::Options::isAnyVerboseOptionSet())
-      {
-      int i;
-      TR_VerboseLog::CriticalSection vlogLock; // we want all the following output to appear together in the log
-      TR_VerboseLog::writeLine(TR_Vlog_FAILURE, "%p Pointer %p found on stack @ %p does not match MethodHandle %p", vmThread, stack[0], stack, methodHandle);
-      TR_VerboseLog::writeLine(TR_Vlog_FAILURE, "%p   Nearby stack slots:", vmThread);
-      for (i = -9; i <= 9; i++)
-         {
-         const char *tag = "";
-         void *slotValue = stack[i];
-         if (slotValue == methodHandle)
-            tag = " <- target MethodHandle is here";
-         else if (slotValue == vmThread)
-            tag = " <- current thread";
-         else if (vmThread->sp <= slotValue && slotValue < vmThread->stackObject->end)
-            tag = " <- stack address";
-         TR_VerboseLog::writeLine(TR_Vlog_FAILURE, "%p     %p @ %+d: %p%s", vmThread, stack+i, i, slotValue, tag);
-         }
-      }
-   TR_ASSERT(stack[0] == methodHandle, "Pointer %p on stack @ %p must match MethodHandle %p", stack[0], stack, methodHandle);
+    if (stack[0] != methodHandle && TR::Options::isAnyVerboseOptionSet()) {
+        int i;
+        TR_VerboseLog::CriticalSection vlogLock; // we want all the following output to appear together in the log
+        TR_VerboseLog::writeLine(TR_Vlog_FAILURE, "%p Pointer %p found on stack @ %p does not match MethodHandle %p",
+            vmThread, stack[0], stack, methodHandle);
+        TR_VerboseLog::writeLine(TR_Vlog_FAILURE, "%p   Nearby stack slots:", vmThread);
+        for (i = -9; i <= 9; i++) {
+            const char *tag = "";
+            void *slotValue = stack[i];
+            if (slotValue == methodHandle)
+                tag = " <- target MethodHandle is here";
+            else if (slotValue == vmThread)
+                tag = " <- current thread";
+            else if (vmThread->sp <= slotValue && slotValue < vmThread->stackObject->end)
+                tag = " <- stack address";
+            TR_VerboseLog::writeLine(TR_Vlog_FAILURE, "%p     %p @ %+d: %p%s", vmThread, stack + i, i, slotValue, tag);
+        }
+    }
+    TR_ASSERT(stack[0] == methodHandle, "Pointer %p on stack @ %p must match MethodHandle %p", stack[0], stack,
+        methodHandle);
 
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
 
-   uintptr_t sigObject = fej9->methodType_descriptor(fej9->methodHandle_type((uintptr_t)methodHandle));
-   intptr_t  sigLength = fej9->getStringUTF8Length(sigObject);
-   char *sig = (char*)alloca(sigLength+1);
-   fej9->getStringUTF8(sigObject, sig, sigLength+1);
+    uintptr_t sigObject = fej9->methodType_descriptor(fej9->methodHandle_type((uintptr_t)methodHandle));
+    intptr_t sigLength = fej9->getStringUTF8Length(sigObject);
+    char *sig = (char *)alloca(sigLength + 1);
+    fej9->getStringUTF8(sigObject, sig, sigLength + 1);
 
-   if (vlogTag)
-      {
-      TR_VerboseLog::CriticalSection vlogLock;
+    if (vlogTag) {
+        TR_VerboseLog::CriticalSection vlogLock;
 
-      char *curArg;
-      int numArgs = 0;
-      for (char *curArg = sig+1; curArg[0] != ')'; curArg = nextSignatureArgument(curArg))
-         numArgs++;
+        char *curArg;
+        int numArgs = 0;
+        for (char *curArg = sig + 1; curArg[0] != ')'; curArg = nextSignatureArgument(curArg))
+            numArgs++;
 
-      // NOTE: The following code assumes the stack grows down
+        // NOTE: The following code assumes the stack grows down
 
-      if (numArgs == 0)
-         {
-         TR_VerboseLog::writeLine(vlogTag, "%p   no arguments @ %p", vmThread, stack);
-         }
-      else
-         {
-         TR_VerboseLog::writeLine(vlogTag, "%p   arguments @ %p", vmThread, stack);
-         TR_VerboseLog::writeLine(vlogTag, "%p     arg " POINTER_PRINTF_FORMAT " receiver handle", vmThread, stack[0]);
-         stack--;
+        if (numArgs == 0) {
+            TR_VerboseLog::writeLine(vlogTag, "%p   no arguments @ %p", vmThread, stack);
+        } else {
+            TR_VerboseLog::writeLine(vlogTag, "%p   arguments @ %p", vmThread, stack);
+            TR_VerboseLog::writeLine(vlogTag, "%p     arg " POINTER_PRINTF_FORMAT " receiver handle", vmThread,
+                stack[0]);
+            stack--;
 
-         char *nextArg;
-         for (curArg = sig+1; curArg[0] != ')'; curArg = nextArg)
-            {
-            nextArg = nextSignatureArgument(curArg);
-            switch (curArg[0])
-               {
-               case 'J':
-               case 'D':
-                  // On 64-bit the value is in the low-address slot.
-                  // Decrementing the stack pointer first and using an index of 1
-                  // on it works on both 32- and 64-bit.
-                  //
-                  stack -= 2;
-                  TR_VerboseLog::writeLine(vlogTag, "%p     arg " INT64_PRINTF_FORMAT_HEX " %.*s", vmThread, *(int64_t*)(stack+1), nextArg-curArg, curArg);
-                  break;
-               case 'L':
-               case '[':
-                  TR_VerboseLog::writeLine(vlogTag, "%p     arg " POINTER_PRINTF_FORMAT " %.*s", vmThread, (void*)(*(intptr_t*)stack), nextArg-curArg, curArg);
-                  stack -= 1;
-                  break;
-               default:
-                  TR_VerboseLog::writeLine(vlogTag, "%p     arg 0x%x %.*s", vmThread, (int)*(int32_t*)stack, nextArg-curArg, curArg);
-                  stack -= 1;
-                  break;
-               }
+            char *nextArg;
+            for (curArg = sig + 1; curArg[0] != ')'; curArg = nextArg) {
+                nextArg = nextSignatureArgument(curArg);
+                switch (curArg[0]) {
+                    case 'J':
+                    case 'D':
+                        // On 64-bit the value is in the low-address slot.
+                        // Decrementing the stack pointer first and using an index of 1
+                        // on it works on both 32- and 64-bit.
+                        //
+                        stack -= 2;
+                        TR_VerboseLog::writeLine(vlogTag, "%p     arg " INT64_PRINTF_FORMAT_HEX " %.*s", vmThread,
+                            *(int64_t *)(stack + 1), nextArg - curArg, curArg);
+                        break;
+                    case 'L':
+                    case '[':
+                        TR_VerboseLog::writeLine(vlogTag, "%p     arg " POINTER_PRINTF_FORMAT " %.*s", vmThread,
+                            (void *)(*(intptr_t *)stack), nextArg - curArg, curArg);
+                        stack -= 1;
+                        break;
+                    default:
+                        TR_VerboseLog::writeLine(vlogTag, "%p     arg 0x%x %.*s", vmThread, (int)*(int32_t *)stack,
+                            nextArg - curArg, curArg);
+                        stack -= 1;
+                        break;
+                }
             }
-         }
-      }
-
-   }
+        }
+    }
+}
 
 #if !defined(TRANSLATE_METHODHANDLE_FLAG_CUSTOM)
-#define TRANSLATE_METHODHANDLE_FLAG_CUSTOM      (1)
+#define TRANSLATE_METHODHANDLE_FLAG_CUSTOM (1)
 #define TRANSLATE_METHODHANDLE_FLAG_SYNCHRONOUS (2)
 #endif
 
-extern "C" uint8_t *compileMethodHandleThunk(j9object_t methodHandle, j9object_t arg, J9VMThread *vmThread, U_32 flags); // called from rossa.cpp
+extern "C" uint8_t *compileMethodHandleThunk(j9object_t methodHandle, j9object_t arg, J9VMThread *vmThread,
+    U_32 flags); // called from rossa.cpp
+
 uint8_t *compileMethodHandleThunk(j9object_t methodHandle, j9object_t arg, J9VMThread *vmThread, U_32 flags)
-   {
-   J9JITConfig *jitConfig = vmThread->javaVM->jitConfig;
-   TR_ASSERT(jitConfig, "compileMethodHandleThunk must have a jitConfig");
-   TR_J9VMBase * fej9 = TR_J9VMBase::get(jitConfig, vmThread);
-   TR_ASSERT(fej9->haveAccess(), "Must have VM access in compileMethodHandleThunk");
+{
+    J9JITConfig *jitConfig = vmThread->javaVM->jitConfig;
+    TR_ASSERT(jitConfig, "compileMethodHandleThunk must have a jitConfig");
+    TR_J9VMBase *fej9 = TR_J9VMBase::get(jitConfig, vmThread);
+    TR_ASSERT(fej9->haveAccess(), "Must have VM access in compileMethodHandleThunk");
 
-   TR::Options * cmdLineOptions = TR::Options::getCmdLineOptions();
-   bool verbose = cmdLineOptions->getVerboseOption(TR_VerboseMethodHandles);
-   bool details = cmdLineOptions->getVerboseOption(TR_VerboseMethodHandleDetails);
+    TR::Options *cmdLineOptions = TR::Options::getCmdLineOptions();
+    bool verbose = cmdLineOptions->getVerboseOption(TR_VerboseMethodHandles);
+    bool details = cmdLineOptions->getVerboseOption(TR_VerboseMethodHandleDetails);
 
-   if (verbose)
-      {
-      TR_VerboseLog::CriticalSection vlogLock;
-      TR_VerboseLog::write(TR_Vlog_MH, "%p Starting compileMethodHandleThunk on MethodHandle %p", vmThread, methodHandle);
-      if (arg)
-         TR_VerboseLog::write(" arg %p", arg);
-      static const char *flagNames[] = { "CUSTOM", "SYNCHRONOUS" };
-      for (int32_t i = 0; i < sizeof(flagNames)/sizeof(flagNames[0]); i++)
-         {
-         U_32 flag = 1 << i;
-         if (flags & flag)
-            TR_VerboseLog::write(" %s", flagNames[i]);
-         }
-      TR_VerboseLog::writeLine("");
-      }
-   bool disabled = false;
+    if (verbose) {
+        TR_VerboseLog::CriticalSection vlogLock;
+        TR_VerboseLog::write(TR_Vlog_MH, "%p Starting compileMethodHandleThunk on MethodHandle %p", vmThread,
+            methodHandle);
+        if (arg)
+            TR_VerboseLog::write(" arg %p", arg);
+        static const char *flagNames[] = { "CUSTOM", "SYNCHRONOUS" };
+        for (int32_t i = 0; i < sizeof(flagNames) / sizeof(flagNames[0]); i++) {
+            U_32 flag = 1 << i;
+            if (flags & flag)
+                TR_VerboseLog::write(" %s", flagNames[i]);
+        }
+        TR_VerboseLog::writeLine("");
+    }
+    bool disabled = false;
 #if defined(J9VM_OPT_JITSERVER)
-   // Do not allow local compilations in JITServer server mode
-   TR::CompilationInfo * compInfo = getCompilationInfo(jitConfig);
-   if (compInfo->getPersistentInfo()->getRemoteCompilationMode() == JITServer::SERVER)
-      {
-      disabled = true;
-      }
-   else
+    // Do not allow local compilations in JITServer server mode
+    TR::CompilationInfo *compInfo = getCompilationInfo(jitConfig);
+    if (compInfo->getPersistentInfo()->getRemoteCompilationMode() == JITServer::SERVER) {
+        disabled = true;
+    } else
 #endif
-      {
-      if (flags & TRANSLATE_METHODHANDLE_FLAG_CUSTOM)
-         disabled = cmdLineOptions->getOption(TR_DisableCustomMethodHandleThunks);
-      else
-         disabled = cmdLineOptions->getOption(TR_DisableShareableMethodHandleThunks);
-      }
-   if (disabled)
-      {
-      if (verbose)
-         {
-         TR_VerboseLog::writeLineLocked(TR_Vlog_MH, "%p   * Disabled -- aborting.", vmThread);
-         }
-      return NULL;
-      }
+    {
+        if (flags & TRANSLATE_METHODHANDLE_FLAG_CUSTOM)
+            disabled = cmdLineOptions->getOption(TR_DisableCustomMethodHandleThunks);
+        else
+            disabled = cmdLineOptions->getOption(TR_DisableShareableMethodHandleThunks);
+    }
+    if (disabled) {
+        if (verbose) {
+            TR_VerboseLog::writeLineLocked(TR_Vlog_MH, "%p   * Disabled -- aborting.", vmThread);
+        }
+        return NULL;
+    }
 
+    TR_OpaqueClassBlock *handleClass = fej9->getObjectClass((uintptr_t)methodHandle);
+    int32_t classNameLength;
+    char *className = fej9->getClassNameChars(handleClass, classNameLength);
 
-   TR_OpaqueClassBlock *handleClass = fej9->getObjectClass((uintptr_t)methodHandle);
-   int32_t classNameLength;
-   char *className = fej9->getClassNameChars(handleClass, classNameLength);
+    //
+    // RAS galore
+    //
 
-   //
-   // RAS galore
-   //
+    if (details) {
+        J9MemoryManagerFunctions *mmf = jitConfig->javaVM->memoryManagerFunctions;
+        int32_t hashCode = mmf->j9gc_objaccess_getObjectHashCode(jitConfig->javaVM, (J9Object *)methodHandle);
+        uintptr_t methodType = fej9->methodHandle_type((uintptr_t)methodHandle);
+        uintptr_t descriptorObject = fej9->methodType_descriptor(methodType);
+        intptr_t descriptorLength = fej9->getStringUTF8Length(descriptorObject);
+        char *descriptorNTS = (char *)alloca(descriptorLength + 1); // NTS = null-terminated string
+        fej9->getStringUTF8(descriptorObject, descriptorNTS, descriptorLength + 1);
+        TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   %.*s %p hash %x type %p %s", vmThread, classNameLength,
+            className, methodHandle, hashCode, methodType, descriptorNTS);
+    } else if (verbose) {
+        TR_VerboseLog::writeLineLocked(TR_Vlog_MH, "%p   %.*s %p", vmThread, classNameLength, className, methodHandle);
+    }
 
-   if (details)
-      {
-      J9MemoryManagerFunctions * mmf = jitConfig->javaVM->memoryManagerFunctions;
-      int32_t    hashCode         = mmf->j9gc_objaccess_getObjectHashCode(jitConfig->javaVM, (J9Object*)methodHandle);
-      uintptr_t methodType       = fej9->methodHandle_type((uintptr_t)methodHandle);
-      uintptr_t descriptorObject = fej9->methodType_descriptor(methodType);
-      intptr_t  descriptorLength = fej9->getStringUTF8Length(descriptorObject);
-      char      *descriptorNTS    = (char*)alloca(descriptorLength+1); // NTS = null-terminated string
-      fej9->getStringUTF8(descriptorObject, descriptorNTS, descriptorLength+1);
-      TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   %.*s %p hash %x type %p %s", vmThread, classNameLength, className, methodHandle, hashCode, methodType, descriptorNTS);
-      }
-   else if (verbose)
-      {
-      TR_VerboseLog::writeLineLocked(TR_Vlog_MH, "%p   %.*s %p", vmThread, classNameLength, className, methodHandle);
-      }
+    bool isCustom = (flags & TRANSLATE_METHODHANDLE_FLAG_CUSTOM) != 0;
+    void **stack = (void **)vmThread->arg0EA;
+    if ((verbose || details) && !isCustom) // custom thunks arrive with a different stack shape that we don't control
+        printMethodHandleArgs(methodHandle, stack, vmThread,
+            verbose       ? TR_Vlog_MH
+                : details ? TR_Vlog_MHD
+                          : TR_Vlog_null,
+            fej9);
 
-   bool isCustom = (flags & TRANSLATE_METHODHANDLE_FLAG_CUSTOM) != 0;
-   void **stack = (void**)vmThread->arg0EA;
-   if ((verbose || details) && !isCustom) // custom thunks arrive with a different stack shape that we don't control
-      printMethodHandleArgs(methodHandle, stack, vmThread, verbose? TR_Vlog_MH : details? TR_Vlog_MHD : TR_Vlog_null, fej9);
+    //
+    // Now try to queue a compile for this method
+    //
 
-   //
-   // Now try to queue a compile for this method
-   //
+    uint8_t *startPC = NULL;
+    if (cmdLineOptions->getOption(TR_DisableMethodHandleThunks)) {
+        if (details)
+            TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   Thunks disabled -- will proceed in interpreter",
+                vmThread);
+    } else {
+        if (details) {
+            uintptr_t thunkableSignatureString = fej9->methodHandle_thunkableSignature((uintptr_t)methodHandle);
+            intptr_t thunkableSignatureLength = fej9->getStringUTF8Length(thunkableSignatureString);
+            char *thunkSignature = (char *)alloca(thunkableSignatureLength + 1);
+            fej9->getStringUTF8(thunkableSignatureString, thunkSignature, thunkableSignatureLength + 1);
+            TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   Looking up archetype for class %.*s signature %s",
+                vmThread, classNameLength, className, thunkSignature);
+        }
 
-   uint8_t *startPC = NULL;
-   if (cmdLineOptions->getOption(TR_DisableMethodHandleThunks))
-      {
-      if (details)
-         TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   Thunks disabled -- will proceed in interpreter", vmThread);
-      }
-   else
-      {
-      if (details)
-         {
-         uintptr_t thunkableSignatureString = fej9->methodHandle_thunkableSignature((uintptr_t)methodHandle);
-         intptr_t  thunkableSignatureLength = fej9->getStringUTF8Length(thunkableSignatureString);
-         char *thunkSignature = (char*)alloca(thunkableSignatureLength+1);
-         fej9->getStringUTF8(thunkableSignatureString, thunkSignature, thunkableSignatureLength+1);
-         TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   Looking up archetype for class %.*s signature %s", vmThread, classNameLength, className, thunkSignature);
-         }
+        J9Method *invokeExact = (J9Method *)fej9->lookupMethodHandleThunkArchetype((uintptr_t)methodHandle);
+        if (!invokeExact) {
+            TR_ASSERT(0, "compileMethodHandleThunk must find an archetype for MethodHandle %p", methodHandle);
 
-      J9Method *invokeExact = (J9Method*)fej9->lookupMethodHandleThunkArchetype((uintptr_t)methodHandle);
-      if (!invokeExact)
-         {
-         TR_ASSERT(0, "compileMethodHandleThunk must find an archetype for MethodHandle %p", methodHandle);
+            // In production, continue in the interpreter.
+            //
+            if (verbose)
+                TR_VerboseLog::writeLineLocked(TR_Vlog_MH,
+                    "%p ERROR: Failed to find thunk archetype for MethodHandle %p; continuing in interpreter", vmThread,
+                    methodHandle);
+            return NULL;
+        }
 
-         // In production, continue in the interpreter.
-         //
-         if (verbose)
-            TR_VerboseLog::writeLineLocked(TR_Vlog_MH, "%p ERROR: Failed to find thunk archetype for MethodHandle %p; continuing in interpreter", vmThread, methodHandle);
-         return NULL;
-         }
+        // Create a global reference for the MethodHandle object.
+        // Note that the compilation thread has the responsibility to delete this when it's done.
+        //
+        jobject handleRef = vmThread->javaVM->internalVMFunctions->j9jni_createGlobalRef((JNIEnv *)vmThread,
+            methodHandle, false); // TODO:JSR292: Make this weak?
+        jobject argRef
+            = arg ? vmThread->javaVM->internalVMFunctions->j9jni_createGlobalRef((JNIEnv *)vmThread, arg, false) : NULL;
 
-      // Create a global reference for the MethodHandle object.
-      // Note that the compilation thread has the responsibility to delete this when it's done.
-      //
-      jobject handleRef = vmThread->javaVM->internalVMFunctions->j9jni_createGlobalRef((JNIEnv*)vmThread, methodHandle, false); // TODO:JSR292: Make this weak?
-      jobject argRef    = arg? vmThread->javaVM->internalVMFunctions->j9jni_createGlobalRef((JNIEnv*)vmThread, arg, false) : NULL;
+        // Create optimization plan
+        //
+        TR::CompilationInfo *compInfo = TR::CompilationInfo::get(jitConfig);
+        TR_MethodEvent event
+            = { isCustom ? TR_MethodEvent::CustomMethodHandleThunk : TR_MethodEvent::ShareableMethodHandleThunk,
+                  invokeExact, 0, 0, vmThread };
+        bool newPlanCreated = false;
+        TR_OptimizationPlan *plan
+            = TR::CompilationController::getCompilationStrategy()->processEvent(&event, &newPlanCreated);
+        if (plan) {
+            // Compile
+            //
+            TR_YesNoMaybe isAsync = (flags & TRANSLATE_METHODHANDLE_FLAG_SYNCHRONOUS) ? TR_no : TR_maybe;
+            bool queued = false;
+            if (details)
+                TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   About to request compile", vmThread);
 
-      // Create optimization plan
-      //
-      TR::CompilationInfo *compInfo = TR::CompilationInfo::get(jitConfig);
-      TR_MethodEvent event =
-         {
-         isCustom? TR_MethodEvent::CustomMethodHandleThunk : TR_MethodEvent::ShareableMethodHandleThunk,
-         invokeExact,
-         0, 0, vmThread
-         };
-      bool newPlanCreated = false;
-      TR_OptimizationPlan *plan = TR::CompilationController::getCompilationStrategy()->processEvent(&event, &newPlanCreated);
-      if (plan)
-         {
-         // Compile
-         //
-         TR_YesNoMaybe isAsync = (flags & TRANSLATE_METHODHANDLE_FLAG_SYNCHRONOUS)? TR_no : TR_maybe;
-         bool queued = false;
-         if (details)
-            TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   About to request compile", vmThread);
-
-         if (isCustom)
-            {
-            J9::CustomInvokeExactThunkDetails details(invokeExact, (uintptr_t*)handleRef, (uintptr_t*)argRef);
-            startPC = (uint8_t*)compInfo->compileMethod(vmThread, details, 0, isAsync, NULL, &queued, plan);
-            }
-         else
-            {
-            J9::ShareableInvokeExactThunkDetails details(invokeExact, (uintptr_t*)handleRef, (uintptr_t*)argRef);
-            startPC = (uint8_t*)compInfo->compileMethod(vmThread, details, 0, isAsync, NULL, &queued, plan);
+            if (isCustom) {
+                J9::CustomInvokeExactThunkDetails details(invokeExact, (uintptr_t *)handleRef, (uintptr_t *)argRef);
+                startPC = (uint8_t *)compInfo->compileMethod(vmThread, details, 0, isAsync, NULL, &queued, plan);
+            } else {
+                J9::ShareableInvokeExactThunkDetails details(invokeExact, (uintptr_t *)handleRef, (uintptr_t *)argRef);
+                startPC = (uint8_t *)compInfo->compileMethod(vmThread, details, 0, isAsync, NULL, &queued, plan);
             }
 
-         if (details)
-            TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   Compile request returned startPC=%p queued=%d newPlanCreated=%d", vmThread, startPC, queued, newPlanCreated);
-         if (!queued && newPlanCreated)
-            TR_OptimizationPlan::freeOptimizationPlan(plan);
-         }
-      else
-         {
-         if (details)
-            TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   Thunk cannot be compile due to OOM -- will proceed in interpreter", vmThread);
-         }
-      }
+            if (details)
+                TR_VerboseLog::writeLineLocked(TR_Vlog_MHD,
+                    "%p   Compile request returned startPC=%p queued=%d newPlanCreated=%d", vmThread, startPC, queued,
+                    newPlanCreated);
+            if (!queued && newPlanCreated)
+                TR_OptimizationPlan::freeOptimizationPlan(plan);
+        } else {
+            if (details)
+                TR_VerboseLog::writeLineLocked(TR_Vlog_MHD,
+                    "%p   Thunk cannot be compile due to OOM -- will proceed in interpreter", vmThread);
+        }
+    }
 
-   return startPC;
-   }
+    return startPC;
+}
 
 #if defined(TR_HOST_X86)
 JIT_HELPER(initialInvokeExactThunkGlue);
@@ -1704,122 +1564,127 @@ JIT_HELPER(_initialInvokeExactThunkGlue);
 #endif
 
 void *initialInvokeExactThunk(j9object_t methodHandle, J9VMThread *vmThread)
-   {
-   J9JITConfig *jitConfig = vmThread->javaVM->jitConfig;
-   TR_ASSERT(jitConfig, "initialInvokeExactThunk must have a jitConfig");
-   TR_J9VMBase * fej9 = TR_J9VMBase::get(jitConfig, vmThread);
-   TR_ASSERT(fej9->haveAccess(), "Must have VM access in initialInvokeExactThunk");
+{
+    J9JITConfig *jitConfig = vmThread->javaVM->jitConfig;
+    TR_ASSERT(jitConfig, "initialInvokeExactThunk must have a jitConfig");
+    TR_J9VMBase *fej9 = TR_J9VMBase::get(jitConfig, vmThread);
+    TR_ASSERT(fej9->haveAccess(), "Must have VM access in initialInvokeExactThunk");
 
-   TR::Options * cmdLineOptions = TR::Options::getCmdLineOptions();
-   bool verbose = cmdLineOptions->getVerboseOption(TR_VerboseMethodHandles);
-   bool details = cmdLineOptions->getVerboseOption(TR_VerboseMethodHandleDetails);
-   if (cmdLineOptions->getVerboseOption(TR_VerboseJ2IThunks))
-      verbose = details = true;
+    TR::Options *cmdLineOptions = TR::Options::getCmdLineOptions();
+    bool verbose = cmdLineOptions->getVerboseOption(TR_VerboseMethodHandles);
+    bool details = cmdLineOptions->getVerboseOption(TR_VerboseMethodHandleDetails);
+    if (cmdLineOptions->getVerboseOption(TR_VerboseJ2IThunks))
+        verbose = details = true;
 
-   if (verbose)
-      TR_VerboseLog::writeLineLocked(TR_Vlog_MH, "%p initialInvokeExactThunk on MethodHandle %p", vmThread, methodHandle);
+    if (verbose)
+        TR_VerboseLog::writeLineLocked(TR_Vlog_MH, "%p initialInvokeExactThunk on MethodHandle %p", vmThread,
+            methodHandle);
 
-   uintptr_t thunkableSignatureString = fej9->methodHandle_thunkableSignature((uintptr_t)methodHandle);
-   intptr_t  thunkableSignatureLength = fej9->getStringUTF8Length(thunkableSignatureString);
-   char *thunkSignature = (char*)alloca(thunkableSignatureLength+1);
-   fej9->getStringUTF8(thunkableSignatureString, thunkSignature, thunkableSignatureLength+1);
+    uintptr_t thunkableSignatureString = fej9->methodHandle_thunkableSignature((uintptr_t)methodHandle);
+    intptr_t thunkableSignatureLength = fej9->getStringUTF8Length(thunkableSignatureString);
+    char *thunkSignature = (char *)alloca(thunkableSignatureLength + 1);
+    fej9->getStringUTF8(thunkableSignatureString, thunkSignature, thunkableSignatureLength + 1);
 
-   uintptr_t thunkTuple = fej9->getReferenceField((uintptr_t)methodHandle, "thunks", "Ljava/lang/invoke/ThunkTuple;");
-   if (details)
-      {
-      TR_OpaqueClassBlock *handleClass = fej9->getObjectClass((uintptr_t)methodHandle);
-      int32_t classNameLength;
-      char *className = fej9->getClassNameChars(handleClass, classNameLength);
-      J9MemoryManagerFunctions * mmf = jitConfig->javaVM->memoryManagerFunctions;
-      int32_t    hashCode         = mmf->j9gc_objaccess_getObjectHashCode(jitConfig->javaVM, (J9Object*)methodHandle);
-      uintptr_t methodType       = fej9->methodHandle_type((uintptr_t)methodHandle);
-      uintptr_t descriptorObject = fej9->methodType_descriptor(methodType);
-      intptr_t  descriptorLength = fej9->getStringUTF8Length(descriptorObject);
-      char      *descriptorNTS    = (char*)alloca(descriptorLength+1); // NTS = null-terminated string
-      fej9->getStringUTF8(descriptorObject, descriptorNTS, descriptorLength+1);
-      TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   %.*s %p hash %x type %p %s", vmThread, classNameLength, className, methodHandle, hashCode, methodType, descriptorNTS);
-      TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   ThunkTuple %p thunkableSignature: %s", vmThread, thunkTuple, thunkSignature);
-      }
+    uintptr_t thunkTuple = fej9->getReferenceField((uintptr_t)methodHandle, "thunks", "Ljava/lang/invoke/ThunkTuple;");
+    if (details) {
+        TR_OpaqueClassBlock *handleClass = fej9->getObjectClass((uintptr_t)methodHandle);
+        int32_t classNameLength;
+        char *className = fej9->getClassNameChars(handleClass, classNameLength);
+        J9MemoryManagerFunctions *mmf = jitConfig->javaVM->memoryManagerFunctions;
+        int32_t hashCode = mmf->j9gc_objaccess_getObjectHashCode(jitConfig->javaVM, (J9Object *)methodHandle);
+        uintptr_t methodType = fej9->methodHandle_type((uintptr_t)methodHandle);
+        uintptr_t descriptorObject = fej9->methodType_descriptor(methodType);
+        intptr_t descriptorLength = fej9->getStringUTF8Length(descriptorObject);
+        char *descriptorNTS = (char *)alloca(descriptorLength + 1); // NTS = null-terminated string
+        fej9->getStringUTF8(descriptorObject, descriptorNTS, descriptorLength + 1);
+        TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   %.*s %p hash %x type %p %s", vmThread, classNameLength,
+            className, methodHandle, hashCode, methodType, descriptorNTS);
+        TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   ThunkTuple %p thunkableSignature: %s", vmThread, thunkTuple,
+            thunkSignature);
+    }
 
-   TR::CompilationInfo * compInfo = TR::CompilationInfo::get(jitConfig);
-   TR::PersistentInfo *persistentInfo = compInfo->getPersistentInfo();
-   TR_MHJ2IThunkTable *j2iThunks = persistentInfo->getInvokeExactJ2IThunkTable();
+    TR::CompilationInfo *compInfo = TR::CompilationInfo::get(jitConfig);
+    TR::PersistentInfo *persistentInfo = compInfo->getPersistentInfo();
+    TR_MHJ2IThunkTable *j2iThunks = persistentInfo->getInvokeExactJ2IThunkTable();
 
-   void *addressToDispatch = NULL;
-   if (j2iThunks)
-      {
-      TR_MHJ2IThunk *thunk = j2iThunks->getThunk(thunkSignature, fej9);
-      addressToDispatch = thunk->entryPoint();
-      if (details)
-         TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   J2I thunk is %p %s", vmThread, addressToDispatch, thunk->terseSignature());
-      }
-   else
-      {
-      // No need for a thunk; return the helper itself
-      addressToDispatch = j9ThunkInvokeExactHelperFromSignature(jitConfig, strlen(thunkSignature), thunkSignature);
-      if (details)
-         TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   invokeExact helper is %p", vmThread, addressToDispatch);
-      }
+    void *addressToDispatch = NULL;
+    if (j2iThunks) {
+        TR_MHJ2IThunk *thunk = j2iThunks->getThunk(thunkSignature, fej9);
+        addressToDispatch = thunk->entryPoint();
+        if (details)
+            TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   J2I thunk is %p %s", vmThread, addressToDispatch,
+                thunk->terseSignature());
+    } else {
+        // No need for a thunk; return the helper itself
+        addressToDispatch = j9ThunkInvokeExactHelperFromSignature(jitConfig, strlen(thunkSignature), thunkSignature);
+        if (details)
+            TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   invokeExact helper is %p", vmThread, addressToDispatch);
+    }
 
-   if (cmdLineOptions->getOption(TR_DisableThunkTupleJ2I))
-      {
-      if (details)
-         TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   ThunkTuple J2I disabled -- leave ThunkTuple %p unchanged", vmThread, thunkTuple);
-      }
-   else
-      {
-      uintptr_t fieldOffset = fej9->getInstanceFieldOffset(fej9->getObjectClass(thunkTuple), "invokeExactThunk", "J");
+    if (cmdLineOptions->getOption(TR_DisableThunkTupleJ2I)) {
+        if (details)
+            TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   ThunkTuple J2I disabled -- leave ThunkTuple %p unchanged",
+                vmThread, thunkTuple);
+    } else {
+        uintptr_t fieldOffset = fej9->getInstanceFieldOffset(fej9->getObjectClass(thunkTuple), "invokeExactThunk", "J");
 #if defined(TR_HOST_X86)
-      bool success = fej9->compareAndSwapInt64Field(thunkTuple, "invokeExactThunk", (uint64_t)(uintptr_t)initialInvokeExactThunkGlue, (uint64_t)(uintptr_t)addressToDispatch);
+        bool success = fej9->compareAndSwapInt64Field(thunkTuple, "invokeExactThunk",
+            (uint64_t)(uintptr_t)initialInvokeExactThunkGlue, (uint64_t)(uintptr_t)addressToDispatch);
 
-      if (details)
-         TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   %s updating ThunkTuple %p field %+d from %p to %p",
-            vmThread, success? "Succeeded" : "Failed", thunkTuple, (int)fieldOffset, initialInvokeExactThunkGlue, addressToDispatch);
+        if (details)
+            TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   %s updating ThunkTuple %p field %+d from %p to %p",
+                vmThread, success ? "Succeeded" : "Failed", thunkTuple, (int)fieldOffset, initialInvokeExactThunkGlue,
+                addressToDispatch);
 #else
-      bool success = fej9->compareAndSwapInt64Field(thunkTuple, "invokeExactThunk", (uint64_t)(uintptr_t)_initialInvokeExactThunkGlue, (uint64_t)(uintptr_t)addressToDispatch);
-      // If the CAS fails, we don't care much.  It just means another thread may already have put a MH thunk pointer in there.
+        bool success = fej9->compareAndSwapInt64Field(thunkTuple, "invokeExactThunk",
+            (uint64_t)(uintptr_t)_initialInvokeExactThunkGlue, (uint64_t)(uintptr_t)addressToDispatch);
+        // If the CAS fails, we don't care much.  It just means another thread may already have put a MH thunk pointer
+        // in there.
 
-      if (details)
-         TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   %s updating ThunkTuple %p field %+d from %p to %p",
-            vmThread, success? "Succeeded" : "Failed", thunkTuple, (int)fieldOffset, _initialInvokeExactThunkGlue, addressToDispatch);
+        if (details)
+            TR_VerboseLog::writeLineLocked(TR_Vlog_MHD, "%p   %s updating ThunkTuple %p field %+d from %p to %p",
+                vmThread, success ? "Succeeded" : "Failed", thunkTuple, (int)fieldOffset, _initialInvokeExactThunkGlue,
+                addressToDispatch);
 #endif /* TR_HOST_X86 */
-      }
-   return addressToDispatch;
-   }
+    }
+    return addressToDispatch;
+}
 
 extern "C" void initialInvokeExactThunk_unwrapper(void **argsPtr, void **resPtr);
+
 void initialInvokeExactThunk_unwrapper(void **argsPtr, void **resPtr)
-   {
-   J9VMThread  *vmThread     = (J9VMThread*)argsPtr[1];
-   j9object_t   methodHandle = (j9object_t)argsPtr[0];
-   *resPtr = initialInvokeExactThunk(methodHandle, vmThread);
-   }
+{
+    J9VMThread *vmThread = (J9VMThread *)argsPtr[1];
+    j9object_t methodHandle = (j9object_t)argsPtr[0];
+    *resPtr = initialInvokeExactThunk(methodHandle, vmThread);
+}
 
 void methodHandleJ2I(j9object_t methodHandle, void **stack, J9VMThread *vmThread)
-   {
-   J9JITConfig *jitConfig = vmThread->javaVM->jitConfig;
-   TR_ASSERT(jitConfig, "initialInvokeExactThunk must have a jitConfig");
-   TR_J9VMBase * fej9 = TR_J9VMBase::get(jitConfig, vmThread);
-   TR_ASSERT(fej9->haveAccess(), "Must have VM access in initialInvokeExactThunk");
+{
+    J9JITConfig *jitConfig = vmThread->javaVM->jitConfig;
+    TR_ASSERT(jitConfig, "initialInvokeExactThunk must have a jitConfig");
+    TR_J9VMBase *fej9 = TR_J9VMBase::get(jitConfig, vmThread);
+    TR_ASSERT(fej9->haveAccess(), "Must have VM access in initialInvokeExactThunk");
 
-   TR::Options * cmdLineOptions = TR::Options::getCmdLineOptions();
-   bool verbose = cmdLineOptions->getVerboseOption(TR_VerboseJ2IThunks);
-   if (verbose)
-      {
-      TR_VerboseLog::writeLineLocked(TR_Vlog_J2I, "%p J2I mh: %p sp: %p", vmThread, methodHandle, stack);
-      // TODO: Adjust "stack" so it points at the MethodHandle.  +1 for return address, +N for n argument slots
-      uintptr_t methodType = fej9->getReferenceField ((uintptr_t)methodHandle, "type",     "Ljava/lang/invoke/MethodType;");
-      int32_t    argSlots   = fej9->getInt32Field     (            methodType  , "argSlots");
-      void **methodHandleOnStack = stack + argSlots;
-      printMethodHandleArgs(methodHandle, methodHandleOnStack, vmThread, TR_Vlog_J2I, fej9);
-      }
-   }
+    TR::Options *cmdLineOptions = TR::Options::getCmdLineOptions();
+    bool verbose = cmdLineOptions->getVerboseOption(TR_VerboseJ2IThunks);
+    if (verbose) {
+        TR_VerboseLog::writeLineLocked(TR_Vlog_J2I, "%p J2I mh: %p sp: %p", vmThread, methodHandle, stack);
+        // TODO: Adjust "stack" so it points at the MethodHandle.  +1 for return address, +N for n argument slots
+        uintptr_t methodType
+            = fej9->getReferenceField((uintptr_t)methodHandle, "type", "Ljava/lang/invoke/MethodType;");
+        int32_t argSlots = fej9->getInt32Field(methodType, "argSlots");
+        void **methodHandleOnStack = stack + argSlots;
+        printMethodHandleArgs(methodHandle, methodHandleOnStack, vmThread, TR_Vlog_J2I, fej9);
+    }
+}
 
 extern "C" void methodHandleJ2I_unwrapper(void **argsPtr, void **resPtr);
+
 void methodHandleJ2I_unwrapper(void **argsPtr, void **resPtr)
-   {
-   J9VMThread  *vmThread     = (J9VMThread*)argsPtr[2];
-   void       **stack        = (void**)argsPtr[1];
-   j9object_t   methodHandle = (j9object_t)argsPtr[0];
-   methodHandleJ2I(methodHandle, stack, vmThread);
-   }
+{
+    J9VMThread *vmThread = (J9VMThread *)argsPtr[2];
+    void **stack = (void **)argsPtr[1];
+    j9object_t methodHandle = (j9object_t)argsPtr[0];
+    methodHandleJ2I(methodHandle, stack, vmThread);
+}

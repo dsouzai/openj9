@@ -28,28 +28,24 @@
  */
 #ifndef J9_PPCCONSTANTDATASNIPPET_CONNECTOR
 #define J9_PPCCONSTANTDATASNIPPET_CONNECTOR
+
 namespace J9 {
 class ConstantDataSnippet;
 typedef J9::ConstantDataSnippet ConstantDataSnippetConnector;
-}
+} // namespace J9
 #endif
-
 
 #include "codegen/OMRConstantDataSnippet.hpp"
 
-namespace J9
-{
+namespace J9 {
 
-class ConstantDataSnippet : public OMR::ConstantDataSnippetConnector
-   {
-   public:
+class ConstantDataSnippet : public OMR::ConstantDataSnippetConnector {
+public:
+    ConstantDataSnippet(TR::CodeGenerator *cg)
+        : OMR::ConstantDataSnippetConnector(cg)
+    {}
+};
 
-   ConstantDataSnippet(TR::CodeGenerator *cg) :
-      OMR::ConstantDataSnippetConnector(cg)
-      {
-      }
-   };
-
-}
+} // namespace J9
 
 #endif

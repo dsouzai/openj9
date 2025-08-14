@@ -28,10 +28,11 @@
  */
 #ifndef J9_KNOWN_OBJECT_TABLE_CONNECTOR
 #define J9_KNOWN_OBJECT_TABLE_CONNECTOR
+
 namespace J9 {
 class KnownObjectTable;
 typedef J9::KnownObjectTable KnownObjectTableConnector;
-}
+} // namespace J9
 #endif
 
 #include "env/OMRKnownObjectTable.hpp"
@@ -47,10 +48,12 @@ typedef J9::KnownObjectTable KnownObjectTableConnector;
 namespace J9 {
 class Compilation;
 }
+
 namespace TR {
 class Compilation;
 }
 class TR_J9VMBase;
+
 namespace J9 {
 class ObjectModel;
 }
@@ -58,76 +61,72 @@ class TR_VMFieldsInfo;
 class TR_BitVector;
 
 #if defined(J9VM_OPT_JITSERVER)
-struct
-TR_KnownObjectTableDumpInfoStruct
-   {
-   uintptr_t  *ref;
-   uintptr_t   objectPointer;
-   int32_t     hashCode;
+struct TR_KnownObjectTableDumpInfoStruct {
+    uintptr_t *ref;
+    uintptr_t objectPointer;
+    int32_t hashCode;
 
-   TR_KnownObjectTableDumpInfoStruct(uintptr_t *objRef, uintptr_t objPtr, int32_t code) :
-      ref(objRef),
-      objectPointer(objPtr),
-      hashCode(code) {}
-   };
+    TR_KnownObjectTableDumpInfoStruct(uintptr_t *objRef, uintptr_t objPtr, int32_t code)
+        : ref(objRef)
+        , objectPointer(objPtr)
+        , hashCode(code)
+    {}
+};
 
 // <TR_KnownObjectTableDumpInfoStruct, std::string classNameStr>
 using TR_KnownObjectTableDumpInfo = std::tuple<TR_KnownObjectTableDumpInfoStruct, std::string>;
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
+namespace J9 {
 
-namespace J9
-{
-
-class OMR_EXTENSIBLE KnownObjectTable : public OMR::KnownObjectTableConnector
-   {
-   friend class ::TR_J9VMBase;
-   friend class Compilation;
-   TR_Array<uintptr_t*> _references;
-   TR_Array<int32_t> _stableArrayRanks;
-
+class OMR_EXTENSIBLE KnownObjectTable : public OMR::KnownObjectTableConnector {
+    friend class ::TR_J9VMBase;
+    friend class Compilation;
+    TR_Array<uintptr_t *> _references;
+    TR_Array<int32_t> _stableArrayRanks;
 
 public:
-   TR_ALLOC(TR_Memory::FrontEnd);
+    TR_ALLOC(TR_Memory::FrontEnd);
 
-   // Note that the KnownObjectTable is often initialized inside the J9::Compilation
-   // constructor of the TR::Compilation that gets passed in here. For that reason, the
-   // TR::Compilation *comp() can only be used in the methods of this class if you know
-   // the relevant components of the compilation have have been initialized or otherwise
-   // properly set up by the time those methods will be called. This affects
-   // getExistingIndexAt and getOrCreateIndexAt in particular.
-   KnownObjectTable(TR::Compilation *comp);
+    // Note that the KnownObjectTable is often initialized inside the J9::Compilation
+    // constructor of the TR::Compilation that gets passed in here. For that reason, the
+    // TR::Compilation *comp() can only be used in the methods of this class if you know
+    // the relevant components of the compilation have have been initialized or otherwise
+    // properly set up by the time those methods will be called. This affects
+    // getExistingIndexAt and getOrCreateIndexAt in particular.
+    KnownObjectTable(TR::Compilation *comp);
 
-   TR::KnownObjectTable *self();
+    TR::KnownObjectTable *self();
 
-   Index getEndIndex();
-   Index getOrCreateIndex(uintptr_t objectPointer);
-   Index getOrCreateIndex(uintptr_t objectPointer, bool isArrayWithConstantElements);
-   uintptr_t *getPointerLocation(Index index);
-   bool isNull(Index index);
+    Index getEndIndex();
+    Index getOrCreateIndex(uintptr_t objectPointer);
+    Index getOrCreateIndex(uintptr_t objectPointer, bool isArrayWithConstantElements);
+    uintptr_t *getPointerLocation(Index index);
+    bool isNull(Index index);
 
-   void dumpTo(TR::FILE *file, TR::Compilation *comp);
+    void dumpTo(TR::FILE *file, TR::Compilation *comp);
 
-   Index getOrCreateIndexAt(uintptr_t *objectReferenceLocation);
-   Index getOrCreateIndexAt(uintptr_t *objectReferenceLocation, bool isArrayWithConstantElements);
-   Index getExistingIndexAt(uintptr_t *objectReferenceLocation);
+    Index getOrCreateIndexAt(uintptr_t *objectReferenceLocation);
+    Index getOrCreateIndexAt(uintptr_t *objectReferenceLocation, bool isArrayWithConstantElements);
+    Index getExistingIndexAt(uintptr_t *objectReferenceLocation);
 
-   uintptr_t getPointer(Index index);
+    uintptr_t getPointer(Index index);
 
 #if defined(J9VM_OPT_JITSERVER)
-   void updateKnownObjectTableAtServer(Index index, uintptr_t *objectReferenceLocationClient, bool isArrayWithConstantElements = false);
-   void getKnownObjectTableDumpInfo(std::vector<TR_KnownObjectTableDumpInfo> &knotDumpInfoList);
+    void updateKnownObjectTableAtServer(Index index, uintptr_t *objectReferenceLocationClient,
+        bool isArrayWithConstantElements = false);
+    void getKnownObjectTableDumpInfo(std::vector<TR_KnownObjectTableDumpInfo> &knotDumpInfoList);
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
-   void addStableArray(Index index, int32_t stableArrayRank);
-   bool isArrayWithStableElements(Index index);
-   int32_t getArrayWithStableElementsRank(Index index);
+    void addStableArray(Index index, int32_t stableArrayRank);
+    bool isArrayWithStableElements(Index index);
+    int32_t getArrayWithStableElementsRank(Index index);
 
 private:
+    void dumpObjectTo(TR::FILE *file, Index i, const char *fieldName, const char *sep, TR::Compilation *comp,
+        TR_BitVector &visited, TR_VMFieldsInfo **fieldsInfoByIndex, int32_t depth);
+};
 
-   void dumpObjectTo(TR::FILE *file, Index i, const char *fieldName, const char *sep,  TR::Compilation *comp, TR_BitVector &visited, TR_VMFieldsInfo **fieldsInfoByIndex, int32_t depth);
-   };
-
-}
+} // namespace J9
 
 #endif

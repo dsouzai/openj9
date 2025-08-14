@@ -28,39 +28,39 @@
 #include "optimizer/OptimizationManager.hpp"
 
 class TR_BitVector;
+
 namespace TR {
 class Block;
 }
 
-class TR_LocalLiveVariablesForGC : public TR::Optimization
-   {
+class TR_LocalLiveVariablesForGC : public TR::Optimization {
 public:
-   TR_LocalLiveVariablesForGC(TR::OptimizationManager *manager);
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_LocalLiveVariablesForGC(manager);
-      }
+    TR_LocalLiveVariablesForGC(TR::OptimizationManager *manager);
 
-   virtual int32_t perform();
-   virtual const char * optDetailString() const throw();
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_LocalLiveVariablesForGC(manager);
+    }
+
+    virtual int32_t perform();
+    virtual const char *optDetailString() const throw();
 
 private:
-   void findGCPointInBlock(TR::Block *block, TR_BitVector &localsToBeInitialized);
-   int32_t      _numLocals;
-   };
+    void findGCPointInBlock(TR::Block *block, TR_BitVector &localsToBeInitialized);
+    int32_t _numLocals;
+};
 
-class TR_GlobalLiveVariablesForGC : public TR::Optimization
-   {
+class TR_GlobalLiveVariablesForGC : public TR::Optimization {
 public:
-   TR_GlobalLiveVariablesForGC(TR::OptimizationManager *manager);
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_GlobalLiveVariablesForGC(manager);
-      }
+    TR_GlobalLiveVariablesForGC(TR::OptimizationManager *manager);
 
-   virtual int32_t perform();
-   virtual const char * optDetailString() const throw();
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_GlobalLiveVariablesForGC(manager);
+    }
 
-   };
+    virtual int32_t perform();
+    virtual const char *optDetailString() const throw();
+};
 
 #endif

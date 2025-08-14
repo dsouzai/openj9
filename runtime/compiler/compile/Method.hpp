@@ -25,18 +25,16 @@
 #include "compile/J9Method.hpp"
 #include "infra/Annotations.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class Method : public J9::MethodConnector
-   {
+class Method : public J9::MethodConnector {
 public:
+    Method(Type t = J9)
+        : J9::MethodConnector(t)
+    {}
+};
 
-   Method(Type t = J9) : J9::MethodConnector(t) {}
-
-   };
-
-}
+} // namespace TR
 
 #endif
 

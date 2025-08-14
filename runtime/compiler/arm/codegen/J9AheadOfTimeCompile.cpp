@@ -43,207 +43,188 @@
 #include "runtime/RelocationRuntime.hpp"
 #include "runtime/RelocationRecord.hpp"
 
-#define  NON_HELPER         0
+#define NON_HELPER 0
 
 J9::ARM::AheadOfTimeCompile::AheadOfTimeCompile(TR::CodeGenerator *cg)
-   : J9::AheadOfTimeCompile(NULL, cg->comp()),
-     _cg(cg),
-     _relocationList(self()->trMemory())
-   {
-   }
+    : J9::AheadOfTimeCompile(NULL, cg->comp())
+    , _cg(cg)
+    , _relocationList(self()->trMemory())
+{}
 
 void J9::ARM::AheadOfTimeCompile::processRelocations()
-   {
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(self()->cg()->fe());
-   ListIterator<TR::ARMRelocation>  iterator(&self()->getRelocationList());
-   TR::ARMRelocation               *relocation;
-   TR::IteratedExternalRelocation  *r;
+{
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(self()->cg()->fe());
+    ListIterator<TR::ARMRelocation> iterator(&self()->getRelocationList());
+    TR::ARMRelocation *relocation;
+    TR::IteratedExternalRelocation *r;
 
-   for (relocation=iterator.getFirst();
-        relocation!=NULL;
-        relocation=iterator.getNext())
-      {
-      relocation->mapRelocation(self()->cg());
-      }
+    for (relocation = iterator.getFirst(); relocation != NULL; relocation = iterator.getNext()) {
+        relocation->mapRelocation(self()->cg());
+    }
 
-   for (auto aotIterator = self()->cg()->getExternalRelocationList().begin(); aotIterator != self()->cg()->getExternalRelocationList().end(); ++aotIterator)
-      {
-	  (*aotIterator)->addExternalRelocation(self()->cg());
-      }
+    for (auto aotIterator = self()->cg()->getExternalRelocationList().begin();
+         aotIterator != self()->cg()->getExternalRelocationList().end(); ++aotIterator) {
+        (*aotIterator)->addExternalRelocation(self()->cg());
+    }
 
-   for (r = self()->getAOTRelocationTargets().getFirst();
-        r != NULL;
-        r = r->getNext())
-      {
-      self()->addToSizeOfAOTRelocations(r->getSizeOfRelocationData());
-      }
+    for (r = self()->getAOTRelocationTargets().getFirst(); r != NULL; r = r->getNext()) {
+        self()->addToSizeOfAOTRelocations(r->getSizeOfRelocationData());
+    }
 
-   // now allocate the memory  size of all iterated relocations + the header (total length field)
+    // now allocate the memory  size of all iterated relocations + the header (total length field)
 
-   if (self()->getSizeOfAOTRelocations() != 0)
-      {
-      uint8_t *relocationDataCursor = self()->setRelocationData(fej9->allocateRelocationData(self()->comp(), self()->getSizeOfAOTRelocations() + 4));
+    if (self()->getSizeOfAOTRelocations() != 0) {
+        uint8_t *relocationDataCursor = self()->setRelocationData(
+            fej9->allocateRelocationData(self()->comp(), self()->getSizeOfAOTRelocations() + 4));
 
-      // set up the size for the region
-      *(uint32_t *)relocationDataCursor = self()->getSizeOfAOTRelocations() + 4;
-      relocationDataCursor += 4;
+        // set up the size for the region
+        *(uint32_t *)relocationDataCursor = self()->getSizeOfAOTRelocations() + 4;
+        relocationDataCursor += 4;
 
-      // set up pointers for each iterated relocation and initialize header
-      TR::IteratedExternalRelocation *s;
-      for (s = self()->getAOTRelocationTargets().getFirst();
-           s != NULL;
-           s = s->getNext())
-         {
-         s->setRelocationData(relocationDataCursor);
-         s->initializeRelocation(_cg);
-         relocationDataCursor += s->getSizeOfRelocationData();
-         }
-      }
-   }
+        // set up pointers for each iterated relocation and initialize header
+        TR::IteratedExternalRelocation *s;
+        for (s = self()->getAOTRelocationTargets().getFirst(); s != NULL; s = s->getNext()) {
+            s->setRelocationData(relocationDataCursor);
+            s->initializeRelocation(_cg);
+            relocationDataCursor += s->getSizeOfRelocationData();
+        }
+    }
+}
 
-bool
-J9::ARM::AheadOfTimeCompile::initializePlatformSpecificAOTRelocationHeader(TR::IteratedExternalRelocation *relocation,
-                                                                           TR_RelocationTarget *reloTarget,
-                                                                           TR_RelocationRecord *reloRecord,
-                                                                           uint8_t targetKind)
-   {
-   bool platformSpecificReloInitialized = true;
-   TR::Compilation* comp = self()->comp();
-   TR_J9VMBase *fej9 = comp->fej9();
-   TR_SharedCache *sharedCache = fej9->sharedCache();
-   uint8_t * aotMethodCodeStart = (uint8_t *) comp->getRelocatableMethodCodeStart();
+bool J9::ARM::AheadOfTimeCompile::initializePlatformSpecificAOTRelocationHeader(
+    TR::IteratedExternalRelocation *relocation, TR_RelocationTarget *reloTarget, TR_RelocationRecord *reloRecord,
+    uint8_t targetKind)
+{
+    bool platformSpecificReloInitialized = true;
+    TR::Compilation *comp = self()->comp();
+    TR_J9VMBase *fej9 = comp->fej9();
+    TR_SharedCache *sharedCache = fej9->sharedCache();
+    uint8_t *aotMethodCodeStart = (uint8_t *)comp->getRelocatableMethodCodeStart();
 
-   switch (targetKind)
-      {
-      case TR_MethodObject:
-         {
-         TR_RelocationRecordMethodObject *moRecord = reinterpret_cast<TR_RelocationRecordMethodObject *>(reloRecord);
-         TR_RelocationRecordInformation *recordInfo = (TR_RelocationRecordInformation*) relocation->getTargetAddress();
+    switch (targetKind) {
+        case TR_MethodObject: {
+            TR_RelocationRecordMethodObject *moRecord = reinterpret_cast<TR_RelocationRecordMethodObject *>(reloRecord);
+            TR_RelocationRecordInformation *recordInfo
+                = (TR_RelocationRecordInformation *)relocation->getTargetAddress();
 
-         TR::SymbolReference *symRef = reinterpret_cast<TR::SymbolReference *>(recordInfo->data1);
-         uintptr_t inlinedSiteIndex = self()->findCorrectInlinedSiteIndex(symRef->getOwningMethod(comp)->constantPool(), recordInfo->data2);
-         uint8_t flags = static_cast<uint8_t>(reinterpret_cast<uintptr_t>(recordInfo->data3));
+            TR::SymbolReference *symRef = reinterpret_cast<TR::SymbolReference *>(recordInfo->data1);
+            uintptr_t inlinedSiteIndex
+                = self()->findCorrectInlinedSiteIndex(symRef->getOwningMethod(comp)->constantPool(), recordInfo->data2);
+            uint8_t flags = static_cast<uint8_t>(reinterpret_cast<uintptr_t>(recordInfo->data3));
 
-         moRecord->setInlinedSiteIndex(reloTarget, reinterpret_cast<uintptr_t>(inlinedSiteIndex));
-         moRecord->setConstantPool(reloTarget, reinterpret_cast<uintptr_t>(symRef->getOwningMethod(comp)->constantPool()));
-         moRecord->setReloFlags(reloTarget, flags);
-         }
-         break;
+            moRecord->setInlinedSiteIndex(reloTarget, reinterpret_cast<uintptr_t>(inlinedSiteIndex));
+            moRecord->setConstantPool(reloTarget,
+                reinterpret_cast<uintptr_t>(symRef->getOwningMethod(comp)->constantPool()));
+            moRecord->setReloFlags(reloTarget, flags);
+        } break;
 
-      case TR_ClassAddress:
-         {
-         TR_RelocationRecordClassAddress *caRecord = reinterpret_cast<TR_RelocationRecordClassAddress *>(reloRecord);
-         TR_RelocationRecordInformation *recordInfo = (TR_RelocationRecordInformation*) relocation->getTargetAddress();
+        case TR_ClassAddress: {
+            TR_RelocationRecordClassAddress *caRecord = reinterpret_cast<TR_RelocationRecordClassAddress *>(reloRecord);
+            TR_RelocationRecordInformation *recordInfo
+                = (TR_RelocationRecordInformation *)relocation->getTargetAddress();
 
-         TR::SymbolReference *symRef = reinterpret_cast<TR::SymbolReference *>(recordInfo->data1);
-         uintptr_t inlinedSiteIndex = reinterpret_cast<uintptr_t>(recordInfo->data2);
-         uint8_t flags = static_cast<uint8_t>(recordInfo->data3);
+            TR::SymbolReference *symRef = reinterpret_cast<TR::SymbolReference *>(recordInfo->data1);
+            uintptr_t inlinedSiteIndex = reinterpret_cast<uintptr_t>(recordInfo->data2);
+            uint8_t flags = static_cast<uint8_t>(recordInfo->data3);
 
-         void *constantPool = symRef->getOwningMethod(comp)->constantPool();
-         inlinedSiteIndex = self()->findCorrectInlinedSiteIndex(constantPool, inlinedSiteIndex);
+            void *constantPool = symRef->getOwningMethod(comp)->constantPool();
+            inlinedSiteIndex = self()->findCorrectInlinedSiteIndex(constantPool, inlinedSiteIndex);
 
-         caRecord->setReloFlags(reloTarget, flags);
-         caRecord->setInlinedSiteIndex(reloTarget, inlinedSiteIndex);
-         caRecord->setConstantPool(reloTarget, reinterpret_cast<uintptr_t>(constantPool));
-         caRecord->setCpIndex(reloTarget, symRef->getCPIndex());
-         }
-         break;
+            caRecord->setReloFlags(reloTarget, flags);
+            caRecord->setInlinedSiteIndex(reloTarget, inlinedSiteIndex);
+            caRecord->setConstantPool(reloTarget, reinterpret_cast<uintptr_t>(constantPool));
+            caRecord->setCpIndex(reloTarget, symRef->getCPIndex());
+        } break;
 
-      case TR_DataAddress:
-         {
-         TR_RelocationRecordDataAddress *daRecord = reinterpret_cast<TR_RelocationRecordDataAddress *>(reloRecord);
-         TR_RelocationRecordInformation *recordInfo = (TR_RelocationRecordInformation*) relocation->getTargetAddress();
+        case TR_DataAddress: {
+            TR_RelocationRecordDataAddress *daRecord = reinterpret_cast<TR_RelocationRecordDataAddress *>(reloRecord);
+            TR_RelocationRecordInformation *recordInfo
+                = (TR_RelocationRecordInformation *)relocation->getTargetAddress();
 
-         TR::SymbolReference *symRef = reinterpret_cast<TR::SymbolReference *>(recordInfo->data1);
-         uintptr_t inlinedSiteIndex = reinterpret_cast<uintptr_t>(recordInfo->data2);
-         uint8_t flags = static_cast<uint8_t>(reinterpret_cast<uintptr_t>(recordInfo->data3));
+            TR::SymbolReference *symRef = reinterpret_cast<TR::SymbolReference *>(recordInfo->data1);
+            uintptr_t inlinedSiteIndex = reinterpret_cast<uintptr_t>(recordInfo->data2);
+            uint8_t flags = static_cast<uint8_t>(reinterpret_cast<uintptr_t>(recordInfo->data3));
 
-         void *constantPool = symRef->getOwningMethod(comp)->constantPool();
-         inlinedSiteIndex = self()->findCorrectInlinedSiteIndex(constantPool, inlinedSiteIndex);
+            void *constantPool = symRef->getOwningMethod(comp)->constantPool();
+            inlinedSiteIndex = self()->findCorrectInlinedSiteIndex(constantPool, inlinedSiteIndex);
 
-         daRecord->setReloFlags(reloTarget, flags);
-         daRecord->setInlinedSiteIndex(reloTarget, inlinedSiteIndex);
-         daRecord->setConstantPool(reloTarget, reinterpret_cast<uintptr_t>(constantPool));
-         daRecord->setCpIndex(reloTarget, symRef->getCPIndex());
-         daRecord->setOffset(reloTarget, symRef->getOffset());
-         }
-         break;
+            daRecord->setReloFlags(reloTarget, flags);
+            daRecord->setInlinedSiteIndex(reloTarget, inlinedSiteIndex);
+            daRecord->setConstantPool(reloTarget, reinterpret_cast<uintptr_t>(constantPool));
+            daRecord->setCpIndex(reloTarget, symRef->getCPIndex());
+            daRecord->setOffset(reloTarget, symRef->getOffset());
+        } break;
 
-      case TR_FixedSequenceAddress2:
-         {
-         TR_RelocationRecordWithOffset *rwoRecord = reinterpret_cast<TR_RelocationRecordWithOffset *>(reloRecord);
-         uint8_t flags = static_cast<uint8_t>(reinterpret_cast<uintptr_t>(relocation->getTargetAddress2()));
+        case TR_FixedSequenceAddress2: {
+            TR_RelocationRecordWithOffset *rwoRecord = reinterpret_cast<TR_RelocationRecordWithOffset *>(reloRecord);
+            uint8_t flags = static_cast<uint8_t>(reinterpret_cast<uintptr_t>(relocation->getTargetAddress2()));
 
-         rwoRecord->setReloFlags(reloTarget, flags);
+            rwoRecord->setReloFlags(reloTarget, flags);
 
-         uintptr_t offset = relocation->getTargetAddress()
-                  ? static_cast<uintptr_t>(relocation->getTargetAddress() - aotMethodCodeStart)
-                  : 0x0;
+            uintptr_t offset = relocation->getTargetAddress()
+                ? static_cast<uintptr_t>(relocation->getTargetAddress() - aotMethodCodeStart)
+                : 0x0;
 
-         rwoRecord->setOffset(reloTarget, offset);
-         }
-         break;
+            rwoRecord->setOffset(reloTarget, offset);
+        } break;
 
-      case TR_BodyInfoAddressLoad:
-         {
-         TR_RelocationRecord *rRecord = reinterpret_cast<TR_RelocationRecord *>(reloRecord);
+        case TR_BodyInfoAddressLoad: {
+            TR_RelocationRecord *rRecord = reinterpret_cast<TR_RelocationRecord *>(reloRecord);
 
-         uint8_t flags = flags = static_cast<uint8_t>(reinterpret_cast<uintptr_t>(relocation->getTargetAddress2()));
-         rRecord->setReloFlags(reloTarget, flags);
-         }
-         break;
+            uint8_t flags = flags = static_cast<uint8_t>(reinterpret_cast<uintptr_t>(relocation->getTargetAddress2()));
+            rRecord->setReloFlags(reloTarget, flags);
+        } break;
 
-      case TR_RamMethodSequence:
-         {
-         TR_RelocationRecordRamSequence *rsRecord = reinterpret_cast<TR_RelocationRecordRamSequence *>(reloRecord);
-         uint8_t flags = static_cast<uint8_t>(reinterpret_cast<uintptr_t>(relocation->getTargetAddress2()));
+        case TR_RamMethodSequence: {
+            TR_RelocationRecordRamSequence *rsRecord = reinterpret_cast<TR_RelocationRecordRamSequence *>(reloRecord);
+            uint8_t flags = static_cast<uint8_t>(reinterpret_cast<uintptr_t>(relocation->getTargetAddress2()));
 
-         rsRecord->setReloFlags(reloTarget, flags);
+            rsRecord->setReloFlags(reloTarget, flags);
 
-         // Skip Offset
-         }
-         break;
+            // Skip Offset
+        } break;
 
-      case TR_GlobalValue:
-      case TR_HCR:
-         {
-         TR_RelocationRecordWithOffset *rwoRecord = reinterpret_cast<TR_RelocationRecordWithOffset *>(reloRecord);
+        case TR_GlobalValue:
+        case TR_HCR: {
+            TR_RelocationRecordWithOffset *rwoRecord = reinterpret_cast<TR_RelocationRecordWithOffset *>(reloRecord);
 
-         uintptr_t gv = reinterpret_cast<uintptr_t>(relocation->getTargetAddress());
-         uint8_t flags = static_cast<uint8_t>(reinterpret_cast<uintptr_t>(relocation->getTargetAddress2()));
+            uintptr_t gv = reinterpret_cast<uintptr_t>(relocation->getTargetAddress());
+            uint8_t flags = static_cast<uint8_t>(reinterpret_cast<uintptr_t>(relocation->getTargetAddress2()));
 
-         rwoRecord->setReloFlags(reloTarget, flags);
-         rwoRecord->setOffset(reloTarget, gv);
-         }
-         break;
+            rwoRecord->setReloFlags(reloTarget, flags);
+            rwoRecord->setOffset(reloTarget, gv);
+        } break;
 
-      case TR_ArbitraryClassAddress:
-         {
-         TR_RelocationRecordArbitraryClassAddress *acaRecord = reinterpret_cast<TR_RelocationRecordArbitraryClassAddress *>(reloRecord);
+        case TR_ArbitraryClassAddress: {
+            TR_RelocationRecordArbitraryClassAddress *acaRecord
+                = reinterpret_cast<TR_RelocationRecordArbitraryClassAddress *>(reloRecord);
 
-         // ExternalRelocation data is as expected for TR_ClassAddress
-         TR_RelocationRecordInformation *recordInfo = (TR_RelocationRecordInformation *)relocation->getTargetAddress();
+            // ExternalRelocation data is as expected for TR_ClassAddress
+            TR_RelocationRecordInformation *recordInfo
+                = (TR_RelocationRecordInformation *)relocation->getTargetAddress();
 
-         auto symRef = (TR::SymbolReference *)recordInfo->data1;
-         auto sym = symRef->getSymbol()->castToStaticSymbol();
-         auto j9class = (TR_OpaqueClassBlock *)sym->getStaticAddress();
-         // flags stored in data3 are currently unused
-         uintptr_t inlinedSiteIndex = self()->findCorrectInlinedSiteIndex(symRef->getOwningMethod(comp)->constantPool(), recordInfo->data2);
+            auto symRef = (TR::SymbolReference *)recordInfo->data1;
+            auto sym = symRef->getSymbol()->castToStaticSymbol();
+            auto j9class = (TR_OpaqueClassBlock *)sym->getStaticAddress();
+            // flags stored in data3 are currently unused
+            uintptr_t inlinedSiteIndex
+                = self()->findCorrectInlinedSiteIndex(symRef->getOwningMethod(comp)->constantPool(), recordInfo->data2);
 
-         uintptr_t classChainIdentifyingLoaderOffsetInSharedCache = sharedCache->getClassChainOffsetIdentifyingLoader(j9class);
-         const AOTCacheClassChainRecord *classChainRecord = NULL;
-         uintptr_t classChainOffsetInSharedCache = self()->getClassChainOffset(j9class, classChainRecord);
+            uintptr_t classChainIdentifyingLoaderOffsetInSharedCache
+                = sharedCache->getClassChainOffsetIdentifyingLoader(j9class);
+            const AOTCacheClassChainRecord *classChainRecord = NULL;
+            uintptr_t classChainOffsetInSharedCache = self()->getClassChainOffset(j9class, classChainRecord);
 
-         acaRecord->setInlinedSiteIndex(reloTarget, inlinedSiteIndex);
-         acaRecord->setClassChainIdentifyingLoaderOffsetInSharedCache(reloTarget, classChainIdentifyingLoaderOffsetInSharedCache,
-                                                                      self(), classChainRecord);
-         acaRecord->setClassChainForInlinedMethod(reloTarget, classChainOffsetInSharedCache, self(), classChainRecord, j9class);
-         }
-         break;
+            acaRecord->setInlinedSiteIndex(reloTarget, inlinedSiteIndex);
+            acaRecord->setClassChainIdentifyingLoaderOffsetInSharedCache(reloTarget,
+                classChainIdentifyingLoaderOffsetInSharedCache, self(), classChainRecord);
+            acaRecord->setClassChainForInlinedMethod(reloTarget, classChainOffsetInSharedCache, self(),
+                classChainRecord, j9class);
+        } break;
 
-      default:
-         platformSpecificReloInitialized = false;
-      }
+        default:
+            platformSpecificReloInitialized = false;
+    }
 
-   return platformSpecificReloInitialized;
-   }
+    return platformSpecificReloInitialized;
+}

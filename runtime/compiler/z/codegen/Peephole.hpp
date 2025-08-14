@@ -25,17 +25,15 @@
 
 #include "codegen/J9Peephole.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE Peephole : public J9::PeepholeConnector
-   {
-   public:
+class OMR_EXTENSIBLE Peephole : public J9::PeepholeConnector {
+public:
+    Peephole(TR::Compilation *comp)
+        : J9::PeepholeConnector(comp)
+    {}
+};
 
-   Peephole(TR::Compilation* comp) :
-      J9::PeepholeConnector(comp) {}
-   };
-
-}
+} // namespace TR
 
 #endif

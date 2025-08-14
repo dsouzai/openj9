@@ -29,20 +29,23 @@
 #include "il/Symbol.hpp"
 #include "il/SymbolReference.hpp"
 
-TR_NoSideFXAnnotation::TR_NoSideFXAnnotation(TR::Compilation *comp,TR::SymbolReference *symRef):
-   TR_AnnotationBase(comp)
-   {
-   TR_ResolvedMethod *resolvedMethod= symRef->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod();
-   TR_ASSERT(resolvedMethod,"symref NULL\n");
-   TR_ASSERT(comp,"comp NULL\n");
+TR_NoSideFXAnnotation::TR_NoSideFXAnnotation(TR::Compilation *comp, TR::SymbolReference *symRef)
+    : TR_AnnotationBase(comp)
+{
+    TR_ResolvedMethod *resolvedMethod = symRef->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod();
+    TR_ASSERT(resolvedMethod, "symref NULL\n");
+    TR_ASSERT(comp, "comp NULL\n");
 
-   _isValid=false;
+    _isValid = false;
 
-   J9Class * clazz = (J9Class *)resolvedMethod->containingClass();
+    J9Class *clazz = (J9Class *)resolvedMethod->containingClass();
 
-   if(!loadAnnotation(clazz,kX10NoSideFx)) return;
-   if(NULL == getTaggedAnnotationInfoEntry(symRef,kX10NoSideFx)) return;
-   if(false)printf("Found no sfx of %s in %s\n",resolvedMethod->signature(comp->trMemory()),comp->signature());
-   _isValid=true;
-   }
+    if (!loadAnnotation(clazz, kX10NoSideFx))
+        return;
+    if (NULL == getTaggedAnnotationInfoEntry(symRef, kX10NoSideFx))
+        return;
+    if (false)
+        printf("Found no sfx of %s in %s\n", resolvedMethod->signature(comp->trMemory()), comp->signature());
+    _isValid = true;
+}
 

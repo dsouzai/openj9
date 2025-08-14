@@ -25,16 +25,15 @@
 
 #include "codegen/J9AheadOfTimeCompile.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE AheadOfTimeCompile : public J9::AheadOfTimeCompileConnector
-    {
-    public:
-    AheadOfTimeCompile(TR::CodeGenerator * cg)
-       : J9::AheadOfTimeCompileConnector(cg) {}
-    };
+class OMR_EXTENSIBLE AheadOfTimeCompile : public J9::AheadOfTimeCompileConnector {
+public:
+    AheadOfTimeCompile(TR::CodeGenerator *cg)
+        : J9::AheadOfTimeCompileConnector(cg)
+    {}
+};
 
-}
+} // namespace TR
 
 #endif // TR_AHEADOFTIMECOMPILE_INCL

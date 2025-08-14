@@ -52,93 +52,70 @@ namespace J9 {
 
 class SegmentAllocator;
 
-class RawAllocator
-   {
+class RawAllocator {
 public:
-   explicit RawAllocator(J9JavaVM *javaVM) :
-      _javaVM(javaVM)
-      {
-      }
+    explicit RawAllocator(J9JavaVM *javaVM)
+        : _javaVM(javaVM)
+    {}
 
-   RawAllocator(const RawAllocator &other) :
-      _javaVM(other._javaVM)
-      {
-      }
+    RawAllocator(const RawAllocator &other)
+        : _javaVM(other._javaVM)
+    {}
 
-   void * allocate(size_t size, const std::nothrow_t& tag, void * hint = 0) throw()
-      {
-      PORT_ACCESS_FROM_JAVAVM(_javaVM);
-      return j9mem_allocate_memory(size, J9MEM_CATEGORY_JIT);
-      }
+    void *allocate(size_t size, const std::nothrow_t &tag, void *hint = 0) throw()
+    {
+        PORT_ACCESS_FROM_JAVAVM(_javaVM);
+        return j9mem_allocate_memory(size, J9MEM_CATEGORY_JIT);
+    }
 
-   void * allocate(size_t size, void * hint = 0)
-      {
-      void * allocated = allocate(size, std::nothrow, hint);
-      if (!allocated) throw std::bad_alloc();
-      return allocated;
-      }
+    void *allocate(size_t size, void *hint = 0)
+    {
+        void *allocated = allocate(size, std::nothrow, hint);
+        if (!allocated)
+            throw std::bad_alloc();
+        return allocated;
+    }
 
-   void deallocate(void * p, size_t size = 0) throw()
-      {
-      PORT_ACCESS_FROM_JAVAVM(_javaVM);
-      j9mem_free_memory(p);
-      }
+    void deallocate(void *p, size_t size = 0) throw()
+    {
+        PORT_ACCESS_FROM_JAVAVM(_javaVM);
+        j9mem_free_memory(p);
+    }
 
-   friend bool operator ==(const RawAllocator &left, const RawAllocator &right)
-      {
-      return true;
-      }
+    friend bool operator==(const RawAllocator &left, const RawAllocator &right) { return true; }
 
-   friend bool operator !=(const RawAllocator &left, const RawAllocator &right)
-      {
-      return !operator ==(left, right);
-      }
+    friend bool operator!=(const RawAllocator &left, const RawAllocator &right) { return !operator==(left, right); }
 
-   friend class SegmentAllocator;
+    friend class SegmentAllocator;
 
-   template < typename T >
-   operator TR::typed_allocator< T, TR::RawAllocator >()
-      {
-      return TR::typed_allocator< T, TR::RawAllocator >(*this);
-      }
+    template<typename T> operator TR::typed_allocator<T, TR::RawAllocator>()
+    {
+        return TR::typed_allocator<T, TR::RawAllocator>(*this);
+    }
 
 private:
+    J9JavaVM *_javaVM;
+};
 
-   J9JavaVM * _javaVM;
+} // namespace J9
 
-   };
+inline void *operator new(size_t size, J9::RawAllocator allocator) { return allocator.allocate(size); }
 
+inline void operator delete(void *ptr, J9::RawAllocator allocator) throw() { allocator.deallocate(ptr); }
+
+inline void *operator new[](size_t size, J9::RawAllocator allocator) { return allocator.allocate(size); }
+
+inline void operator delete[](void *ptr, J9::RawAllocator allocator) throw() { allocator.deallocate(ptr); }
+
+inline void *operator new(size_t size, J9::RawAllocator allocator, const std::nothrow_t &tag) throw()
+{
+    return allocator.allocate(size, tag);
 }
 
-inline void * operator new(size_t size, J9::RawAllocator allocator)
-   {
-   return allocator.allocate(size);
-   }
-
-inline void operator delete(void *ptr, J9::RawAllocator allocator) throw()
-   {
-   allocator.deallocate(ptr);
-   }
-
-inline void * operator new[](size_t size, J9::RawAllocator allocator)
-   {
-   return allocator.allocate(size);
-   }
-
-inline void operator delete[](void *ptr, J9::RawAllocator allocator) throw()
-   {
-   allocator.deallocate(ptr);
-   }
-
-inline void * operator new(size_t size, J9::RawAllocator allocator, const std::nothrow_t& tag) throw()
-   {
-   return allocator.allocate(size, tag);
-   }
-
-inline void * operator new[](size_t size, J9::RawAllocator allocator, const std::nothrow_t& tag) throw()
-   {
-   return allocator.allocate(size, tag);
-   }
+inline void *operator new[](size_t size, J9::RawAllocator allocator, const std::nothrow_t &tag) throw()
+{
+    return allocator.allocate(size, tag);
+}
 
 #endif // RAWALLOCATOR_HPP
 

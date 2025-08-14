@@ -31,107 +31,97 @@
 
 namespace TR {
 
-class ARM64MonitorEnterSnippet : public TR::ARM64HelperCallSnippet
-   {
-   TR::LabelSymbol *_incLabel;
+class ARM64MonitorEnterSnippet : public TR::ARM64HelperCallSnippet {
+    TR::LabelSymbol *_incLabel;
 
-   public:
+public:
+    /**
+     * @brief Constructor
+     */
+    ARM64MonitorEnterSnippet(TR::CodeGenerator *codeGen, TR::Node *monitorNode, TR::LabelSymbol *incLabel,
+        TR::LabelSymbol *callLabel, TR::LabelSymbol *restartLabel);
 
-   /**
-    * @brief Constructor
-    */
-   ARM64MonitorEnterSnippet(TR::CodeGenerator *codeGen,
-                            TR::Node *monitorNode,
-                            TR::LabelSymbol *incLabel,
-                            TR::LabelSymbol *callLabel,
-                            TR::LabelSymbol *restartLabel);
+    /**
+     * @brief Answers the Snippet kind
+     * @return Snippet kind
+     */
+    virtual Kind getKind() { return IsMonitorEnter; }
 
-   /**
-    * @brief Answers the Snippet kind
-    * @return Snippet kind
-    */
-   virtual Kind getKind() { return IsMonitorEnter; }
+    /**
+     * @brief Emits the Snippet body
+     * @return instruction cursor
+     */
+    virtual uint8_t *emitSnippetBody();
 
-   /**
-    * @brief Emits the Snippet body
-    * @return instruction cursor
-    */
-   virtual uint8_t *emitSnippetBody();
+    /**
+     * @brief Prints the Snippet
+     */
+    virtual void print(TR::FILE *, TR_Debug *);
 
-   /**
-    * @brief Prints the Snippet
-    */
-   virtual void print(TR::FILE *, TR_Debug *);
+    /**
+     * @brief Answers the Snippet length
+     * @return Snippet length
+     */
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
 
-   /**
-    * @brief Answers the Snippet length
-    * @return Snippet length
-    */
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
+    /**
+     * @brief Sets estimated binary location
+     * @return estimated binary location
+     */
+    virtual int32_t setEstimatedCodeLocation(int32_t p);
 
-   /**
-    * @brief Sets estimated binary location
-    * @return estimated binary location
-    */
-   virtual int32_t setEstimatedCodeLocation(int32_t p);
+    /**
+     * @brief Answers the incLabel
+     * @return incLabel
+     */
+    TR::LabelSymbol *getIncLabel() { return _incLabel; };
+};
 
-   /**
-    * @brief Answers the incLabel
-    * @return incLabel
-    */
-   TR::LabelSymbol *getIncLabel() { return _incLabel; };
-   };
+class ARM64MonitorExitSnippet : public TR::ARM64HelperCallSnippet {
+    TR::LabelSymbol *_decLabel;
 
-class ARM64MonitorExitSnippet : public TR::ARM64HelperCallSnippet
-   {
-   TR::LabelSymbol *_decLabel;
+public:
+    /**
+     * @brief Constructor
+     */
+    ARM64MonitorExitSnippet(TR::CodeGenerator *codeGen, TR::Node *monitorNode, TR::LabelSymbol *decLabel,
+        TR::LabelSymbol *callLabel, TR::LabelSymbol *restartLabel);
 
-   public:
+    /**
+     * @brief Answers the Snippet kind
+     * @return Snippet kind
+     */
+    virtual Kind getKind() { return IsMonitorExit; }
 
-   /**
-    * @brief Constructor
-    */
-   ARM64MonitorExitSnippet(TR::CodeGenerator *codeGen,
-                           TR::Node *monitorNode,
-                           TR::LabelSymbol *decLabel,
-                           TR::LabelSymbol *callLabel,
-                           TR::LabelSymbol *restartLabel);
+    /**
+     * @brief Emits the Snippet body
+     * @return instruction cursor
+     */
+    virtual uint8_t *emitSnippetBody();
 
-   /**
-    * @brief Answers the Snippet kind
-    * @return Snippet kind
-    */
-   virtual Kind getKind() { return IsMonitorExit; }
+    /**
+     * @brief Prints the Snippet
+     */
+    virtual void print(TR::FILE *, TR_Debug *);
 
-   /**
-    * @brief Emits the Snippet body
-    * @return instruction cursor
-    */
-   virtual uint8_t *emitSnippetBody();
+    /**
+     * @brief Answers the Snippet length
+     * @return Snippet length
+     */
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
 
-   /**
-    * @brief Prints the Snippet
-    */
-   virtual void print(TR::FILE *, TR_Debug *);
+    /**
+     * @brief Sets estimated binary location
+     * @return estimated binary location
+     */
+    virtual int32_t setEstimatedCodeLocation(int32_t p);
 
-   /**
-    * @brief Answers the Snippet length
-    * @return Snippet length
-    */
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-
-   /**
-    * @brief Sets estimated binary location
-    * @return estimated binary location
-    */
-   virtual int32_t setEstimatedCodeLocation(int32_t p);
-
-   /**
-    * @brief Answers the decLabel
-    * @return decLabel
-    */
-   TR::LabelSymbol *getDecLabel() { return _decLabel; }
-   };
-}
+    /**
+     * @brief Answers the decLabel
+     * @return decLabel
+     */
+    TR::LabelSymbol *getDecLabel() { return _decLabel; }
+};
+} // namespace TR
 
 #endif

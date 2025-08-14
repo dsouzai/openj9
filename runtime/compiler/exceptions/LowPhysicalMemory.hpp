@@ -34,12 +34,11 @@ namespace J9 {
  *
  * Thrown when the compiler detects low physical memory available.
  */
-class LowPhysicalMemory : public virtual std::bad_alloc
-   {
-   virtual const char* what() const throw() { return "Low Physical Memory"; }
-   };
+class LowPhysicalMemory : public virtual std::bad_alloc {
+    virtual const char *what() const throw() { return "Low Physical Memory"; }
+};
 
-}
+} // namespace J9
 
 #endif // LOW_PHYSICAL_MEMORY_HPP
 

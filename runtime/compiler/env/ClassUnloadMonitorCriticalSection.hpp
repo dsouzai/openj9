@@ -26,33 +26,31 @@
 #include "infra/MonitorTable.hpp"
 #include "infra/RWMonitor.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class ClassUnloadMonitorCriticalSection
-    {
-    public:
+class ClassUnloadMonitorCriticalSection {
+public:
     ClassUnloadMonitorCriticalSection(bool write = false)
         : _write(write)
-        {
+    {
         if (_write)
             TR::MonitorTable::get()->getClassUnloadMonitor()->enter_write();
         else
             TR::MonitorTable::get()->getClassUnloadMonitor()->enter_read();
-        }
+    }
 
     ~ClassUnloadMonitorCriticalSection()
-        {
+    {
         if (_write)
             TR::MonitorTable::get()->getClassUnloadMonitor()->exit_write();
         else
             TR::MonitorTable::get()->getClassUnloadMonitor()->exit_read();
-        }
+    }
 
-    private:
+private:
     bool _write;
-    };
+};
 
-}
+} // namespace TR
 
 #endif // TR_CLASUNLOADMONITORCRITICALSECTION_INCL

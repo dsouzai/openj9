@@ -29,71 +29,56 @@ namespace TR {
 class Snippet;
 }
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE MemoryReference : public J9::MemoryReferenceConnector
-   {
-   public:
+class OMR_EXTENSIBLE MemoryReference : public J9::MemoryReferenceConnector {
+public:
+    MemoryReference(TR::CodeGenerator *cg)
+        : J9::MemoryReferenceConnector(cg)
+    {}
 
-   MemoryReference(TR::CodeGenerator *cg) :
-      J9::MemoryReferenceConnector(cg) {}
+    MemoryReference(TR::Register *br, int32_t disp, TR::CodeGenerator *cg, const char *name = NULL)
+        : J9::MemoryReferenceConnector(br, disp, cg, name)
+    {}
 
-   MemoryReference(TR::Register *br,
-      int32_t disp,
-      TR::CodeGenerator *cg,
-      const char *name=NULL ) :
-         J9::MemoryReferenceConnector(br, disp, cg, name) {}
+    MemoryReference(TR::Register *br, int32_t disp, TR::SymbolReference *symRef, TR::CodeGenerator *cg)
+        : J9::MemoryReferenceConnector(br, disp, symRef, cg)
+    {}
 
-   MemoryReference(TR::Register *br,
-      int32_t disp,
-      TR::SymbolReference *symRef,
-      TR::CodeGenerator *cg) :
-         J9::MemoryReferenceConnector(br, disp, symRef, cg) {}
+    MemoryReference(TR::Register *br, TR::Register *ir, int32_t disp, TR::CodeGenerator *cg)
+        : J9::MemoryReferenceConnector(br, ir, disp, cg)
+    {}
 
-   MemoryReference(TR::Register *br,
-      TR::Register *ir,
-      int32_t disp,
-      TR::CodeGenerator *cg) :
-         J9::MemoryReferenceConnector(br, ir, disp, cg) {}
+    MemoryReference(int32_t disp, TR::CodeGenerator *cg, bool isConstantDataSnippet = false)
+        : J9::MemoryReferenceConnector(disp, cg, isConstantDataSnippet)
+    {}
 
-   MemoryReference(int32_t disp,
-      TR::CodeGenerator *cg,
-      bool isConstantDataSnippet=false) :
-         J9::MemoryReferenceConnector(disp, cg, isConstantDataSnippet) {}
+    MemoryReference(TR::Node *rootLoadOrStore, TR::CodeGenerator *cg, bool canUseRX = false,
+        TR_StorageReference *storageReference = NULL)
+        : J9::MemoryReferenceConnector(rootLoadOrStore, cg, canUseRX, storageReference)
+    {}
 
-   MemoryReference(TR::Node *rootLoadOrStore,
-      TR::CodeGenerator *cg,
-      bool canUseRX = false,
-      TR_StorageReference *storageReference=NULL) :
-         J9::MemoryReferenceConnector(rootLoadOrStore, cg, canUseRX, storageReference) {}
+    MemoryReference(TR::Node *addressTree, bool canUseIndex, TR::CodeGenerator *cg)
+        : J9::MemoryReferenceConnector(addressTree, canUseIndex, cg)
+    {}
 
-   MemoryReference(TR::Node *addressTree,
-      bool canUseIndex,
-      TR::CodeGenerator *cg) :
-         J9::MemoryReferenceConnector(addressTree, canUseIndex, cg) {}
+    MemoryReference(TR::Node *node, TR::SymbolReference *symRef, TR::CodeGenerator *cg,
+        TR_StorageReference *storageReference = NULL)
+        : J9::MemoryReferenceConnector(node, symRef, cg, storageReference)
+    {}
 
-   MemoryReference(TR::Node *node,
-      TR::SymbolReference *symRef,
-      TR::CodeGenerator *cg,
-      TR_StorageReference *storageReference=NULL) :
-         J9::MemoryReferenceConnector(node, symRef, cg, storageReference) {}
+    MemoryReference(TR::Snippet *s, TR::CodeGenerator *cg, TR::Register *base, TR::Node *node)
+        : J9::MemoryReferenceConnector(s, cg, base, node)
+    {}
 
-   MemoryReference(TR::Snippet *s,
-      TR::CodeGenerator *cg,
-      TR::Register* base,
-      TR::Node* node) :
-         J9::MemoryReferenceConnector(s, cg, base, node) {}
+    MemoryReference(TR::Snippet *s, TR::Register *indx, int32_t disp, TR::CodeGenerator *cg)
+        : J9::MemoryReferenceConnector(s, indx, disp, cg)
+    {}
 
-   MemoryReference(TR::Snippet *s,
-      TR::Register* indx,
-      int32_t disp,
-      TR::CodeGenerator *cg) :
-         J9::MemoryReferenceConnector(s, indx, disp, cg) {}
-
-   MemoryReference(MemoryReference& mr, int32_t n, TR::CodeGenerator *cg) :
-      J9::MemoryReferenceConnector(mr, n, cg) {}
-   };
-}
+    MemoryReference(MemoryReference &mr, int32_t n, TR::CodeGenerator *cg)
+        : J9::MemoryReferenceConnector(mr, n, cg)
+    {}
+};
+} // namespace TR
 
 #endif

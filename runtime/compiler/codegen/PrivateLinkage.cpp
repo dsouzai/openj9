@@ -29,37 +29,34 @@
 #include "env/jittypes.h"
 #include "il/ParameterSymbol.hpp"
 
-intptr_t
-J9::PrivateLinkage::entryPointFromCompiledMethod()
-   {
-   uint8_t *methodEntry = cg()->getCodeStart();
-   methodEntry += J9::PrivateLinkage::LinkageInfo::get(methodEntry)->getReservedWord();
-   return reinterpret_cast<intptr_t>(methodEntry);
-   }
+intptr_t J9::PrivateLinkage::entryPointFromCompiledMethod()
+{
+    uint8_t *methodEntry = cg()->getCodeStart();
+    methodEntry += J9::PrivateLinkage::LinkageInfo::get(methodEntry)->getReservedWord();
+    return reinterpret_cast<intptr_t>(methodEntry);
+}
 
-intptr_t
-J9::PrivateLinkage::entryPointFromInterpretedMethod()
-   {
-   return reinterpret_cast<intptr_t>(cg()->getCodeStart());
-   }
+intptr_t J9::PrivateLinkage::entryPointFromInterpretedMethod()
+{
+    return reinterpret_cast<intptr_t>(cg()->getCodeStart());
+}
 
-void
-J9::PrivateLinkage::mapIncomingParms(TR::ResolvedMethodSymbol *method)
-   {
-   int32_t offsetToFirstArg = method->getNumParameterSlots() * TR::Compiler->om.sizeofReferenceAddress() + getOffsetToFirstParm();
+void J9::PrivateLinkage::mapIncomingParms(TR::ResolvedMethodSymbol *method)
+{
+    int32_t offsetToFirstArg
+        = method->getNumParameterSlots() * TR::Compiler->om.sizeofReferenceAddress() + getOffsetToFirstParm();
 
-   const bool is64Bit = cg()->comp()->target().is64Bit();
-   ListIterator<TR::ParameterSymbol> paramIterator(&method->getParameterList());
-   for (TR::ParameterSymbol* paramCursor = paramIterator.getFirst(); paramCursor != NULL; paramCursor = paramIterator.getNext())
-      {
-      // This is a slightly convoluted way of enforcing the JVM specification which states that long and double 
-      // variables take up two stack slots. A stack slot in OpenJ9 is a `uintptr_t`, so on 64-bit int variables
-      // are still placed in 64-bit stack slots, hence the need to check for 64-bit in the query below. For more
-      // details please see eclipse-openj9/openj9#8360.
-      int32_t slotMultiplier = is64Bit && paramCursor->getDataType() != TR::Address ? 2 : 1;
+    const bool is64Bit = cg()->comp()->target().is64Bit();
+    ListIterator<TR::ParameterSymbol> paramIterator(&method->getParameterList());
+    for (TR::ParameterSymbol *paramCursor = paramIterator.getFirst(); paramCursor != NULL;
+         paramCursor = paramIterator.getNext()) {
+        // This is a slightly convoluted way of enforcing the JVM specification which states that long and double
+        // variables take up two stack slots. A stack slot in OpenJ9 is a `uintptr_t`, so on 64-bit int variables
+        // are still placed in 64-bit stack slots, hence the need to check for 64-bit in the query below. For more
+        // details please see eclipse-openj9/openj9#8360.
+        int32_t slotMultiplier = is64Bit && paramCursor->getDataType() != TR::Address ? 2 : 1;
 
-      paramCursor->setParameterOffset(offsetToFirstArg -
-         paramCursor->getParameterOffset() -
-         paramCursor->getSize() * slotMultiplier);
-      }
-   }
+        paramCursor->setParameterOffset(
+            offsetToFirstArg - paramCursor->getParameterOffset() - paramCursor->getSize() * slotMultiplier);
+    }
+}

@@ -56,66 +56,61 @@
 //  0    0  1st instruction of method (must be at least 4 bytes)--will turn into BRC
 
 // Compare and swap a 4 byte object need to implement uses CS
-extern "C" int32_t _CompareAndSwap4(int32_t * addr, uint32_t oldInsn, uint32_t newInsn);
+extern "C" int32_t _CompareAndSwap4(int32_t *addr, uint32_t oldInsn, uint32_t newInsn);
 
-extern "C" void
-s390compareAndExchange4(int32_t * addr, uint32_t oldInsn, uint32_t newInsn)
-   {
-   // needs to be changed to double word check later ...
+extern "C" void s390compareAndExchange4(int32_t *addr, uint32_t oldInsn, uint32_t newInsn)
+{
+    // needs to be changed to double word check later ...
 #if defined(TR_HOST_64BIT)
-   TR_ASSERT((uint64_t(addr) % 8) == 0, "%p not on a word boundary\n", addr);
+    TR_ASSERT((uint64_t(addr) % 8) == 0, "%p not on a word boundary\n", addr);
 #else
-   TR_ASSERT((uint32_t(addr) % 4) == 0, "%p not on a word boundary\n", addr);
+    TR_ASSERT((uint32_t(addr) % 4) == 0, "%p not on a word boundary\n", addr);
 #endif
-   // guard so can cross compile
-   _CompareAndSwap4(addr, oldInsn, newInsn);
-   }
+    // guard so can cross compile
+    _CompareAndSwap4(addr, oldInsn, newInsn);
+}
 
-static uint32_t
-getJitEntryOffset(J9::PrivateLinkage::LinkageInfo * linkageInfo)
-   {
-   return linkageInfo->getReservedWord() & 0x0ffff;
-   }
+static uint32_t getJitEntryOffset(J9::PrivateLinkage::LinkageInfo *linkageInfo)
+{
+    return linkageInfo->getReservedWord() & 0x0ffff;
+}
 
 // Called at runtime to get the method info from the start PC
 //
-TR_PersistentJittedBodyInfo *
-J9::Recompilation::getJittedBodyInfoFromPC(void * startPC)
-   {
+TR_PersistentJittedBodyInfo *J9::Recompilation::getJittedBodyInfoFromPC(void *startPC)
+{
 #if defined(J9VM_OPT_JITSERVER)
-   TR_ASSERT_FATAL(!TR::CompilationInfo::getStream(), "This routine must not be used on the Server for a remote compile!");
+    TR_ASSERT_FATAL(!TR::CompilationInfo::getStream(),
+        "This routine must not be used on the Server for a remote compile!");
 #endif
 
-   TR_ASSERT(startPC, "startPC is null");
-   J9::PrivateLinkage::LinkageInfo * linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
-   if (!linkageInfo->isRecompMethodBody())
-      {
-      return NULL;
-      }
+    TR_ASSERT(startPC, "startPC is null");
+    J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
+    if (!linkageInfo->isRecompMethodBody()) {
+        return NULL;
+    }
 
-   int32_t jitEntryOffset = getJitEntryOffset(linkageInfo);
-   int32_t * jitEntry = (int32_t *) ((int8_t *) startPC + jitEntryOffset);
-   TR_PersistentJittedBodyInfo * info = NULL;
+    int32_t jitEntryOffset = getJitEntryOffset(linkageInfo);
+    int32_t *jitEntry = (int32_t *)((int8_t *)startPC + jitEntryOffset);
+    TR_PersistentJittedBodyInfo *info = NULL;
 
-   info = (*(TR_PersistentJittedBodyInfo * *) ((int8_t *) startPC + -(sizeof(uint32_t) + sizeof(intptr_t))));
+    info = (*(TR_PersistentJittedBodyInfo **)((int8_t *)startPC + -(sizeof(uint32_t) + sizeof(intptr_t))));
 
-   return info;
-   }
+    return info;
+}
 
 // Only called when sampling
-bool
-J9::Recompilation::isAlreadyPreparedForRecompile(void * startPC)
-   {
-   J9::PrivateLinkage::LinkageInfo * linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
-   int32_t jitEntryOffset = getJitEntryOffset(linkageInfo);
-   int32_t * jitEntry = (int32_t *) ((uint8_t *) startPC + jitEntryOffset);
-   uint32_t startInsn = *jitEntry;
+bool J9::Recompilation::isAlreadyPreparedForRecompile(void *startPC)
+{
+    J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
+    int32_t jitEntryOffset = getJitEntryOffset(linkageInfo);
+    int32_t *jitEntry = (int32_t *)((uint8_t *)startPC + jitEntryOffset);
+    uint32_t startInsn = *jitEntry;
 
-   int32_t jumpSize = -OFFSET_INTEP_SAMPLING_RECOMPILE_METHOD_TRAMPOLINE - jitEntryOffset;
-   uint32_t jumpBackInsn = (0x0000ffff & (jumpSize / 2)) | FOUR_BYTE_JUMP_INSTRUCTION;
-   return startInsn == jumpBackInsn;
-   }
-
+    int32_t jumpSize = -OFFSET_INTEP_SAMPLING_RECOMPILE_METHOD_TRAMPOLINE - jitEntryOffset;
+    uint32_t jumpBackInsn = (0x0000ffff & (jumpSize / 2)) | FOUR_BYTE_JUMP_INSTRUCTION;
+    return startInsn == jumpBackInsn;
+}
 
 // Changes the method in a way to make the current body unreachable, and to a) trigger a recompilation
 // or b) to redirect any future threads entering to jump to a freshly compiled body
@@ -127,275 +122,249 @@ J9::Recompilation::isAlreadyPreparedForRecompile(void * startPC)
 //    (oldMethodBody must be a sampling body)
 // o when prev assumptions fail and a sync recompilation is required
 //
-void
-J9::Recompilation::fixUpMethodCode(void * startPC)
-   {
+void J9::Recompilation::fixUpMethodCode(void *startPC)
+{
 #if defined(TR_HOST_64BIT)
-   const bool is64Bit = true;
+    const bool is64Bit = true;
 #else
-   const bool is64Bit = false;
+    const bool is64Bit = false;
 #endif
-   J9::PrivateLinkage::LinkageInfo * linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
+    J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
 
-   if (linkageInfo->isCountingMethodBody())
-      {
-      TR_PersistentJittedBodyInfo * bodyInfo = getJittedBodyInfoFromPC(startPC);
-      bodyInfo->setCounter(-1);
-      }
-   else
-      {
-      // Will overwrite the first instruction of the body--this should be a store of the link reg
-      // ie ST r14,4(r5).  Note that there will be preceding loads for the args for the interpreter
-      // entry point and these vary depending on # args, hence add adjustment for jitEntryOffset
-      int32_t jitEntryOffset = getJitEntryOffset(linkageInfo);
-      int32_t * jitEntry = (int32_t *) ((uint8_t *) startPC + jitEntryOffset);
-      int32_t preserved = *jitEntry;
-      int32_t jumpSize = -OFFSET_INTEP_SAMPLING_RECOMPILE_METHOD_TRAMPOLINE - jitEntryOffset;
-      uint32_t jumpBackInsn = (0x0000ffff & (jumpSize / 2)) | FOUR_BYTE_JUMP_INSTRUCTION;
+    if (linkageInfo->isCountingMethodBody()) {
+        TR_PersistentJittedBodyInfo *bodyInfo = getJittedBodyInfoFromPC(startPC);
+        bodyInfo->setCounter(-1);
+    } else {
+        // Will overwrite the first instruction of the body--this should be a store of the link reg
+        // ie ST r14,4(r5).  Note that there will be preceding loads for the args for the interpreter
+        // entry point and these vary depending on # args, hence add adjustment for jitEntryOffset
+        int32_t jitEntryOffset = getJitEntryOffset(linkageInfo);
+        int32_t *jitEntry = (int32_t *)((uint8_t *)startPC + jitEntryOffset);
+        int32_t preserved = *jitEntry;
+        int32_t jumpSize = -OFFSET_INTEP_SAMPLING_RECOMPILE_METHOD_TRAMPOLINE - jitEntryOffset;
+        uint32_t jumpBackInsn = (0x0000ffff & (jumpSize / 2)) | FOUR_BYTE_JUMP_INSTRUCTION;
 
-      // Atomically change the first instruction of the method to jmp back to the
-      // call instruction (when called from sampleMethod or invalidateMethodBody,
-      // the call is currently going to samplingRecompileMethod.  when called at
-      // the end of the async recompile, the call is going to samplingPatchCallSite)
-      //
+        // Atomically change the first instruction of the method to jmp back to the
+        // call instruction (when called from sampleMethod or invalidateMethodBody,
+        // the call is currently going to samplingRecompileMethod.  when called at
+        // the end of the async recompile, the call is going to samplingPatchCallSite)
+        //
 
-      // if already a jump, then we've lost the race
-      if ((0xffff0000 & preserved) == FOUR_BYTE_JUMP_INSTRUCTION)
-         {
-         return;
-         }
+        // if already a jump, then we've lost the race
+        if ((0xffff0000 & preserved) == FOUR_BYTE_JUMP_INSTRUCTION) {
+            return;
+        }
 
-      // This code will race with switchToInterpreter (NOTE2 in this file) if the following is not atomic
-      s390compareAndExchange4(jitEntry, preserved, jumpBackInsn);
+        // This code will race with switchToInterpreter (NOTE2 in this file) if the following is not atomic
+        s390compareAndExchange4(jitEntry, preserved, jumpBackInsn);
 
-      if (debug("traceRecompilation"))
-         {
-         ;//diagnostic("RC>>%p: modified %p from %p to %p, will jump to %p(%x)\n", startPC, jitEntry, preserved, jumpBackInsn, (char *) jitEntry + jumpSize, *(int *) ((char *) jitEntry + jumpSize));
-         }
-      }
-   }
+        if (debug("traceRecompilation")) {
+            ; // diagnostic("RC>>%p: modified %p from %p to %p, will jump to %p(%x)\n", startPC, jitEntry, preserved,
+              // jumpBackInsn, (char *) jitEntry + jumpSize, *(int *) ((char *) jitEntry + jumpSize));
+        }
+    }
+}
 
-void
-J9::Recompilation::methodHasBeenRecompiled(void * oldStartPC, void * newStartPC, TR_FrontEnd * fe)
-   {
-   J9::PrivateLinkage::LinkageInfo * linkageInfo = J9::PrivateLinkage::LinkageInfo::get(oldStartPC);
-   intptr_t distance, * patchAddr, newInstr, * codePtrAddr;
-   int32_t bytesToSaveAtStart;
-   int32_t jitEntryOffset = getJitEntryOffset(linkageInfo);
+void J9::Recompilation::methodHasBeenRecompiled(void *oldStartPC, void *newStartPC, TR_FrontEnd *fe)
+{
+    J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(oldStartPC);
+    intptr_t distance, *patchAddr, newInstr, *codePtrAddr;
+    int32_t bytesToSaveAtStart;
+    int32_t jitEntryOffset = getJitEntryOffset(linkageInfo);
 
 #if defined(TR_HOST_64BIT)
-   const bool is64Bit = true;
+    const bool is64Bit = true;
 #else
-   const bool is64Bit = false;
+    const bool is64Bit = false;
 #endif
 
-   if (debug("traceRecompilation"))
-      {
-      ;//diagnostic("RC>>Method successfully recompiled: %p -> %p\n", oldStartPC, newStartPC);
-      }
+    if (debug("traceRecompilation")) {
+        ; // diagnostic("RC>>Method successfully recompiled: %p -> %p\n", oldStartPC, newStartPC);
+    }
 
-   if (linkageInfo->isCountingMethodBody())
-      {
-      // The prologue looks something like
-      //
-      //   AHI r14,-3*regSize
-      //   STM r1,r2,regSize(sp)
-      //   ...
-      // Label1:
-      //   ST r14,4(r14) <- patching code
-      //   ...
-      //
-      //  will patch 1st instr with a jump to the patching code
-      // so it will look like:
-      //   BR Label1
-      //   STM r1,r2,regSize(sp)
-      //   ...
-      // Label1:
-      //   ST r14,4(r14) <- patching code
-      //   ...
+    if (linkageInfo->isCountingMethodBody()) {
+        // The prologue looks something like
+        //
+        //   AHI r14,-3*regSize
+        //   STM r1,r2,regSize(sp)
+        //   ...
+        // Label1:
+        //   ST r14,4(r14) <- patching code
+        //   ...
+        //
+        //  will patch 1st instr with a jump to the patching code
+        // so it will look like:
+        //   BR Label1
+        //   STM r1,r2,regSize(sp)
+        //   ...
+        // Label1:
+        //   ST r14,4(r14) <- patching code
+        //   ...
 
-      int32_t * patchInsnAddr;
-      patchInsnAddr = (int32_t *) ((uint8_t *) oldStartPC + jitEntryOffset);
-      if (debug("traceRecompilation"))
-         {
-         ;//diagnostic("Patching counting prologue, starting at %p(%x)\n", patchInsnAddr, *patchInsnAddr);
-         }
+        int32_t *patchInsnAddr;
+        patchInsnAddr = (int32_t *)((uint8_t *)oldStartPC + jitEntryOffset);
+        if (debug("traceRecompilation")) {
+            ; // diagnostic("Patching counting prologue, starting at %p(%x)\n", patchInsnAddr, *patchInsnAddr);
+        }
 
-      int32_t patchCodeOffset = OFFSET_JITEP_COUNTING_PATCH_CALL_SITE_SNIPPET_START;
-      *patchInsnAddr = FOUR_BYTE_JUMP_INSTRUCTION | ((patchCodeOffset / 2) & 0x0000ffff);
+        int32_t patchCodeOffset = OFFSET_JITEP_COUNTING_PATCH_CALL_SITE_SNIPPET_START;
+        *patchInsnAddr = FOUR_BYTE_JUMP_INSTRUCTION | ((patchCodeOffset / 2) & 0x0000ffff);
 
-      bytesToSaveAtStart = jitEntryOffset + OFFSET_JITEP_COUNTING_PATCH_CALL_SITE_SNIPPET_END;
-      }
-   else
-      {
-      intptr_t oldAsmAddr = 0;
-      intptr_t newAsmAddr = 0;
-      // Turn the call from samplingMethodRecompile to a call to samplingPatchCallSite
-      // basically, the address following the BASR gets patched
-      // BASR R4,0
-      //  L R4,8(R4)
-      //  BASR r14,r4
-      //  DC <old addressToRecompile>  <==== DC<addr to patch asm routine>
-      int32_t startPCToAsmOffset = OFFSET_INTEP_SAMPLING_RECOMPILE_METHOD_ADDRESS;
-      int32_t requiredPad; // pad can vary between methods, so must calculate each time
+        bytesToSaveAtStart = jitEntryOffset + OFFSET_JITEP_COUNTING_PATCH_CALL_SITE_SNIPPET_END;
+    } else {
+        intptr_t oldAsmAddr = 0;
+        intptr_t newAsmAddr = 0;
+        // Turn the call from samplingMethodRecompile to a call to samplingPatchCallSite
+        // basically, the address following the BASR gets patched
+        // BASR R4,0
+        //  L R4,8(R4)
+        //  BASR r14,r4
+        //  DC <old addressToRecompile>  <==== DC<addr to patch asm routine>
+        int32_t startPCToAsmOffset = OFFSET_INTEP_SAMPLING_RECOMPILE_METHOD_ADDRESS;
+        int32_t requiredPad; // pad can vary between methods, so must calculate each time
 
-      requiredPad = (startPCToAsmOffset + jitEntryOffset) % sizeof(intptr_t);
-      if (requiredPad)
-         {
-         requiredPad = sizeof(intptr_t) - requiredPad;
-         }
+        requiredPad = (startPCToAsmOffset + jitEntryOffset) % sizeof(intptr_t);
+        if (requiredPad) {
+            requiredPad = sizeof(intptr_t) - requiredPad;
+        }
 
-      patchAddr = (intptr_t *) ((uint8_t *) oldStartPC + -(startPCToAsmOffset + requiredPad));
-      oldAsmAddr = *patchAddr;
-      newAsmAddr = (intptr_t) runtimeHelpers.getFunctionEntryPointOrConst(TR_S390samplingPatchCallSite);
+        patchAddr = (intptr_t *)((uint8_t *)oldStartPC + -(startPCToAsmOffset + requiredPad));
+        oldAsmAddr = *patchAddr;
+        newAsmAddr = (intptr_t)runtimeHelpers.getFunctionEntryPointOrConst(TR_S390samplingPatchCallSite);
 
-      if (debug("traceRecompilation"))
-         {
-         ;//diagnostic("RC>>Attempted to patch %p from %p to %p...\n", patchAddr, oldAsmAddr, newAsmAddr);
-         }
+        if (debug("traceRecompilation")) {
+            ; // diagnostic("RC>>Attempted to patch %p from %p to %p...\n", patchAddr, oldAsmAddr, newAsmAddr);
+        }
 
 #if defined(TR_HOST_64BIT)
-      TR_ASSERT(0 == ((uint64_t) patchAddr % sizeof(intptr_t)), "Address %p is not word aligned\n", patchAddr);
+        TR_ASSERT(0 == ((uint64_t)patchAddr % sizeof(intptr_t)), "Address %p is not word aligned\n", patchAddr);
 #else
-      TR_ASSERT(0 == ((uint32_t) patchAddr % sizeof(intptr_t)), "Address %p is not word aligned\n", patchAddr);
+        TR_ASSERT(0 == ((uint32_t)patchAddr % sizeof(intptr_t)), "Address %p is not word aligned\n", patchAddr);
 #endif
-      *patchAddr = newAsmAddr;
+        *patchAddr = newAsmAddr;
 
-      // save jump at beginning
-      bytesToSaveAtStart = TR::InstOpCode::getInstructionLength(TR::InstOpCode::BRC) + jitEntryOffset;
+        // save jump at beginning
+        bytesToSaveAtStart = TR::InstOpCode::getInstructionLength(TR::InstOpCode::BRC) + jitEntryOffset;
 
-      // The order of this code sync sequence is important. Don't try to common them
-      // up and get out of order. For sync compilation, the old body must have been
-      // fixed up already.
-      // update: the above is no longer true when guarded counting recompilations is on.
-      fixUpMethodCode(oldStartPC);
-      }
+        // The order of this code sync sequence is important. Don't try to common them
+        // up and get out of order. For sync compilation, the old body must have been
+        // fixed up already.
+        // update: the above is no longer true when guarded counting recompilations is on.
+        fixUpMethodCode(oldStartPC);
+    }
 
-   bool codeMemoryWasAlreadyReleased = linkageInfo->hasBeenRecompiled(); // HCR - can recompile the same body twice
-   linkageInfo->setHasBeenRecompiled();
+    bool codeMemoryWasAlreadyReleased = linkageInfo->hasBeenRecompiled(); // HCR - can recompile the same body twice
+    linkageInfo->setHasBeenRecompiled();
 
-   // Now tell the VM that the method has been uncommitted - and the code memory
-   // allocated can be reused
-   //
-   if (!codeMemoryWasAlreadyReleased)
-      {
-      TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
-      fej9->releaseCodeMemory(oldStartPC, bytesToSaveAtStart);
-      }
-
-   }
+    // Now tell the VM that the method has been uncommitted - and the code memory
+    // allocated can be reused
+    //
+    if (!codeMemoryWasAlreadyReleased) {
+        TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
+        fej9->releaseCodeMemory(oldStartPC, bytesToSaveAtStart);
+    }
+}
 
 // For whatever reason, method cannot be recompiled, so reduce recompilation
 // related overhead and remove checks
-void
-J9::Recompilation::methodCannotBeRecompiled(void * oldStartPC, TR_FrontEnd * fe)
-   {
-   J9::PrivateLinkage::LinkageInfo * linkageInfo = J9::PrivateLinkage::LinkageInfo::get(oldStartPC);
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
-   int32_t * patchAddr, distance;
-   TR_ASSERT( linkageInfo->isSamplingMethodBody() && !linkageInfo->isCountingMethodBody() ||
-          !linkageInfo->isSamplingMethodBody() &&  linkageInfo->isCountingMethodBody(),
-          "Jitted body must be either sampling or counting");
-   TR_PersistentJittedBodyInfo * bodyInfo = getJittedBodyInfoFromPC(oldStartPC);
-   TR_PersistentMethodInfo * methodInfo = bodyInfo->getMethodInfo();
+void J9::Recompilation::methodCannotBeRecompiled(void *oldStartPC, TR_FrontEnd *fe)
+{
+    J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(oldStartPC);
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
+    int32_t *patchAddr, distance;
+    TR_ASSERT(linkageInfo->isSamplingMethodBody() && !linkageInfo->isCountingMethodBody()
+            || !linkageInfo->isSamplingMethodBody() && linkageInfo->isCountingMethodBody(),
+        "Jitted body must be either sampling or counting");
+    TR_PersistentJittedBodyInfo *bodyInfo = getJittedBodyInfoFromPC(oldStartPC);
+    TR_PersistentMethodInfo *methodInfo = bodyInfo->getMethodInfo();
 
 #if defined(TR_HOST_64BIT)
-   const bool is64Bit = true;
+    const bool is64Bit = true;
 #else
-   const bool is64Bit = false;
+    const bool is64Bit = false;
 #endif
 
-   if (debug("traceRecompilation"))
-      {
-      ;//diagnostic("RC>> Cannot recompile method @ %p\n", oldStartPC);
-      }
+    if (debug("traceRecompilation")) {
+        ; // diagnostic("RC>> Cannot recompile method @ %p\n", oldStartPC);
+    }
 
-   patchAddr = (int32_t *) ((uint8_t *) oldStartPC + getJitEntryOffset(linkageInfo));
+    patchAddr = (int32_t *)((uint8_t *)oldStartPC + getJitEntryOffset(linkageInfo));
 
-   if (bodyInfo->getUsesPreexistence()
-       || methodInfo->hasBeenReplaced()
-       || (linkageInfo->isSamplingMethodBody() && ! fej9->isAsyncCompilation()) // go interpreted for failed recomps in sync mode
-       || methodInfo->isExcludedPostRestore()) // go interpreted if method is excluded post restore
-      {
-      bool usesSampling = linkageInfo->isSamplingMethodBody();
-      // We need to switch the method to interpreted.  Change the first instruction of the
-      // method to jump back to the call to the interpreter dispatch
-      //
-      // NOTE2: this races with fixupMethodCode.  Once the following occurs, fixupMethodCode
-      // is prevented from succeeding.  To this end, fixupMethodCode uses an atomic
-      // compareAndExchange operation, which will fail if the following has already occurred.
-      uint32_t offset = OFFSET_INTEP_VM_CALL_HELPER_TRAMPOLINE;
+    if (bodyInfo->getUsesPreexistence() || methodInfo->hasBeenReplaced()
+        || (linkageInfo->isSamplingMethodBody()
+            && !fej9->isAsyncCompilation()) // go interpreted for failed recomps in sync mode
+        || methodInfo->isExcludedPostRestore()) // go interpreted if method is excluded post restore
+    {
+        bool usesSampling = linkageInfo->isSamplingMethodBody();
+        // We need to switch the method to interpreted.  Change the first instruction of the
+        // method to jump back to the call to the interpreter dispatch
+        //
+        // NOTE2: this races with fixupMethodCode.  Once the following occurs, fixupMethodCode
+        // is prevented from succeeding.  To this end, fixupMethodCode uses an atomic
+        // compareAndExchange operation, which will fail if the following has already occurred.
+        uint32_t offset = OFFSET_INTEP_VM_CALL_HELPER_TRAMPOLINE;
 
-      offset -= getJitEntryOffset(linkageInfo);
+        offset -= getJitEntryOffset(linkageInfo);
 
-      *patchAddr = FOUR_BYTE_JUMP_INSTRUCTION | ((offset / 2) & 0x0000ffff);
+        *patchAddr = FOUR_BYTE_JUMP_INSTRUCTION | ((offset / 2) & 0x0000ffff);
 
-      // Now tell the VM that the method needs to be switched back to Interpreted
-      //
-      if (!methodInfo->hasBeenReplaced()) // HCR: VM presumably already has the method in its proper state
-         fej9->revertToInterpreted(methodInfo->getMethodInfo());
+        // Now tell the VM that the method needs to be switched back to Interpreted
+        //
+        if (!methodInfo->hasBeenReplaced()) // HCR: VM presumably already has the method in its proper state
+            fej9->revertToInterpreted(methodInfo->getMethodInfo());
 
-      if (debug("traceRecompilation"))
-         {
-         ;//diagnostic("Reverted to interpreted method\n");
-         }
-      }
-   else if (linkageInfo->isCountingMethodBody())
-      {
-      /*
-      The counting prologue looks like this
-      AHI r14,-3*regSize  # reserve 3 slots for r1,r2, and resume addr
-      STM r1,r2,regSize(sp)
-      LARL r1,<offset to methodInfo1 above > or BASR r1,0;L r1,<off to MI2 below>(r1)
-      L r2,0(r1)
-      LTR R2,R2
-      BGE LabelResume
-      BASR r2,0
-      AHI r2,<offset to LabelResume>
-      ST  r2,0(sp) # store resume point
-      AHI r2,-addressSize (assume to be regSize)
-      L r2,0(r2)
-      BR 2
-      DC <address of asm snippet>
-      DC <methodInfo addr> # only on G5 hardware
+        if (debug("traceRecompilation")) {
+            ; // diagnostic("Reverted to interpreted method\n");
+        }
+    } else if (linkageInfo->isCountingMethodBody()) {
+        /*
+        The counting prologue looks like this
+        AHI r14,-3*regSize  # reserve 3 slots for r1,r2, and resume addr
+        STM r1,r2,regSize(sp)
+        LARL r1,<offset to methodInfo1 above > or BASR r1,0;L r1,<off to MI2 below>(r1)
+        L r2,0(r1)
+        LTR R2,R2
+        BGE LabelResume
+        BASR r2,0
+        AHI r2,<offset to LabelResume>
+        ST  r2,0(sp) # store resume point
+        AHI r2,-addressSize (assume to be regSize)
+        L r2,0(r2)
+        BR 2
+        DC <address of asm snippet>
+        DC <methodInfo addr> # only on G5 hardware
+          ...
+        LabelResume
         ...
-      LabelResume
-      ...
-      overwrite AHI with a jump past all this to the original prologue:
-      JL LabelResume
-      STM r1,r2,regSize(sp)
-      ...
-      LabelResume
-      ...
-      */
-      uint32_t offset;
-      offset = COUNTING_PROLOGUE_SIZE;
+        overwrite AHI with a jump past all this to the original prologue:
+        JL LabelResume
+        STM r1,r2,regSize(sp)
+        ...
+        LabelResume
+        ...
+        */
+        uint32_t offset;
+        offset = COUNTING_PROLOGUE_SIZE;
 
-      *patchAddr = FOUR_BYTE_JUMP_INSTRUCTION | ((offset / 2) & 0x0000ffff);
+        *patchAddr = FOUR_BYTE_JUMP_INSTRUCTION | ((offset / 2) & 0x0000ffff);
 
+        TR_PersistentProfileInfo *profileInfo = bodyInfo->getProfileInfo();
+        if (profileInfo) {
+            profileInfo->setProfilingFrequency(INT_MAX);
+            profileInfo->setProfilingCount(-1);
+        }
+    } else {
+        // For async compilation, the old method is not fixed up anyway
+        if (!fej9->isAsyncCompilation()) {
+            uint32_t prevValue = *patchAddr;
+            restoreJitEntryPoint((uint8_t *)oldStartPC, (uint8_t *)patchAddr);
+            if (debug("traceRecompilation")) {
+                uint32_t *saveLocn = (uint32_t *)((uint8_t *)oldStartPC + OFFSET_INTEP_JITEP_SAVE_RESTORE_LOCATION);
 
-      TR_PersistentProfileInfo * profileInfo = bodyInfo->getProfileInfo();
-      if (profileInfo)
-         {
-         profileInfo->setProfilingFrequency(INT_MAX);
-         profileInfo->setProfilingCount(-1);
-         }
-      }
-   else
-      {
-      // For async compilation, the old method is not fixed up anyway
-      if (!fej9->isAsyncCompilation())
-         {
-         uint32_t prevValue = *patchAddr;
-         restoreJitEntryPoint((uint8_t*)oldStartPC, (uint8_t*)patchAddr);
-         if (debug("traceRecompilation"))
-            {
-            uint32_t * saveLocn = (uint32_t*)((uint8_t*)oldStartPC + OFFSET_INTEP_JITEP_SAVE_RESTORE_LOCATION);
-
-
-            ;//diagnostic("RC>>Jit entry point %p(%x->%x) restored saveLocn %p(%x)\n",patchAddr,*patchAddr, prevValue,saveLocn,*saveLocn);
+                ; // diagnostic("RC>>Jit entry point %p(%x->%x) restored saveLocn %p(%x)\n",patchAddr,*patchAddr,
+                  // prevValue,saveLocn,*saveLocn);
             }
-         }
-      }
-   linkageInfo->setHasFailedRecompilation();
-   }
+        }
+    }
+    linkageInfo->setHasFailedRecompilation();
+}

@@ -51,10 +51,10 @@
 #include "p/codegen/PPCInstruction.hpp"
 #include "runtime/J9Runtime.hpp"
 
-TR::Instruction *generateVirtualGuardNOPInstruction(TR::CodeGenerator *cg,  TR::Node *n, TR_VirtualGuardSite *site,
-   TR::RegisterDependencyConditions *cond, TR::LabelSymbol *sym, TR::Instruction *preced)
-   {
-   if (preced)
-      return new (cg->trHeapMemory()) TR::PPCVirtualGuardNOPInstruction(n, site, cond, sym, preced, cg);
-   return new (cg->trHeapMemory()) TR::PPCVirtualGuardNOPInstruction(n, site, cond, sym, cg);
-   }
+TR::Instruction *generateVirtualGuardNOPInstruction(TR::CodeGenerator *cg, TR::Node *n, TR_VirtualGuardSite *site,
+    TR::RegisterDependencyConditions *cond, TR::LabelSymbol *sym, TR::Instruction *preced)
+{
+    if (preced)
+        return new (cg->trHeapMemory()) TR::PPCVirtualGuardNOPInstruction(n, site, cond, sym, preced, cg);
+    return new (cg->trHeapMemory()) TR::PPCVirtualGuardNOPInstruction(n, site, cond, sym, cg);
+}

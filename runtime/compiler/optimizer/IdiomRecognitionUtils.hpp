@@ -33,23 +33,24 @@ class TR_CISCNode;
 class TR_CISCTransformer;
 class TR_PCISCGraph;
 class TR_PCISCNode;
+
 namespace TR {
 class SymbolReference;
 class Block;
 class Compilation;
 class Node;
-}
-template <class T> class List;
+} // namespace TR
+template<class T> class List;
 
-enum
-   {
-   CISCUtilCtl_64Bit = 1,
-   CISCUtilCtl_NoI2L = 2,
-   CISCUtilCtl_ChildDirectConnected = 4,
-   CISCUtilCtl_BigEndian = 8,
-   CISCUtilCtl_NoConversion = 16,
-   CISCUtilCtl_AllConversion = 32
-   };
+enum {
+    CISCUtilCtl_64Bit = 1,
+    CISCUtilCtl_NoI2L = 2,
+    CISCUtilCtl_ChildDirectConnected = 4,
+    CISCUtilCtl_BigEndian = 8,
+    CISCUtilCtl_NoConversion = 16,
+    CISCUtilCtl_AllConversion = 32
+};
+
 TR_PCISCGraph *makeStrlen16Graph(TR::Compilation *c, int32_t ctrl);
 TR_PCISCGraph *makePtrArraySetGraph(TR::Compilation *c, int32_t ctrl);
 TR_PCISCGraph *makeMemSetGraph(TR::Compilation *c, int32_t ctrl);
@@ -93,68 +94,102 @@ TR_PCISCGraph *makeCountDecimalDigitLongGraph(TR::Compilation *c, int32_t ctrl, 
 TR_PCISCGraph *makeCountDecimalDigitIntGraph(TR::Compilation *c, int32_t ctrl, bool isDiv2Mul);
 TR_PCISCGraph *makeLongToStringGraph(TR::Compilation *c, int32_t ctrl);
 TR_PCISCGraph *makeIntToStringGraph(TR::Compilation *c, int32_t ctrl, bool isDiv2Mul);
-TR_PCISCNode *createIdiomIOP2VarInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, int opcode, TR_PCISCNode *v, TR_PCISCNode *subval);
-TR_PCISCNode *createIdiomIOP2VarInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, int opcode, TR_PCISCNode *v, TR_PCISCNode *src1, TR_PCISCNode *subval);
-TR_PCISCNode *createIdiomDecVarInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, TR_PCISCNode *v, TR_PCISCNode *src1, TR_PCISCNode *subval);
-TR_PCISCNode *createIdiomIncVarInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, TR_PCISCNode *v, TR_PCISCNode *src1, TR_PCISCNode *subval);
-TR_PCISCNode *createIdiomDecVarInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, TR_PCISCNode *v, TR_PCISCNode *subval);
-TR_PCISCNode *createIdiomIncVarInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, TR_PCISCNode *v, TR_PCISCNode *subval);
+TR_PCISCNode *createIdiomIOP2VarInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, int opcode,
+    TR_PCISCNode *v, TR_PCISCNode *subval);
+TR_PCISCNode *createIdiomIOP2VarInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, int opcode,
+    TR_PCISCNode *v, TR_PCISCNode *src1, TR_PCISCNode *subval);
+TR_PCISCNode *createIdiomDecVarInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, TR_PCISCNode *v,
+    TR_PCISCNode *src1, TR_PCISCNode *subval);
+TR_PCISCNode *createIdiomIncVarInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, TR_PCISCNode *v,
+    TR_PCISCNode *src1, TR_PCISCNode *subval);
+TR_PCISCNode *createIdiomDecVarInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, TR_PCISCNode *v,
+    TR_PCISCNode *subval);
+TR_PCISCNode *createIdiomIncVarInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, TR_PCISCNode *v,
+    TR_PCISCNode *subval);
 TR_PCISCNode *createIdiomArrayRelatedConst(TR_PCISCGraph *tgt, int32_t ctrl, uint16_t id, int dagId, int32_t val);
 TR_PCISCNode *createIdiomArrayHeaderConst(TR_PCISCGraph *tgt, int32_t ctrl, uint16_t id, int dagId, TR::Compilation *c);
-TR_PCISCNode *createIdiomArrayAddressInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, TR_PCISCNode *base, TR_PCISCNode *indexTree);
-TR_PCISCNode *createIdiomI2LIfNecessary(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode **pred, TR_PCISCNode *node);
-TR_PCISCNode *createIdiomArrayAddressIndexTreeInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, TR_PCISCNode *index, TR_PCISCNode *cmah, TR_PCISCNode *const2);
-TR_PCISCNode *createIdiomArrayAddressInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, TR_PCISCNode *base, TR_PCISCNode *index, TR_PCISCNode *cmah, TR_PCISCNode *const2);
-TR_PCISCNode *createIdiomCharArrayLoadInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, TR_PCISCNode *base, TR_PCISCNode *index, TR_PCISCNode *cmah, TR_PCISCNode *const2);
-TR_PCISCNode *createIdiomArrayLoadInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, int opcode, TR::DataType, TR_PCISCNode *base, TR_PCISCNode *index, TR_PCISCNode *cmah, TR_PCISCNode *mulconst);
-TR_PCISCNode *createIdiomArrayStoreBodyInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, int opcode, TR_PCISCNode *addr, TR_PCISCNode *storeval);
-TR_PCISCNode *createIdiomCharArrayStoreBodyInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, TR_PCISCNode *addr, TR_PCISCNode *storeval);
-TR_PCISCNode *createIdiomCharArrayStoreInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, TR_PCISCNode *base, TR_PCISCNode *index, TR_PCISCNode *cmah, TR_PCISCNode *const2, TR_PCISCNode *storeval);
-TR_PCISCNode *createIdiomArrayStoreInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, int opcode, TR::DataType, TR_PCISCNode *base, TR_PCISCNode *index, TR_PCISCNode *cmah, TR_PCISCNode *const2, TR_PCISCNode *storeval);
-TR_PCISCNode *createIdiomByteDirectArrayLoadInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, TR_PCISCNode *base, TR_PCISCNode *index);
-TR_PCISCNode *createIdiomIDiv10InLoop(TR_PCISCGraph *tgt, int32_t ctrl, bool isDiv2Mul, int dagId, TR_PCISCNode *pred, TR_PCISCNode *src1, TR_PCISCNode *src2, TR_PCISCNode *c2, TR_PCISCNode *c31);
+TR_PCISCNode *createIdiomArrayAddressInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred,
+    TR_PCISCNode *base, TR_PCISCNode *indexTree);
+TR_PCISCNode *createIdiomI2LIfNecessary(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode **pred,
+    TR_PCISCNode *node);
+TR_PCISCNode *createIdiomArrayAddressIndexTreeInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred,
+    TR_PCISCNode *index, TR_PCISCNode *cmah, TR_PCISCNode *const2);
+TR_PCISCNode *createIdiomArrayAddressInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred,
+    TR_PCISCNode *base, TR_PCISCNode *index, TR_PCISCNode *cmah, TR_PCISCNode *const2);
+TR_PCISCNode *createIdiomCharArrayLoadInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred,
+    TR_PCISCNode *base, TR_PCISCNode *index, TR_PCISCNode *cmah, TR_PCISCNode *const2);
+TR_PCISCNode *createIdiomArrayLoadInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, int opcode,
+    TR::DataType, TR_PCISCNode *base, TR_PCISCNode *index, TR_PCISCNode *cmah, TR_PCISCNode *mulconst);
+TR_PCISCNode *createIdiomArrayStoreBodyInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred,
+    int opcode, TR_PCISCNode *addr, TR_PCISCNode *storeval);
+TR_PCISCNode *createIdiomCharArrayStoreBodyInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred,
+    TR_PCISCNode *addr, TR_PCISCNode *storeval);
+TR_PCISCNode *createIdiomCharArrayStoreInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred,
+    TR_PCISCNode *base, TR_PCISCNode *index, TR_PCISCNode *cmah, TR_PCISCNode *const2, TR_PCISCNode *storeval);
+TR_PCISCNode *createIdiomArrayStoreInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred, int opcode,
+    TR::DataType, TR_PCISCNode *base, TR_PCISCNode *index, TR_PCISCNode *cmah, TR_PCISCNode *const2,
+    TR_PCISCNode *storeval);
+TR_PCISCNode *createIdiomByteDirectArrayLoadInLoop(TR_PCISCGraph *tgt, int32_t ctrl, int dagId, TR_PCISCNode *pred,
+    TR_PCISCNode *base, TR_PCISCNode *index);
+TR_PCISCNode *createIdiomIDiv10InLoop(TR_PCISCGraph *tgt, int32_t ctrl, bool isDiv2Mul, int dagId, TR_PCISCNode *pred,
+    TR_PCISCNode *src1, TR_PCISCNode *src2, TR_PCISCNode *c2, TR_PCISCNode *c31);
 bool searchNodeInBlock(TR_CISCNode *start, TR_CISCNode *target);
-bool checkSuccsSet(TR_CISCTransformer *const trans, TR_CISCNode *t, TR_BitVector *const pBV);
-bool getThreeNodesForArray(TR_CISCNode *top, TR_CISCNode **ixload, TR_CISCNode **aload, TR_CISCNode **iload, bool allowArrayIndex = false);
+bool checkSuccsSet(TR_CISCTransformer * const trans, TR_CISCNode *t, TR_BitVector * const pBV);
+bool getThreeNodesForArray(TR_CISCNode *top, TR_CISCNode **ixload, TR_CISCNode **aload, TR_CISCNode **iload,
+    bool allowArrayIndex = false);
 bool testExitIF(int opcode, bool *isDecrement = NULL, int32_t *modLength = NULL, int32_t *modStartIdx = NULL);
 bool testIConst(TR_CISCNode *n, int idx, int32_t value);
-TR::Node* createI2LIfNecessary(TR::Compilation *comp, bool is64bit, TR::Node *child);
-TR::Node* createLoadWithI2LIfNecessary(TR::Compilation *comp, bool is64bit, TR::Node *indexNode);
-TR::Node* createBytesFromElement(TR::Compilation *comp, bool is64bit, TR::Node *indexNode, int multiply);
-TR::Node* createIndexOffsetTree(TR::Compilation *comp, bool is64bit, TR::Node *indexNode, int multiply);
-TR::Node* createLoad(TR::Node *baseNode);
-TR::Node* createArrayHeaderConst(TR::Compilation *comp, bool is64bit, TR::Node *baseNode);
-TR::Node* createArrayTopAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode);
-TR::Node* createArrayAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode, TR::Node *indexNode, int multiply = 1);
-TR::Node* createArrayLoad(TR::Compilation *comp, bool is64bit, TR::Node *ixload, TR::Node *baseNode, TR::Node *indexNode, int multiply = 1);
-TR::Node* replaceIndexInAddressTree(TR::Compilation *comp, TR::Node *tree, TR::SymbolReference *symRef, TR::Node *newNode);
-TR::Node* createTableLoad(TR::Compilation *comp, TR::Node* repNode, uint8_t inputSize, uint8_t outputSize, void *array, bool dispTrace);
-TR::Node* createOP2(TR::Compilation *comp, TR::ILOpCodes op2, TR::Node* ch1, TR::Node* ch2);
-TR::Node* createStoreOP2(TR::Compilation *comp, TR::Node* storeNode, TR::ILOpCodes op2, TR::Node* ch1, TR::Node* ch2);
-TR::Node* createStoreOP2(TR::Compilation *comp, TR::SymbolReference* store, TR::ILOpCodes op2, TR::SymbolReference* ch1, TR::Node* ch2, TR::Node *rep);
-TR::Node* createStoreOP2(TR::Compilation *comp, TR::SymbolReference* store, TR::ILOpCodes op2, TR::SymbolReference* ch1, TR::SymbolReference* ch2, TR::Node *rep);
-TR::Node* createStoreOP2(TR::Compilation *comp, TR::SymbolReference* store, TR::ILOpCodes op2, TR::SymbolReference* ch1, int ch2Const, TR::Node *rep);
-TR::Node* createMin(TR::Compilation *comp, TR::Node* x, TR::Node* y);
-TR::Node* createMax(TR::Compilation *comp, TR::Node* x, TR::Node* y);
-TR::Node* convertStoreToLoadWithI2LIfNecessary(TR::Compilation *comp, bool is64bit, TR::Node *indexNode);
-TR::Node* convertStoreToLoad(TR::Compilation *comp, TR::Node *indexNode);
-TR::Node* modifyArrayHeaderConst(TR::Compilation *comp, TR::Node *tree, int32_t offset);
-bool getMultiplier(TR_CISCTransformer *trans, TR_CISCNode *mulConst, TR::Node **multiplier, int *elementSize, TR::DataType srcNodeType);
-void getP2TTrRepNodes(TR_CISCTransformer *trans, TR::Node** array, int count);
-void getP2TTrRepNodes(TR_CISCTransformer *trans, TR::Node** n1, TR::Node** n2);
-void getP2TTrRepNodes(TR_CISCTransformer *trans, TR::Node** n1, TR::Node** n2, TR::Node** n3);
-void getP2TTrRepNodes(TR_CISCTransformer *trans, TR::Node** n1, TR::Node** n2, TR::Node** n3, TR::Node** n4);
-void getP2TTrRepNodes(TR_CISCTransformer *trans, TR::Node** n1, TR::Node** n2, TR::Node** n3, TR::Node** n4, TR::Node** n5);
-void getP2TTrRepNodes(TR_CISCTransformer *trans, TR::Node** n1, TR::Node** n2, TR::Node** n3, TR::Node** n4, TR::Node** n5, TR::Node** n6);
-void getP2TTrRepNodes(TR_CISCTransformer *trans, TR::Node** n1, TR::Node** n2, TR::Node** n3, TR::Node** n4, TR::Node** n5, TR::Node** n6, TR::Node** n7);
+TR::Node *createI2LIfNecessary(TR::Compilation *comp, bool is64bit, TR::Node *child);
+TR::Node *createLoadWithI2LIfNecessary(TR::Compilation *comp, bool is64bit, TR::Node *indexNode);
+TR::Node *createBytesFromElement(TR::Compilation *comp, bool is64bit, TR::Node *indexNode, int multiply);
+TR::Node *createIndexOffsetTree(TR::Compilation *comp, bool is64bit, TR::Node *indexNode, int multiply);
+TR::Node *createLoad(TR::Node *baseNode);
+TR::Node *createArrayHeaderConst(TR::Compilation *comp, bool is64bit, TR::Node *baseNode);
+TR::Node *createArrayTopAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode);
+TR::Node *createArrayAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode, TR::Node *indexNode,
+    int multiply = 1);
+TR::Node *createArrayLoad(TR::Compilation *comp, bool is64bit, TR::Node *ixload, TR::Node *baseNode,
+    TR::Node *indexNode, int multiply = 1);
+TR::Node *replaceIndexInAddressTree(TR::Compilation *comp, TR::Node *tree, TR::SymbolReference *symRef,
+    TR::Node *newNode);
+TR::Node *createTableLoad(TR::Compilation *comp, TR::Node *repNode, uint8_t inputSize, uint8_t outputSize, void *array,
+    bool dispTrace);
+TR::Node *createOP2(TR::Compilation *comp, TR::ILOpCodes op2, TR::Node *ch1, TR::Node *ch2);
+TR::Node *createStoreOP2(TR::Compilation *comp, TR::Node *storeNode, TR::ILOpCodes op2, TR::Node *ch1, TR::Node *ch2);
+TR::Node *createStoreOP2(TR::Compilation *comp, TR::SymbolReference *store, TR::ILOpCodes op2, TR::SymbolReference *ch1,
+    TR::Node *ch2, TR::Node *rep);
+TR::Node *createStoreOP2(TR::Compilation *comp, TR::SymbolReference *store, TR::ILOpCodes op2, TR::SymbolReference *ch1,
+    TR::SymbolReference *ch2, TR::Node *rep);
+TR::Node *createStoreOP2(TR::Compilation *comp, TR::SymbolReference *store, TR::ILOpCodes op2, TR::SymbolReference *ch1,
+    int ch2Const, TR::Node *rep);
+TR::Node *createMin(TR::Compilation *comp, TR::Node *x, TR::Node *y);
+TR::Node *createMax(TR::Compilation *comp, TR::Node *x, TR::Node *y);
+TR::Node *convertStoreToLoadWithI2LIfNecessary(TR::Compilation *comp, bool is64bit, TR::Node *indexNode);
+TR::Node *convertStoreToLoad(TR::Compilation *comp, TR::Node *indexNode);
+TR::Node *modifyArrayHeaderConst(TR::Compilation *comp, TR::Node *tree, int32_t offset);
+bool getMultiplier(TR_CISCTransformer *trans, TR_CISCNode *mulConst, TR::Node **multiplier, int *elementSize,
+    TR::DataType srcNodeType);
+void getP2TTrRepNodes(TR_CISCTransformer *trans, TR::Node **array, int count);
+void getP2TTrRepNodes(TR_CISCTransformer *trans, TR::Node **n1, TR::Node **n2);
+void getP2TTrRepNodes(TR_CISCTransformer *trans, TR::Node **n1, TR::Node **n2, TR::Node **n3);
+void getP2TTrRepNodes(TR_CISCTransformer *trans, TR::Node **n1, TR::Node **n2, TR::Node **n3, TR::Node **n4);
+void getP2TTrRepNodes(TR_CISCTransformer *trans, TR::Node **n1, TR::Node **n2, TR::Node **n3, TR::Node **n4,
+    TR::Node **n5);
+void getP2TTrRepNodes(TR_CISCTransformer *trans, TR::Node **n1, TR::Node **n2, TR::Node **n3, TR::Node **n4,
+    TR::Node **n5, TR::Node **n6);
+void getP2TTrRepNodes(TR_CISCTransformer *trans, TR::Node **n1, TR::Node **n2, TR::Node **n3, TR::Node **n4,
+    TR::Node **n5, TR::Node **n6, TR::Node **n7);
 bool isFitTRTFunctionTable(uint8_t *table);
-TR::Node* createTableAlignmentCheck(TR::Compilation *comp, TR::Node *tableNode, bool isByteSource, bool isByteTarget, bool tableBackedByRawStorage);
-List<TR_CISCNode>* sortList(List<TR_CISCNode>* input, List<TR_CISCNode>* output, List<TR_CISCNode>* order, bool reverse = false);
+TR::Node *createTableAlignmentCheck(TR::Compilation *comp, TR::Node *tableNode, bool isByteSource, bool isByteTarget,
+    bool tableBackedByRawStorage);
+List<TR_CISCNode> *sortList(List<TR_CISCNode> *input, List<TR_CISCNode> *output, List<TR_CISCNode> *order,
+    bool reverse = false);
 
-void dump256Bytes(uint8_t *t, TR::Compilation * comp);
+void dump256Bytes(uint8_t *t, TR::Compilation *comp);
 
 bool isLoopPreheaderLastBlockInMethod(TR::Compilation *comp, TR::Block *block, TR::Block **predBlock = NULL);
-bool findAndOrReplaceNodesWithMatchingSymRefNumber(TR::Node *curNode, TR::Node *targetNode, int32_t symRefNumberToBeMatched);
+bool findAndOrReplaceNodesWithMatchingSymRefNumber(TR::Node *curNode, TR::Node *targetNode,
+    int32_t symRefNumberToBeMatched);
 TR::Node *findLoadWithMatchingSymRefNumber(TR::Node *curNode, int32_t symRefNumberToBeMatched);
 
 #endif

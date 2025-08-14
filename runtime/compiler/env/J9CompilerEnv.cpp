@@ -29,100 +29,84 @@
 #include "control/CompilationRuntime.hpp"
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
-J9::CompilerEnv::CompilerEnv(J9JavaVM *vm, TR::RawAllocator raw, const TR::PersistentAllocatorKit &persistentAllocatorKit) :
+J9::CompilerEnv::CompilerEnv(J9JavaVM *vm, TR::RawAllocator raw,
+    const TR::PersistentAllocatorKit &persistentAllocatorKit)
+    :
 #if defined(TR_HOST_ARM)
-   OMR::CompilerEnvConnector(raw, persistentAllocatorKit),
+    OMR::CompilerEnvConnector(raw, persistentAllocatorKit)
+    ,
 #else
-   OMR::CompilerEnvConnector(raw, persistentAllocatorKit, OMRPORT_FROM_J9PORT(vm->portLibrary)),
+    OMR::CompilerEnvConnector(raw, persistentAllocatorKit, OMRPORT_FROM_J9PORT(vm->portLibrary))
+    ,
 #endif
-   portLib(vm->portLibrary),
-   javaVM(vm)
-   {
-   }
+    portLib(vm->portLibrary)
+    , javaVM(vm)
+{}
 
-void
-J9::CompilerEnv::initializeTargetEnvironment()
-   {
-   OMR::CompilerEnvConnector::initializeTargetEnvironment();
-   }
+void J9::CompilerEnv::initializeTargetEnvironment() { OMR::CompilerEnvConnector::initializeTargetEnvironment(); }
 
-void
-J9::CompilerEnv::initializeRelocatableTargetEnvironment()
-   {
-   OMR::CompilerEnvConnector::initializeRelocatableTargetEnvironment();
-   if (J9_ARE_ANY_BITS_SET(javaVM->extendedRuntimeFlags2, J9_EXTENDED_RUNTIME2_ENABLE_PORTABLE_SHARED_CACHE))
-      relocatableTarget.cpu = TR::CPU::detectRelocatable(omrPortLib);
-   }
+void J9::CompilerEnv::initializeRelocatableTargetEnvironment()
+{
+    OMR::CompilerEnvConnector::initializeRelocatableTargetEnvironment();
+    if (J9_ARE_ANY_BITS_SET(javaVM->extendedRuntimeFlags2, J9_EXTENDED_RUNTIME2_ENABLE_PORTABLE_SHARED_CACHE))
+        relocatableTarget.cpu = TR::CPU::detectRelocatable(omrPortLib);
+}
 
 /**
  * \brief Determines whether methods are compiled and the generated code simply
  *        "tossed" without execution.
  * \return true if compiles have been requested to be tossed; false otherwise.
  */
-bool
-J9::CompilerEnv::isCodeTossed()
-   {
-   J9JITConfig *jitConfig = javaVM->jitConfig;
+bool J9::CompilerEnv::isCodeTossed()
+{
+    J9JITConfig *jitConfig = javaVM->jitConfig;
 
-   if (jitConfig == NULL)
-      {
-      return false;
-      }
+    if (jitConfig == NULL) {
+        return false;
+    }
 
-   if (jitConfig->runtimeFlags & J9JIT_TOSS_CODE)
-      {
-      return true;
-      }
+    if (jitConfig->runtimeFlags & J9JIT_TOSS_CODE) {
+        return true;
+    }
 
-   return false;
-   }
+    return false;
+}
 
-TR::PersistentAllocator &
-J9::CompilerEnv::persistentAllocator()
-   {
+TR::PersistentAllocator &J9::CompilerEnv::persistentAllocator()
+{
 #if defined(J9VM_OPT_JITSERVER)
-   if (J9::PersistentInfo::_remoteCompilationMode == JITServer::SERVER)
-      {
-      auto compInfoPT = TR::compInfoPT;
-      if (compInfoPT && compInfoPT->getPerClientPersistentMemory())
-         {
-         // Returns per-client allocator after enterPerClientPersistentAllocator() is called
-         return compInfoPT->getPerClientPersistentMemory()->_persistentAllocator.get();
-         }
-      }
+    if (J9::PersistentInfo::_remoteCompilationMode == JITServer::SERVER) {
+        auto compInfoPT = TR::compInfoPT;
+        if (compInfoPT && compInfoPT->getPerClientPersistentMemory()) {
+            // Returns per-client allocator after enterPerClientPersistentAllocator() is called
+            return compInfoPT->getPerClientPersistentMemory()->_persistentAllocator.get();
+        }
+    }
 #endif
-   return OMR::CompilerEnv::persistentAllocator();
-   }
+    return OMR::CompilerEnv::persistentAllocator();
+}
 
-TR_PersistentMemory *
-J9::CompilerEnv::persistentMemory()
-   {
+TR_PersistentMemory *J9::CompilerEnv::persistentMemory()
+{
 #if defined(J9VM_OPT_JITSERVER)
-   if (J9::PersistentInfo::_remoteCompilationMode == JITServer::SERVER)
-      {
-      auto compInfoPT = TR::compInfoPT;
-      if (compInfoPT && compInfoPT->getPerClientPersistentMemory())
-         {
-         // Returns per-client persistent memory after enterPerClientPersistentAllocator() is called
-         return compInfoPT->getPerClientPersistentMemory();
-         }
-      }
+    if (J9::PersistentInfo::_remoteCompilationMode == JITServer::SERVER) {
+        auto compInfoPT = TR::compInfoPT;
+        if (compInfoPT && compInfoPT->getPerClientPersistentMemory()) {
+            // Returns per-client persistent memory after enterPerClientPersistentAllocator() is called
+            return compInfoPT->getPerClientPersistentMemory();
+        }
+    }
 #endif
-   return OMR::CompilerEnv::persistentMemory();
-   }
+    return OMR::CompilerEnv::persistentMemory();
+}
 
 #if defined(J9VM_OPT_JITSERVER)
 
-TR::PersistentAllocator &
-J9::CompilerEnv::persistentGlobalAllocator()
-   {
-   return OMR::CompilerEnv::persistentAllocator();
-   }
+TR::PersistentAllocator &J9::CompilerEnv::persistentGlobalAllocator()
+{
+    return OMR::CompilerEnv::persistentAllocator();
+}
 
-TR_PersistentMemory *
-J9::CompilerEnv::persistentGlobalMemory()
-   {
-   return OMR::CompilerEnv::persistentMemory();
-   }
+TR_PersistentMemory *J9::CompilerEnv::persistentGlobalMemory() { return OMR::CompilerEnv::persistentMemory(); }
 
 #endif /* defined(J9VM_OPT_JITSERVER) */

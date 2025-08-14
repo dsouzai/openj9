@@ -28,46 +28,34 @@
  */
 #ifndef J9_CODEGENERATOR_CONNECTOR
 #define J9_CODEGENERATOR_CONNECTOR
+
 namespace J9 {
-namespace X86 { namespace AMD64 { class CodeGenerator; } }
+namespace X86 { namespace AMD64 {
+class CodeGenerator;
+}} // namespace X86::AMD64
+
 typedef J9::X86::AMD64::CodeGenerator CodeGeneratorConnector;
-}
+} // namespace J9
 #else
 #error J9::X86::AMD64::CodeGenerator expected to be a primary connector, but a J9 connector is already defined
 #endif
 
-
-
 #include "x/codegen/J9CodeGenerator.hpp"
 
-namespace J9
-{
+namespace J9 { namespace X86 { namespace AMD64 {
 
-namespace X86
-{
-
-namespace AMD64
-{
-
-class OMR_EXTENSIBLE CodeGenerator : public J9::X86::CodeGenerator
-   {
-
+class OMR_EXTENSIBLE CodeGenerator : public J9::X86::CodeGenerator {
 protected:
-
-   CodeGenerator(TR::Compilation *comp) :
-      J9::X86::CodeGenerator(comp) {}
+    CodeGenerator(TR::Compilation *comp)
+        : J9::X86::CodeGenerator(comp)
+    {}
 
 public:
+    void initialize();
 
-   void initialize();
+    TR::Linkage *createLinkage(TR_LinkageConventions lc);
+};
 
-   TR::Linkage *createLinkage(TR_LinkageConventions lc);
-   };
-
-} // namespace AMD64
-
-} // namespace X86
-
-} // namespace J9
+}}} // namespace J9::X86::AMD64
 
 #endif

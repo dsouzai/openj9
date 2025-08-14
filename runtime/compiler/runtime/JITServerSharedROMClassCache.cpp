@@ -25,322 +25,288 @@
 #include "infra/CriticalSection.hpp"
 #include "runtime/JITServerSharedROMClassCache.hpp"
 
-
 #define JITSERVER_SHARED_ROMCLASS_EYECATCHER 0xC1A55E7E
 
-struct JITServerSharedROMClassCache::Entry
-   {
-   Entry(const J9ROMClass *romClass) :
-      _refCount(1), _hash(NULL), _eyeCatcher(JITSERVER_SHARED_ROMCLASS_EYECATCHER)
-      {
-      memcpy(_data, romClass, romClass->romSize);
-      }
+struct JITServerSharedROMClassCache::Entry {
+    Entry(const J9ROMClass *romClass)
+        : _refCount(1)
+        , _hash(NULL)
+        , _eyeCatcher(JITSERVER_SHARED_ROMCLASS_EYECATCHER)
+    {
+        memcpy(_data, romClass, romClass->romSize);
+    }
 
-   // The ROMClass is embedded in this structure in order to avoid exposing it in the API
-   static Entry *get(const J9ROMClass *romClass)
-      {
-      auto entry = (Entry *)((uint8_t *)romClass - offsetof(Entry, _data));
-      TR_ASSERT_FATAL(entry->_eyeCatcher == JITSERVER_SHARED_ROMCLASS_EYECATCHER,
-                      "ROMClass not embedded in cache entry");
-      return entry;
-      }
+    // The ROMClass is embedded in this structure in order to avoid exposing it in the API
+    static Entry *get(const J9ROMClass *romClass)
+    {
+        auto entry = (Entry *)((uint8_t *)romClass - offsetof(Entry, _data));
+        TR_ASSERT_FATAL(entry->_eyeCatcher == JITSERVER_SHARED_ROMCLASS_EYECATCHER,
+            "ROMClass not embedded in cache entry");
+        return entry;
+    }
 
-   J9ROMClass *acquire()
-      {
-      VM_AtomicSupport::add(&_refCount, 1);
-      return (J9ROMClass *)_data;
-      }
+    J9ROMClass *acquire()
+    {
+        VM_AtomicSupport::add(&_refCount, 1);
+        return (J9ROMClass *)_data;
+    }
 
-   // Returns new reference count
-   size_t release() { return VM_AtomicSupport::subtract(&_refCount, 1); }
+    // Returns new reference count
+    size_t release() { return VM_AtomicSupport::subtract(&_refCount, 1); }
 
-   volatile size_t _refCount;
-   // Store the pointer to this entry's key so that we don't have to
-   // recompute it when deleting the entry from the map.
-   //NOTE: The entity pointed to by _hash is not owned by this Entry,
-   //      and must not be deleted when the Entry is destroyed.
-   const JITServerROMClassHash *_hash;
-   const size_t _eyeCatcher;
-   uint8_t _data[];// embedded J9ROMClass
-   };
+    volatile size_t _refCount;
+    // Store the pointer to this entry's key so that we don't have to
+    // recompute it when deleting the entry from the map.
+    // NOTE: The entity pointed to by _hash is not owned by this Entry,
+    //      and must not be deleted when the Entry is destroyed.
+    const JITServerROMClassHash *_hash;
+    const size_t _eyeCatcher;
+    uint8_t _data[]; // embedded J9ROMClass
+};
 
+struct JITServerSharedROMClassCache::Partition {
+    Partition(TR_PersistentMemory *persistentMemory, TR::Monitor *monitor)
+        : _persistentMemory(persistentMemory)
+        , _monitor(monitor)
+        , _map(decltype(_map)::allocator_type(persistentMemory->_persistentAllocator.get()))
+        , _maxSize(0)
+    {}
 
-struct JITServerSharedROMClassCache::Partition
-   {
-   Partition(TR_PersistentMemory *persistentMemory, TR::Monitor *monitor) :
-      _persistentMemory(persistentMemory), _monitor(monitor),
-      _map(decltype(_map)::allocator_type(persistentMemory->_persistentAllocator.get())),
-      _maxSize(0) { }
+    ~Partition()
+    {
+        for (const auto &kv : _map)
+            _persistentMemory->freePersistentMemory(kv.second);
+    }
 
-   ~Partition()
-      {
-      for (const auto &kv : _map)
-         _persistentMemory->freePersistentMemory(kv.second);
-      }
+    J9ROMClass *getOrCreate(const J9ROMClass *packedROMClass, const JITServerROMClassHash &hash);
+    void release(Entry *entry);
 
-   J9ROMClass *getOrCreate(const J9ROMClass *packedROMClass, const JITServerROMClassHash &hash);
-   void release(Entry *entry);
+    TR_PersistentMemory * const _persistentMemory;
+    TR::Monitor * const _monitor;
+    // To avoid comparing the ROMClass contents inside a critical section when
+    // inserting a new entry (which would increase lock contention), we instead
+    // use a hash of the contents as the key. The hash is computed outside of
+    // the critical section, and key hashing and comparison are very quick.
+    PersistentUnorderedMap<JITServerROMClassHash, Entry *> _map;
+    size_t _maxSize;
+};
 
-   TR_PersistentMemory *const _persistentMemory;
-   TR::Monitor *const _monitor;
-   // To avoid comparing the ROMClass contents inside a critical section when
-   // inserting a new entry (which would increase lock contention), we instead
-   // use a hash of the contents as the key. The hash is computed outside of
-   // the critical section, and key hashing and comparison are very quick.
-   PersistentUnorderedMap<JITServerROMClassHash, Entry *> _map;
-   size_t _maxSize;
-   };
+JITServerSharedROMClassCache::JITServerSharedROMClassCache(size_t numPartitions)
+    : _numPartitions(numPartitions)
+    , _persistentMemory(NULL)
+    , _partitions((Partition *)TR::Compiler->persistentGlobalMemory()->allocatePersistentMemory(
+          numPartitions * sizeof(Partition), TR_Memory::ROMClass))
+    , _monitors((TR::Monitor **)TR::Compiler->persistentGlobalMemory()->allocatePersistentMemory(
+          numPartitions * sizeof(TR::Monitor *), TR_Memory::ROMClass))
+{
+    if (!_partitions || !_monitors)
+        throw std::bad_alloc();
 
-
-JITServerSharedROMClassCache::JITServerSharedROMClassCache(size_t numPartitions) :
-   _numPartitions(numPartitions), _persistentMemory(NULL),
-   _partitions((Partition *)TR::Compiler->persistentGlobalMemory()->allocatePersistentMemory(
-               numPartitions * sizeof(Partition), TR_Memory::ROMClass)),
-   _monitors((TR::Monitor **) TR::Compiler->persistentGlobalMemory()->allocatePersistentMemory(
-               numPartitions * sizeof(TR::Monitor *), TR_Memory::ROMClass))
-   {
-   if (!_partitions || !_monitors)
-      throw std::bad_alloc();
-
-   for (size_t i = 0; i < numPartitions; ++i)
-      {
-      _monitors[i] = TR::Monitor::create("JIT-JITServerSharedROMClassCachePartitionMonitor");
-      if (!_monitors[i])
-         throw std::bad_alloc();
-      }
-   }
+    for (size_t i = 0; i < numPartitions; ++i) {
+        _monitors[i] = TR::Monitor::create("JIT-JITServerSharedROMClassCachePartitionMonitor");
+        if (!_monitors[i])
+            throw std::bad_alloc();
+    }
+}
 
 JITServerSharedROMClassCache::~JITServerSharedROMClassCache()
-   {
-   if (isInitialized())
-      shutdown(false);
+{
+    if (isInitialized())
+        shutdown(false);
 
-   for (size_t i = 0; i < _numPartitions; ++i)
-      TR::Monitor::destroy(_monitors[i]);
+    for (size_t i = 0; i < _numPartitions; ++i)
+        TR::Monitor::destroy(_monitors[i]);
 
-   TR::Compiler->persistentGlobalAllocator().deallocate(_partitions);
-   TR::Compiler->persistentGlobalAllocator().deallocate(_monitors);
-   }
+    TR::Compiler->persistentGlobalAllocator().deallocate(_partitions);
+    TR::Compiler->persistentGlobalAllocator().deallocate(_monitors);
+}
 
+void JITServerSharedROMClassCache::initialize(J9JITConfig *jitConfig)
+{
+    TR_ASSERT_FATAL(!isInitialized(), "Already initialized");
 
-void
-JITServerSharedROMClassCache::initialize(J9JITConfig *jitConfig)
-   {
-   TR_ASSERT_FATAL(!isInitialized(), "Already initialized");
+    // Must only be called when the first client session is created
+    auto compInfo = TR::CompilationInfo::get();
+    TR_ASSERT(compInfo->getCompilationMonitor()->owned_by_self(), "Must hold compilationMonitor");
+    TR_ASSERT(compInfo->getClientSessionHT()->size() == 0, "Must have no clients");
 
-   // Must only be called when the first client session is created
-   auto compInfo = TR::CompilationInfo::get();
-   TR_ASSERT(compInfo->getCompilationMonitor()->owned_by_self(), "Must hold compilationMonitor");
-   TR_ASSERT(compInfo->getClientSessionHT()->size() == 0, "Must have no clients");
+    TR::PersistentAllocatorKit kit(1 << 20 /*1 MB*/, *TR::Compiler->javaVM);
+    auto allocator = new (TR::Compiler->rawAllocator) TR::PersistentAllocator(kit);
+    try {
+        _persistentMemory = new (TR::Compiler->rawAllocator) TR_PersistentMemory(jitConfig, *allocator);
+        for (size_t i = 0; i < _numPartitions; ++i)
+            new (&_partitions[i]) Partition(_persistentMemory, _monitors[i]);
+        if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+            TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "JITServerSharedROMClassCache initialized");
+    } catch (...) {
+        if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+            TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "ERROR: Failed to initialize shared ROMClass cache");
+        // This automatically releases all resources (persistent allocations) in Partition objects
+        allocator->~PersistentAllocator();
+        TR::Compiler->rawAllocator.deallocate(allocator);
+        if (_persistentMemory)
+            TR::Compiler->rawAllocator.deallocate(_persistentMemory);
+        _persistentMemory = NULL;
+        throw;
+    }
+}
 
-   TR::PersistentAllocatorKit kit(1 << 20/*1 MB*/, *TR::Compiler->javaVM);
-   auto allocator = new (TR::Compiler->rawAllocator) TR::PersistentAllocator(kit);
-   try
-      {
-      _persistentMemory = new (TR::Compiler->rawAllocator) TR_PersistentMemory(jitConfig, *allocator);
-      for (size_t i = 0; i < _numPartitions; ++i)
-         new (&_partitions[i]) Partition(_persistentMemory, _monitors[i]);
-      if (TR::Options::getVerboseOption(TR_VerboseJITServer))
-         TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "JITServerSharedROMClassCache initialized");
-      }
-   catch (...)
-      {
-      if (TR::Options::getVerboseOption(TR_VerboseJITServer))
-         TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "ERROR: Failed to initialize shared ROMClass cache");
-      // This automatically releases all resources (persistent allocations) in Partition objects
-      allocator->~PersistentAllocator();
-      TR::Compiler->rawAllocator.deallocate(allocator);
-      if (_persistentMemory)
-         TR::Compiler->rawAllocator.deallocate(_persistentMemory);
-      _persistentMemory = NULL;
-      throw;
-      }
-   }
+void JITServerSharedROMClassCache::shutdown(bool lastClient)
+{
+    if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+        TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "JITServerSharedROMClassCache::shutdown() called");
 
-void
-JITServerSharedROMClassCache::shutdown(bool lastClient)
-   {
-   if (TR::Options::getVerboseOption(TR_VerboseJITServer))
-      TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "JITServerSharedROMClassCache::shutdown() called");
+    TR_ASSERT(isInitialized(), "Must be initialized");
 
-   TR_ASSERT(isInitialized(), "Must be initialized");
+    size_t numClasses = 0, maxClasses = 0;
+    // There should be no ROMClasses left in the cache if there are no clients using them,
+    // unless the shared profile cache feature is active.
+    for (size_t i = 0; i < _numPartitions; ++i) {
+        numClasses += _partitions[i]._map.size();
+        maxClasses += _partitions[i]._maxSize;
+    }
+    if (lastClient) {
+        // Must only be called when the last client session is destroyed
+        auto compInfo = TR::CompilationInfo::get();
+        TR_ASSERT(compInfo->getCompilationMonitor()->owned_by_self(), "Must hold compilationMonitor");
+        TR_ASSERT(compInfo->getClientSessionHT()->size() == 0, "Must have no clients");
 
-   size_t numClasses = 0, maxClasses = 0;
-   // There should be no ROMClasses left in the cache if there are no clients using them,
-   // unless the shared profile cache feature is active.
-   for (size_t i = 0; i < _numPartitions; ++i)
-      {
-      numClasses += _partitions[i]._map.size();
-      maxClasses += _partitions[i]._maxSize;
-      }
-   if (lastClient)
-      {
-      // Must only be called when the last client session is destroyed
-      auto compInfo = TR::CompilationInfo::get();
-      TR_ASSERT(compInfo->getCompilationMonitor()->owned_by_self(), "Must hold compilationMonitor");
-      TR_ASSERT(compInfo->getClientSessionHT()->size() == 0, "Must have no clients");
-
-      if (numClasses)
-         {
-         if (TR::Options::getVerboseOption(TR_VerboseJITServer))
-            TR_VerboseLog::writeLineLocked(
-               TR_Vlog_JITServer, "%zu / %zu classes left in shared ROMClass cache at shutdown",
-               numClasses, maxClasses
-            );
-         }
-      }
-   // The shared profile mechanism increases the reference count of ROMClasses it needs
-   // to prevent their deletion. In that case, keep the sharedROMClassCache infra intact.
-   if (numClasses == 0)
-      {
+        if (numClasses) {
+            if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+                TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
+                    "%zu / %zu classes left in shared ROMClass cache at shutdown", numClasses, maxClasses);
+        }
+    }
+    // The shared profile mechanism increases the reference count of ROMClasses it needs
+    // to prevent their deletion. In that case, keep the sharedROMClassCache infra intact.
+    if (numClasses == 0) {
 #if defined(DEBUG)
-      // Calling destructors is not necessary - memory will be freed automatically with the persistent allocator
-      for (size_t i = 0; i < _numPartitions; ++i)
-         _partitions[i].~Partition();
+        // Calling destructors is not necessary - memory will be freed automatically with the persistent allocator
+        for (size_t i = 0; i < _numPartitions; ++i)
+            _partitions[i].~Partition();
 #endif /* defined(DEBUG) */
 
-      auto allocator = &_persistentMemory->_persistentAllocator.get();
-      // This automatically releases all resources (persistent allocations) in Partition objects
-      allocator->~PersistentAllocator();
-      TR::Compiler->rawAllocator.deallocate(allocator);
-      TR::Compiler->rawAllocator.deallocate(_persistentMemory);
-      _persistentMemory = NULL;
-      }
-   else
-      {
+        auto allocator = &_persistentMemory->_persistentAllocator.get();
+        // This automatically releases all resources (persistent allocations) in Partition objects
+        allocator->~PersistentAllocator();
+        TR::Compiler->rawAllocator.deallocate(allocator);
+        TR::Compiler->rawAllocator.deallocate(_persistentMemory);
+        _persistentMemory = NULL;
+    } else {
 #if defined(DEBUG)
-      printContent();
+        printContent();
 #endif /* defined(DEBUG) */
-      }
-   }
+    }
+}
 
+J9ROMClass *JITServerSharedROMClassCache::getOrCreate(const J9ROMClass *packedROMClass,
+    const JITServerROMClassHash *packedROMClassHash)
+{
+    JITServerROMClassHash hash = packedROMClassHash ? *packedROMClassHash : JITServerROMClassHash(packedROMClass);
+    return getPartition(hash).getOrCreate(packedROMClass, hash);
+}
 
-J9ROMClass *
-JITServerSharedROMClassCache::getOrCreate(const J9ROMClass *packedROMClass, const JITServerROMClassHash *packedROMClassHash)
-   {
-   JITServerROMClassHash hash = packedROMClassHash ? *packedROMClassHash : JITServerROMClassHash(packedROMClass);
-   return getPartition(hash).getOrCreate(packedROMClass, hash);
-   }
+void JITServerSharedROMClassCache::release(J9ROMClass *romClass)
+{
+    auto entry = Entry::get(romClass);
+    // To reduce lock contention, we synchronize access to the reference count
+    // using atomic operations. Releasing a ROMClass doesn't require the monitor
+    // unless it's the last reference. This should help in the scenario when a
+    // client session is destroyed and all its cached ROMClasses are released.
+    if (entry->release() == 0)
+        getPartition(*entry->_hash).release(entry);
+}
 
-void
-JITServerSharedROMClassCache::release(J9ROMClass *romClass)
-   {
-   auto entry = Entry::get(romClass);
-   // To reduce lock contention, we synchronize access to the reference count
-   // using atomic operations. Releasing a ROMClass doesn't require the monitor
-   // unless it's the last reference. This should help in the scenario when a
-   // client session is destroyed and all its cached ROMClasses are released.
-   if (entry->release() == 0)
-      getPartition(*entry->_hash).release(entry);
-   }
+void JITServerSharedROMClassCache::acquire(J9ROMClass *romClass) { Entry::get(romClass)->acquire(); }
 
-void
-JITServerSharedROMClassCache::acquire(J9ROMClass *romClass)
-   {
-   Entry::get(romClass)->acquire();
-   }
+const JITServerROMClassHash &JITServerSharedROMClassCache::getHash(const J9ROMClass *romClass)
+{
+    return *Entry::get(romClass)->_hash;
+}
 
-const JITServerROMClassHash &
-JITServerSharedROMClassCache::getHash(const J9ROMClass *romClass)
-   {
-   return *Entry::get(romClass)->_hash;
-   }
-
-void
-JITServerSharedROMClassCache::printContent() const
-   {
-   fprintf(stderr, "Print SharedROMClassCache content:\n");
-   for (size_t i = 0; i < _numPartitions; ++i)
-      {
-         {
-         OMR::CriticalSection sharedROMClassCache(_partitions[i]._monitor);
-         for (const auto &kv : _partitions[i]._map)
-            {
-            const JITServerROMClassHash &hash = kv.first;
-            const Entry *entry = kv.second;
-            char hashBuffer[ROMCLASS_HASH_BYTES * 2 + 1] = {};
-            hash.toString(hashBuffer, sizeof(hashBuffer));
-            J9UTF8 *className = J9ROMCLASS_CLASSNAME((J9ROMClass*)(entry->_data));
-            fprintf(stderr, "hash=%s ROMClass=%p %.*s\n", hashBuffer, entry->_data, J9UTF8_LENGTH(className), (char *)J9UTF8_DATA(className));
+void JITServerSharedROMClassCache::printContent() const
+{
+    fprintf(stderr, "Print SharedROMClassCache content:\n");
+    for (size_t i = 0; i < _numPartitions; ++i) {
+        {
+            OMR::CriticalSection sharedROMClassCache(_partitions[i]._monitor);
+            for (const auto &kv : _partitions[i]._map) {
+                const JITServerROMClassHash &hash = kv.first;
+                const Entry *entry = kv.second;
+                char hashBuffer[ROMCLASS_HASH_BYTES * 2 + 1] = {};
+                hash.toString(hashBuffer, sizeof(hashBuffer));
+                J9UTF8 *className = J9ROMCLASS_CLASSNAME((J9ROMClass *)(entry->_data));
+                fprintf(stderr, "hash=%s ROMClass=%p %.*s\n", hashBuffer, entry->_data, J9UTF8_LENGTH(className),
+                    (char *)J9UTF8_DATA(className));
             }
-         } // end critical section
-      } // end for loop
-   }
+        } // end critical section
+    } // end for loop
+}
 
-JITServerSharedROMClassCache::Partition &
-JITServerSharedROMClassCache::getPartition(const JITServerROMClassHash &hash)
-   {
-   // Partition index for a given ROMClass is determined by word 1 of its hash
-   // (word 0 is used by the hash function in the partition's unordered map)
-   static_assert(ROMCLASS_HASH_WORDS >= 2, "ROMClass hash must have at least 2 words");
-   return _partitions[hash.getWord(1) % _numPartitions];
-   }
+JITServerSharedROMClassCache::Partition &JITServerSharedROMClassCache::getPartition(const JITServerROMClassHash &hash)
+{
+    // Partition index for a given ROMClass is determined by word 1 of its hash
+    // (word 0 is used by the hash function in the partition's unordered map)
+    static_assert(ROMCLASS_HASH_WORDS >= 2, "ROMClass hash must have at least 2 words");
+    return _partitions[hash.getWord(1) % _numPartitions];
+}
 
+J9ROMClass *JITServerSharedROMClassCache::Partition::getOrCreate(const J9ROMClass *packedROMClass,
+    const JITServerROMClassHash &hash)
+{
+    {
+        OMR::CriticalSection sharedROMClassCache(_monitor);
+        auto it = _map.find(hash);
+        if (it != _map.end())
+            return it->second->acquire(); // Reuse existing entry, incrementing its reference count
+    }
 
-J9ROMClass *
-JITServerSharedROMClassCache::Partition::getOrCreate(const J9ROMClass *packedROMClass,
-                                                     const JITServerROMClassHash &hash)
-   {
-      {
-      OMR::CriticalSection sharedROMClassCache(_monitor);
-      auto it = _map.find(hash);
-      if (it != _map.end())
-         return it->second->acquire();// Reuse existing entry, incrementing its reference count
-      }
+    // Create new entry outside of the critical section to reduce lock contention
+    size_t size = sizeof(Entry) + packedROMClass->romSize;
+    void *ptr = _persistentMemory->allocatePersistentMemory(size, TR_Memory::ROMClass);
+    if (!ptr)
+        throw std::bad_alloc();
+    auto entry = new (ptr) Entry(packedROMClass);
+    auto romClass = (J9ROMClass *)entry->_data;
 
-   // Create new entry outside of the critical section to reduce lock contention
-   size_t size = sizeof(Entry) + packedROMClass->romSize;
-   void *ptr = _persistentMemory->allocatePersistentMemory(size, TR_Memory::ROMClass);
-   if (!ptr)
-      throw std::bad_alloc();
-   auto entry = new (ptr) Entry(packedROMClass);
-   auto romClass = (J9ROMClass *)entry->_data;
+    try {
+        OMR::CriticalSection sharedROMClassCache(_monitor);
+        auto it = _map.insert({ hash, entry });
+        if (it.second) {
+            entry->_hash = &it.first->first;
+            _maxSize = std::max(_maxSize, _map.size());
+        } else {
+            // Another thread already created this entry; reuse it
+            romClass = it.first->second->acquire();
+        }
+    } catch (...) {
+        // Prevent memory leak if map insertion failed
+        _persistentMemory->freePersistentMemory(entry);
+        throw;
+    }
 
-   try
-      {
-      OMR::CriticalSection sharedROMClassCache(_monitor);
-      auto it = _map.insert({ hash, entry });
-      if (it.second)
-         {
-         entry->_hash = &it.first->first;
-         _maxSize = std::max(_maxSize, _map.size());
-         }
-      else
-         {
-         // Another thread already created this entry; reuse it
-         romClass = it.first->second->acquire();
-         }
-      }
-   catch (...)
-      {
-      // Prevent memory leak if map insertion failed
-      _persistentMemory->freePersistentMemory(entry);
-      throw;
-      }
+    // Free the newly allocated entry if it won't be used
+    if (romClass != (J9ROMClass *)entry->_data)
+        _persistentMemory->freePersistentMemory(entry);
+    return romClass;
+}
 
-   // Free the newly allocated entry if it won't be used
-   if (romClass != (J9ROMClass *)entry->_data)
-      _persistentMemory->freePersistentMemory(entry);
-   return romClass;
-   }
+void JITServerSharedROMClassCache::Partition::release(JITServerSharedROMClassCache::Entry *entry)
+{
+    {
+        OMR::CriticalSection sharedROMClassCache(_monitor);
+        // Another thread could have looked up and acquired this entry while its reference
+        // count was 0, need to check again if it's still 0. The value is guaranteed to be
+        // fresh since the field is declared volatile (so that the compiler will generate
+        // a memory read), and the monitor acquisition above implies a memory barrier.
+        if (entry->_refCount != 0)
+            return;
 
-void
-JITServerSharedROMClassCache::Partition::release(JITServerSharedROMClassCache::Entry *entry)
-   {
-      {
-      OMR::CriticalSection sharedROMClassCache(_monitor);
-      // Another thread could have looked up and acquired this entry while its reference
-      // count was 0, need to check again if it's still 0. The value is guaranteed to be
-      // fresh since the field is declared volatile (so that the compiler will generate
-      // a memory read), and the monitor acquisition above implies a memory barrier.
-      if (entry->_refCount != 0)
-         return;
+        auto it = _map.find(*entry->_hash);
+        TR_ASSERT(it != _map.end(), "Entry to be removed not found");
+        TR_ASSERT(it->second == entry, "Duplicate entry");
+        _map.erase(it);
+    }
 
-      auto it = _map.find(*entry->_hash);
-      TR_ASSERT(it != _map.end(), "Entry to be removed not found");
-      TR_ASSERT(it->second == entry, "Duplicate entry");
-      _map.erase(it);
-      }
-
-   _persistentMemory->freePersistentMemory(entry);
-   }
+    _persistentMemory->freePersistentMemory(entry);
+}

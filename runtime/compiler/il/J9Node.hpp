@@ -28,10 +28,11 @@
  */
 #ifndef J9_NODE_CONNECTOR
 #define J9_NODE_CONNECTOR
+
 namespace J9 {
 class Node;
 typedef J9::Node NodeConnector;
-}
+} // namespace J9
 #endif
 
 #include "j9cfg.h"
@@ -40,459 +41,452 @@ typedef J9::Node NodeConnector;
 class TR_OpaquePseudoRegister;
 class TR_StorageReference;
 class TR_PseudoRegister;
+
 namespace TR {
 class Compilation;
 class Node;
 class ResolvedMethodSymbol;
 class TreeTop;
-}
+} // namespace TR
 
 namespace J9 {
 
-class OMR_EXTENSIBLE Node : public OMR::NodeConnector
-   {
-
+class OMR_EXTENSIBLE Node : public OMR::NodeConnector {
 protected:
+    Node(TR::Node *originatingByteCodeNode, TR::ILOpCodes op, uint16_t numChildren);
 
-   Node(TR::Node *originatingByteCodeNode, TR::ILOpCodes op, uint16_t numChildren);
+    Node(TR::Node *from, uint16_t numChildren = 0);
 
-   Node(TR::Node *from, uint16_t numChildren = 0);
-
-   Node(Node& from) : OMR::NodeConnector(from) {}
-
+    Node(Node &from)
+        : OMR::NodeConnector(from)
+    {}
 
 public:
+    Node()
+        : OMR::NodeConnector()
+        , _unionPropertyB()
+    {}
 
-   Node()
-      : OMR::NodeConnector(),
-      _unionPropertyB()
-      { }
+    ~Node();
 
-   ~Node();
+    static void copyValidProperties(TR::Node *fromNode, TR::Node *toNode);
 
-   static void copyValidProperties(TR::Node *fromNode, TR::Node *toNode);
+    uint32_t getSize();
 
-   uint32_t getSize();
+    bool dontEliminateStores(bool isForLocalDeadStore = false);
 
-   bool dontEliminateStores(bool isForLocalDeadStore = false);
+    /// given a direct call to Object.clone node, return the class of the receiver.
+    ///
+    TR_OpaqueClassBlock *getCloneClassInNode();
 
-   /// given a direct call to Object.clone node, return the class of the receiver.
-   ///
-   TR_OpaqueClassBlock* getCloneClassInNode();
+    /**
+     * @brief Stub method for OMR callers using the old API.  This function is
+     *    deprecated and will be removed once upstream OMR code is changed.
+     */
+    TR::Node *processJNICall(TR::TreeTop *callNodeTreeTop, TR::ResolvedMethodSymbol *owningSymbol);
 
-   /**
-    * @brief Stub method for OMR callers using the old API.  This function is
-    *    deprecated and will be removed once upstream OMR code is changed.
-    */
-   TR::Node *processJNICall(TR::TreeTop *callNodeTreeTop, TR::ResolvedMethodSymbol *owningSymbol);
+    /**
+     * @brief Transform a call node to prepare it for JNI dispatch.
+     *
+     * @param[in] callNodeTreeTop : \c TR::TreeTop for the call node
+     * @param[in] owningSymbol : \c TR::ResolvedMethodSymbol of the method to call
+     * @param[in] comp : \c TR::Compilation object
+     *
+     * @return Transformed call  \c TR::Node
+     */
+    TR::Node *processJNICall(TR::TreeTop *callNodeTreeTop, TR::ResolvedMethodSymbol *owningSymbol,
+        TR::Compilation *comp);
 
-   /**
-    * @brief Transform a call node to prepare it for JNI dispatch.
-    *
-    * @param[in] callNodeTreeTop : \c TR::TreeTop for the call node
-    * @param[in] owningSymbol : \c TR::ResolvedMethodSymbol of the method to call
-    * @param[in] comp : \c TR::Compilation object
-    *
-    * @return Transformed call  \c TR::Node
-    */
-   TR::Node *processJNICall(TR::TreeTop *callNodeTreeTop, TR::ResolvedMethodSymbol *owningSymbol, TR::Compilation *comp);
+    /**
+     * @brief Stub method for OMR callers using the old API.  This function is
+     *    deprecated and will be removed once upstream OMR code is changed.
+     */
+    void devirtualizeCall(TR::TreeTop *treeTop);
 
-   /**
-    * @brief Stub method for OMR callers using the old API.  This function is
-    *    deprecated and will be removed once upstream OMR code is changed.
-    */
-   void devirtualizeCall(TR::TreeTop *treeTop);
+    /**
+     * @brief Devirtualize the call under the given treetop.
+     *
+     * @param[in] treeTop : \c TR::TreeTop of the call to devirtualize
+     * @param[in] comp : \c TR::Compilation object
+     *
+     * @return None
+     */
+    void devirtualizeCall(TR::TreeTop *treeTop, TR::Compilation *comp);
 
-   /**
-    * @brief Devirtualize the call under the given treetop.
-    *
-    * @param[in] treeTop : \c TR::TreeTop of the call to devirtualize
-    * @param[in] comp : \c TR::Compilation object
-    *
-    * @return None
-    */
-   void devirtualizeCall(TR::TreeTop *treeTop, TR::Compilation *comp);
-
-   /**
-    * @return the signature of the node's type if applicable.
-    * @note the signature's storage may have been created on the stack!
-    */
-   const char * getTypeSignature(int32_t &, TR_AllocationKind = stackAlloc, bool parmAsAuto = false);
+    /**
+     * @return the signature of the node's type if applicable.
+     * @note the signature's storage may have been created on the stack!
+     */
+    const char *getTypeSignature(int32_t &, TR_AllocationKind = stackAlloc, bool parmAsAuto = false);
 
 #if defined(TR_TARGET_S390)
-   TR_PseudoRegister       *getPseudoRegister();
-   TR_OpaquePseudoRegister *getOpaquePseudoRegister();
+    TR_PseudoRegister *getPseudoRegister();
+    TR_OpaquePseudoRegister *getOpaquePseudoRegister();
 #endif
 
-   /**
-    * @brief Answers whether the act of evaluating this node will
-    *        require a register pair (two registers) to hold the
-    *        result.
-    * @param comp, the TR::Compilation object
-    * @return true if two registers are required; false otherwise
-    */
-   bool requiresRegisterPair(TR::Compilation *comp);
+    /**
+     * @brief Answers whether the act of evaluating this node will
+     *        require a register pair (two registers) to hold the
+     *        result.
+     * @param comp, the TR::Compilation object
+     * @return true if two registers are required; false otherwise
+     */
+    bool requiresRegisterPair(TR::Compilation *comp);
 
-   TR::Node *getSetSignValueNode();
-   void setKnownSignCodeFromRawSign(int32_t rawSignCode);
-   static bool typeSupportedForTruncateOrWiden(TR::DataType dt);
-   static bool typeSupportedForSignCodeTracking(TR::DataType dt);
-   static void truncateOrWidenBCDLiteral(TR::DataType dt, char *newLit, int32_t newPrecision, char *oldLit, int32_t oldPrecision);
-   static void setNewBCDSignOnLiteral(uint32_t newSignCode, TR::DataType dt, char *lit, int32_t litSize);
+    TR::Node *getSetSignValueNode();
+    void setKnownSignCodeFromRawSign(int32_t rawSignCode);
+    static bool typeSupportedForTruncateOrWiden(TR::DataType dt);
+    static bool typeSupportedForSignCodeTracking(TR::DataType dt);
+    static void truncateOrWidenBCDLiteral(TR::DataType dt, char *newLit, int32_t newPrecision, char *oldLit,
+        int32_t oldPrecision);
+    static void setNewBCDSignOnLiteral(uint32_t newSignCode, TR::DataType dt, char *lit, int32_t litSize);
 
-   bool alwaysGeneratesAKnownCleanSign();
-   bool alwaysGeneratesAKnownPositiveCleanSign();
+    bool alwaysGeneratesAKnownCleanSign();
+    bool alwaysGeneratesAKnownPositiveCleanSign();
 #ifdef TR_TARGET_S390
-   int32_t getStorageReferenceSize(TR::Compilation *comp);
-   int32_t getStorageReferenceSourceSize(TR::Compilation *comp);
+    int32_t getStorageReferenceSize(TR::Compilation *comp);
+    int32_t getStorageReferenceSourceSize(TR::Compilation *comp);
 #endif
 
-   bool         isEvenPrecision();
-   bool         isOddPrecision();
-   bool pdshrRoundIsConstantZero();
+    bool isEvenPrecision();
+    bool isOddPrecision();
+    bool pdshrRoundIsConstantZero();
 
-   bool         isSimpleTruncation();
-   bool         isSimpleWidening();
-   bool         mustClean();
-   bool         hasIntermediateTruncation();
-   bool         isTruncatingBCDShift();
-   bool         isWideningBCDShift();
-   bool         isTruncating();
-   int32_t      survivingDigits();
+    bool isSimpleTruncation();
+    bool isSimpleWidening();
+    bool mustClean();
+    bool hasIntermediateTruncation();
+    bool isTruncatingBCDShift();
+    bool isWideningBCDShift();
+    bool isTruncating();
+    int32_t survivingDigits();
 
+    bool isTruncatingOrWideningAggrOrBCD();
 
+    bool canRemoveArithmeticOperand();
+    bool canGCandReturn();
+    bool canGCandReturn(TR::Compilation *comp);
 
-   bool isTruncatingOrWideningAggrOrBCD();
+    static uint32_t hashOnBCDOrAggrLiteral(char *lit, size_t litSize);
 
-   bool canRemoveArithmeticOperand();
-   bool canGCandReturn();
-   bool canGCandReturn(TR::Compilation *comp);
+    bool referencesSymbolInSubTree(TR::SymbolReference *symRef, vcount_t visitCount);
+    bool referencesMayKillAliasInSubTree(TR::Node *rootNode, vcount_t visitCount, TR::Compilation *comp);
+    void getSubTreeReferences(TR::SparseBitVector &references, vcount_t visitCount);
 
-   static uint32_t hashOnBCDOrAggrLiteral(char *lit, size_t litSize);
-
-   bool referencesSymbolInSubTree(TR::SymbolReference * symRef, vcount_t visitCount);
-   bool referencesMayKillAliasInSubTree(TR::Node * rootNode, vcount_t visitCount, TR::Compilation *comp);
-   void getSubTreeReferences(TR::SparseBitVector &references, vcount_t visitCount);
-
-   /**
-    * Node field functions
-    */
+    /**
+     * Node field functions
+     */
 
 #ifdef TR_TARGET_S390
-   TR_StorageReference *getStorageReferenceHint();
-   TR_StorageReference *setStorageReferenceHint(TR_StorageReference *s);
+    TR_StorageReference *getStorageReferenceHint();
+    TR_StorageReference *setStorageReferenceHint(TR_StorageReference *s);
 #endif
 
-   /**
-    * Node field functions end
-    */
+    /**
+     * Node field functions end
+     */
 
+    /**
+     * UnionPropertyB functions
+     */
 
+    void setDecimalPrecision(int32_t p);
+    uint8_t getDecimalPrecision();
 
-   /**
-    * UnionPropertyB functions
-    */
+    // These precision setting routines set a precision big enough to hold the
+    // full computed result A caller or codegen may choose to set a different
+    // value (bigger or smaller) to satisfy a specific semantic or encoding
+    // requirement -- see getPDMulEncodedPrecision et al. in the platform code
+    // generators
+    void setPDMulPrecision();
+    void setPDAddSubPrecision();
 
-   void    setDecimalPrecision(int32_t p);
-   uint8_t getDecimalPrecision();
+    void setDecimalAdjust(int32_t a);
+    int32_t getDecimalAdjust();
 
-   // These precision setting routines set a precision big enough to hold the
-   // full computed result A caller or codegen may choose to set a different
-   // value (bigger or smaller) to satisfy a specific semantic or encoding
-   // requirement -- see getPDMulEncodedPrecision et al. in the platform code
-   // generators
-   void    setPDMulPrecision();
-   void    setPDAddSubPrecision();
+    void setDecimalFraction(int32_t f);
+    int32_t getDecimalFraction();
 
-   void    setDecimalAdjust(int32_t a);
-   int32_t getDecimalAdjust();
+    // Source precisions are valid for conversions from a non-BCD type to a BCD type
+    bool canHaveSourcePrecision();
+    bool hasSourcePrecision();
+    void setSourcePrecision(int32_t prec);
+    int32_t getSourcePrecision();
 
-   void    setDecimalFraction(int32_t f);
-   int32_t getDecimalFraction();
+    int32_t getDecimalAdjustOrFractionOrDivisor();
+    int32_t getDecimalRoundOrDividend();
 
-   // Source precisions are valid for conversions from a non-BCD type to a BCD type
-   bool    canHaveSourcePrecision();
-   bool    hasSourcePrecision();
-   void    setSourcePrecision(int32_t prec);
-   int32_t getSourcePrecision();
+    bool isSetSignValueOnNode();
+    void setSetSign(TR_RawBCDSignCode setSign);
+    TR_RawBCDSignCode getSetSign();
+    bool isDecimalSizeAndShapeEquivalent(TR::Node *other);
 
-   int32_t getDecimalAdjustOrFractionOrDivisor();
-   int32_t getDecimalRoundOrDividend();
+    void setDecimalRound(int32_t r);
+    uint8_t getDecimalRound();
 
-   bool              isSetSignValueOnNode();
-   void              setSetSign(TR_RawBCDSignCode setSign);
-   TR_RawBCDSignCode getSetSign();
-   bool              isDecimalSizeAndShapeEquivalent(TR::Node *other);
+    bool signStateIsKnown();
+    void setSignStateIsKnown();
+    bool signStateIsAssumed();
+    void setSignStateIsAssumed();
 
-   void    setDecimalRound(int32_t r);
-   uint8_t getDecimalRound();
+    bool hasKnownCleanSign();
+    void setHasKnownCleanSign(bool v);
+    bool hasAssumedCleanSign();
+    void setHasAssumedCleanSign(bool v);
+    bool hasKnownOrAssumedCleanSign();
+    void setHasKnownAndAssumedCleanSign(bool v);
+    void transferCleanSign(TR::Node *srcNode);
 
-   bool signStateIsKnown();
-   void setSignStateIsKnown();
-   bool signStateIsAssumed();
-   void setSignStateIsAssumed();
+    bool hasKnownPreferredSign();
+    void setHasKnownPreferredSign(bool v);
+    bool hasAssumedPreferredSign();
+    void setHasAssumedPreferredSign(bool v);
+    bool hasKnownOrAssumedPreferredSign();
 
-   bool hasKnownCleanSign();
-   void setHasKnownCleanSign(bool v);
-   bool hasAssumedCleanSign();
-   void setHasAssumedCleanSign(bool v);
-   bool hasKnownOrAssumedCleanSign();
-   void setHasKnownAndAssumedCleanSign(bool v);
-   void transferCleanSign(TR::Node *srcNode);
+    bool hasKnownSignCode();
+    TR_RawBCDSignCode getKnownSignCode();
+    bool hasAssumedSignCode();
+    TR_RawBCDSignCode getAssumedSignCode();
+    bool hasKnownOrAssumedSignCode();
+    TR_RawBCDSignCode getKnownOrAssumedSignCode();
+    void setKnownOrAssumedSignCode(TR_RawBCDSignCode sign, bool isKnown);
+    void setKnownSignCode(TR_RawBCDSignCode sign);
+    void transferSignCode(TR::Node *srcNode);
 
-   bool hasKnownPreferredSign();
-   void setHasKnownPreferredSign(bool v);
-   bool hasAssumedPreferredSign();
-   void setHasAssumedPreferredSign(bool v);
-   bool hasKnownOrAssumedPreferredSign();
+    // The mapping to/from TR_BCDSignCode from/to the 0xc/0xd/0xf 'raw'
+    // encodings in setKnownSignCode/knownSignCodeIs below // is temporary until
+    // TR_BCDSignCode is tracked on the nodes instead of TR_RawBCDSignCode
+    // Doing it this way allows new code (such as VP constrainBCDAggrLoad) to
+    // start using this new more general interface // The final code will be just
+    // calling setKnownOrAssumedSignCode(sign, true, c) but now the 'sign' parm will
+    // be TR_BCDSignCode of TR_RawBCDSignCode
+    bool knownSignCodeIs(TR_BCDSignCode sign);
+    void setKnownSignCode(TR_BCDSignCode sign);
+    bool assumedSignCodeIs(TR_BCDSignCode sign);
+    void setAssumedSignCode(TR_RawBCDSignCode sign);
+    bool knownOrAssumedSignCodeIs(TR_BCDSignCode sign);
 
-   bool              hasKnownSignCode();
-   TR_RawBCDSignCode getKnownSignCode();
-   bool              hasAssumedSignCode();
-   TR_RawBCDSignCode getAssumedSignCode();
-   bool              hasKnownOrAssumedSignCode();
-   TR_RawBCDSignCode getKnownOrAssumedSignCode();
-   void              setKnownOrAssumedSignCode(TR_RawBCDSignCode sign, bool isKnown);
-   void              setKnownSignCode(TR_RawBCDSignCode sign);
-   void              transferSignCode(TR::Node *srcNode);
+    // the hasSignState property is stored in the reverse sense to make the interface easier to use (at the expense of
+    // some confusion here);
+    bool hasSignStateOnLoad();
+    void setHasSignStateOnLoad(bool v);
 
-   // The mapping to/from TR_BCDSignCode from/to the 0xc/0xd/0xf 'raw'
-   // encodings in setKnownSignCode/knownSignCodeIs below // is temporary until
-   // TR_BCDSignCode is tracked on the nodes instead of TR_RawBCDSignCode
-   // Doing it this way allows new code (such as VP constrainBCDAggrLoad) to
-   // start using this new more general interface // The final code will be just
-   // calling setKnownOrAssumedSignCode(sign, true, c) but now the 'sign' parm will
-   // be TR_BCDSignCode of TR_RawBCDSignCode
-   bool knownSignCodeIs(TR_BCDSignCode sign);
-   void setKnownSignCode(TR_BCDSignCode sign);
-   bool assumedSignCodeIs(TR_BCDSignCode sign);
-   void setAssumedSignCode(TR_RawBCDSignCode sign);
-   bool knownOrAssumedSignCodeIs(TR_BCDSignCode sign);
+    void transferSignState(TR::Node *srcNode, bool digitsLost);
+    bool hasAnyKnownOrAssumedSignState();
+    bool hasAnyDecimalSignState();
+    void resetDecimalSignFlags();
+    void resetSignState();
 
-   // the hasSignState property is stored in the reverse sense to make the interface easier to use (at the expense of some confusion here);
-   bool hasSignStateOnLoad();
-   void setHasSignStateOnLoad(bool v);
+    bool isSignStateEquivalent(TR::Node *other);
+    bool isSignStateAnImprovementOver(TR::Node *other);
 
-   void transferSignState(TR::Node *srcNode, bool digitsLost);
-   bool hasAnyKnownOrAssumedSignState();
-   bool hasAnyDecimalSignState();
-   void resetDecimalSignFlags();
-   void resetSignState();
+    bool chkOpsCastedToBCD();
+    bool castedToBCD();
+    void setCastedToBCD(bool v);
 
-   bool isSignStateEquivalent(TR::Node *other);
-   bool isSignStateAnImprovementOver(TR::Node *other);
+    /**
+     * UnionPropertyB functions end
+     */
 
-   bool chkOpsCastedToBCD();
-   bool castedToBCD();
-   void setCastedToBCD(bool v);
+    /**
+     * Node flag functions
+     */
 
-   /**
-    * UnionPropertyB functions end
-    */
+    // Flag used by TR::BNDCHK nodes
+    bool isSpineCheckWithArrayElementChild();
+    void setSpineCheckWithArrayElementChild(bool v, TR::Compilation *comp);
+    bool chkSpineCheckWithArrayElementChild();
 
+    /**
+     * Checks  and return true if the callNode is JNI Call to Unsafe.copyMemory
+     */
+    bool isUnsafeCopyMemoryIntrinsic();
 
+    bool isUnsafeGetPutCASCallOnNonArray();
+    void setUnsafeGetPutCASCallOnNonArray();
+    void setUnsafeGetPutCASCallOnNonArray(TR::Compilation *comp);
 
-   /**
-    * Node flag functions
-    */
+    bool isProcessedByCallCloneConstrain();
+    void setProcessedByCallCloneConstrain();
 
-   // Flag used by TR::BNDCHK nodes
-   bool isSpineCheckWithArrayElementChild();
-   void setSpineCheckWithArrayElementChild(bool v, TR::Compilation *comp);
-   bool chkSpineCheckWithArrayElementChild();
+    bool isDAAVariableSlowCall();
+    void setDAAVariableSlowCall(bool v);
 
-   /**
-    * Checks  and return true if the callNode is JNI Call to Unsafe.copyMemory
-    */
-   bool isUnsafeCopyMemoryIntrinsic();
+    // Flag used by binary coded decimal load nodes
+    bool isBCDStoreTemporarilyALoad();
+    void setBCDStoreIsTemporarilyALoad(bool v);
 
-   bool isUnsafeGetPutCASCallOnNonArray();
-   void setUnsafeGetPutCASCallOnNonArray();
-   void setUnsafeGetPutCASCallOnNonArray(TR::Compilation *comp);
+    // Flag used by isPackedLeftShift nodes
+    bool cleanSignDuringPackedLeftShift();
+    void setCleanSignDuringPackedLeftShift(bool v);
+    bool chkCleanSignDuringPackedLeftShift();
 
-   bool isProcessedByCallCloneConstrain();
-   void setProcessedByCallCloneConstrain();
+    // Flag used by non-store and non-call binary coded decimal and aggregate nodes
+    bool chkOpsSkipCopyOnLoad();
+    bool skipCopyOnLoad();
+    void setSkipCopyOnLoad(bool v);
+    bool chkSkipCopyOnLoad();
 
-   bool isDAAVariableSlowCall();
-   void setDAAVariableSlowCall(bool v);
+    // Flag used by binary coded decimal and aggregate store nodes
+    bool chkOpsSkipCopyOnStore();
+    bool skipCopyOnStore();
+    void setSkipCopyOnStore(bool v);
+    bool chkSkipCopyOnStore();
 
-   // Flag used by binary coded decimal load nodes
-   bool isBCDStoreTemporarilyALoad();
-   void setBCDStoreIsTemporarilyALoad(bool v);
+    // Flag used by packed decimal stores
+    bool chkOpsCleanSignInPDStoreEvaluator();
+    bool mustCleanSignInPDStoreEvaluator();
+    void setCleanSignInPDStoreEvaluator(bool v);
+    bool chkCleanSignInPDStoreEvaluator();
 
-   // Flag used by isPackedLeftShift nodes
-   bool cleanSignDuringPackedLeftShift();
-   void setCleanSignDuringPackedLeftShift(bool v);
-   bool chkCleanSignDuringPackedLeftShift();
+    // Flag used by binary coded decimal stores and aggregate stores
+    bool chkOpsUseStoreAsAnAccumulator();
+    bool useStoreAsAnAccumulator();
+    void setUseStoreAsAnAccumulator(bool v);
+    bool chkUseStoreAsAnAccumulator();
 
-   // Flag used by non-store and non-call binary coded decimal and aggregate nodes
-   bool chkOpsSkipCopyOnLoad();
-   bool skipCopyOnLoad();
-   void setSkipCopyOnLoad(bool v);
-   bool chkSkipCopyOnLoad();
+    // Flag used by non-store packed types
+    bool canSkipPadByteClearing();
+    void setSkipPadByteClearing(bool v);
+    bool chkSkipPadByteClearing();
 
-   // Flag used by binary coded decimal and aggregate store nodes
-   bool chkOpsSkipCopyOnStore();
-   bool skipCopyOnStore();
-   void setSkipCopyOnStore(bool v);
-   bool chkSkipCopyOnStore();
+    // Flag used for BCD and Aggr type stores
+    bool chkOpsIsInMemoryCopyProp();
+    bool isInMemoryCopyProp();
+    void setIsInMemoryCopyProp(bool v);
+    bool chkIsInMemoryCopyProp();
 
-   // Flag used by packed decimal stores
-   bool chkOpsCleanSignInPDStoreEvaluator();
-   bool mustCleanSignInPDStoreEvaluator();
-   void setCleanSignInPDStoreEvaluator(bool v);
-   bool chkCleanSignInPDStoreEvaluator();
+    // Flag used by address type nodes in Java
+    bool chkSharedMemory();
+    void setSharedMemory(bool v);
 
-   // Flag used by binary coded decimal stores and aggregate stores
-   bool chkOpsUseStoreAsAnAccumulator();
-   bool useStoreAsAnAccumulator();
-   void setUseStoreAsAnAccumulator(bool v);
-   bool chkUseStoreAsAnAccumulator();
+    bool isArrayCopyCall();
+    bool isJitDispatchJ9MethodCall(TR::Compilation *comp);
 
-   // Flag used by non-store packed types
-   bool canSkipPadByteClearing();
-   void setSkipPadByteClearing(bool v);
-   bool chkSkipPadByteClearing();
+    /**
+     * Node flag functions end
+     */
 
-   // Flag used for BCD and Aggr type stores
-   bool chkOpsIsInMemoryCopyProp();
-   bool isInMemoryCopyProp();
-   void setIsInMemoryCopyProp(bool v);
-   bool chkIsInMemoryCopyProp();
-
-   // Flag used by address type nodes in Java
-   bool chkSharedMemory();
-   void setSharedMemory(bool v);
-
-   bool isArrayCopyCall();
-   bool isJitDispatchJ9MethodCall(TR::Compilation *comp);
-
-   /**
-    * Node flag functions end
-    */
-
-   inline float            getFloat();
-   inline float            setFloat(float f);
+    inline float getFloat();
+    inline float setFloat(float f);
 
 #ifdef J9VM_OPT_JAVA_CRYPTO_ACCELERATION
-   bool processJNICryptoMethodCall(TR::ResolvedMethodSymbol *methodSymbol, TR::Compilation *comp);
+    bool processJNICryptoMethodCall(TR::ResolvedMethodSymbol *methodSymbol, TR::Compilation *comp);
 #endif
 
 protected:
+    /// \note update the following routines when adding field to DecimalInfo
+    ///       isDecimalSizeAndShapeEquivalent()
+    ///       isSignStateEquivalent()
+    ///       resetDecimalSignFlags()
+    ///       transferSignState()
+    /// Also be sure to initialize any new field in the Node.cpp constructor
+    struct DecimalInfo {
+        uint32_t _decimalPrecision: 6; ///< range 0->63
+        int32_t _decimalAdjustOrFractionOrDivisor: 7; ///< range as Adjust -63->63 (on all except conversion nodes)
+                                                      ///< range as Fraction -63->63 (only on isConversionWithFraction
+                                                      ///< nodes) range as divisorPrecision 0->63 (on select nodes)
+                                                      ///< range as extFloatSrcIntDigits 0->63 (but should only need 16,
+                                                      ///< on extFloat to other conversions, e.g. zf2uf,zf2d)
+        uint32_t _decimalSourcePrecisionOrDividend: 6; ///< range as source precision (on non-BCD-to-BCD conversions)
+                                                       ///< 0->63, as dividendPrecision 0->63 (on select nodes)
+        TR_RawBCDSignCode _setSign: 3; ///< range on isSetSign opcodes
+        uint32_t _signStateIsKnown: 1; ///< true (known) or false (assumed)
+        uint32_t _hasCleanSign: 1; ///< true/false
+        uint32_t _hasPreferredSign: 1; ///< true/false
+        uint32_t _round: 1; ///< true/false
+        uint32_t _hasNoSignStateOnLoad: 1; ///< true/false // for BCD loads : false for PRE created loads that must
+                                           ///< preserve sign state (conservative setting), true for FE created loads
+        uint32_t _castedToBCD: 1; ///< true/false // if true node was not originally a BCD type but casted to BCD by the
+                                  ///< optimizer from a non-BCD type (e.g. aggr or int)
+        TR_RawBCDSignCode _signCode: 3;
+    };
 
-   /// \note update the following routines when adding field to DecimalInfo
-   ///       isDecimalSizeAndShapeEquivalent()
-   ///       isSignStateEquivalent()
-   ///       resetDecimalSignFlags()
-   ///       transferSignState()
-   /// Also be sure to initialize any new field in the Node.cpp constructor
-   struct DecimalInfo
-      {
-      uint32_t  _decimalPrecision                  : 6;  ///< range 0->63
-      int32_t   _decimalAdjustOrFractionOrDivisor  : 7;  ///< range as Adjust -63->63 (on all except conversion nodes)
-                                                         ///< range as Fraction -63->63 (only on isConversionWithFraction nodes)
-                                                         ///< range as divisorPrecision 0->63 (on select nodes)
-                                                         ///< range as extFloatSrcIntDigits 0->63 (but should only need 16, on extFloat to other conversions, e.g. zf2uf,zf2d)
-      uint32_t  _decimalSourcePrecisionOrDividend  : 6;  ///< range as source precision (on non-BCD-to-BCD conversions) 0->63, as dividendPrecision 0->63 (on select nodes)
-      TR_RawBCDSignCode _setSign                   : 3;  ///< range on isSetSign opcodes
-      uint32_t  _signStateIsKnown                  : 1;  ///< true (known) or false (assumed)
-      uint32_t  _hasCleanSign                      : 1;  ///< true/false
-      uint32_t  _hasPreferredSign                  : 1;  ///< true/false
-      uint32_t  _round                             : 1;  ///< true/false
-      uint32_t  _hasNoSignStateOnLoad              : 1;  ///< true/false // for BCD loads : false for PRE created loads that must preserve sign state (conservative setting), true for FE created loads
-      uint32_t  _castedToBCD                       : 1;  ///< true/false // if true node was not originally a BCD type but casted to BCD by the optimizer from a non-BCD type (e.g. aggr or int)
-      TR_RawBCDSignCode  _signCode                 : 3;
-      };
+    // keep nodes as small as possible for frontends that do not need the data below
+    // The fields below are all disjoint, which fields exist for which platforms/opcodes are provided by the given
+    // has<Field> functions
+    union UnionPropertyB {
+        // field exists when following is true: only one of these should be true for a given node
+        // eventually should replace by exclusive representation (eg. enum)
+        DecimalInfo _decimalInfo; ///< hasDecimalInfo()
 
-   // keep nodes as small as possible for frontends that do not need the data below
-   // The fields below are all disjoint, which fields exist for which platforms/opcodes are provided by the given has<Field> functions
-   union UnionPropertyB
-      {
-      // field exists when following is true: only one of these should be true for a given node
-      // eventually should replace by exclusive representation (eg. enum)
-      DecimalInfo _decimalInfo;    ///< hasDecimalInfo()
-      // overflow/rounding option
-      UnionPropertyB()
-         {
-         memset(this, 0, sizeof(UnionPropertyB)); ///< in C++11 notation: _unionPropertyB = {0};
-         }
-      };
+        // overflow/rounding option
+        UnionPropertyB()
+        {
+            memset(this, 0, sizeof(UnionPropertyB)); ///< in C++11 notation: _unionPropertyB = {0};
+        }
+    };
 
-   enum UnionPropertyB_Type
-      {
-      HasNoUnionPropertyB = 0,
-      HasDecimalInfo,          ///< hasDecimalInfo()
-      HasBcdFlags              ///< hasBCDFlags()
-      };
+    enum UnionPropertyB_Type {
+        HasNoUnionPropertyB = 0,
+        HasDecimalInfo, ///< hasDecimalInfo()
+        HasBcdFlags ///< hasBCDFlags()
+    };
 
-   bool hasDecimalInfo();
-   bool hasBCDFlags();
-   UnionPropertyB_Type getUnionPropertyB_Type();
+    bool hasDecimalInfo();
+    bool hasBCDFlags();
+    UnionPropertyB_Type getUnionPropertyB_Type();
 
-   // for DecimalInfo subtypes
-   bool hasDecimalPrecision();
-   bool hasDecimalAdjust();
-   bool hasSetSign();
-   bool hasDecimalFraction();
-   bool hasDecimalRound();
+    // for DecimalInfo subtypes
+    bool hasDecimalPrecision();
+    bool hasDecimalAdjust();
+    bool hasSetSign();
+    bool hasDecimalFraction();
+    bool hasDecimalRound();
 
-// Fields
+    // Fields
 private:
-
 #ifdef TR_TARGET_S390
-   ///< hasStorageReferenceHint()
-   TR_StorageReference * _storageReferenceHint;
+    ///< hasStorageReferenceHint()
+    TR_StorageReference *_storageReferenceHint;
 #endif
 
-   // Holds DecimalInfo and BCDFlags
-   UnionPropertyB _unionPropertyB;
+    // Holds DecimalInfo and BCDFlags
+    UnionPropertyB _unionPropertyB;
 
 protected:
-   // Flag bits
-   enum
-      {
-      // Flag used by TR::BNDCHK nodes
-      spineCHKWithArrayElementChild         = 0x00004000,
+    // Flag bits
+    enum {
+        // Flag used by TR::BNDCHK nodes
+        spineCHKWithArrayElementChild = 0x00004000,
 
-      // Flags used by call nodes
-      processedByCallCloneConstrain         = 0x00100000,
-      unsafeGetPutOnNonArray                = 0x00200000,
-      DAAVariableSlowCall                   = 0x00400000, ///< Used to avoid Variable precision DAA optimization
+        // Flags used by call nodes
+        processedByCallCloneConstrain = 0x00100000,
+        unsafeGetPutOnNonArray = 0x00200000,
+        DAAVariableSlowCall = 0x00400000, ///< Used to avoid Variable precision DAA optimization
 
-      // Flag used by binary coded decimal load nodes
-      IsBCDStoreTemporarilyALoad            = 0x00400000,
+        // Flag used by binary coded decimal load nodes
+        IsBCDStoreTemporarilyALoad = 0x00400000,
 
-      // Flag used by isPackedLeftShift nodes (pdshl,pdshlSetSign...)
-      CleanSignDuringPackedLeftShift        = 0x00400000,
+        // Flag used by isPackedLeftShift nodes (pdshl,pdshlSetSign...)
+        CleanSignDuringPackedLeftShift = 0x00400000,
 
-      // Flag used by non-store and non-call binary coded decimal and aggregate nodes
-      SkipCopyOnLoad                        = 0x00800000,
+        // Flag used by non-store and non-call binary coded decimal and aggregate nodes
+        SkipCopyOnLoad = 0x00800000,
 
-      // Flag used by binary coded decimal and aggregate store nodes
-      SkipCopyOnStore                       = 0x00080000,
+        // Flag used by binary coded decimal and aggregate store nodes
+        SkipCopyOnStore = 0x00080000,
 
-      // Flag used by packed decimal stores (eg pdstore/ipdstore)
-      cleanSignInPDStoreEvaluator           = 0x00040000,
+        // Flag used by packed decimal stores (eg pdstore/ipdstore)
+        cleanSignInPDStoreEvaluator = 0x00040000,
 
-      // Flag used by binary coded decimal stores and aggregate stores (eg pdstore/ipdstore/zdstore/izdstore etc)
-      // (all nodes where ILProp3::CanUseStoreAsAnAccumulator is set)
-      UseStoreAsAnAccumulator               = 0x00200000,
+        // Flag used by binary coded decimal stores and aggregate stores (eg pdstore/ipdstore/zdstore/izdstore etc)
+        // (all nodes where ILProp3::CanUseStoreAsAnAccumulator is set)
+        UseStoreAsAnAccumulator = 0x00200000,
 
-      // Flag used by non-store packed types
-      skipPadByteClearing                   = 0x00020000,
+        // Flag used by non-store packed types
+        skipPadByteClearing = 0x00020000,
 
-      // Flag used by BCD and Aggr type stores -- for in memory types set when 1 or more child of the store was changed
-      // during local or global copy propagation
-      IsInMemoryCopyProp                    = 0x08000000,
+        // Flag used by BCD and Aggr type stores -- for in memory types set when 1 or more child of the store was
+        // changed during local or global copy propagation
+        IsInMemoryCopyProp = 0x08000000,
 
-      // Flag used by address type nodes in Java
-      sharedMemory                          = 0x00000400,
+        // Flag used by address type nodes in Java
+        sharedMemory = 0x00000400,
+    };
+};
 
-      };
-
-   };
-
-}
+} // namespace J9
 
 #endif
 

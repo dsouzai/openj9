@@ -28,10 +28,11 @@
  */
 #ifndef TR_J9_COMPILATIONBASE_CONNECTOR
 #define TR_J9_COMPILATIONBASE_CONNECTOR
+
 namespace J9 {
 class Compilation;
 typedef J9::Compilation CompilationConnector;
-}
+} // namespace J9
 #endif
 
 #include "compile/OMRCompilation.hpp"
@@ -47,7 +48,6 @@ typedef J9::Compilation CompilationConnector;
 #include "runtime/SymbolValidationManager.hpp"
 #include "env/PersistentCollections.hpp"
 
-
 class TR_AOTGuardSite;
 class TR_FrontEnd;
 class TR_ResolvedMethod;
@@ -60,6 +60,7 @@ class TR_ExternalValueProfileInfo;
 class TR_J9VM;
 class TR_AccessedProfileInfo;
 class TR_RelocationRuntime;
+
 namespace TR {
 class IlGenRequest;
 }
@@ -83,524 +84,551 @@ class AOTCacheThunkRecord;
 #define COMPILATION_RESERVE_NTRAMPOLINES_ERROR_INBINARYENCODING -19
 #define COMPILATION_AOT_RELOCATION_FAILED -20
 
+namespace J9 {
 
-namespace J9
-{
+class OMR_EXTENSIBLE Compilation : public OMR::CompilationConnector {
+public:
+    TR_ALLOC(TR_Memory::Compilation)
 
-class OMR_EXTENSIBLE Compilation : public OMR::CompilationConnector
-   {
-   public:
+    Compilation(int32_t compThreadId, J9VMThread *j9VMThread, TR_FrontEnd *, TR_ResolvedMethod *, TR::IlGenRequest &,
+        TR::Options &, TR::Region &heapMemoryRegion, TR_Memory *, TR_OptimizationPlan *optimizationPlan,
+        TR_RelocationRuntime *reloRuntime, TR::Environment *target = NULL);
 
-   TR_ALLOC(TR_Memory::Compilation)
+    ~Compilation();
 
-   Compilation(
-         int32_t compThreadId,
-         J9VMThread *j9VMThread,
-         TR_FrontEnd *,
-         TR_ResolvedMethod *,
-         TR::IlGenRequest &,
-         TR::Options &,
-         TR::Region &heapMemoryRegion,
-         TR_Memory *,
-         TR_OptimizationPlan *optimizationPlan,
-         TR_RelocationRuntime *reloRuntime,
-         TR::Environment *target = NULL);
+    TR_J9VMBase *fej9();
+    TR_J9VM *fej9vm();
 
-   ~Compilation();
+    static void allocateCompYieldStatsMatrix();
 
-   TR_J9VMBase *fej9();
-   TR_J9VM *fej9vm();
+    static TR_Stats **_compYieldStatsMatrix;
 
-   static void allocateCompYieldStatsMatrix();
+    void updateCompYieldStatistics(TR_CallingContext callingContext);
 
-   static TR_Stats **_compYieldStatsMatrix;
+    bool getUpdateCompYieldStats() { return _updateCompYieldStats; }
 
-   void updateCompYieldStatistics(TR_CallingContext callingContext);
+    void printCompYieldStats();
 
-   bool getUpdateCompYieldStats() { return _updateCompYieldStats; }
+    uint64_t getMaxYieldInterval() { return _maxYieldInterval; }
 
-   void printCompYieldStats();
+    static const char *getContextName(TR_CallingContext context);
 
-   uint64_t getMaxYieldInterval() { return _maxYieldInterval; }
+    static void printCompYieldStatsMatrix();
 
-   static const char * getContextName(TR_CallingContext context);
+    static void printEntryName(int32_t, int32_t);
 
-   static void printCompYieldStatsMatrix();
+    bool getNeedsClassLookahead() { return _needsClassLookahead; }
 
-   static void printEntryName(int32_t, int32_t);
+    void setNeedsClassLookahead(bool b) { _needsClassLookahead = b; }
 
-   bool getNeedsClassLookahead() {return _needsClassLookahead;}
+    bool hasBlockFrequencyInfo();
 
-   void setNeedsClassLookahead(bool b) {_needsClassLookahead = b;}
+    bool isShortRunningMethod(int32_t callerIndex);
 
-   bool hasBlockFrequencyInfo();
+    int32_t getDltBcIndex() { return _dltBcIndex; }
 
-   bool isShortRunningMethod(int32_t callerIndex);
+    void setDltBcIndex(int32_t ix) { _dltBcIndex = ix; }
 
-   int32_t getDltBcIndex() { return _dltBcIndex;}
-   void setDltBcIndex(int32_t ix) { _dltBcIndex=ix;}
+    int32_t *getDltSlotDescription() { return _dltSlotDescription; }
 
-   int32_t *getDltSlotDescription() { return _dltSlotDescription;}
-   void setDltSlotDescription(int32_t *ds) { _dltSlotDescription = ds;}
+    void setDltSlotDescription(int32_t *ds) { _dltSlotDescription = ds; }
 
-   void *getReservedDataCache() { return _reservedDataCache; }
-   void setReservedDataCache(void *dataCache) { _reservedDataCache = dataCache; }
+    void *getReservedDataCache() { return _reservedDataCache; }
 
-   uint32_t getTotalNeededDataCacheSpace() { return _totalNeededDataCacheSpace; }
-   void incrementTotalNeededDataCacheSpace(uint32_t size) { _totalNeededDataCacheSpace += size; }
+    void setReservedDataCache(void *dataCache) { _reservedDataCache = dataCache; }
 
-   void * getAotMethodDataStart() const { return _aotMethodDataStart; }
-   void setAotMethodDataStart(void *p) { _aotMethodDataStart = p; }
+    uint32_t getTotalNeededDataCacheSpace() { return _totalNeededDataCacheSpace; }
 
-   TR_AOTMethodHeader * getAotMethodHeaderEntry();
+    void incrementTotalNeededDataCacheSpace(uint32_t size) { _totalNeededDataCacheSpace += size; }
 
-   TR::Node *findNullChkInfo(TR::Node *node);
+    void *getAotMethodDataStart() const { return _aotMethodDataStart; }
 
-   bool isAlignStackMaps() { return J9::Compilation::target().cpu.isARM(); }
+    void setAotMethodDataStart(void *p) { _aotMethodDataStart = p; }
 
-   void changeOptLevel(TR_Hotness);
+    TR_AOTMethodHeader *getAotMethodHeaderEntry();
 
-   // For replay
-   void *getCurMethodMetadata() {return _curMethodMetadata;}
-   void setCurMethodMetadata(void *m) {_curMethodMetadata = m;}
+    TR::Node *findNullChkInfo(TR::Node *node);
 
-   void setGetImplInlineable(bool b) { setGetImplAndRefersToInlineable(b); }
-   /**
-    * \brief Sets whether the native \c java.lang.ref.Reference
-    * methods, \c getImpl and \c refersTo, can be inlined.
-    * \param[in] b A \c bool argument indicating whether \c getImpl
-    *              and \c refersTo can be inlined.
-    */
-   void setGetImplAndRefersToInlineable(bool b) { _getImplAndRefersToInlineable = b; }
+    bool isAlignStackMaps() { return J9::Compilation::target().cpu.isARM(); }
 
-   /**
-    * \brief Indicates whether the native \c java.lang.ref.Reference
-    * methods, \c getImpl and \c refersTo, can be inlined.
-    *
-    * \return \c true if they can be inlined; \c false otherwise
-    */
-   bool getGetImplAndRefersToInlineable() { return _getImplAndRefersToInlineable; }
+    void changeOptLevel(TR_Hotness);
 
-   //for converters
-   bool canTransformConverterMethod(TR::RecognizedMethod method);
-   bool isConverterMethod(TR::RecognizedMethod method);
-
-   bool useCompressedPointers();
-   bool useAnchors();
-
-   bool isRecompilationEnabled();
-
-   bool isJProfilingCompilation();
-
-   bool pendingPushLivenessDuringIlgen();
-
-   TR::list<TR_ExternalValueProfileInfo*> &getExternalVPInfos() { return _externalVPInfoList; }
-
-   TR_ValueProfileInfoManager *getValueProfileInfoManager()             { return _vpInfoManager;}
-   void setValueProfileInfoManager(TR_ValueProfileInfoManager * mgr)    { _vpInfoManager = mgr; }
-
-   TR_BranchProfileInfoManager *getBranchProfileInfoManager()           { return _bpInfoManager;}
-   void setBranchProfileInfoManager(TR_BranchProfileInfoManager * mgr)  { _bpInfoManager = mgr; }
-
-   TR::list<TR_MethodBranchProfileInfo*> &getMethodBranchInfos() { return _methodBranchInfoList; }
-
-   // See if the allocation of an object of the class can be inlined.
-   bool canAllocateInlineClass(TR_OpaqueClassBlock *clazz);
+    // For replay
+    void *getCurMethodMetadata() { return _curMethodMetadata; }
 
-   // See if it is OK to remove an allocation node to e.g. merge it with others
-   // or allocate it locally on a stack frame.
-   // If so, return the allocation size. Otherwise return 0.
-   // The second argument is the returned class information.
-   //
-   int32_t canAllocateInlineOnStack(TR::Node* node, TR_OpaqueClassBlock* &classInfo);
-   int32_t canAllocateInline(TR::Node* node, TR_OpaqueClassBlock* &classInfo);
-
-   TR::KnownObjectTable *getOrCreateKnownObjectTable();
-   void freeKnownObjectTable();
-
-   bool compileRelocatableCode();
-
-   bool compilePortableCode();
-
-   int32_t maxInternalPointers();
-
-   bool compilationShouldBeInterrupted(TR_CallingContext);
-
-   /* Heuristic Region APIs
-    *
-    * Heuristic Regions denotes regions where decisions
-    * within the region do not need to be remembered. In relocatable compiles,
-    * when the compiler requests some information via front end query,
-    * it's possible that the front end might walk a data structure,
-    * looking at several different possible answers before finally deciding
-    * on one. For a relocatable compile, only the final answer is important.
-    * Thus, a heuristic region is used to ignore all of the intermediate
-    * steps in determining the final answer.
-    */
-   void enterHeuristicRegion();
-   void exitHeuristicRegion();
+    void setCurMethodMetadata(void *m) { _curMethodMetadata = m; }
 
-   /* Used to ensure that a implementer chosen for inlining is valid under
-    * AOT.
-    */
-   bool validateTargetToBeInlined(TR_ResolvedMethod *implementer);
+    void setGetImplInlineable(bool b) { setGetImplAndRefersToInlineable(b); }
 
-   void reportILGeneratorPhase();
-   void reportAnalysisPhase(uint8_t id);
-   void reportOptimizationPhase(OMR::Optimizations);
-   void reportOptimizationPhaseForSnap(OMR::Optimizations);
+    /**
+     * \brief Sets whether the native \c java.lang.ref.Reference
+     * methods, \c getImpl and \c refersTo, can be inlined.
+     * \param[in] b A \c bool argument indicating whether \c getImpl
+     *              and \c refersTo can be inlined.
+     */
+    void setGetImplAndRefersToInlineable(bool b) { _getImplAndRefersToInlineable = b; }
 
-   CompilationPhase saveCompilationPhase();
-   void restoreCompilationPhase(CompilationPhase phase);
+    /**
+     * \brief Indicates whether the native \c java.lang.ref.Reference
+     * methods, \c getImpl and \c refersTo, can be inlined.
+     *
+     * \return \c true if they can be inlined; \c false otherwise
+     */
+    bool getGetImplAndRefersToInlineable() { return _getImplAndRefersToInlineable; }
 
-   /**
-    * \brief
-    *    Answers whether the fact that a method has not been executed yet implies
-    *    that the method is cold.
-    *
-    * \return
-    *    true if the fact that a method has not been executed implies it is cold;
-    *    false otherwise
-    */
-   bool notYetRunMeansCold();
+    // for converters
+    bool canTransformConverterMethod(TR::RecognizedMethod method);
+    bool isConverterMethod(TR::RecognizedMethod method);
 
-   // --------------------------------------------------------------------------
-   // Hardware profiling
-   //
-   bool HWProfileDone() { return _doneHWProfile;}
-   void setHWProfileDone(bool val) {_doneHWProfile = val;}
+    bool useCompressedPointers();
+    bool useAnchors();
 
-   void addHWPInstruction(TR::Instruction *instruction,
-                          TR_HWPInstructionInfo::type instructionType,
-                          void *data = NULL);
-   void addHWPCallInstruction(TR::Instruction *instruction, bool indirectCall = false, TR::Instruction *prev = NULL);
-   void addHWPReturnInstruction(TR::Instruction *instruction);
-   void addHWPValueProfileInstruction(TR::Instruction *instruction);
-   void addHWPBCMap(TR_HWPBytecodePCToIAMap map) { _hwpBCMap.add(map); }
-   TR_Array<TR_HWPInstructionInfo> *getHWPInstructions() { return &_hwpInstructions; }
-   TR_Array<TR_HWPBytecodePCToIAMap> *getHWPBCMap() { return &_hwpBCMap; }
+    bool isRecompilationEnabled();
 
-   bool verifyCompressedRefsAnchors(bool anchorize);
-   void verifyCompressedRefsAnchors();
+    bool isJProfilingCompilation();
 
-   void verifyCompressedRefsAnchors(TR::Node *parent, TR::Node *node,
-                                    TR::TreeTop *tt, vcount_t visitCount);
-   void verifyCompressedRefsAnchors(TR::Node *parent, TR::Node *node,
-                                    TR::TreeTop *tt, vcount_t visitCount,
-                                    TR::list<TR_Pair<TR::Node, TR::TreeTop> *> &nodesList);
+    bool pendingPushLivenessDuringIlgen();
 
-   // CodeGenerator?
-   TR::list<TR_AOTGuardSite*> *getAOTGuardPatchSites() { return _aotGuardPatchSites; }
-   TR_AOTGuardSite *addAOTNOPSite();
+    TR::list<TR_ExternalValueProfileInfo *> &getExternalVPInfos() { return _externalVPInfoList; }
 
-   TR::list<TR_VirtualGuardSite*> *getSideEffectGuardPatchSites() { return &_sideEffectGuardPatchSites; }
-   TR_VirtualGuardSite *addSideEffectNOPSite();
+    TR_ValueProfileInfoManager *getValueProfileInfoManager() { return _vpInfoManager; }
 
-   TR_CHTable *getCHTable() const { return _transientCHTable; }
+    void setValueProfileInfoManager(TR_ValueProfileInfoManager *mgr) { _vpInfoManager = mgr; }
 
-   // Inliner
-   using OMR::CompilationConnector::incInlineDepth;
-   bool incInlineDepth(TR::ResolvedMethodSymbol *, TR_ByteCodeInfo &, int32_t cpIndex, TR::SymbolReference *callSymRef, bool directCall, TR_PrexArgInfo *argInfo = 0);
+    TR_BranchProfileInfoManager *getBranchProfileInfoManager() { return _bpInfoManager; }
 
-   bool isGeneratedReflectionMethod(TR_ResolvedMethod *method);
+    void setBranchProfileInfoManager(TR_BranchProfileInfoManager *mgr) { _bpInfoManager = mgr; }
 
-   TR_ExternalRelocationTargetKind getReloTypeForMethodToBeInlined(TR_VirtualGuardSelection *guard, TR::Node *callNode, TR_OpaqueClassBlock *receiverClass);
+    TR::list<TR_MethodBranchProfileInfo *> &getMethodBranchInfos() { return _methodBranchInfoList; }
 
-   // cache J9 VM pointers
-   TR_OpaqueClassBlock *getObjectClassPointer();
-   TR_OpaqueClassBlock *getRunnableClassPointer();
-   TR_OpaqueClassBlock *getStringClassPointer();
-   TR_OpaqueClassBlock *getSystemClassPointer();
-   TR_OpaqueClassBlock *getReferenceClassPointer();
-   TR_OpaqueClassBlock *getJITHelpersClassPointer();
-   TR_OpaqueClassBlock *getClassClassPointer(bool isVettedForAOT = false);
+    // See if the allocation of an object of the class can be inlined.
+    bool canAllocateInlineClass(TR_OpaqueClassBlock *clazz);
 
-   // Monitors
-   TR_Array<List<TR::RegisterMappedSymbol> * > & getMonitorAutos() { return _monitorAutos; }
-   void addMonitorAuto(TR::RegisterMappedSymbol *, int32_t callerIndex);
-   void addAsMonitorAuto(TR::SymbolReference* symRef, bool dontAddIfDLT);
-   TR::list<TR::SymbolReference*> * getMonitorAutoSymRefsInCompiledMethod() { return &_monitorAutoSymRefsInCompiledMethod; }
+    // See if it is OK to remove an allocation node to e.g. merge it with others
+    // or allocate it locally on a stack frame.
+    // If so, return the allocation size. Otherwise return 0.
+    // The second argument is the returned class information.
+    //
+    int32_t canAllocateInlineOnStack(TR::Node *node, TR_OpaqueClassBlock *&classInfo);
+    int32_t canAllocateInline(TR::Node *node, TR_OpaqueClassBlock *&classInfo);
 
-   // OSR Guard Redefinition Classes
-   void addClassForOSRRedefinition(TR_OpaqueClassBlock *clazz);
-   TR_Array<TR_OpaqueClassBlock*> *getClassesForOSRRedefinition() { return &_classForOSRRedefinition; }
+    TR::KnownObjectTable *getOrCreateKnownObjectTable();
+    void freeKnownObjectTable();
 
-   void addClassForStaticFinalFieldModification(TR_OpaqueClassBlock *clazz);
-   TR_Array<TR_OpaqueClassBlock*> *getClassesForStaticFinalFieldModification() { return &_classForStaticFinalFieldModification; }
+    bool compileRelocatableCode();
 
-   TR::list<TR::AOTClassInfo*>* _aotClassInfo;
+    bool compilePortableCode();
 
-   J9VMThread *j9VMThread() { return _j9VMThread; }
+    int32_t maxInternalPointers();
 
-   // cache profile information
-   TR_AccessedProfileInfo *getProfileInfo() { return _profileInfo; }
+    bool compilationShouldBeInterrupted(TR_CallingContext);
 
-   // Flag to test whether early stages of JProfiling ran
-   void setSkippedJProfilingBlock(bool b = true) { _skippedJProfilingBlock = b; }
-   bool getSkippedJProfilingBlock() { return _skippedJProfilingBlock; }
+    /* Heuristic Region APIs
+     *
+     * Heuristic Regions denotes regions where decisions
+     * within the region do not need to be remembered. In relocatable compiles,
+     * when the compiler requests some information via front end query,
+     * it's possible that the front end might walk a data structure,
+     * looking at several different possible answers before finally deciding
+     * on one. For a relocatable compile, only the final answer is important.
+     * Thus, a heuristic region is used to ignore all of the intermediate
+     * steps in determining the final answer.
+     */
+    void enterHeuristicRegion();
+    void exitHeuristicRegion();
 
-   //
-   bool supportsQuadOptimization();
+    /* Used to ensure that a implementer chosen for inlining is valid under
+     * AOT.
+     */
+    bool validateTargetToBeInlined(TR_ResolvedMethod *implementer);
 
-   TR_RelocationRuntime *reloRuntime() { return _reloRuntime; }
+    void reportILGeneratorPhase();
+    void reportAnalysisPhase(uint8_t id);
+    void reportOptimizationPhase(OMR::Optimizations);
+    void reportOptimizationPhaseForSnap(OMR::Optimizations);
 
-   bool incompleteOptimizerSupportForReadWriteBarriers();
+    CompilationPhase saveCompilationPhase();
+    void restoreCompilationPhase(CompilationPhase phase);
+
+    /**
+     * \brief
+     *    Answers whether the fact that a method has not been executed yet implies
+     *    that the method is cold.
+     *
+     * \return
+     *    true if the fact that a method has not been executed implies it is cold;
+     *    false otherwise
+     */
+    bool notYetRunMeansCold();
+
+    // --------------------------------------------------------------------------
+    // Hardware profiling
+    //
+    bool HWProfileDone() { return _doneHWProfile; }
+
+    void setHWProfileDone(bool val) { _doneHWProfile = val; }
+
+    void addHWPInstruction(TR::Instruction *instruction, TR_HWPInstructionInfo::type instructionType,
+        void *data = NULL);
+    void addHWPCallInstruction(TR::Instruction *instruction, bool indirectCall = false, TR::Instruction *prev = NULL);
+    void addHWPReturnInstruction(TR::Instruction *instruction);
+    void addHWPValueProfileInstruction(TR::Instruction *instruction);
+
+    void addHWPBCMap(TR_HWPBytecodePCToIAMap map) { _hwpBCMap.add(map); }
+
+    TR_Array<TR_HWPInstructionInfo> *getHWPInstructions() { return &_hwpInstructions; }
+
+    TR_Array<TR_HWPBytecodePCToIAMap> *getHWPBCMap() { return &_hwpBCMap; }
+
+    bool verifyCompressedRefsAnchors(bool anchorize);
+    void verifyCompressedRefsAnchors();
+
+    void verifyCompressedRefsAnchors(TR::Node *parent, TR::Node *node, TR::TreeTop *tt, vcount_t visitCount);
+    void verifyCompressedRefsAnchors(TR::Node *parent, TR::Node *node, TR::TreeTop *tt, vcount_t visitCount,
+        TR::list<TR_Pair<TR::Node, TR::TreeTop> *> &nodesList);
+
+    // CodeGenerator?
+    TR::list<TR_AOTGuardSite *> *getAOTGuardPatchSites() { return _aotGuardPatchSites; }
+
+    TR_AOTGuardSite *addAOTNOPSite();
+
+    TR::list<TR_VirtualGuardSite *> *getSideEffectGuardPatchSites() { return &_sideEffectGuardPatchSites; }
+
+    TR_VirtualGuardSite *addSideEffectNOPSite();
+
+    TR_CHTable *getCHTable() const { return _transientCHTable; }
+
+    // Inliner
+    using OMR::CompilationConnector::incInlineDepth;
+    bool incInlineDepth(TR::ResolvedMethodSymbol *, TR_ByteCodeInfo &, int32_t cpIndex, TR::SymbolReference *callSymRef,
+        bool directCall, TR_PrexArgInfo *argInfo = 0);
+
+    bool isGeneratedReflectionMethod(TR_ResolvedMethod *method);
+
+    TR_ExternalRelocationTargetKind getReloTypeForMethodToBeInlined(TR_VirtualGuardSelection *guard, TR::Node *callNode,
+        TR_OpaqueClassBlock *receiverClass);
+
+    // cache J9 VM pointers
+    TR_OpaqueClassBlock *getObjectClassPointer();
+    TR_OpaqueClassBlock *getRunnableClassPointer();
+    TR_OpaqueClassBlock *getStringClassPointer();
+    TR_OpaqueClassBlock *getSystemClassPointer();
+    TR_OpaqueClassBlock *getReferenceClassPointer();
+    TR_OpaqueClassBlock *getJITHelpersClassPointer();
+    TR_OpaqueClassBlock *getClassClassPointer(bool isVettedForAOT = false);
+
+    // Monitors
+    TR_Array<List<TR::RegisterMappedSymbol> *> &getMonitorAutos() { return _monitorAutos; }
+
+    void addMonitorAuto(TR::RegisterMappedSymbol *, int32_t callerIndex);
+    void addAsMonitorAuto(TR::SymbolReference *symRef, bool dontAddIfDLT);
+
+    TR::list<TR::SymbolReference *> *getMonitorAutoSymRefsInCompiledMethod()
+    {
+        return &_monitorAutoSymRefsInCompiledMethod;
+    }
+
+    // OSR Guard Redefinition Classes
+    void addClassForOSRRedefinition(TR_OpaqueClassBlock *clazz);
+
+    TR_Array<TR_OpaqueClassBlock *> *getClassesForOSRRedefinition() { return &_classForOSRRedefinition; }
+
+    void addClassForStaticFinalFieldModification(TR_OpaqueClassBlock *clazz);
+
+    TR_Array<TR_OpaqueClassBlock *> *getClassesForStaticFinalFieldModification()
+    {
+        return &_classForStaticFinalFieldModification;
+    }
+
+    TR::list<TR::AOTClassInfo *> *_aotClassInfo;
+
+    J9VMThread *j9VMThread() { return _j9VMThread; }
+
+    // cache profile information
+    TR_AccessedProfileInfo *getProfileInfo() { return _profileInfo; }
+
+    // Flag to test whether early stages of JProfiling ran
+    void setSkippedJProfilingBlock(bool b = true) { _skippedJProfilingBlock = b; }
+
+    bool getSkippedJProfilingBlock() { return _skippedJProfilingBlock; }
+
+    //
+    bool supportsQuadOptimization();
+
+    TR_RelocationRuntime *reloRuntime() { return _reloRuntime; }
+
+    bool incompleteOptimizerSupportForReadWriteBarriers();
 
 #if defined(J9VM_OPT_JITSERVER)
-   static bool isOutOfProcessCompilation() { return _outOfProcessCompilation; } // server side
-   static void setOutOfProcessCompilation() { _outOfProcessCompilation = true; }
+    static bool isOutOfProcessCompilation() { return _outOfProcessCompilation; } // server side
 
-   bool isRemoteCompilation() const { return _remoteCompilation; } // client side
-   void setRemoteCompilation() { _remoteCompilation = true; }
+    static void setOutOfProcessCompilation() { _outOfProcessCompilation = true; }
 
-   TR::list<SerializedRuntimeAssumption *> &getSerializedRuntimeAssumptions() { return _serializedRuntimeAssumptions; }
+    bool isRemoteCompilation() const { return _remoteCompilation; } // client side
 
-   ClientSessionData *getClientData() const { return _clientData; }
-   void setClientData(ClientSessionData *clientData) { _clientData = clientData; }
+    void setRemoteCompilation() { _remoteCompilation = true; }
 
-   JITServer::ServerStream *getStream() const { return _stream; }
-   void setStream(JITServer::ServerStream *stream) { _stream = stream; }
+    TR::list<SerializedRuntimeAssumption *> &getSerializedRuntimeAssumptions() { return _serializedRuntimeAssumptions; }
 
-   void switchToPerClientMemory() { _trMemory = _perClientMemory; }
-   void switchToGlobalMemory() { _trMemory = &_globalMemory; }
+    ClientSessionData *getClientData() const { return _clientData; }
 
-   TR::list<TR_OpaqueMethodBlock *> &getMethodsRequiringTrampolines() { return _methodsRequiringTrampolines; }
+    void setClientData(ClientSessionData *clientData) { _clientData = clientData; }
 
-   bool isDeserializedAOTMethod() const { return _deserializedAOTMethod; }
-   void setDeserializedAOTMethod(bool deserialized) { _deserializedAOTMethod = deserialized; }
+    JITServer::ServerStream *getStream() const { return _stream; }
 
-   bool isDeserializedAOTMethodStore() const { return _deserializedAOTMethodStore; }
-   void setDeserializedAOTMethodStore(bool deserializedStore) { _deserializedAOTMethodStore = deserializedStore; }
+    void setStream(JITServer::ServerStream *stream) { _stream = stream; }
 
-   bool isDeserializedAOTMethodUsingSVM() const { return _deserializedAOTMethodUsingSVM; }
-   void setDeserializedAOTMethodUsingSVM(bool usingSVM) { _deserializedAOTMethodUsingSVM = usingSVM; }
+    void switchToPerClientMemory() { _trMemory = _perClientMemory; }
 
-   bool isAOTCacheStore() const { return _aotCacheStore; }
-   void setAOTCacheStore(bool store) { _aotCacheStore = store; }
+    void switchToGlobalMemory() { _trMemory = &_globalMemory; }
 
-   bool ignoringLocalSCC() const { return _ignoringLocalSCC; }
-   void setIgnoringLocalSCC(bool ignoringLocalSCC) { _ignoringLocalSCC = ignoringLocalSCC; }
+    TR::list<TR_OpaqueMethodBlock *> &getMethodsRequiringTrampolines() { return _methodsRequiringTrampolines; }
 
-   Vector<std::pair<const AOTCacheRecord *, uintptr_t>> &getSerializationRecords() { return _serializationRecords; }
-   // Adds an AOT cache record and the corresponding offset into AOT relocation data to the list that
-   // will be used when the result of this out-of-process compilation is serialized and stored in
-   // JITServer AOT cache. If record is NULL, fails serialization by setting _aotCacheStore to false if we are not
-   // ignoring the client's SCC, and otherwise fails the compilation entirely.
-   void addSerializationRecord(const AOTCacheRecord *record, uintptr_t reloDataOffset);
+    bool isDeserializedAOTMethod() const { return _deserializedAOTMethod; }
 
-   UnorderedSet<const AOTCacheThunkRecord *> &getThunkRecords() { return _thunkRecords; }
-   // Adds an AOT cache thunk record to the set of thunks that this compilation depends on, and also adds it
-   // to the list of records that this compilation depends on if the thunk record is new. If the record is NULL,
-   // fails serialization by setting _aotCacheStore to false if we are not ignoring the client's SCC, and otherwise
-   // fails the compilation entirely.
-   void addThunkRecord(const AOTCacheThunkRecord *record);
+    void setDeserializedAOTMethod(bool deserialized) { _deserializedAOTMethod = deserialized; }
+
+    bool isDeserializedAOTMethodStore() const { return _deserializedAOTMethodStore; }
+
+    void setDeserializedAOTMethodStore(bool deserializedStore) { _deserializedAOTMethodStore = deserializedStore; }
+
+    bool isDeserializedAOTMethodUsingSVM() const { return _deserializedAOTMethodUsingSVM; }
+
+    void setDeserializedAOTMethodUsingSVM(bool usingSVM) { _deserializedAOTMethodUsingSVM = usingSVM; }
+
+    bool isAOTCacheStore() const { return _aotCacheStore; }
+
+    void setAOTCacheStore(bool store) { _aotCacheStore = store; }
+
+    bool ignoringLocalSCC() const { return _ignoringLocalSCC; }
+
+    void setIgnoringLocalSCC(bool ignoringLocalSCC) { _ignoringLocalSCC = ignoringLocalSCC; }
+
+    Vector<std::pair<const AOTCacheRecord *, uintptr_t> > &getSerializationRecords() { return _serializationRecords; }
+
+    // Adds an AOT cache record and the corresponding offset into AOT relocation data to the list that
+    // will be used when the result of this out-of-process compilation is serialized and stored in
+    // JITServer AOT cache. If record is NULL, fails serialization by setting _aotCacheStore to false if we are not
+    // ignoring the client's SCC, and otherwise fails the compilation entirely.
+    void addSerializationRecord(const AOTCacheRecord *record, uintptr_t reloDataOffset);
+
+    UnorderedSet<const AOTCacheThunkRecord *> &getThunkRecords() { return _thunkRecords; }
+
+    // Adds an AOT cache thunk record to the set of thunks that this compilation depends on, and also adds it
+    // to the list of records that this compilation depends on if the thunk record is new. If the record is NULL,
+    // fails serialization by setting _aotCacheStore to false if we are not ignoring the client's SCC, and otherwise
+    // fails the compilation entirely.
+    void addThunkRecord(const AOTCacheThunkRecord *record);
 #else
-   bool isDeserializedAOTMethod() const { return false; }
-   bool ignoringLocalSCC() const { return false; }
+    bool isDeserializedAOTMethod() const { return false; }
+
+    bool ignoringLocalSCC() const { return false; }
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
-   TR::SymbolValidationManager *getSymbolValidationManager() { return _symbolValidationManager; }
+    TR::SymbolValidationManager *getSymbolValidationManager() { return _symbolValidationManager; }
 
-   /**
-    * \brief Determine whether it's currently expected to be possible to add
-    * OSR assumptions and corresponding fear points somewhere in the method.
-    *
-    * The result is independent of any particular program point. Even if the
-    * result is true, there may still be restrictions on the placement of fear
-    * points. However, if the result is false, then no fear points can be
-    * placed and no new assumptions can be made.
-    *
-    * \param comp the compilation object
-    * \return true if it's possible in general to add assumptions, false otherwise
-    */
-   bool canAddOSRAssumptions();
+    /**
+     * \brief Determine whether it's currently expected to be possible to add
+     * OSR assumptions and corresponding fear points somewhere in the method.
+     *
+     * The result is independent of any particular program point. Even if the
+     * result is true, there may still be restrictions on the placement of fear
+     * points. However, if the result is false, then no fear points can be
+     * placed and no new assumptions can be made.
+     *
+     * \param comp the compilation object
+     * \return true if it's possible in general to add assumptions, false otherwise
+     */
+    bool canAddOSRAssumptions();
 
-   /**
-    * \brief Determine whether fear points may be placed (almost) anywhere.
-    *
-    * If the result is true, then prior to fear point analysis, the compiler
-    * must ensure that OSR induction remains possible at every OSR yield point.
-    * As such, fear points may be placed almost anywhere in the method.
-    *
-    * \warning This does not allow fear points to be placed on the taken side
-    * of a guard (except after an OSR yield point, e.g. a cold call). That
-    * restriction is due to a limitation of the fear point analysis.
-    *
-    * \return true if fear points may be placed (almost) anywhere
-    */
-   bool isFearPointPlacementUnrestricted() { return false; }
+    /**
+     * \brief Determine whether fear points may be placed (almost) anywhere.
+     *
+     * If the result is true, then prior to fear point analysis, the compiler
+     * must ensure that OSR induction remains possible at every OSR yield point.
+     * As such, fear points may be placed almost anywhere in the method.
+     *
+     * \warning This does not allow fear points to be placed on the taken side
+     * of a guard (except after an OSR yield point, e.g. a cold call). That
+     * restriction is due to a limitation of the fear point analysis.
+     *
+     * \return true if fear points may be placed (almost) anywhere
+     */
+    bool isFearPointPlacementUnrestricted() { return false; }
 
-   // Flag to record whether fear-point analysis has already been done.
-   void setFearPointAnalysisDone() { _wasFearPointAnalysisDone = true; }
-   bool wasFearPointAnalysisDone() { return _wasFearPointAnalysisDone; }
+    // Flag to record whether fear-point analysis has already been done.
+    void setFearPointAnalysisDone() { _wasFearPointAnalysisDone = true; }
 
-   // Flag to record if any optimization has prohibited OSR over a range of trees
-   void setOSRProhibitedOverRangeOfTrees() { _osrProhibitedOverRangeOfTrees = true; }
-   bool isOSRProhibitedOverRangeOfTrees() { return _osrProhibitedOverRangeOfTrees; }
+    bool wasFearPointAnalysisDone() { return _wasFearPointAnalysisDone; }
+
+    // Flag to record if any optimization has prohibited OSR over a range of trees
+    void setOSRProhibitedOverRangeOfTrees() { _osrProhibitedOverRangeOfTrees = true; }
+
+    bool isOSRProhibitedOverRangeOfTrees() { return _osrProhibitedOverRangeOfTrees; }
 
 #if defined(PERSISTENT_COLLECTIONS_UNSUPPORTED)
-   void addAOTMethodDependency(TR_OpaqueClassBlock *ramClass) {}
-   void addAOTMethodDependency(TR_OpaqueClassBlock *ramClass, uintptr_t chainOffset) {}
+    void addAOTMethodDependency(TR_OpaqueClassBlock *ramClass) {}
+
+    void addAOTMethodDependency(TR_OpaqueClassBlock *ramClass, uintptr_t chainOffset) {}
 #else
-   void addAOTMethodDependency(TR_OpaqueClassBlock *ramClass);
-   void addAOTMethodDependency(TR_OpaqueClassBlock *ramClass, uintptr_t chainOffset);
-   uintptr_t populateAOTMethodDependencies(TR_OpaqueClassBlock *definingClass, Vector<uintptr_t> &chainBuffer);
+    void addAOTMethodDependency(TR_OpaqueClassBlock *ramClass);
+    void addAOTMethodDependency(TR_OpaqueClassBlock *ramClass, uintptr_t chainOffset);
+    uintptr_t populateAOTMethodDependencies(TR_OpaqueClassBlock *definingClass, Vector<uintptr_t> &chainBuffer);
 #endif
 
-   /**
-    * \brief Get the class loaders that are known to be permanent.
-    * \return a vector of pointers to all known-permanent class loaders
-    */
-   const TR::vector<J9ClassLoader*, TR::Region&> &permanentLoaders();
+    /**
+     * \brief Get the class loaders that are known to be permanent.
+     * \return a vector of pointers to all known-permanent class loaders
+     */
+    const TR::vector<J9ClassLoader *, TR::Region &> &permanentLoaders();
 
 private:
-   enum CachedClassPointerId
-      {
-      OBJECT_CLASS_POINTER,
-      RUNNABLE_CLASS_POINTER,
-      STRING_CLASS_POINTER,
-      SYSTEM_CLASS_POINTER,
-      REFERENCE_CLASS_POINTER,
-      JITHELPERS_CLASS_POINTER,
-      CACHED_CLASS_POINTER_COUNT,
-      };
+    enum CachedClassPointerId {
+        OBJECT_CLASS_POINTER,
+        RUNNABLE_CLASS_POINTER,
+        STRING_CLASS_POINTER,
+        SYSTEM_CLASS_POINTER,
+        REFERENCE_CLASS_POINTER,
+        JITHELPERS_CLASS_POINTER,
+        CACHED_CLASS_POINTER_COUNT,
+    };
 
-   TR_OpaqueClassBlock *getCachedClassPointer(CachedClassPointerId which);
+    TR_OpaqueClassBlock *getCachedClassPointer(CachedClassPointerId which);
 
 #if !defined(PERSISTENT_COLLECTIONS_UNSUPPORTED)
-   void addAOTMethodDependency(uintptr_t offset, bool classIsInitialized);
-#endif  /*  !defined(PERSISTENT_COLLECTIONS_UNSUPPORTED) */
+    void addAOTMethodDependency(uintptr_t offset, bool classIsInitialized);
+#endif /*  !defined(PERSISTENT_COLLECTIONS_UNSUPPORTED) */
 
-   J9VMThread *_j9VMThread;
+    J9VMThread *_j9VMThread;
 
-   bool _doneHWProfile;
-   TR_Array<TR_HWPInstructionInfo>    _hwpInstructions;
-   TR_Array<TR_HWPBytecodePCToIAMap>  _hwpBCMap;
+    bool _doneHWProfile;
+    TR_Array<TR_HWPInstructionInfo> _hwpInstructions;
+    TR_Array<TR_HWPBytecodePCToIAMap> _hwpBCMap;
 
-   bool _updateCompYieldStats;
+    bool _updateCompYieldStats;
 
-   uint64_t _hiresTimeForPreviousCallingContext;
+    uint64_t _hiresTimeForPreviousCallingContext;
 
-   TR_CallingContext _previousCallingContext;
+    TR_CallingContext _previousCallingContext;
 
-   uint64_t _maxYieldInterval;
+    uint64_t _maxYieldInterval;
 
-   TR_CallingContext _sourceContextForMaxYieldInterval;
+    TR_CallingContext _sourceContextForMaxYieldInterval;
 
-   TR_CallingContext _destinationContextForMaxYieldInterval;
+    TR_CallingContext _destinationContextForMaxYieldInterval;
 
-   static uint64_t _maxYieldIntervalS;
+    static uint64_t _maxYieldIntervalS;
 
-   static TR_CallingContext _sourceContextForMaxYieldIntervalS;
+    static TR_CallingContext _sourceContextForMaxYieldIntervalS;
 
-   static TR_CallingContext _destinationContextForMaxYieldIntervalS;
+    static TR_CallingContext _destinationContextForMaxYieldIntervalS;
 
-   bool _needsClassLookahead;
+    bool _needsClassLookahead;
 
-   int32_t _dltBcIndex;
+    int32_t _dltBcIndex;
 
-   int32_t * _dltSlotDescription;
+    int32_t *_dltSlotDescription;
 
-   void * _reservedDataCache;
+    void *_reservedDataCache;
 
-   uint32_t _totalNeededDataCacheSpace;
+    uint32_t _totalNeededDataCacheSpace;
 
-   void * _aotMethodDataStart; // used at relocation time
+    void *_aotMethodDataStart; // used at relocation time
 
-   void * _curMethodMetadata;
+    void *_curMethodMetadata;
 
-   bool _getImplAndRefersToInlineable;
+    bool _getImplAndRefersToInlineable;
 
-   TR_ValueProfileInfoManager *_vpInfoManager;
+    TR_ValueProfileInfoManager *_vpInfoManager;
 
-   TR_BranchProfileInfoManager *_bpInfoManager;
+    TR_BranchProfileInfoManager *_bpInfoManager;
 
-   TR::list<TR_MethodBranchProfileInfo*> _methodBranchInfoList;
-   TR::list<TR_ExternalValueProfileInfo*> _externalVPInfoList;
-   TR::list<TR_AOTGuardSite*>*         _aotGuardPatchSites;
-   TR::list<TR_VirtualGuardSite*>     _sideEffectGuardPatchSites;
+    TR::list<TR_MethodBranchProfileInfo *> _methodBranchInfoList;
+    TR::list<TR_ExternalValueProfileInfo *> _externalVPInfoList;
+    TR::list<TR_AOTGuardSite *> *_aotGuardPatchSites;
+    TR::list<TR_VirtualGuardSite *> _sideEffectGuardPatchSites;
 
-   // cache VM pointers
-   TR_OpaqueClassBlock               *_cachedClassPointers[CACHED_CLASS_POINTER_COUNT];
+    // cache VM pointers
+    TR_OpaqueClassBlock *_cachedClassPointers[CACHED_CLASS_POINTER_COUNT];
 
-   TR_OpaqueClassBlock               *_aotClassClassPointer;
-   bool                               _aotClassClassPointerInitialized;
+    TR_OpaqueClassBlock *_aotClassClassPointer;
+    bool _aotClassClassPointerInitialized;
 
-   TR_Array<List<TR::RegisterMappedSymbol> *> _monitorAutos;
-   TR::list<TR::SymbolReference*>             _monitorAutoSymRefsInCompiledMethod;
+    TR_Array<List<TR::RegisterMappedSymbol> *> _monitorAutos;
+    TR::list<TR::SymbolReference *> _monitorAutoSymRefsInCompiledMethod;
 
-   TR_Array<TR_OpaqueClassBlock*>       _classForOSRRedefinition;
-   // Classes that have their static final fields folded and need assumptions
-   TR_Array<TR_OpaqueClassBlock*>       _classForStaticFinalFieldModification;
+    TR_Array<TR_OpaqueClassBlock *> _classForOSRRedefinition;
+    // Classes that have their static final fields folded and need assumptions
+    TR_Array<TR_OpaqueClassBlock *> _classForStaticFinalFieldModification;
 
-   // cache profile information
-   TR_AccessedProfileInfo *_profileInfo;
+    // cache profile information
+    TR_AccessedProfileInfo *_profileInfo;
 
-   bool _skippedJProfilingBlock;
+    bool _skippedJProfilingBlock;
 
-   TR_RelocationRuntime *_reloRuntime;
+    TR_RelocationRuntime *_reloRuntime;
 
 #if defined(J9VM_OPT_JITSERVER)
-   // This list contains assumptions created during the compilation at the JITServer
-   // It needs to be sent to the client at the end of compilation
-   TR::list<SerializedRuntimeAssumption *> _serializedRuntimeAssumptions;
-   // The following flag is set when this compilation is performed in a
-   // VM that does not have the runtime part (server side in JITServer)
-   static bool _outOfProcessCompilation;
-   // The following flag is set when a request to complete this compilation
-   // has been sent to a remote VM (client side in JITServer)
-   bool _remoteCompilation;
-   // Client session data for the client that requested this out-of-process
-   // compilation (at the JITServer); unused (always NULL) at the client side
-   ClientSessionData *_clientData;
-   // Server stream used by this out-of-process compilation; always NULL at the client
-   JITServer::ServerStream *_stream;
+    // This list contains assumptions created during the compilation at the JITServer
+    // It needs to be sent to the client at the end of compilation
+    TR::list<SerializedRuntimeAssumption *> _serializedRuntimeAssumptions;
+    // The following flag is set when this compilation is performed in a
+    // VM that does not have the runtime part (server side in JITServer)
+    static bool _outOfProcessCompilation;
+    // The following flag is set when a request to complete this compilation
+    // has been sent to a remote VM (client side in JITServer)
+    bool _remoteCompilation;
+    // Client session data for the client that requested this out-of-process
+    // compilation (at the JITServer); unused (always NULL) at the client side
+    ClientSessionData *_clientData;
+    // Server stream used by this out-of-process compilation; always NULL at the client
+    JITServer::ServerStream *_stream;
 
-   TR_Memory *_perClientMemory;
-   TR_Memory _globalMemory;
-   // This list contains RAM method pointers of resolved methods
-   // that require method trampolines.
-   // It needs to be sent to the client at the end of compilation
-   // so that trampolines can be reserved there.
-   TR::list<TR_OpaqueMethodBlock *> _methodsRequiringTrampolines;
+    TR_Memory *_perClientMemory;
+    TR_Memory _globalMemory;
+    // This list contains RAM method pointers of resolved methods
+    // that require method trampolines.
+    // It needs to be sent to the client at the end of compilation
+    // so that trampolines can be reserved there.
+    TR::list<TR_OpaqueMethodBlock *> _methodsRequiringTrampolines;
 
-   // True if this remote compilation resulted in deserializing an AOT method
-   // received from the JITServer AOT cache; always false at the server
-   bool _deserializedAOTMethod;
-   // True if this remote compilation resulted in deserializing an AOT method
-   // that was compiled as an AOT cache store; always false at the server
-   bool _deserializedAOTMethodStore;
-   // True if this deserialized AOT method received from the
-   // JITServer AOT cache uses SVM; always false at the server
-   bool _deserializedAOTMethodUsingSVM;
-   // True if the result of this out-of-process compilation will be
-   // stored in JITServer AOT cache; always false at the client
-   bool _aotCacheStore;
-   // True at the client if the compilation is to be stored in the AOT cache at the server and the
-   // client is ignoring the local SCC; always false at the server
-   bool _ignoringLocalSCC;
-   // List of AOT cache records and corresponding offsets into AOT relocation data that will
-   // be used to store the result of this compilation in AOT cache; always empty at the client
-   Vector<std::pair<const AOTCacheRecord *, uintptr_t>> _serializationRecords;
-   // Set of AOT cache thunk records that this compilation depends on; always empty at the client
-   UnorderedSet<const AOTCacheThunkRecord *> _thunkRecords;
+    // True if this remote compilation resulted in deserializing an AOT method
+    // received from the JITServer AOT cache; always false at the server
+    bool _deserializedAOTMethod;
+    // True if this remote compilation resulted in deserializing an AOT method
+    // that was compiled as an AOT cache store; always false at the server
+    bool _deserializedAOTMethodStore;
+    // True if this deserialized AOT method received from the
+    // JITServer AOT cache uses SVM; always false at the server
+    bool _deserializedAOTMethodUsingSVM;
+    // True if the result of this out-of-process compilation will be
+    // stored in JITServer AOT cache; always false at the client
+    bool _aotCacheStore;
+    // True at the client if the compilation is to be stored in the AOT cache at the server and the
+    // client is ignoring the local SCC; always false at the server
+    bool _ignoringLocalSCC;
+    // List of AOT cache records and corresponding offsets into AOT relocation data that will
+    // be used to store the result of this compilation in AOT cache; always empty at the client
+    Vector<std::pair<const AOTCacheRecord *, uintptr_t> > _serializationRecords;
+    // Set of AOT cache thunk records that this compilation depends on; always empty at the client
+    UnorderedSet<const AOTCacheThunkRecord *> _thunkRecords;
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
 #if !defined(PERSISTENT_COLLECTIONS_UNSUPPORTED)
-   // A map recording the dependencies of an AOT method. The keys are the class
-   // chain offsets of classes this method depends on, and the values record
-   // whether the class needs to be initialized before method loading, or only
-   // loaded.
-   UnorderedMap<uintptr_t, bool> _aotMethodDependencies;
+    // A map recording the dependencies of an AOT method. The keys are the class
+    // chain offsets of classes this method depends on, and the values record
+    // whether the class needs to be initialized before method loading, or only
+    // loaded.
+    UnorderedMap<uintptr_t, bool> _aotMethodDependencies;
 #endif /* defined(PERSISTENT_COLLECTIONS_UNSUPPORTED) */
 
-   TR::SymbolValidationManager *_symbolValidationManager;
-   TR::vector<J9ClassLoader*, TR::Region&> _permanentLoaders;
-   bool _osrProhibitedOverRangeOfTrees;
-   bool _wasFearPointAnalysisDone;
-   bool _permanentLoadersInitialized;
-   };
+    TR::SymbolValidationManager *_symbolValidationManager;
+    TR::vector<J9ClassLoader *, TR::Region &> _permanentLoaders;
+    bool _osrProhibitedOverRangeOfTrees;
+    bool _wasFearPointAnalysisDone;
+    bool _permanentLoadersInitialized;
+};
 
-}
+} // namespace J9
 
 #endif

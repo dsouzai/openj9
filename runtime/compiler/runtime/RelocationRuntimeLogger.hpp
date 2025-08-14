@@ -26,66 +26,67 @@
 #include "env/TRMemory.hpp"
 
 class TR_RelocationRuntime;
+
 namespace TR {
 class Options;
 }
 struct J9JavaVM;
 struct J9JITConfig;
 
-#define	RELO_LOG(r, n, ...) \
-   if (((TR_RelocationRuntimeLogger *)r)->logDetailEnabled((int32_t)n)) \
-      {\
-      ((TR_RelocationRuntimeLogger *)r)->debug_printf(__VA_ARGS__);\
-      }\
+#define RELO_LOG(r, n, ...)                                                \
+    if (((TR_RelocationRuntimeLogger *)r)->logDetailEnabled((int32_t)n)) { \
+        ((TR_RelocationRuntimeLogger *)r)->debug_printf(__VA_ARGS__);      \
+    }
 
 class TR_RelocationRuntimeLogger {
-   public:
-      TR_ALLOC(TR_Memory::Relocation)
-      void * operator new(size_t, J9JITConfig *);
-      TR_RelocationRuntimeLogger(TR_RelocationRuntime *relort);
+public:
+    TR_ALLOC(TR_Memory::Relocation)
+    void *operator new(size_t, J9JITConfig *);
+    TR_RelocationRuntimeLogger(TR_RelocationRuntime *relort);
 
-      void setupOptions(TR::Options *options);
+    void setupOptions(TR::Options *options);
 
-      TR_RelocationRuntime *reloRuntime()                  { return _reloRuntime; }
-      J9JITConfig *jitConfig()                             { return _jitConfig; }
+    TR_RelocationRuntime *reloRuntime() { return _reloRuntime; }
 
-      bool logEnabled()                                    { return _logEnabled; }
-      bool logDetailEnabled(int32_t n)                     { return (n <=_logLevel); }
+    J9JITConfig *jitConfig() { return _jitConfig; }
 
-      void debug_printf(const char *format, ...);
-      void printf(const char *format, ...);
+    bool logEnabled() { return _logEnabled; }
 
-      void relocatableDataHeader();
-      void method(bool newLine);
-      void relocatableData(J9JavaVM *javaVM);
-      void exceptionTable();
-      void metaData();
-      void relocatableDataFooter();
+    bool logDetailEnabled(int32_t n) { return (n <= _logLevel); }
 
-      void relocationDump();
-      void relocationTime();
-      void versionMismatchWarning();
-      void maxCodeOrDataSizeWarning();
+    void debug_printf(const char *format, ...);
+    void printf(const char *format, ...);
 
-   private:
-      void startTag(const char *tag);
-      void endTag(const char *tag);
+    void relocatableDataHeader();
+    void method(bool newLine);
+    void relocatableData(J9JavaVM *javaVM);
+    void exceptionTable();
+    void metaData();
+    void relocatableDataFooter();
 
-      bool lockLog();
-      void unlockLog(bool wasLocked);
+    void relocationDump();
+    void relocationTime();
+    void versionMismatchWarning();
+    void maxCodeOrDataSizeWarning();
 
-      bool verbose()                                       { return _verbose; }
+private:
+    void startTag(const char *tag);
+    void endTag(const char *tag);
 
+    bool lockLog();
+    void unlockLog(bool wasLocked);
 
-      TR_RelocationRuntime *_reloRuntime;
-      J9JITConfig *_jitConfig;
-      int32_t _logLevel;
-      bool _logLocked;
-      bool _headerWasLocked;
-      bool _logEnabled;
-      bool _verbose;
- 
-      UDATA _reloStartTime;
-   };
+    bool verbose() { return _verbose; }
 
-#endif   // RELOCATION_RUNTIME_LOGGER_INCL
+    TR_RelocationRuntime *_reloRuntime;
+    J9JITConfig *_jitConfig;
+    int32_t _logLevel;
+    bool _logLocked;
+    bool _headerWasLocked;
+    bool _logEnabled;
+    bool _verbose;
+
+    UDATA _reloStartTime;
+};
+
+#endif // RELOCATION_RUNTIME_LOGGER_INCL

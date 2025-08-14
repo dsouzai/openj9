@@ -34,12 +34,11 @@ namespace J9 {
  *
  * Thrown to terminate a compile during the JIT Shutdown phase.
  */
-class JITShutdown : public virtual TR::CompilationInterrupted
-   {
-   virtual const char* what() const throw() { return "JIT Shutdown"; }
-   };
+class JITShutdown : public virtual TR::CompilationInterrupted {
+    virtual const char *what() const throw() { return "JIT Shutdown"; }
+};
 
-}
+} // namespace J9
 
 #endif // JIT_SHUTDOWN_HPP
 

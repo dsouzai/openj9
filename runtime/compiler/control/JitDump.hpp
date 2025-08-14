@@ -27,10 +27,9 @@
 #include "j9dump.h"
 #include "j9nonbuilder.h"
 
-extern J9_CFUNC uintptr_t
-jitDumpSignalHandler(struct J9PortLibrary *portLibrary, uint32_t gpType, void *gpInfo, void *handler_arg);
+extern J9_CFUNC uintptr_t jitDumpSignalHandler(struct J9PortLibrary *portLibrary, uint32_t gpType, void *gpInfo,
+    void *handler_arg);
 
-extern J9_CFUNC omr_error_t
-runJitdump(char *label, J9RASdumpContext *context, J9RASdumpAgent *agent);
+extern J9_CFUNC omr_error_t runJitdump(char *label, J9RASdumpContext *context, J9RASdumpAgent *agent);
 
 #endif

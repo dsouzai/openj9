@@ -24,129 +24,119 @@
 #include "p/runtime/J9PPCCRC32_constants.h"
 #include "p/runtime/J9PPCCRC32C_constants.h"
 
-#define VMX_ALIGN       16
-#define VMX_ALIGN_MASK  (VMX_ALIGN-1)
+#define VMX_ALIGN 16
+#define VMX_ALIGN_MASK (VMX_ALIGN - 1)
 
 #ifdef REFLECT
-static unsigned int crc32_align(unsigned int crc, unsigned char *p,
-                                unsigned long len, unsigned int castagnoli)
-   {
-   const unsigned int *crc_table = crc32_table;
+static unsigned int crc32_align(unsigned int crc, unsigned char *p, unsigned long len, unsigned int castagnoli)
+{
+    const unsigned int *crc_table = crc32_table;
 
-   if (castagnoli)
-      crc_table = crc32c_table;
+    if (castagnoli)
+        crc_table = crc32c_table;
 
-   while (len--)
-      {
-      crc = crc_table[(crc ^ *p++) & 0xff] ^ (crc >> 8);
-      }
-   return crc;
-   }
+    while (len--) {
+        crc = crc_table[(crc ^ *p++) & 0xff] ^ (crc >> 8);
+    }
+    return crc;
+}
 
 unsigned int crc32_oneByte(unsigned int crc, unsigned int b)
-   {
+{
 #ifdef CRC_XOR
-   crc ^= 0xffffffff;
+    crc ^= 0xffffffff;
 #endif
 
-   crc = crc32_table[(crc ^ b) & 0xff] ^ (crc >> 8);
+    crc = crc32_table[(crc ^ b) & 0xff] ^ (crc >> 8);
 
 #ifdef CRC_XOR
-   crc ^= 0xffffffff;
+    crc ^= 0xffffffff;
 #endif
-   return crc;
-   }
+    return crc;
+}
 #else
-static unsigned int crc32_align(unsigned int crc, unsigned char *p,
-                                unsigned long len, unsigned int castagnoli)
-   {
-   const unsigned int *crc_table = crc32_table;
+static unsigned int crc32_align(unsigned int crc, unsigned char *p, unsigned long len, unsigned int castagnoli)
+{
+    const unsigned int *crc_table = crc32_table;
 
-   if (castagnoli)
-      crc_table = crc32c_table;
+    if (castagnoli)
+        crc_table = crc32c_table;
 
-   while (len--)
-      {
-      crc = crc_table[((crc >> 24) ^ *p++) & 0xff] ^ (crc << 8);
-      }
-   return crc;
-   }
+    while (len--) {
+        crc = crc_table[((crc >> 24) ^ *p++) & 0xff] ^ (crc << 8);
+    }
+    return crc;
+}
 
 unsigned int crc32_oneByte(unsigned int crc, unsigned int b)
-   {
+{
 #ifdef CRC_XOR
-   crc ^= 0xffffffff;
+    crc ^= 0xffffffff;
 #endif
 
-   crc = crc32_table[((crc >> 24) ^ b) & 0xff] ^ (crc << 8);
-
-#ifdef CRC_XOR
-   crc ^= 0xffffffff;
-#endif
-   return crc;
-   }
-#endif
-
-unsigned int crc32_no_vpmsum(unsigned int crc, unsigned char *p,
-                             unsigned long len, unsigned int castagnoli)
-   {
-#ifdef CRC_XOR
-   if (!castagnoli)
-      crc ^= 0xffffffff;
-#endif
-
-   crc = crc32_align(crc, p, len,castagnoli);
+    crc = crc32_table[((crc >> 24) ^ b) & 0xff] ^ (crc << 8);
 
 #ifdef CRC_XOR
-   if (!castagnoli)
-      crc ^= 0xffffffff;
+    crc ^= 0xffffffff;
+#endif
+    return crc;
+}
 #endif
 
-   return crc;
-   }
+unsigned int crc32_no_vpmsum(unsigned int crc, unsigned char *p, unsigned long len, unsigned int castagnoli)
+{
+#ifdef CRC_XOR
+    if (!castagnoli)
+        crc ^= 0xffffffff;
+#endif
 
-unsigned int __crc32_vpmsum(unsigned int crc, unsigned char *p,
-                            unsigned long len, unsigned long castagnoli);
-
-unsigned int crc32_vpmsum(unsigned int crc, unsigned char *p,
-                          unsigned long len, unsigned int castagnoli)
-   {
-   unsigned int prealign;
-   unsigned int tail;
+    crc = crc32_align(crc, p, len, castagnoli);
 
 #ifdef CRC_XOR
-   if (!castagnoli)
-      crc ^= 0xffffffff;
+    if (!castagnoli)
+        crc ^= 0xffffffff;
 #endif
 
-   if (len < VMX_ALIGN + VMX_ALIGN_MASK)
-      {
-      crc = crc32_align(crc, p, len, castagnoli);
-      goto out;
-      }
+    return crc;
+}
 
-   if ((unsigned long)p & VMX_ALIGN_MASK)
-      {
-      prealign = VMX_ALIGN - ((unsigned long)p & VMX_ALIGN_MASK);
-      crc = crc32_align(crc, p, prealign, castagnoli);
-      len -= prealign;
-      p += prealign;
-      }
+unsigned int __crc32_vpmsum(unsigned int crc, unsigned char *p, unsigned long len, unsigned long castagnoli);
 
-   crc = __crc32_vpmsum(crc, p, len & ~VMX_ALIGN_MASK, castagnoli);
+unsigned int crc32_vpmsum(unsigned int crc, unsigned char *p, unsigned long len, unsigned int castagnoli)
+{
+    unsigned int prealign;
+    unsigned int tail;
 
-   tail = len & VMX_ALIGN_MASK;
-   if (tail)
-      {
-      p += len & ~VMX_ALIGN_MASK;
-      crc = crc32_align(crc, p, tail, castagnoli);
-      }
+#ifdef CRC_XOR
+    if (!castagnoli)
+        crc ^= 0xffffffff;
+#endif
+
+    if (len < VMX_ALIGN + VMX_ALIGN_MASK) {
+        crc = crc32_align(crc, p, len, castagnoli);
+        goto out;
+    }
+
+    if ((unsigned long)p & VMX_ALIGN_MASK) {
+        prealign = VMX_ALIGN - ((unsigned long)p & VMX_ALIGN_MASK);
+        crc = crc32_align(crc, p, prealign, castagnoli);
+        len -= prealign;
+        p += prealign;
+    }
+
+    crc = __crc32_vpmsum(crc, p, len & ~VMX_ALIGN_MASK, castagnoli);
+
+    tail = len & VMX_ALIGN_MASK;
+    if (tail) {
+        p += len & ~VMX_ALIGN_MASK;
+        crc = crc32_align(crc, p, tail, castagnoli);
+    }
 
 out:
 #ifdef CRC_XOR
-   if (!castagnoli)
-      crc ^= 0xffffffff;
+    if (!castagnoli)
+        crc ^= 0xffffffff;
 #endif
 
-   return crc;
-   }
+    return crc;
+}

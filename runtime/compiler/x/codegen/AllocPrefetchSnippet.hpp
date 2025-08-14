@@ -26,97 +26,93 @@
 #include "x/codegen/RestartSnippet.hpp"
 
 namespace TR {
-void createCCPreLoadedCode(uint8_t *CCPreLoadedCodeBase, uint8_t *CCPreLoadedCodeTop, void ** CCPreLoadedCodeTable, TR::CodeGenerator *cg);
+void createCCPreLoadedCode(uint8_t *CCPreLoadedCodeBase, uint8_t *CCPreLoadedCodeTop, void **CCPreLoadedCodeTable,
+    TR::CodeGenerator *cg);
 uint32_t getCCPreLoadedCodeSize();
-}
+} // namespace TR
 
+struct TR_X86AllocPrefetchGeometry {
+public:
+    TR_X86AllocPrefetchGeometry(int32_t prefetchLineSize, int32_t prefetchLineCount, int32_t prefetchStaggeredLineCount,
+        int32_t prefetchBoundaryLineCount, int32_t prefetchTLHEndLineCount)
+        : _prefetchLineSize(prefetchLineSize)
+        , _prefetchLineCount(prefetchLineCount)
+        , _prefetchStaggeredLineCount(prefetchStaggeredLineCount)
+        , _prefetchBoundaryLineCount(prefetchBoundaryLineCount)
+        , _prefetchTLHEndLineCount(prefetchTLHEndLineCount)
+    {}
 
-struct TR_X86AllocPrefetchGeometry
-   {
-   public:
+    int32_t getPrefetchLineSize() const { return _prefetchLineSize; }
 
-   TR_X86AllocPrefetchGeometry(int32_t prefetchLineSize, int32_t prefetchLineCount, int32_t prefetchStaggeredLineCount, int32_t prefetchBoundaryLineCount, int32_t prefetchTLHEndLineCount) :
-      _prefetchLineSize(prefetchLineSize),
-      _prefetchLineCount(prefetchLineCount),
-      _prefetchStaggeredLineCount(prefetchStaggeredLineCount),
-      _prefetchBoundaryLineCount(prefetchBoundaryLineCount),
-      _prefetchTLHEndLineCount(prefetchTLHEndLineCount)
-      {}
+    int32_t getPrefetchLineCount() const { return _prefetchLineCount; }
 
-   int32_t getPrefetchLineSize() const             { return _prefetchLineSize; }
-   int32_t getPrefetchLineCount() const            { return _prefetchLineCount; }
-   int32_t getPrefetchStaggeredLineCount() const   { return _prefetchStaggeredLineCount; }
-   int32_t getPrefetchBoundaryLineCount() const    { return _prefetchBoundaryLineCount; }
-   int32_t getPrefetchTLHEndLineCount() const      { return _prefetchTLHEndLineCount; }
+    int32_t getPrefetchStaggeredLineCount() const { return _prefetchStaggeredLineCount; }
 
-   int32_t sizeOfTLHEndCount() const               { return getPrefetchTLHEndLineCount() * getPrefetchLineSize(); }
-   bool needWideDisplacementForTLHEndCount() const { return (sizeOfTLHEndCount() > 127 || sizeOfTLHEndCount() < -128); }
+    int32_t getPrefetchBoundaryLineCount() const { return _prefetchBoundaryLineCount; }
 
-   private:
-   int32_t _prefetchLineSize;
-   int32_t _prefetchLineCount;
-   int32_t _prefetchStaggeredLineCount;
-   int32_t _prefetchBoundaryLineCount;
-   int32_t _prefetchTLHEndLineCount;
-   };
+    int32_t getPrefetchTLHEndLineCount() const { return _prefetchTLHEndLineCount; }
+
+    int32_t sizeOfTLHEndCount() const { return getPrefetchTLHEndLineCount() * getPrefetchLineSize(); }
+
+    bool needWideDisplacementForTLHEndCount() const
+    {
+        return (sizeOfTLHEndCount() > 127 || sizeOfTLHEndCount() < -128);
+    }
+
+private:
+    int32_t _prefetchLineSize;
+    int32_t _prefetchLineCount;
+    int32_t _prefetchStaggeredLineCount;
+    int32_t _prefetchBoundaryLineCount;
+    int32_t _prefetchTLHEndLineCount;
+};
 
 namespace TR {
 
-struct HeapTypes
-   {
-   enum Type
-      {
-      ZeroedHeap,
-      NonZeroedHeap
-      };
-   static const char * const getPrefix(size_t index)
-      { static const char * const prefixes[] =
-         {
-         "Zeroed",
-         "Non-Zeroed"
-         };
+struct HeapTypes {
+    enum Type {
+        ZeroedHeap,
+        NonZeroedHeap
+    };
+
+    static const char * const getPrefix(size_t index)
+    {
+        static const char * const prefixes[] = { "Zeroed", "Non-Zeroed" };
         return prefixes[index];
-      }
-   };
+    }
+};
 
-class X86AllocPrefetchSnippet  : public TR::X86RestartSnippet
-   {
-   public:
+class X86AllocPrefetchSnippet : public TR::X86RestartSnippet {
+public:
+    X86AllocPrefetchSnippet(TR::CodeGenerator *cg, TR::Node *node, int32_t prefetchSize, TR::LabelSymbol *restartlab,
+        TR::LabelSymbol *snippetlab, bool nonZeroTLH)
+        : TR::X86RestartSnippet(cg, node, restartlab, snippetlab, false)
+    {
+        _prefetchSize = prefetchSize;
+        _nonZeroTLH = nonZeroTLH;
+    }
 
-   X86AllocPrefetchSnippet(TR::CodeGenerator *cg,
-                              TR::Node          *node,
-                              int32_t           prefetchSize,
-                              TR::LabelSymbol    *restartlab,
-                              TR::LabelSymbol    *snippetlab,
-                              bool              nonZeroTLH)
-      : TR::X86RestartSnippet(cg, node, restartlab, snippetlab, false)
-      {
-      _prefetchSize = prefetchSize;
-      _nonZeroTLH = nonZeroTLH;
-      }
+    virtual uint8_t *emitSnippetBody();
 
-   virtual uint8_t *emitSnippetBody();
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-   
-   int32_t getPrefetchSize() { return _prefetchSize; }
+    int32_t getPrefetchSize() { return _prefetchSize; }
 
-   bool isNonZeroTLH() { return _nonZeroTLH; }
+    bool isNonZeroTLH() { return _nonZeroTLH; }
 
-   private:
+private:
+    static TR_X86AllocPrefetchGeometry generatePrefetchGeometry();
+    template<TR::HeapTypes::Type HEAP_TYPE, bool is64Bit> static int32_t sizeOfSharedBody();
+    template<TR::HeapTypes::Type HEAP_TYPE, bool is64Bit> static uint8_t *emitSharedBody(uint8_t *, TR::Compilation *);
 
-   static TR_X86AllocPrefetchGeometry generatePrefetchGeometry();
-   template <TR::HeapTypes::Type HEAP_TYPE, bool is64Bit> static int32_t sizeOfSharedBody();
-   template <TR::HeapTypes::Type HEAP_TYPE, bool is64Bit> static uint8_t* emitSharedBody(uint8_t *, TR::Compilation*);
+    friend void TR::createCCPreLoadedCode(uint8_t *CCPreLoadedCodeBase, uint8_t *CCPreLoadedCodeTop,
+        void **CCPreLoadedCodeTable, TR::CodeGenerator *cg);
+    friend uint32_t TR::getCCPreLoadedCodeSize();
 
-   friend void TR::createCCPreLoadedCode(uint8_t *CCPreLoadedCodeBase, uint8_t *CCPreLoadedCodeTop, void ** CCPreLoadedCodeTable, TR::CodeGenerator *cg);
-   friend uint32_t TR::getCCPreLoadedCodeSize();
+    int32_t _prefetchSize;
+    bool _nonZeroTLH;
+};
 
-   int32_t _prefetchSize;
-   bool _nonZeroTLH;
-
-   };
-
-}
+} // namespace TR
 
 #endif

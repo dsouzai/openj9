@@ -28,26 +28,28 @@
 
 namespace TR {
 
-class J9WatchedStaticFieldSnippet : public TR::Snippet
-   {
-   protected :
+class J9WatchedStaticFieldSnippet : public TR::Snippet {
+protected:
+    J9JITWatchedStaticFieldData staticFieldData;
 
-   J9JITWatchedStaticFieldData staticFieldData;
+public:
+    J9WatchedStaticFieldSnippet(TR::CodeGenerator *cg, TR::Node *node, J9Method *m, UDATA loc, void *fieldAddress,
+        J9Class *fieldClass);
 
-   public :
+    J9Method *getMethod() { return staticFieldData.method; }
 
-   J9WatchedStaticFieldSnippet(TR::CodeGenerator *cg, TR::Node *node, J9Method *m, UDATA loc, void *fieldAddress, J9Class *fieldClass);
+    UDATA getLocation() { return staticFieldData.location; }
 
-   J9Method *getMethod() { return staticFieldData.method; }
-   UDATA getLocation() { return staticFieldData.location; }
-   void *getFieldAddress() { return staticFieldData.fieldAddress; }
-   J9Class *getFieldClass() { return staticFieldData.fieldClass; }
+    void *getFieldAddress() { return staticFieldData.fieldAddress; }
 
-   virtual uint8_t *emitSnippetBody();
-   virtual uint32_t getLength(int32_t val) { return sizeof(J9JITWatchedStaticFieldData); }
+    J9Class *getFieldClass() { return staticFieldData.fieldClass; }
 
-   virtual void print(TR::FILE *pOutFile, TR_Debug *debug);
-   };
-}
+    virtual uint8_t *emitSnippetBody();
+
+    virtual uint32_t getLength(int32_t val) { return sizeof(J9JITWatchedStaticFieldData); }
+
+    virtual void print(TR::FILE *pOutFile, TR_Debug *debug);
+};
+} // namespace TR
 
 #endif

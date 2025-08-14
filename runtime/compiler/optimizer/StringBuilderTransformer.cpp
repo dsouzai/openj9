@@ -35,7 +35,7 @@
 
 #define OPT_DETAILS "O^O STRINGBUILDER TRANSFORMER: "
 
-static const char* StringBuilderClassName = "java/lang/StringBuilder";
+static const char *StringBuilderClassName = "java/lang/StringBuilder";
 
 /** \note
  *     This optimization is disabled for AOT compilations due to a functional issue. Consider an AOT compilation of the
@@ -64,8 +64,9 @@ static const char* StringBuilderClassName = "java/lang/StringBuilder";
  *     StringBuilder.<init>()V call is an invokespecial bytecode with a constant pool index of the java/lang/
  *     StringBuilder.<init>()V in the constant pool of FireTruck.toString()Ljava/lang/String;. Because we modified the
  *     target of the call to the overloaded constructor we may not have a constant pool entry for this overloaded
- *     constructor so we are not able to properly create the relocation record for the TR_InlinedStaticMethodWithNopGuard
- *     because we do not have a valid constant pool index for the new constructor overload call.
+ *     constructor so we are not able to properly create the relocation record for the
+ * TR_InlinedStaticMethodWithNopGuard because we do not have a valid constant pool index for the new constructor
+ * overload call.
  *
  *     Because this constant pool index is non-existent we are not able to correctly validate the inlined call site in
  *     an AOT compilation where the StringBuilderTransformer optimization was performed. The amount of work involved to
@@ -77,128 +78,135 @@ static const char* StringBuilderClassName = "java/lang/StringBuilder";
  *     StringBuilder is redefined.
  */
 int32_t TR_StringBuilderTransformer::perform()
-   {
-   if (comp()->getOption(TR_DisableStringBuilderTransformer) || (comp()->compileRelocatableCode() && !comp()->getOption(TR_UseSymbolValidationManager)))
-      {
-      return 0;
-      }
+{
+    if (comp()->getOption(TR_DisableStringBuilderTransformer)
+        || (comp()->compileRelocatableCode() && !comp()->getOption(TR_UseSymbolValidationManager))) {
+        return 0;
+    }
 
-   for (TR::AllBlockIterator iter(optimizer()->getMethodSymbol()->getFlowGraph(), comp()); iter.currentBlock() != NULL; ++iter)
-      {
-      TR::Block* block = iter.currentBlock();
+    for (TR::AllBlockIterator iter(optimizer()->getMethodSymbol()->getFlowGraph(), comp()); iter.currentBlock() != NULL;
+         ++iter) {
+        TR::Block *block = iter.currentBlock();
 
-      performOnBlock(block);
-      }
+        performOnBlock(block);
+    }
 
-   return 1;
-   }
+    return 1;
+}
 
-int32_t TR_StringBuilderTransformer::performOnBlock(TR::Block* block)
-   {
-   uint32_t expectedReferenceCount = 3;
-   if (comp()->isOSRTransitionTarget(TR::postExecutionOSR))
-      expectedReferenceCount = 4;
+int32_t TR_StringBuilderTransformer::performOnBlock(TR::Block *block)
+{
+    uint32_t expectedReferenceCount = 3;
+    if (comp()->isOSRTransitionTarget(TR::postExecutionOSR))
+        expectedReferenceCount = 4;
 
-   for (TR::TreeTopIterator iter(block->getEntry(), comp()); iter != block->getExit(); ++iter)
-      {
-      TR::Node* currentNode = iter.currentNode();
+    for (TR::TreeTopIterator iter(block->getEntry(), comp()); iter != block->getExit(); ++iter) {
+        TR::Node *currentNode = iter.currentNode();
 
-      // TR::New will be the child of a treetop node
-      if (currentNode->getOpCodeValue() == TR::treetop)
-         {
-         currentNode = currentNode->getFirstChild();
-         }
+        // TR::New will be the child of a treetop node
+        if (currentNode->getOpCodeValue() == TR::treetop) {
+            currentNode = currentNode->getFirstChild();
+        }
 
-      if (currentNode->getOpCodeValue() == TR::New && currentNode->getReferenceCount() == expectedReferenceCount)
-         {
-         TR::Node* loadaddrNode = currentNode->getFirstChild();
+        if (currentNode->getOpCodeValue() == TR::New && currentNode->getReferenceCount() == expectedReferenceCount) {
+            TR::Node *loadaddrNode = currentNode->getFirstChild();
 
-         int32_t classNameLength = 0;
+            int32_t classNameLength = 0;
 
-         const char* className = TR::Compiler->cls.classNameChars(comp(), loadaddrNode->getSymbolReference(), classNameLength);
+            const char *className
+                = TR::Compiler->cls.classNameChars(comp(), loadaddrNode->getSymbolReference(), classNameLength);
 
-         // Find the 'new java/lang/StringBuilder' node
-         if (classNameLength == strlen(StringBuilderClassName) && strncmp(className, StringBuilderClassName, classNameLength) == 0)
-            {
-            if (trace())
-               {
-               traceMsg(comp(), "[0x%p] Found new java/lang/StringBuilder node.\n", currentNode);
-               }
+            // Find the 'new java/lang/StringBuilder' node
+            if (classNameLength == strlen(StringBuilderClassName)
+                && strncmp(className, StringBuilderClassName, classNameLength) == 0) {
+                if (trace()) {
+                    traceMsg(comp(), "[0x%p] Found new java/lang/StringBuilder node.\n", currentNode);
+                }
 
-            ++iter;
+                ++iter;
 
-            if (iter.currentNode()->getOpCodeValue() == TR::allocationFence)
-               {
-               ++iter;
-               }
+                if (iter.currentNode()->getOpCodeValue() == TR::allocationFence) {
+                    ++iter;
+                }
 
-            TR::Node* initNode = findStringBuilderInit(iter, currentNode);
+                TR::Node *initNode = findStringBuilderInit(iter, currentNode);
 
-            if (initNode != NULL)
-               {
-               List<TR_Pair<TR::Node*, TR::RecognizedMethod> > appendArguments (trMemory());
+                if (initNode != NULL) {
+                    List<TR_Pair<TR::Node *, TR::RecognizedMethod> > appendArguments(trMemory());
 
-               if (findStringBuilderChainedAppendArguments(iter, currentNode, appendArguments) != NULL)
-                  {
-                  int32_t capacity = computeHeuristicStringBuilderInitCapacity(appendArguments);
+                    if (findStringBuilderChainedAppendArguments(iter, currentNode, appendArguments) != NULL) {
+                        int32_t capacity = computeHeuristicStringBuilderInitCapacity(appendArguments);
 
-                  // Guard against the possibility that the computed capacity has overflowed,
-                  // as StringBuilder.<init>(I) will throw a NegativeArraySizeException if the
-                  // capacity argument is negative.  It is extremely unlikely that the capacity
-                  // calculation will overflow, but possible.
-                  if (capacity < 0)
-                     {
-                     return 1;
-                     }
-
-                  if (performTransformation(comp(), "%sTransforming java/lang/StringBuilder.<init>()V call at node [0x%p] to java/lang/StringBuilder.<init>(I)V with capacity = %d\n", OPT_DETAILS, initNode, capacity))
-                     {
-                     static const bool collectAppendStatistics = feGetEnv("TR_StringBuilderTransformerCollectAppendStatistics") != NULL;
-                     static const bool collectAllocationStatistics = feGetEnv("TR_StringBuilderTransformerCollectAllocationStatistics") != NULL;
-                     static const bool collectAllocationBacktraces = feGetEnv("TR_StringBuilderTransformerCollectAllocationBacktraces") != NULL;
-                     static const bool collectAppendObjectTypes = feGetEnv("TR_StringBuilderTransformerCollectAppendObjectTypes") != NULL;
-                     static const char* overrideInitialCapacity = feGetEnv("TR_StringBuilderTransformerOverrideInitialCapacity");
-
-                     if (collectAppendStatistics || collectAllocationStatistics || collectAllocationBacktraces || collectAppendObjectTypes || overrideInitialCapacity != NULL)
-                        {
-                        TR::SymbolReference* newInitSymRef = getSymRefTab()->methodSymRefFromName(comp()->getMethodSymbol(), "java/lang/StringBuilder", "<init>", "(IZZZZ)V", TR::MethodSymbol::Static);
-
-                        if (overrideInitialCapacity != NULL)
-                           {
-                           capacity = atoi(overrideInitialCapacity);
-                           }
-
-                        TR::Node::recreateWithoutProperties(initNode, TR::call, 6, newInitSymRef);
-
-                        initNode->setChild(0, currentNode);
-
-                        initNode->setAndIncChild(1, TR::Node::iconst(capacity));
-                        initNode->setAndIncChild(2, TR::Node::iconst(static_cast<int32_t>(collectAppendStatistics)));
-                        initNode->setAndIncChild(3, TR::Node::iconst(static_cast<int32_t>(collectAllocationStatistics)));
-                        initNode->setAndIncChild(4, TR::Node::iconst(static_cast<int32_t>(collectAllocationBacktraces)));
-                        initNode->setAndIncChild(5, TR::Node::iconst(static_cast<int32_t>(collectAppendObjectTypes)));
-                        }
-                     else
-                        {
-                        TR::SymbolReference* newInitSymRef = getSymRefTab()->methodSymRefFromName(comp()->getMethodSymbol(), "java/lang/StringBuilder", "<init>", "(I)V", TR::MethodSymbol::Static);
-
-                        TR::Node::recreateWithoutProperties(initNode, TR::call, 2, newInitSymRef);
-
-                        initNode->setChild(0, currentNode);
-
-                        initNode->setAndIncChild(1, TR::Node::iconst(capacity));
+                        // Guard against the possibility that the computed capacity has overflowed,
+                        // as StringBuilder.<init>(I) will throw a NegativeArraySizeException if the
+                        // capacity argument is negative.  It is extremely unlikely that the capacity
+                        // calculation will overflow, but possible.
+                        if (capacity < 0) {
+                            return 1;
                         }
 
-                     TR::DebugCounter::incStaticDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "StringBuilderTransformer/Succeeded/%d/%s", capacity, comp()->signature()));
-                     }
-                  }
-               }
+                        if (performTransformation(comp(),
+                                "%sTransforming java/lang/StringBuilder.<init>()V call at node [0x%p] to "
+                                "java/lang/StringBuilder.<init>(I)V with capacity = %d\n",
+                                OPT_DETAILS, initNode, capacity)) {
+                            static const bool collectAppendStatistics
+                                = feGetEnv("TR_StringBuilderTransformerCollectAppendStatistics") != NULL;
+                            static const bool collectAllocationStatistics
+                                = feGetEnv("TR_StringBuilderTransformerCollectAllocationStatistics") != NULL;
+                            static const bool collectAllocationBacktraces
+                                = feGetEnv("TR_StringBuilderTransformerCollectAllocationBacktraces") != NULL;
+                            static const bool collectAppendObjectTypes
+                                = feGetEnv("TR_StringBuilderTransformerCollectAppendObjectTypes") != NULL;
+                            static const char *overrideInitialCapacity
+                                = feGetEnv("TR_StringBuilderTransformerOverrideInitialCapacity");
+
+                            if (collectAppendStatistics || collectAllocationStatistics || collectAllocationBacktraces
+                                || collectAppendObjectTypes || overrideInitialCapacity != NULL) {
+                                TR::SymbolReference *newInitSymRef
+                                    = getSymRefTab()->methodSymRefFromName(comp()->getMethodSymbol(),
+                                        "java/lang/StringBuilder", "<init>", "(IZZZZ)V", TR::MethodSymbol::Static);
+
+                                if (overrideInitialCapacity != NULL) {
+                                    capacity = atoi(overrideInitialCapacity);
+                                }
+
+                                TR::Node::recreateWithoutProperties(initNode, TR::call, 6, newInitSymRef);
+
+                                initNode->setChild(0, currentNode);
+
+                                initNode->setAndIncChild(1, TR::Node::iconst(capacity));
+                                initNode->setAndIncChild(2,
+                                    TR::Node::iconst(static_cast<int32_t>(collectAppendStatistics)));
+                                initNode->setAndIncChild(3,
+                                    TR::Node::iconst(static_cast<int32_t>(collectAllocationStatistics)));
+                                initNode->setAndIncChild(4,
+                                    TR::Node::iconst(static_cast<int32_t>(collectAllocationBacktraces)));
+                                initNode->setAndIncChild(5,
+                                    TR::Node::iconst(static_cast<int32_t>(collectAppendObjectTypes)));
+                            } else {
+                                TR::SymbolReference *newInitSymRef
+                                    = getSymRefTab()->methodSymRefFromName(comp()->getMethodSymbol(),
+                                        "java/lang/StringBuilder", "<init>", "(I)V", TR::MethodSymbol::Static);
+
+                                TR::Node::recreateWithoutProperties(initNode, TR::call, 2, newInitSymRef);
+
+                                initNode->setChild(0, currentNode);
+
+                                initNode->setAndIncChild(1, TR::Node::iconst(capacity));
+                            }
+
+                            TR::DebugCounter::incStaticDebugCounter(comp(),
+                                TR::DebugCounter::debugCounterName(comp(), "StringBuilderTransformer/Succeeded/%d/%s",
+                                    capacity, comp()->signature()));
+                        }
+                    }
+                }
             }
-         }
-      }
+        }
+    }
 
-   return 1;
-   }
+    return 1;
+}
 
 /** \details
  *     We attempt to pattern match the following canonical tree sequence:
@@ -214,63 +222,57 @@ int32_t TR_StringBuilderTransformer::performOnBlock(TR::Block* block)
  *
  *     Note that we do not actually traverse any treetops. We only peek inside of the current iterator.
  */
-TR::Node* TR_StringBuilderTransformer::findStringBuilderInit(TR::TreeTopIterator iter, TR::Node* newNode)
-   {
-   // It is necessary to skip trees added for OSR book keeping purposes between the allocation and the call. There
-   // could be several treetops.
-   if (comp()->isOSRTransitionTarget(TR::postExecutionOSR))
-      {
-      bool foundNewReference = false;
-      TR_ByteCodeInfo &bci = iter.currentNode()->getByteCodeInfo();
-      while (comp()->getMethodSymbol()->isOSRRelatedNode(iter.currentNode(), bci))
-         {
-         if (trace())
-            traceMsg(comp(), "[0x%p] Skipping OSR bookkeeping node.\n", iter.currentNode());
-         if (newNode == iter.currentNode()->getFirstChild())
-            foundNewReference = true;
-         ++iter;
-         }
-
-      // The call node should have the same bytecodeinfo as the related nodes and the additional reference should have
-      // been found
-      TR_ByteCodeInfo &callBCI = iter.currentNode()->getByteCodeInfo();
-      if (!foundNewReference
-          || callBCI.getByteCodeIndex() != bci.getByteCodeIndex()
-          || callBCI.getCallerIndex() != bci.getCallerIndex())
-         return NULL;
-      }
-
-   TR::Node* NULLCHKNode = iter.currentNode();
-
-   if (NULLCHKNode->getOpCodeValue() == TR::NULLCHK)
-      {
-      TR::Node* callNode = NULLCHKNode->getFirstChild();
-
-      if (callNode->getOpCodeValue() == TR::call && callNode->getFirstChild() == newNode)
-         {
-         OMR::ResolvedMethodSymbol* callSymbol = callNode->getSymbol()->getResolvedMethodSymbol();
-
-         if (callSymbol != NULL && callSymbol->getRecognizedMethod() == TR::java_lang_StringBuilder_init)
-            {
+TR::Node *TR_StringBuilderTransformer::findStringBuilderInit(TR::TreeTopIterator iter, TR::Node *newNode)
+{
+    // It is necessary to skip trees added for OSR book keeping purposes between the allocation and the call. There
+    // could be several treetops.
+    if (comp()->isOSRTransitionTarget(TR::postExecutionOSR)) {
+        bool foundNewReference = false;
+        TR_ByteCodeInfo &bci = iter.currentNode()->getByteCodeInfo();
+        while (comp()->getMethodSymbol()->isOSRRelatedNode(iter.currentNode(), bci)) {
             if (trace())
-               {
-               traceMsg(comp(), "[0x%p] Found java/lang/StringBuilder.<init>()V call node.\n", callNode);
-               }
+                traceMsg(comp(), "[0x%p] Skipping OSR bookkeeping node.\n", iter.currentNode());
+            if (newNode == iter.currentNode()->getFirstChild())
+                foundNewReference = true;
+            ++iter;
+        }
 
-            return callNode;
+        // The call node should have the same bytecodeinfo as the related nodes and the additional reference should have
+        // been found
+        TR_ByteCodeInfo &callBCI = iter.currentNode()->getByteCodeInfo();
+        if (!foundNewReference || callBCI.getByteCodeIndex() != bci.getByteCodeIndex()
+            || callBCI.getCallerIndex() != bci.getCallerIndex())
+            return NULL;
+    }
+
+    TR::Node *NULLCHKNode = iter.currentNode();
+
+    if (NULLCHKNode->getOpCodeValue() == TR::NULLCHK) {
+        TR::Node *callNode = NULLCHKNode->getFirstChild();
+
+        if (callNode->getOpCodeValue() == TR::call && callNode->getFirstChild() == newNode) {
+            OMR::ResolvedMethodSymbol *callSymbol = callNode->getSymbol()->getResolvedMethodSymbol();
+
+            if (callSymbol != NULL && callSymbol->getRecognizedMethod() == TR::java_lang_StringBuilder_init) {
+                if (trace()) {
+                    traceMsg(comp(), "[0x%p] Found java/lang/StringBuilder.<init>()V call node.\n", callNode);
+                }
+
+                return callNode;
             }
-         }
-      }
+        }
+    }
 
-   if (trace())
-      {
-      traceMsg(comp(), "[0x%p] Could not find java/lang/StringBuilder.<init>()V call on new node.\n", newNode);
-      }
+    if (trace()) {
+        traceMsg(comp(), "[0x%p] Could not find java/lang/StringBuilder.<init>()V call on new node.\n", newNode);
+    }
 
-   TR::DebugCounter::incStaticDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "StringBuilderTransformer/Failed/CouldNotLocateInit/%s", comp()->signature()));
+    TR::DebugCounter::incStaticDebugCounter(comp(),
+        TR::DebugCounter::debugCounterName(comp(), "StringBuilderTransformer/Failed/CouldNotLocateInit/%s",
+            comp()->signature()));
 
-   return NULL;
-   }
+    return NULL;
+}
 
 /** \details
  *     We attempt to pattern match the following canonical tree sequence:
@@ -302,168 +304,164 @@ TR::Node* TR_StringBuilderTransformer::findStringBuilderInit(TR::TreeTopIterator
  *     This notion of chaining along with node reference counts ensures that the StringBuilder object  is not used
  *     anywhere outside the chained StringBuilder.append(...) sequence.
  */
-TR::Node* TR_StringBuilderTransformer::findStringBuilderChainedAppendArguments(TR::TreeTopIterator iter, TR::Node* newNode, List<TR_Pair<TR::Node*, TR::RecognizedMethod> >& appendArguments)
-   {
-   TR::Node* stringBuilderReceiver = newNode;
+TR::Node *TR_StringBuilderTransformer::findStringBuilderChainedAppendArguments(TR::TreeTopIterator iter,
+    TR::Node *newNode, List<TR_Pair<TR::Node *, TR::RecognizedMethod> > &appendArguments)
+{
+    TR::Node *stringBuilderReceiver = newNode;
 
-   // Under postExecution OSR, there will be an additional reference to the call result
-   // This accounts for it and ensures it is found. A reference is only expected after the
-   // initial call, so the flag is initially set to true.
-   uint32_t expectedReferenceCount = 2;
-   bool foundOSRReference = true;
-   if (comp()->isOSRTransitionTarget(TR::postExecutionOSR))
-      expectedReferenceCount = 3;
+    // Under postExecution OSR, there will be an additional reference to the call result
+    // This accounts for it and ensures it is found. A reference is only expected after the
+    // initial call, so the flag is initially set to true.
+    uint32_t expectedReferenceCount = 2;
+    bool foundOSRReference = true;
+    if (comp()->isOSRTransitionTarget(TR::postExecutionOSR))
+        expectedReferenceCount = 3;
 
-   while (iter != NULL)
-      {
-      TR::Node* currentNode = iter.currentNode();
+    while (iter != NULL) {
+        TR::Node *currentNode = iter.currentNode();
 
-      if (currentNode->getNumChildren() == 1 &&
-          currentNode->getFirstChild()->isPotentialOSRPointHelperCall())
-         {
-         if (trace())
-            {
-            traceMsg(comp(), "Skipping potentialOSRPointHelper call n%dn [0x%p].\n", currentNode->getGlobalIndex(), currentNode);
+        if (currentNode->getNumChildren() == 1 && currentNode->getFirstChild()->isPotentialOSRPointHelperCall()) {
+            if (trace()) {
+                traceMsg(comp(), "Skipping potentialOSRPointHelper call n%dn [0x%p].\n", currentNode->getGlobalIndex(),
+                    currentNode);
             }
-         ++iter;
-         continue;
-         }
+            ++iter;
+            continue;
+        }
 
-      if (currentNode->getOpCodeValue() == TR::NULLCHK)
-         {
-         TR::Node* acallNode = currentNode->getFirstChild();
+        if (currentNode->getOpCodeValue() == TR::NULLCHK) {
+            TR::Node *acallNode = currentNode->getFirstChild();
 
-         if (acallNode->getOpCodeValue() == TR::acall && acallNode->getFirstChild() == stringBuilderReceiver)
-            {
-            if (trace())
-               {
-               traceMsg(comp(), "[0x%p] Examining acall node.\n", acallNode);
-               }
+            if (acallNode->getOpCodeValue() == TR::acall && acallNode->getFirstChild() == stringBuilderReceiver) {
+                if (trace()) {
+                    traceMsg(comp(), "[0x%p] Examining acall node.\n", acallNode);
+                }
 
-            OMR::ResolvedMethodSymbol* acallSymbol = acallNode->getSymbol()->getResolvedMethodSymbol();
+                OMR::ResolvedMethodSymbol *acallSymbol = acallNode->getSymbol()->getResolvedMethodSymbol();
 
-            if (acallSymbol != NULL)
-               {
-               TR::RecognizedMethod recognizedMethod = acallSymbol->getRecognizedMethod();
+                if (acallSymbol != NULL) {
+                    TR::RecognizedMethod recognizedMethod = acallSymbol->getRecognizedMethod();
 
-               switch (recognizedMethod)
-                  {
-                  case TR::java_lang_StringBuilder_append_bool:
-                  case TR::java_lang_StringBuilder_append_char:
-                  case TR::java_lang_StringBuilder_append_double:
-                  case TR::java_lang_StringBuilder_append_float:
-                  case TR::java_lang_StringBuilder_append_int:
-                  case TR::java_lang_StringBuilder_append_long:
-                  case TR::java_lang_StringBuilder_append_String:
-                  case TR::java_lang_StringBuilder_append_Object:
-                     {
-                     // The reference count for the new call and the flag foundOSRReference for the prior call are checked here
-                     if (acallNode->getReferenceCount() == expectedReferenceCount && foundOSRReference)
-                        {
+                    switch (recognizedMethod) {
+                        case TR::java_lang_StringBuilder_append_bool:
+                        case TR::java_lang_StringBuilder_append_char:
+                        case TR::java_lang_StringBuilder_append_double:
+                        case TR::java_lang_StringBuilder_append_float:
+                        case TR::java_lang_StringBuilder_append_int:
+                        case TR::java_lang_StringBuilder_append_long:
+                        case TR::java_lang_StringBuilder_append_String:
+                        case TR::java_lang_StringBuilder_append_Object: {
+                            // The reference count for the new call and the flag foundOSRReference for the prior call
+                            // are checked here
+                            if (acallNode->getReferenceCount() == expectedReferenceCount && foundOSRReference) {
+                                if (trace()) {
+                                    traceMsg(comp(),
+                                        "[0x%p] Adding argument of java/lang/StringBuilder.append acall node.\n",
+                                        acallNode);
+                                }
 
-                        if (trace())
-                           {
-                           traceMsg(comp(), "[0x%p] Adding argument of java/lang/StringBuilder.append acall node.\n", acallNode);
-                           }
+                                appendArguments.add(new (trHeapMemory()) TR_Pair<TR::Node *, TR::RecognizedMethod>(
+                                    acallNode->getSecondChild(), recognizedMethod));
 
-                        appendArguments.add(new (trHeapMemory()) TR_Pair<TR::Node*, TR::RecognizedMethod> (acallNode->getSecondChild(), recognizedMethod));
+                                // The result of this append call is chained to the next so update the current receiver
+                                stringBuilderReceiver = acallNode;
+                                foundOSRReference = !comp()->isOSRTransitionTarget(TR::postExecutionOSR);
+                            } else if (!foundOSRReference) {
+                                if (trace()) {
+                                    traceMsg(comp(),
+                                        "[0x%p] Invalid reference count at acall node due to missing OSR "
+                                        "bookkeeping.\n",
+                                        stringBuilderReceiver);
+                                }
 
-                        // The result of this append call is chained to the next so update the current receiver
-                        stringBuilderReceiver = acallNode;
-                        foundOSRReference = !comp()->isOSRTransitionTarget(TR::postExecutionOSR);
+                                TR::DebugCounter::incStaticDebugCounter(comp(),
+                                    TR::DebugCounter::debugCounterName(comp(),
+                                        "StringBuilderTransformer/Failed/InvalidReferenceCountMissingBookkeeping/%s",
+                                        comp()->signature()));
+
+                                return NULL;
+                            } else {
+                                if (trace()) {
+                                    traceMsg(comp(), "[0x%p] Invalid reference count at acall node.\n", acallNode);
+                                }
+
+                                TR::DebugCounter::incStaticDebugCounter(comp(),
+                                    TR::DebugCounter::debugCounterName(comp(),
+                                        "StringBuilderTransformer/Failed/InvalidReferenceCount/%s",
+                                        comp()->signature()));
+
+                                return NULL;
+                            }
+                        } break;
+
+                        case TR::java_lang_StringBuilder_toString: {
+                            // Verify that the OSR reference was found for the final append call
+                            if (foundOSRReference) {
+                                if (trace()) {
+                                    traceMsg(comp(), "[0x%p] Found java/lang/StringBuilder.toString acall node.\n",
+                                        acallNode);
+                                }
+
+                                return acallNode;
+                            } else {
+                                if (trace()) {
+                                    traceMsg(comp(),
+                                        "[0x%p] Invalid reference count at acall node due to missing OSR bookkeeping "
+                                        "for final append.\n",
+                                        stringBuilderReceiver);
+                                }
+
+                                TR::DebugCounter::incStaticDebugCounter(comp(),
+                                    TR::DebugCounter::debugCounterName(comp(),
+                                        "StringBuilderTransformer/Failed/InvalidReferenceCountMissingBookkeeping/%s",
+                                        comp()->signature()));
+
+                                return NULL;
+                            }
+                        } break;
+
+                        default: {
+                            if (trace()) {
+                                traceMsg(comp(), "[0x%p] java/lang/StringBuilder.append chain broken at node.\n",
+                                    acallNode);
+                            }
+
+                            TR::DebugCounter::incStaticDebugCounter(comp(),
+                                TR::DebugCounter::debugCounterName(comp(),
+                                    "StringBuilderTransformer/Failed/AppendChainBroken/%s", comp()->signature()));
+
+                            return NULL;
                         }
-                     else if (!foundOSRReference)
-                        {
-                        if (trace())
-                           {
-                           traceMsg(comp(), "[0x%p] Invalid reference count at acall node due to missing OSR bookkeeping.\n", stringBuilderReceiver);
-                           }
+                    }
+                } else {
+                    if (trace()) {
+                        traceMsg(comp(), "[0x%p] Unresolved acall node.\n", acallNode);
+                    }
 
-                        TR::DebugCounter::incStaticDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "StringBuilderTransformer/Failed/InvalidReferenceCountMissingBookkeeping/%s", comp()->signature()));
+                    TR::DebugCounter::incStaticDebugCounter(comp(),
+                        TR::DebugCounter::debugCounterName(comp(), "StringBuilderTransformer/Failed/UnresolvedACall/%s",
+                            comp()->signature()));
 
-                        return NULL;
-                        }
-                     else
-                        {
-                        if (trace())
-                           {
-                           traceMsg(comp(), "[0x%p] Invalid reference count at acall node.\n", acallNode);
-                           }
-
-                        TR::DebugCounter::incStaticDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "StringBuilderTransformer/Failed/InvalidReferenceCount/%s", comp()->signature()));
-
-                        return NULL;
-                        }
-                     }
-                     break;
-
-                  case TR::java_lang_StringBuilder_toString:
-                     {
-                     // Verify that the OSR reference was found for the final append call
-                     if (foundOSRReference)
-                        {
-                        if (trace())
-                           {
-                           traceMsg(comp(), "[0x%p] Found java/lang/StringBuilder.toString acall node.\n", acallNode);
-                           }
-
-                        return acallNode;
-                        }
-                     else
-                        {
-                        if (trace())
-                           {
-                           traceMsg(comp(), "[0x%p] Invalid reference count at acall node due to missing OSR bookkeeping for final append.\n", stringBuilderReceiver);
-                           }
-
-                        TR::DebugCounter::incStaticDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "StringBuilderTransformer/Failed/InvalidReferenceCountMissingBookkeeping/%s", comp()->signature()));
-
-                        return NULL;
-                        }
-                     }
-                     break;
-
-                  default:
-                     {
-                     if (trace())
-                        {
-                        traceMsg(comp(), "[0x%p] java/lang/StringBuilder.append chain broken at node.\n", acallNode);
-                        }
-
-                     TR::DebugCounter::incStaticDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "StringBuilderTransformer/Failed/AppendChainBroken/%s", comp()->signature()));
-
-                     return NULL;
-                     }
-                  }
-               }
-            else
-               {
-               if (trace())
-                  {
-                  traceMsg(comp(), "[0x%p] Unresolved acall node.\n", acallNode);
-                  }
-
-               TR::DebugCounter::incStaticDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "StringBuilderTransformer/Failed/UnresolvedACall/%s", comp()->signature()));
-
-               return NULL;
-               }
+                    return NULL;
+                }
             }
-         }
-      else if (comp()->getMethodSymbol()->isOSRRelatedNode(currentNode) && currentNode->getFirstChild() == stringBuilderReceiver)
-         foundOSRReference = true;
+        } else if (comp()->getMethodSymbol()->isOSRRelatedNode(currentNode)
+            && currentNode->getFirstChild() == stringBuilderReceiver)
+            foundOSRReference = true;
 
-      ++iter;
-      }
+        ++iter;
+    }
 
-   if (trace())
-      {
-      traceMsg(comp(), "[0x%p] NULLCHK chain broken at node.\n", iter.currentNode());
-      }
+    if (trace()) {
+        traceMsg(comp(), "[0x%p] NULLCHK chain broken at node.\n", iter.currentNode());
+    }
 
-   TR::DebugCounter::incStaticDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "StringBuilderTransformer/Failed/ToStringNotFound/%s", comp()->signature()));
+    TR::DebugCounter::incStaticDebugCounter(comp(),
+        TR::DebugCounter::debugCounterName(comp(), "StringBuilderTransformer/Failed/ToStringNotFound/%s",
+            comp()->signature()));
 
-   return NULL;
-   }
+    return NULL;
+}
 
 /** \details
  *     If the StringBuilder.append(...) argument is a compile time constant we statically determine number of chars
@@ -475,176 +473,129 @@ TR::Node* TR_StringBuilderTransformer::findStringBuilderChainedAppendArguments(T
  *     statistics collection mechanisms implemented by this optimization. See TR_StringBuilderTransformer Environment
  *     Variables section for more details.
  *
- * \returns A non-negative computed capacity or a negative value if the capacity estimate resulted in an integer overflow
+ * \returns A non-negative computed capacity or a negative value if the capacity estimate resulted in an integer
+ * overflow
  */
-int32_t TR_StringBuilderTransformer::computeHeuristicStringBuilderInitCapacity(List<TR_Pair<TR::Node*, TR::RecognizedMethod> >& appendArguments)
-   {
-   uint32_t capacity = 0;
+int32_t TR_StringBuilderTransformer::computeHeuristicStringBuilderInitCapacity(
+    List<TR_Pair<TR::Node *, TR::RecognizedMethod> > &appendArguments)
+{
+    uint32_t capacity = 0;
 
-   ListIterator<TR_Pair<TR::Node*, TR::RecognizedMethod> > iter(&appendArguments);
+    ListIterator<TR_Pair<TR::Node *, TR::RecognizedMethod> > iter(&appendArguments);
 
-   // Iterate over pairs of recognized methods and arguments that can be used
-   // to estimate the size of the StringBuilder buffer that will be needed.
-   // If the estimated capacity ever exceeds the maximum int32_t value, the
-   // calculation has overflowed, so halt early.
-   //
-   for (TR_Pair<TR::Node*, TR::RecognizedMethod>* pair = iter.getFirst();
-        (pair != NULL) && (capacity <= std::numeric_limits<int32_t>::max());
-        pair = iter.getNext())
-      {
-      TR::Node* argument = pair->getKey();
+    // Iterate over pairs of recognized methods and arguments that can be used
+    // to estimate the size of the StringBuilder buffer that will be needed.
+    // If the estimated capacity ever exceeds the maximum int32_t value, the
+    // calculation has overflowed, so halt early.
+    //
+    for (TR_Pair<TR::Node *, TR::RecognizedMethod> *pair = iter.getFirst();
+         (pair != NULL) && (capacity <= std::numeric_limits<int32_t>::max()); pair = iter.getNext()) {
+        TR::Node *argument = pair->getKey();
 
-      switch (pair->getValue())
-         {
-         case TR::java_lang_StringBuilder_append_bool:
-            {
-            if (argument->getOpCodeValue() == TR::iconst)
-               {
-               capacity += argument->getInt() == 1 ? 4 : 5;
-               }
-            else
-               {
-               capacity += 5;
-               }
-            }
-            break;
+        switch (pair->getValue()) {
+            case TR::java_lang_StringBuilder_append_bool: {
+                if (argument->getOpCodeValue() == TR::iconst) {
+                    capacity += argument->getInt() == 1 ? 4 : 5;
+                } else {
+                    capacity += 5;
+                }
+            } break;
 
-         case TR::java_lang_StringBuilder_append_char:
-            {
-            ++capacity;
-            }
-            break;
+            case TR::java_lang_StringBuilder_append_char: {
+                ++capacity;
+            } break;
 
-         case TR::java_lang_StringBuilder_append_double:
-            {
-            if (argument->getOpCodeValue() == TR::dconst)
-               {
-               capacity += TR::printfLen("%g", argument->getDouble());
-               }
-            else
-               {
-               capacity += 5;
-               }
-            }
-            break;
+            case TR::java_lang_StringBuilder_append_double: {
+                if (argument->getOpCodeValue() == TR::dconst) {
+                    capacity += TR::printfLen("%g", argument->getDouble());
+                } else {
+                    capacity += 5;
+                }
+            } break;
 
-         case TR::java_lang_StringBuilder_append_float:
-            {
-            if (argument->getOpCodeValue() == TR::fconst)
-               {
-               capacity += TR::printfLen("%g", argument->getFloat());
-               }
-            else
-               {
-               capacity += 5;
-               }
-            }
-            break;
+            case TR::java_lang_StringBuilder_append_float: {
+                if (argument->getOpCodeValue() == TR::fconst) {
+                    capacity += TR::printfLen("%g", argument->getFloat());
+                } else {
+                    capacity += 5;
+                }
+            } break;
 
-         case TR::java_lang_StringBuilder_append_int:
-            {
-            if (argument->getOpCodeValue() == TR::iconst)
-               {
-               int32_t value = argument->getInt();
+            case TR::java_lang_StringBuilder_append_int: {
+                if (argument->getOpCodeValue() == TR::iconst) {
+                    int32_t value = argument->getInt();
 
-               if (value == 0)
-                  {
-                  ++capacity;
-                  }
-               else if (value > 0)
-                  {
-                  capacity += floor(log10(static_cast<double>(+value))) + 1;
-                  }
-               else
-                  {
-                  capacity += floor(log10(static_cast<double>(-value))) + 2;
-                  }
-               }
-            else
-               {
-               capacity += 4;
-               }
-            }
-            break;
+                    if (value == 0) {
+                        ++capacity;
+                    } else if (value > 0) {
+                        capacity += floor(log10(static_cast<double>(+value))) + 1;
+                    } else {
+                        capacity += floor(log10(static_cast<double>(-value))) + 2;
+                    }
+                } else {
+                    capacity += 4;
+                }
+            } break;
 
-         case TR::java_lang_StringBuilder_append_long:
-            {
-            if (argument->getOpCodeValue() == TR::iconst)
-               {
-               int64_t value = argument->getLongInt();
+            case TR::java_lang_StringBuilder_append_long: {
+                if (argument->getOpCodeValue() == TR::iconst) {
+                    int64_t value = argument->getLongInt();
 
-               if (value == 0)
-                  {
-                  ++capacity;
-                  }
-               else if (value > 0)
-                  {
-                  capacity += floor(log10(static_cast<double>(+value))) + 1;
-                  }
-               else
-                  {
-                  capacity += floor(log10(static_cast<double>(-value))) + 2;
-                  }
-               }
-            else
-               {
-               capacity += 8;
-               }
-            }
-            break;
+                    if (value == 0) {
+                        ++capacity;
+                    } else if (value > 0) {
+                        capacity += floor(log10(static_cast<double>(+value))) + 1;
+                    } else {
+                        capacity += floor(log10(static_cast<double>(-value))) + 2;
+                    }
+                } else {
+                    capacity += 8;
+                }
+            } break;
 
-         case TR::java_lang_StringBuilder_append_String:
-            {
-            if (argument->getOpCodeValue() == TR::aload)
-               {
-               TR::Symbol* symbol = argument->getSymbol();
+            case TR::java_lang_StringBuilder_append_String: {
+                if (argument->getOpCodeValue() == TR::aload) {
+                    TR::Symbol *symbol = argument->getSymbol();
 
-               if (symbol->isConstString())
-                  {
-                  TR::SymbolReference* symRef = argument->getSymbolReference();
+                    if (symbol->isConstString()) {
+                        TR::SymbolReference *symRef = argument->getSymbolReference();
 
-                  if (!symRef->isUnresolved())
-                     {
-                     TR::VMAccessCriticalSection stringBuildAppendStringCriticalSection(comp()->fej9(),
-                                                                                         TR::VMAccessCriticalSection::tryToAcquireVMAccess,
-                                                                                         comp());
+                        if (!symRef->isUnresolved()) {
+                            TR::VMAccessCriticalSection stringBuildAppendStringCriticalSection(comp()->fej9(),
+                                TR::VMAccessCriticalSection::tryToAcquireVMAccess, comp());
 
-                     if (stringBuildAppendStringCriticalSection.hasVMAccess())
-                        {
-                        uintptr_t stringObjectLocation = (uintptr_t)symbol->castToStaticSymbol()->getStaticAddress();
-                        uintptr_t stringObject = comp()->fej9()->getStaticReferenceFieldAtAddress(stringObjectLocation);
-                        capacity += comp()->fej9()->getStringLength(stringObject);
+                            if (stringBuildAppendStringCriticalSection.hasVMAccess()) {
+                                uintptr_t stringObjectLocation
+                                    = (uintptr_t)symbol->castToStaticSymbol()->getStaticAddress();
+                                uintptr_t stringObject
+                                    = comp()->fej9()->getStaticReferenceFieldAtAddress(stringObjectLocation);
+                                capacity += comp()->fej9()->getStringLength(stringObject);
 
-                        break;
+                                break;
+                            }
                         }
-                     }
-                  }
-               }
+                    }
+                }
 
-            capacity += 16;
+                capacity += 16;
+            } break;
+
+            case TR::java_lang_StringBuilder_append_Object: {
+                capacity += 7;
+            } break;
+
+            default: {
+                TR_ASSERT(false, "Unreachable case reached.");
             }
-            break;
+        }
 
-         case TR::java_lang_StringBuilder_append_Object:
-            {
-            capacity += 7;
-            }
-            break;
+        if (trace()) {
+            traceMsg(comp(), "[0x%p] Added capacity for node. Current capacity = %d.\n", argument, capacity);
+        }
+    }
 
-         default:
-            {
-            TR_ASSERT(false, "Unreachable case reached.");
-            }
-         }
-
-      if (trace())
-         {
-         traceMsg(comp(), "[0x%p] Added capacity for node. Current capacity = %d.\n", argument, capacity);
-         }
-      }
-
-   // If the loop has halted early because the value of capacity is greater than the
-   // int32_t value, casting the capacity to int32_t will yield a negative result,
-   // signalling that the capacity calculation has failed.
-   return (int32_t) capacity;
-   }
+    // If the loop has halted early because the value of capacity is greater than the
+    // int32_t value, casting the capacity to int32_t will yield a negative result,
+    // signalling that the capacity calculation has failed.
+    return (int32_t)capacity;
+}

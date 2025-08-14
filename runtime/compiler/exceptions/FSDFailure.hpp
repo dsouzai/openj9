@@ -33,11 +33,10 @@
  * Thrown when a method that has an invoke handle is compiled for FSD.
  */
 namespace J9 {
-class FSDHasInvokeHandle : public virtual TR::RecoverableILGenException
-   {
-   virtual const char* what() const throw() { return "FSD Has Invoke Handle"; }
-   };
-}
+class FSDHasInvokeHandle : public virtual TR::RecoverableILGenException {
+    virtual const char *what() const throw() { return "FSD Has Invoke Handle"; }
+};
+} // namespace J9
 
 #endif // FSD_FAILURE_HPP
 

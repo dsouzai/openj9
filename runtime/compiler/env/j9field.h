@@ -30,20 +30,19 @@
 #include "env/FrontEnd.hpp"
 #include "env/IO.hpp"
 
-class TR_VMField
-   {
+class TR_VMField {
 public:
-   TR_ALLOC(TR_Memory::VMField)
-   TR_VMField( TR::Compilation * comp, J9Class *aClazz, J9ROMFieldShape *fieldShape, TR_AllocationKind allocKind);
-   int isReference();
-   void              print(TR_FrontEnd *fe, TR::FILE *outFile);
+    TR_ALLOC(TR_Memory::VMField)
+    TR_VMField(TR::Compilation *comp, J9Class *aClazz, J9ROMFieldShape *fieldShape, TR_AllocationKind allocKind);
+    int isReference();
+    void print(TR_FrontEnd *fe, TR::FILE *outFile);
 
-   char *            name;
-   char *            signature;
-   J9ROMFieldShape * shape;
-   U_32              modifiers;
-   IDATA             offset;
-   J9Class *         ramClass;
-   };
+    char *name;
+    char *signature;
+    J9ROMFieldShape *shape;
+    U_32 modifiers;
+    IDATA offset;
+    J9Class *ramClass;
+};
 #endif
 

@@ -25,16 +25,20 @@
 
 #include <stdint.h>
 
-namespace OMR { class RuntimeAssumption; }
+namespace OMR {
+class RuntimeAssumption;
+}
 class TR_UnloadedClassPicSite;
 extern "C" {
-  TR_UnloadedClassPicSite *createClassUnloadPicSite(void *classPointer, void *addressToBePatched, uint32_t size, OMR::RuntimeAssumption **sentinel);
-  void jitAddPicToPatchOnClassUnload(void *classPointer, void *addressToBePatched);
-  void jitAdd32BitPicToPatchOnClassUnload(void *classPointer, void *addressToBePatched);
-  void createClassRedefinitionPicSite(void *classPointer, void *addressToBePatched, uint32_t size, bool unresolved, OMR::RuntimeAssumption **sentinel);
-  void createJNICallSite(void *ramMethod, void *addressToBePatched, OMR::RuntimeAssumption **sentinel);
-  void jitAddPicToPatchOnClassRedefinition(void *classPointer, void *addressToBePatched, bool unresolved=false);
-  void jitAdd32BitPicToPatchOnClassRedefinition(void *classPointer, void *addressToBePatched, bool unresolved=false);
+TR_UnloadedClassPicSite *createClassUnloadPicSite(void *classPointer, void *addressToBePatched, uint32_t size,
+    OMR::RuntimeAssumption **sentinel);
+void jitAddPicToPatchOnClassUnload(void *classPointer, void *addressToBePatched);
+void jitAdd32BitPicToPatchOnClassUnload(void *classPointer, void *addressToBePatched);
+void createClassRedefinitionPicSite(void *classPointer, void *addressToBePatched, uint32_t size, bool unresolved,
+    OMR::RuntimeAssumption **sentinel);
+void createJNICallSite(void *ramMethod, void *addressToBePatched, OMR::RuntimeAssumption **sentinel);
+void jitAddPicToPatchOnClassRedefinition(void *classPointer, void *addressToBePatched, bool unresolved = false);
+void jitAdd32BitPicToPatchOnClassRedefinition(void *classPointer, void *addressToBePatched, bool unresolved = false);
 }
 
 #endif // PICHELPERS_HPP

@@ -28,10 +28,11 @@
  */
 #ifndef J9_ALIASBUILDER_CONNECTOR
 #define J9_ALIASBUILDER_CONNECTOR
+
 namespace J9 {
 class AliasBuilder;
 typedef J9::AliasBuilder AliasBuilderConnector;
-}
+} // namespace J9
 #endif
 
 #include "compile/OMRAliasBuilder.hpp"
@@ -42,42 +43,41 @@ typedef J9::AliasBuilder AliasBuilderConnector;
 namespace TR {
 class SymbolReferenceTable;
 class Compilation;
-}
+} // namespace TR
 
-namespace J9
-{
+namespace J9 {
 
-class AliasBuilder : public OMR::AliasBuilderConnector
-   {
-
+class AliasBuilder : public OMR::AliasBuilderConnector {
 public:
+    AliasBuilder(TR::SymbolReferenceTable *symRefTab, size_t sizeHint, TR::Compilation *c);
 
-   AliasBuilder(TR::SymbolReferenceTable *symRefTab, size_t sizeHint, TR::Compilation *c);
+    void createAliasInfo();
 
-   void createAliasInfo();
+    TR_Array<TR_BitVector *> &userFieldSymRefNumbers() { return _userFieldSymRefNumbers; }
 
-   TR_Array<TR_BitVector *> & userFieldSymRefNumbers() { return _userFieldSymRefNumbers; }
+    TR_BitVector &tenantDataMetaSymRefs() { return _tenantDataMetaSymRefs; }
 
-   TR_BitVector & tenantDataMetaSymRefs() {return _tenantDataMetaSymRefs; }
-   TR_BitVector & callSiteTableEntrySymRefs() { return _callSiteTableEntrySymRefs; }
-   TR_BitVector & unresolvedShadowSymRefs() { return _unresolvedShadowSymRefs; }
-   TR_BitVector & methodTypeTableEntrySymRefs() { return _methodTypeTableEntrySymRefs; }
+    TR_BitVector &callSiteTableEntrySymRefs() { return _callSiteTableEntrySymRefs; }
 
-   TR_BitVector * methodAliases(TR::SymbolReference *);
-   TR_Array<TR_BitVector *> &immutableConstructorDefAliases() { return _immutableConstructorDefAliases; }
-   TR_Array<TR_BitVector *> &userFieldMethodDefAliases() { return _userFieldMethodDefAliases; }
+    TR_BitVector &unresolvedShadowSymRefs() { return _unresolvedShadowSymRefs; }
+
+    TR_BitVector &methodTypeTableEntrySymRefs() { return _methodTypeTableEntrySymRefs; }
+
+    TR_BitVector *methodAliases(TR::SymbolReference *);
+
+    TR_Array<TR_BitVector *> &immutableConstructorDefAliases() { return _immutableConstructorDefAliases; }
+
+    TR_Array<TR_BitVector *> &userFieldMethodDefAliases() { return _userFieldMethodDefAliases; }
 
 private:
+    TR_Array<TR_BitVector *> _userFieldSymRefNumbers;
+    TR_BitVector _tenantDataMetaSymRefs;
+    TR_BitVector _callSiteTableEntrySymRefs;
+    TR_BitVector _unresolvedShadowSymRefs;
+    TR_BitVector _methodTypeTableEntrySymRefs;
+    TR_Array<TR_BitVector *> _immutableConstructorDefAliases;
+};
 
-   TR_Array<TR_BitVector *> _userFieldSymRefNumbers;
-   TR_BitVector _tenantDataMetaSymRefs;
-   TR_BitVector _callSiteTableEntrySymRefs;
-   TR_BitVector _unresolvedShadowSymRefs;
-   TR_BitVector _methodTypeTableEntrySymRefs;
-   TR_Array<TR_BitVector *> _immutableConstructorDefAliases;
-
-   };
-
-}
+} // namespace J9
 
 #endif

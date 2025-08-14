@@ -33,54 +33,50 @@
 #include "optimizer/Optimizer.hpp"
 
 TR::CatchBlockProfiler::CatchBlockProfiler(TR::OptimizationManager *manager)
-   : TR::Optimization(manager), _catchBlockCounterSymRef(NULL)
-   {}
+    : TR::Optimization(manager)
+    , _catchBlockCounterSymRef(NULL)
+{}
 
 int32_t TR::CatchBlockProfiler::perform()
-   {
-   if (comp()->getOption(TR_DisableEDO))
-      {
-      if (trace())
-         traceMsg(comp(), "Catch Block Profiler is disabled because EDO is disabled\n");
-      return 0;
-      }
-   TR::Recompilation *recompilation = comp()->getRecompilationInfo();
-   if (!recompilation || !recompilation->couldBeCompiledAgain())
-      {
-      if (trace())
-         traceMsg(comp(), "Catch Block Profiler is disabled because method cannot be recompiled\n");
-      return 0;
-      }
+{
+    if (comp()->getOption(TR_DisableEDO)) {
+        if (trace())
+            traceMsg(comp(), "Catch Block Profiler is disabled because EDO is disabled\n");
+        return 0;
+    }
+    TR::Recompilation *recompilation = comp()->getRecompilationInfo();
+    if (!recompilation || !recompilation->couldBeCompiledAgain()) {
+        if (trace())
+            traceMsg(comp(), "Catch Block Profiler is disabled because method cannot be recompiled\n");
+        return 0;
+    }
 
-   if (trace())
-      traceMsg(comp(), "Starting Catch Block Profiler\n");
+    if (trace())
+        traceMsg(comp(), "Starting Catch Block Profiler\n");
 
-   for (TR::Block * b = comp()->getStartBlock(); b; b = b->getNextBlock())
-      if (!b->getExceptionPredecessors().empty() &&
-          !b->isOSRCatchBlock() &&
-          !b->isEmptyBlock()) // VP may have removed all trees from the block
-         {
-         if (performTransformation(comp(), "%s Add profiling trees to track the execution frequency of catch block_%d\n", optDetailString(), b->getNumber()))
-            {
-            if (!_catchBlockCounterSymRef)
-               {
-               uint32_t *catchBlockCounterAddress = recompilation->getMethodInfo()->getCatchBlockCounterAddress();
-               _catchBlockCounterSymRef = comp()->getSymRefTab()->createKnownStaticDataSymbolRef(catchBlockCounterAddress, TR::Int32);
-               _catchBlockCounterSymRef->getSymbol()->setIsCatchBlockCounter();
-               _catchBlockCounterSymRef->getSymbol()->setNotDataAddress();
-               }
-            TR::TreeTop *profilingTree = TR::TreeTop::createIncTree(comp(), b->getEntry()->getNode(), _catchBlockCounterSymRef, 1, b->getEntry());
-            profilingTree->getNode()->setIsProfilingCode();
+    for (TR::Block *b = comp()->getStartBlock(); b; b = b->getNextBlock())
+        if (!b->getExceptionPredecessors().empty() && !b->isOSRCatchBlock()
+            && !b->isEmptyBlock()) // VP may have removed all trees from the block
+        {
+            if (performTransformation(comp(),
+                    "%s Add profiling trees to track the execution frequency of catch block_%d\n", optDetailString(),
+                    b->getNumber())) {
+                if (!_catchBlockCounterSymRef) {
+                    uint32_t *catchBlockCounterAddress = recompilation->getMethodInfo()->getCatchBlockCounterAddress();
+                    _catchBlockCounterSymRef
+                        = comp()->getSymRefTab()->createKnownStaticDataSymbolRef(catchBlockCounterAddress, TR::Int32);
+                    _catchBlockCounterSymRef->getSymbol()->setIsCatchBlockCounter();
+                    _catchBlockCounterSymRef->getSymbol()->setNotDataAddress();
+                }
+                TR::TreeTop *profilingTree = TR::TreeTop::createIncTree(comp(), b->getEntry()->getNode(),
+                    _catchBlockCounterSymRef, 1, b->getEntry());
+                profilingTree->getNode()->setIsProfilingCode();
             }
-         }
+        }
 
-   if (trace())
-      traceMsg(comp(), "\nEnding Catch Block Profiler\n");
-   return 1; // actual cost
-   }
+    if (trace())
+        traceMsg(comp(), "\nEnding Catch Block Profiler\n");
+    return 1; // actual cost
+}
 
-const char *
-TR::CatchBlockProfiler::optDetailString() const throw()
-   {
-   return "O^O CATCH BLOCK PROFILER: ";
-   }
+const char *TR::CatchBlockProfiler::optDetailString() const throw() { return "O^O CATCH BLOCK PROFILER: "; }

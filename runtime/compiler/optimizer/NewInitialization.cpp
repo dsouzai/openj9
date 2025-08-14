@@ -64,6 +64,7 @@
 #include "ras/Debug.hpp"
 
 class TR_OpaqueClassBlock;
+
 namespace TR {
 class MethodSymbol;
 }
@@ -71,1320 +72,1180 @@ class MethodSymbol;
 #define OPT_DETAILS "O^O EXPLICIT NEW INITIALIZATION: "
 
 TR_NewInitialization::TR_NewInitialization(TR::OptimizationManager *manager)
-   : TR::Optimization(manager)
-   {}
+    : TR::Optimization(manager)
+{}
 
 TR_LocalNewInitialization::TR_LocalNewInitialization(TR::OptimizationManager *manager)
-   : TR_NewInitialization(manager)
-   {}
+    : TR_NewInitialization(manager)
+{}
 
-int32_t TR_LocalNewInitialization::perform()
-   {
-   return performAnalysis(false);
-   }
+int32_t TR_LocalNewInitialization::perform() { return performAnalysis(false); }
 
-const char *
-TR_LocalNewInitialization::optDetailString() const throw()
-   {
-   return "O^O EXPLICIT NEW INITIALIZATION: ";
-   }
+const char *TR_LocalNewInitialization::optDetailString() const throw() { return "O^O EXPLICIT NEW INITIALIZATION: "; }
 
 int32_t TR_NewInitialization::performAnalysis(bool doGlobalAnalysis)
-   {
-   // AOT does not support TR_New optimizations at this time
-   if(comp()->compileRelocatableCode())
-      return 0;
+{
+    // AOT does not support TR_New optimizations at this time
+    if (comp()->compileRelocatableCode())
+        return 0;
 
-   //
-   // 64 bit platforms are not doing correct thing till the change
-   // to make int fields 4 bytes in size in a J9 object is made at the
-   // FE side. Remember to allow new init opt if the target is 64 bit.
-   //
-   if (comp()->target().is64Bit() && !comp()->useCompressedPointers())
-      return 0;
+    //
+    // 64 bit platforms are not doing correct thing till the change
+    // to make int fields 4 bytes in size in a J9 object is made at the
+    // FE side. Remember to allow new init opt if the target is 64 bit.
+    //
+    if (comp()->target().is64Bit() && !comp()->useCompressedPointers())
+        return 0;
 
-   // When TLH is batch cleared, explicit initialization should be disabled.
-   if (comp()->fej9()->tlhHasBeenCleared())
-      return 0;
+    // When TLH is batch cleared, explicit initialization should be disabled.
+    if (comp()->fej9()->tlhHasBeenCleared())
+        return 0;
 
-   // Debug option to only do new initialization for methods that don't have
-   // the "quiet" option set in the limit file
-   //
-   static char *nonQuiet = feGetEnv("TR_NonQuietNew");
-   if (nonQuiet && comp()->getOutFile() == NULL)
-      return 0;
+    // Debug option to only do new initialization for methods that don't have
+    // the "quiet" option set in the limit file
+    //
+    static char *nonQuiet = feGetEnv("TR_NonQuietNew");
+    if (nonQuiet && comp()->getOutFile() == NULL)
+        return 0;
 
-   if (trace())
-      traceMsg(comp(), "Starting Explicit Initialization for New\n");
+    if (trace())
+        traceMsg(comp(), "Starting Explicit Initialization for New\n");
 
-   TR_Hotness methodHotness = comp()->getMethodHotness();
+    TR_Hotness methodHotness = comp()->getMethodHotness();
 
-   static const char *q = feGetEnv("TR_Sniff");
-   _sniffConstructorsOnly = false;
-   _sniffCalls = false;
-   if (q)
-      {
-      if (*q == 's')
-         _sniffCalls = false;
-      else if (*q == 'h')
-         _sniffCalls = false;
-      else if (*q == 'n')
-         _sniffCalls = false;
-      else if (*q == 'c')
-         {
-         _sniffCalls = true;
-         _sniffConstructorsOnly = true;
-         }
-      else
-         _sniffCalls = true;
-      }
+    static const char *q = feGetEnv("TR_Sniff");
+    _sniffConstructorsOnly = false;
+    _sniffCalls = false;
+    if (q) {
+        if (*q == 's')
+            _sniffCalls = false;
+        else if (*q == 'h')
+            _sniffCalls = false;
+        else if (*q == 'n')
+            _sniffCalls = false;
+        else if (*q == 'c') {
+            _sniffCalls = true;
+            _sniffConstructorsOnly = true;
+        } else
+            _sniffCalls = true;
+    }
 
-   int32_t nodeCount = 0;
-   if (_sniffCalls)
-      {
-      // Find the current number of nodes so that we can limit the size that
-      // inlining grows to.
-      //
-      vcount_t visitCount = comp()->incVisitCount();
-      TR::TreeTop *tt = comp()->getStartTree();
-      for (; tt; tt = tt->getNextTreeTop())
-         nodeCount += tt->getNode()->countNumberOfNodesInSubtree(visitCount);
-      }
+    int32_t nodeCount = 0;
+    if (_sniffCalls) {
+        // Find the current number of nodes so that we can limit the size that
+        // inlining grows to.
+        //
+        vcount_t visitCount = comp()->incVisitCount();
+        TR::TreeTop *tt = comp()->getStartTree();
+        for (; tt; tt = tt->getNextTreeTop())
+            nodeCount += tt->getNode()->countNumberOfNodesInSubtree(visitCount);
+    }
 
-   _removeZeroStores  = true;
+    _removeZeroStores = true;
 
-   if (methodHotness >= scorching)
-      {
-      _maxIterations               = 10;
-      _maxInlinedBytecodeSize      = 600;
-      _maxTotalInlinedBytecodeSize = 6000 - nodeCount;
-      }
-   else if (methodHotness >= hot)
-      {
-      _maxIterations               = 5;
-      _maxInlinedBytecodeSize      = 400;
-      _maxTotalInlinedBytecodeSize = 3000 - nodeCount;
-      }
-   else
-      {
-      _maxIterations               = 3;
-      _maxInlinedBytecodeSize      = 200;
-      _maxTotalInlinedBytecodeSize = 1000 - nodeCount;
-      }
-   _totalInlinedBytecodeSize    = 0;
+    if (methodHotness >= scorching) {
+        _maxIterations = 10;
+        _maxInlinedBytecodeSize = 600;
+        _maxTotalInlinedBytecodeSize = 6000 - nodeCount;
+    } else if (methodHotness >= hot) {
+        _maxIterations = 5;
+        _maxInlinedBytecodeSize = 400;
+        _maxTotalInlinedBytecodeSize = 3000 - nodeCount;
+    } else {
+        _maxIterations = 3;
+        _maxInlinedBytecodeSize = 200;
+        _maxTotalInlinedBytecodeSize = 1000 - nodeCount;
+    }
+    _totalInlinedBytecodeSize = 0;
 
-   _invalidateUseDefInfo        = false;
-   int32_t cost                 = 0;
-   int32_t iteration            = 0;
+    _invalidateUseDefInfo = false;
+    int32_t cost = 0;
+    int32_t iteration = 0;
 
-   bool doItAgain = true;
-   while (doItAgain)
-      {
-      cost++;
-      doItAgain = doAnalysisOnce(iteration);
-      if (iteration++ == _maxIterations)
-         _sniffCalls = false;
-      }
+    bool doItAgain = true;
+    while (doItAgain) {
+        cost++;
+        doItAgain = doAnalysisOnce(iteration);
+        if (iteration++ == _maxIterations)
+            _sniffCalls = false;
+    }
 
-   // If any stores were introduced, invalidate value number info and
-   // use/def info.
-   //
-   if (_invalidateUseDefInfo)
-      {
-      optimizer()->setValueNumberInfo(NULL);
-      optimizer()->setUseDefInfo(NULL);
-      }
+    // If any stores were introduced, invalidate value number info and
+    // use/def info.
+    //
+    if (_invalidateUseDefInfo) {
+        optimizer()->setValueNumberInfo(NULL);
+        optimizer()->setUseDefInfo(NULL);
+    }
 
-   return cost;
-   }
-
+    return cost;
+}
 
 bool TR_NewInitialization::doAnalysisOnce(int32_t iteration)
-   {
-   if (trace())
-      traceMsg(comp(), "\nStarting iteration %d\n", iteration);
+{
+    if (trace())
+        traceMsg(comp(), "\nStarting iteration %d\n", iteration);
 
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+    TR::StackMemoryRegion stackMemoryRegion(*trMemory());
 
-   // Get block frequencies if available
-   //
-   //if (comp()->getMethodHotness() == scorching)
-   //   comp()->getFlowGraph()->setFrequencies();
+    // Get block frequencies if available
+    //
+    // if (comp()->getMethodHotness() == scorching)
+    //   comp()->getFlowGraph()->setFrequencies();
 
-   _inlinedCallSites.setFirst(NULL);
+    _inlinedCallSites.setFirst(NULL);
 
-   // First walk the trees to find allocation nodes and initializations
-   //
-   findNewCandidates();
+    // First walk the trees to find allocation nodes and initializations
+    //
+    findNewCandidates();
 
-   // Second, either:
-   //    1) inline the top-level methods that we deemed useful to inline,
-   //       and ask for another iteration, or
-   //    2) change the allocations that can reasonably be changed into
-   //       no-zero-init versions, and insert the necessary
-   //       zero-initialization information.
-   //
-   bool doItAgain = changeNewCandidates();
-   return doItAgain;
-   }
+    // Second, either:
+    //    1) inline the top-level methods that we deemed useful to inline,
+    //       and ask for another iteration, or
+    //    2) change the allocations that can reasonably be changed into
+    //       no-zero-init versions, and insert the necessary
+    //       zero-initialization information.
+    //
+    bool doItAgain = changeNewCandidates();
+    return doItAgain;
+}
 
 void TR_NewInitialization::findNewCandidates()
-   {
-   // Walk the trees to find allocation nodes that may be inlined
-   // and explicit initializations.
-   //
-   _candidates.set(NULL, NULL);
-   _outermostCallSite = NULL;
-   _parms             = NULL;
+{
+    // Walk the trees to find allocation nodes that may be inlined
+    // and explicit initializations.
+    //
+    _candidates.set(NULL, NULL);
+    _outermostCallSite = NULL;
+    _parms = NULL;
 
-   int32_t savedTotalInlinedBytecodeSize = _totalInlinedBytecodeSize;
+    int32_t savedTotalInlinedBytecodeSize = _totalInlinedBytecodeSize;
 
-   comp()->incVisitCount();
+    comp()->incVisitCount();
 
-   if (trace())
-      traceMsg(comp(), "\n\nFinding candidates\n\n");
+    if (trace())
+        traceMsg(comp(), "\n\nFinding candidates\n\n");
 
-   TR::CFG *cfg = comp()->getFlowGraph();
-   bool saveSniffCalls = _sniffCalls;
+    TR::CFG *cfg = comp()->getFlowGraph();
+    bool saveSniffCalls = _sniffCalls;
 
-   TR::TreeTop *treeTop;
-   for (treeTop = comp()->getStartTree(); treeTop; treeTop = treeTop->getNextTreeTop())
-      {
-      TR::Node *node = treeTop->getNode();
-      TR_ASSERT(node->getOpCodeValue() == TR::BBStart, "Expected start of block");
-      TR::Block *block = node->getBlock();
-      _firstActiveCandidate = NULL;
+    TR::TreeTop *treeTop;
+    for (treeTop = comp()->getStartTree(); treeTop; treeTop = treeTop->getNextTreeTop()) {
+        TR::Node *node = treeTop->getNode();
+        TR_ASSERT(node->getOpCodeValue() == TR::BBStart, "Expected start of block");
+        TR::Block *block = node->getBlock();
+        _firstActiveCandidate = NULL;
 
-      // If this is a cold block, don't bother inlining
-      //
-      if ((block->getFrequency() >= 0) &&
-          (block->getFrequency() <= MAX_WARM_BLOCK_COUNT))
-         {
-         _sniffCalls = false;
-         }
+        // If this is a cold block, don't bother inlining
+        //
+        if ((block->getFrequency() >= 0) && (block->getFrequency() <= MAX_WARM_BLOCK_COUNT)) {
+            _sniffCalls = false;
+        }
 
-      findNewCandidatesInBlock(treeTop, block->getExit());
+        findNewCandidatesInBlock(treeTop, block->getExit());
 
-      treeTop = block->getExit();
-      escapeToUserCodeAllCandidates(treeTop->getNode());
+        treeTop = block->getExit();
+        escapeToUserCodeAllCandidates(treeTop->getNode());
 
-      _sniffCalls = saveSniffCalls;
-      }
+        _sniffCalls = saveSniffCalls;
+    }
 
-   findUninitializedWords();
+    findUninitializedWords();
 
-   _totalInlinedBytecodeSize = savedTotalInlinedBytecodeSize;
-   }
+    _totalInlinedBytecodeSize = savedTotalInlinedBytecodeSize;
+}
 
 bool TR_NewInitialization::findNewCandidatesInBlock(TR::TreeTop *startTree, TR::TreeTop *endTree)
-   {
-   // Walk the trees for a block to find allocation nodes that may be
-   // inlined.  Sniff into initializer calls to see if they do any
-   // allocations or initializations.
-   //
-   vcount_t visitCount = comp()->getVisitCount();
+{
+    // Walk the trees for a block to find allocation nodes that may be
+    // inlined.  Sniff into initializer calls to see if they do any
+    // allocations or initializations.
+    //
+    vcount_t visitCount = comp()->getVisitCount();
 
-   TR::TreeTop *treeTop;
-   for (treeTop = startTree; treeTop != endTree; treeTop = treeTop->getNextTreeTop())
-      {
-      TR::Node *node = treeTop->getNode();
-      if (node->getVisitCount() == visitCount)
-         continue;
-
-      // We will look at the child only if it hasn't been seen before.
-      // However, calling "visitNode" will mark it as having been seen so we
-      // must remember if it has been seen before calling "visitNode".
-      //
-      TR::Node *child = NULL;
-      if (node->getNumChildren() && node->getFirstChild()->getVisitCount() != visitCount)
-         child = node->getFirstChild();
-
-      if (visitNode(node))
-         {
-         // Remove this treetop
-         //
-         if (performTransformation(comp(), "%s Removing zero initialization at [%p]\n", OPT_DETAILS, node))
-            {
-            TR::TreeTop *prev = treeTop->getPrevTreeTop();
-            TR::TransformUtil::removeTree(comp(), treeTop);
-            treeTop = prev;
-            _invalidateUseDefInfo = true;
-            }
-         continue;
-         }
-
-      if (node->getNumChildren() == 0)
-         continue;
-
-      // See if this is a candidate allocation node
-      //
-      Candidate *prevCandidate = _candidates.getLast();
-      if (findAllocationNode(treeTop, child))
-         {
-         Candidate *candidate = _candidates.getLast();
-
-         // Any previous allocation nodes must have all have their
-         // reference fields completely initialized here by this
-         // point.  Take care not to mark the candidate just found.
-         //
-         if (prevCandidate)
-            {
-            prevCandidate->setNext(NULL);
-            escapeToGC(child);
-            prevCandidate->setNext(candidate);
-            }
-
-         // Activate the candidate
-         //
-         if (!_firstActiveCandidate)
-            _firstActiveCandidate = candidate;
-         if (trace())
-            {
-            traceMsg(comp(), "   Active candidates are now [%p]-[%p]\n",_firstActiveCandidate->node, candidate->node);
-            }
-         continue;
-         }
-
-      // Skip "TR::treetop" node since it may only be causing GC because of its
-      // child which may have already been seen
-      //
-      if (node->getOpCodeValue() == TR::treetop)
-         node = child;
-
-      if (node && node->canCauseGC())
-         {
-         // See if this call is a candidate for inlining - if so, sniff it
-         // to see if it would be useful to inline.
-         //
-         if (child &&
-             ((child->getOpCodeValue() == TR::arraycopy) ||
-              (child->getOpCodeValue() == TR::arrayset)))
-            {
-            escapeViaArrayCopyOrArraySet(child);
-            }
-         else if (child && child->getOpCode().isCall())
-            {
-            if (_sniffCalls)
-               {
-               // If we didn't scan the whole of the method while sniffing and
-               // the call site is in a sniffed method, stop sniffing this
-               // method.
-               //
-               if (!sniffCall(treeTop))
-                  {
-                  escapeViaCall(child);
-                  if (_outermostCallSite)
-                     return false;
-                  }
-
-               // If we did scan the whole of the method while sniffing we can
-               // continue looking at this block. If this is the outermost block
-               // the sniffed method is significant to all the active candidates
-               //
-               else
-                  {
-                  if (!_outermostCallSite)
-                     {
-                     _outermostCallSite = treeTop;
-                     for (Candidate *c = _firstActiveCandidate; c; c = c->getNext())
-                        setAffectedCandidate(c);
-                     _outermostCallSite = NULL;
-                     }
-                  }
-               }
-            else
-               {
-               // Candidates that are arguments to the call must be completely
-               // initialized since they escape to the call.
-               // Other active candidates must have their reference fields
-               // initialized since a GC may happen during the call.
-               //
-               escapeViaCall(child);
-               }
+    TR::TreeTop *treeTop;
+    for (treeTop = startTree; treeTop != endTree; treeTop = treeTop->getNextTreeTop()) {
+        TR::Node *node = treeTop->getNode();
+        if (node->getVisitCount() == visitCount)
             continue;
+
+        // We will look at the child only if it hasn't been seen before.
+        // However, calling "visitNode" will mark it as having been seen so we
+        // must remember if it has been seen before calling "visitNode".
+        //
+        TR::Node *child = NULL;
+        if (node->getNumChildren() && node->getFirstChild()->getVisitCount() != visitCount)
+            child = node->getFirstChild();
+
+        if (visitNode(node)) {
+            // Remove this treetop
+            //
+            if (performTransformation(comp(), "%s Removing zero initialization at [%p]\n", OPT_DETAILS, node)) {
+                TR::TreeTop *prev = treeTop->getPrevTreeTop();
+                TR::TransformUtil::removeTree(comp(), treeTop);
+                treeTop = prev;
+                _invalidateUseDefInfo = true;
+            }
+            continue;
+        }
+
+        if (node->getNumChildren() == 0)
+            continue;
+
+        // See if this is a candidate allocation node
+        //
+        Candidate *prevCandidate = _candidates.getLast();
+        if (findAllocationNode(treeTop, child)) {
+            Candidate *candidate = _candidates.getLast();
+
+            // Any previous allocation nodes must have all have their
+            // reference fields completely initialized here by this
+            // point.  Take care not to mark the candidate just found.
+            //
+            if (prevCandidate) {
+                prevCandidate->setNext(NULL);
+                escapeToGC(child);
+                prevCandidate->setNext(candidate);
             }
 
-         // Now all of the active candidates must have all their reference
-         // slots marked as uninitialized.
-         //
-         escapeToGC(node);
-         }
-      }
+            // Activate the candidate
+            //
+            if (!_firstActiveCandidate)
+                _firstActiveCandidate = candidate;
+            if (trace()) {
+                traceMsg(comp(), "   Active candidates are now [%p]-[%p]\n", _firstActiveCandidate->node,
+                    candidate->node);
+            }
+            continue;
+        }
 
-   return (endTree->getNextTreeTop() == NULL);
-   }
+        // Skip "TR::treetop" node since it may only be causing GC because of its
+        // child which may have already been seen
+        //
+        if (node->getOpCodeValue() == TR::treetop)
+            node = child;
+
+        if (node && node->canCauseGC()) {
+            // See if this call is a candidate for inlining - if so, sniff it
+            // to see if it would be useful to inline.
+            //
+            if (child && ((child->getOpCodeValue() == TR::arraycopy) || (child->getOpCodeValue() == TR::arrayset))) {
+                escapeViaArrayCopyOrArraySet(child);
+            } else if (child && child->getOpCode().isCall()) {
+                if (_sniffCalls) {
+                    // If we didn't scan the whole of the method while sniffing and
+                    // the call site is in a sniffed method, stop sniffing this
+                    // method.
+                    //
+                    if (!sniffCall(treeTop)) {
+                        escapeViaCall(child);
+                        if (_outermostCallSite)
+                            return false;
+                    }
+
+                    // If we did scan the whole of the method while sniffing we can
+                    // continue looking at this block. If this is the outermost block
+                    // the sniffed method is significant to all the active candidates
+                    //
+                    else {
+                        if (!_outermostCallSite) {
+                            _outermostCallSite = treeTop;
+                            for (Candidate *c = _firstActiveCandidate; c; c = c->getNext())
+                                setAffectedCandidate(c);
+                            _outermostCallSite = NULL;
+                        }
+                    }
+                } else {
+                    // Candidates that are arguments to the call must be completely
+                    // initialized since they escape to the call.
+                    // Other active candidates must have their reference fields
+                    // initialized since a GC may happen during the call.
+                    //
+                    escapeViaCall(child);
+                }
+                continue;
+            }
+
+            // Now all of the active candidates must have all their reference
+            // slots marked as uninitialized.
+            //
+            escapeToGC(node);
+        }
+    }
+
+    return (endTree->getNextTreeTop() == NULL);
+}
 
 bool TR_NewInitialization::findAllocationNode(TR::TreeTop *treeTop, TR::Node *node)
-   {
-   if (!node)
-      return false;
+{
+    if (!node)
+        return false;
 
-   int32_t    size;
-   bool       isArrayNew;
+    int32_t size;
+    bool isArrayNew;
 
-   if (node->getOpCodeValue() == TR::New)
-      {
-      TR::Node *classNode = node->getFirstChild();
-      TR_ASSERT(classNode->getOpCodeValue() == TR::loadaddr, "Expected class load as child of TR::New");
+    if (node->getOpCodeValue() == TR::New) {
+        TR::Node *classNode = node->getFirstChild();
+        TR_ASSERT(classNode->getOpCodeValue() == TR::loadaddr, "Expected class load as child of TR::New");
 
-      // We can't do anything if we can't find the size of the class
-      //
-      TR::SymbolReference *classSymRef = classNode->getSymbolReference();
-      if (classSymRef->isUnresolved())
-         return false;
+        // We can't do anything if we can't find the size of the class
+        //
+        TR::SymbolReference *classSymRef = classNode->getSymbolReference();
+        if (classSymRef->isUnresolved())
+            return false;
 
-      TR::StaticSymbol *classSym = classSymRef->getSymbol()->castToStaticSymbol();
-      size = TR::Compiler->cls.classInstanceSize((TR_OpaqueClassBlock *)classSym->getStaticAddress());
-      isArrayNew = false;
-      }
+        TR::StaticSymbol *classSym = classSymRef->getSymbol()->castToStaticSymbol();
+        size = TR::Compiler->cls.classInstanceSize((TR_OpaqueClassBlock *)classSym->getStaticAddress());
+        isArrayNew = false;
+    }
 
-   else if (node->getOpCodeValue() == TR::newarray || node->getOpCodeValue() == TR::anewarray)
-      {
-      // We can't do anything if we can't find the size of the class
-      // or if the size is not valid for inlining
-      //
-      if (node->getFirstChild()->getOpCodeValue() != TR::iconst)
-         return false;
+    else if (node->getOpCodeValue() == TR::newarray || node->getOpCodeValue() == TR::anewarray) {
+        // We can't do anything if we can't find the size of the class
+        // or if the size is not valid for inlining
+        //
+        if (node->getFirstChild()->getOpCodeValue() != TR::iconst)
+            return false;
 
-      size = node->getFirstChild()->getInt();
+        size = node->getFirstChild()->getInt();
 
-      // Ignore large arrays so we don't have to worry about size
-      // overflow. Make sure that illegal sizes are not inlined.
-      //
-      if (size < 0 || size > 10000)
-         return false;
+        // Ignore large arrays so we don't have to worry about size
+        // overflow. Make sure that illegal sizes are not inlined.
+        //
+        if (size < 0 || size > 10000)
+            return false;
 
-      if (node->getOpCodeValue() == TR::anewarray)
-         {
-         TR::Node *classNode = node->getSecondChild();
-         size *= TR::Compiler->om.sizeofReferenceField(); //_cg->sizeOfJavaPointer();
-         }
-      else
-         {
-         TR_ASSERT(node->getSecondChild()->getOpCodeValue() == TR::iconst, "Expected type as second child of newarray");
-         switch (node->getSecondChild()->getInt())
-            {
-            case 4:
-               size *= TR::Compiler->om.elementSizeOfBooleanArray();
-               break;
-            case 5:
-            case 9:
-               size *= 2;
-               break;
-            case 6:
-            case 10:
-               size *= 4;
-               break;
-            case 7:
-            case 11:
-               size *= 8;
-               break;
+        if (node->getOpCodeValue() == TR::anewarray) {
+            TR::Node *classNode = node->getSecondChild();
+            size *= TR::Compiler->om.sizeofReferenceField(); //_cg->sizeOfJavaPointer();
+        } else {
+            TR_ASSERT(node->getSecondChild()->getOpCodeValue() == TR::iconst,
+                "Expected type as second child of newarray");
+            switch (node->getSecondChild()->getInt()) {
+                case 4:
+                    size *= TR::Compiler->om.elementSizeOfBooleanArray();
+                    break;
+                case 5:
+                case 9:
+                    size *= 2;
+                    break;
+                case 6:
+                case 10:
+                    size *= 4;
+                    break;
+                case 7:
+                case 11:
+                    size *= 8;
+                    break;
             }
-         }
-      isArrayNew = true;
-      }
+        }
+        isArrayNew = true;
+    }
 
-   else
-      return false;
+    else
+        return false;
 
-   if (!performTransformation(comp(), "%s add allocation candidate [%p]\n", OPT_DETAILS, node))
-      return false;
+    if (!performTransformation(comp(), "%s add allocation candidate [%p]\n", OPT_DETAILS, node))
+        return false;
 
-   // An allocation node has been found. Create a new candidate entry.
-   //
-   Candidate *candidate   = new (trStackMemory()) Candidate;
-   memset(candidate, 0, sizeof(Candidate));
-   candidate->treeTop     = treeTop;
-   candidate->node        = node;
-   candidate->size        = size;
-   if (_outermostCallSite)
-      candidate->isInSniffedMethod = true;
-   if (isArrayNew)
-      {
-      candidate->startOffset = TR::Compiler->om.contiguousArrayHeaderSizeInBytes();
-      candidate->isArrayNew  = true;
-      if (trace())
-         {
-         traceMsg(comp(), "\nFound new array candidate at node [%p]\n", candidate->node);
-         traceMsg(comp(), "   Number of instance bytes = %d\n", candidate->size);
-         }
-      }
-   else
-      {
-      candidate->startOffset = comp()->fej9()->getObjectHeaderSizeInBytes();
-      if (trace())
-         {
-         traceMsg(comp(), "\nFound new object candidate at node [%p]\n", candidate->node);
-         traceMsg(comp(), "   Number of instance bytes = %d\n", candidate->size);
-         }
-      }
-   if (size)
-      {
-      candidate->initializedBytes = new (trStackMemory()) TR_BitVector(size, trMemory(), stackAlloc);
-      candidate->uninitializedBytes = new (trStackMemory()) TR_BitVector(size, trMemory(), stackAlloc);
-      }
+    // An allocation node has been found. Create a new candidate entry.
+    //
+    Candidate *candidate = new (trStackMemory()) Candidate;
+    memset(candidate, 0, sizeof(Candidate));
+    candidate->treeTop = treeTop;
+    candidate->node = node;
+    candidate->size = size;
+    if (_outermostCallSite)
+        candidate->isInSniffedMethod = true;
+    if (isArrayNew) {
+        candidate->startOffset = TR::Compiler->om.contiguousArrayHeaderSizeInBytes();
+        candidate->isArrayNew = true;
+        if (trace()) {
+            traceMsg(comp(), "\nFound new array candidate at node [%p]\n", candidate->node);
+            traceMsg(comp(), "   Number of instance bytes = %d\n", candidate->size);
+        }
+    } else {
+        candidate->startOffset = comp()->fej9()->getObjectHeaderSizeInBytes();
+        if (trace()) {
+            traceMsg(comp(), "\nFound new object candidate at node [%p]\n", candidate->node);
+            traceMsg(comp(), "   Number of instance bytes = %d\n", candidate->size);
+        }
+    }
+    if (size) {
+        candidate->initializedBytes = new (trStackMemory()) TR_BitVector(size, trMemory(), stackAlloc);
+        candidate->uninitializedBytes = new (trStackMemory()) TR_BitVector(size, trMemory(), stackAlloc);
+    }
 
-   _candidates.append(candidate);
-   return true;
-   }
+    _candidates.append(candidate);
+    return true;
+}
 
 bool TR_NewInitialization::sniffCall(TR::TreeTop *callTree)
-   {
-   // See if this call is a candidate for inlining - if so, sniff it
-   // to see if it would be useful to inline.
-   //
-   TR::ResolvedMethodSymbol *calleeSymbol = findInlinableMethod(callTree);
-   if (!calleeSymbol)
-      return false;
+{
+    // See if this call is a candidate for inlining - if so, sniff it
+    // to see if it would be useful to inline.
+    //
+    TR::ResolvedMethodSymbol *calleeSymbol = findInlinableMethod(callTree);
+    if (!calleeSymbol)
+        return false;
 
-   // Build the argument list
-   //
-   TR::Node *callNode = callTree->getNode()->getFirstChild();
+    // Build the argument list
+    //
+    TR::Node *callNode = callTree->getNode()->getFirstChild();
 
-   if (trace())
-      traceMsg(comp(), "Sniffing into call at [%p]\n", callNode);
+    if (trace())
+        traceMsg(comp(), "Sniffing into call at [%p]\n", callNode);
 
-   TR_Array<TR::Node*> *newParms =  new (trStackMemory()) TR_Array<TR::Node*>(trMemory(), callNode->getNumChildren(), false, stackAlloc);
-   for (int32_t i = 0; i < callNode->getNumChildren(); ++i)
-      newParms->add(resolveNode(callNode->getChild(i)));
+    TR_Array<TR::Node *> *newParms
+        = new (trStackMemory()) TR_Array<TR::Node *>(trMemory(), callNode->getNumChildren(), false, stackAlloc);
+    for (int32_t i = 0; i < callNode->getNumChildren(); ++i)
+        newParms->add(resolveNode(callNode->getChild(i)));
 
-   // Sniff the first block of the callee
-   //
-   TR::Block *firstCalleeBlock = calleeSymbol->getFirstTreeTop()->getNode()->getBlock();
-   bool isOutermostCallSite = (_outermostCallSite == NULL);
-   if (isOutermostCallSite)
-      _outermostCallSite = callTree;
+    // Sniff the first block of the callee
+    //
+    TR::Block *firstCalleeBlock = calleeSymbol->getFirstTreeTop()->getNode()->getBlock();
+    bool isOutermostCallSite = (_outermostCallSite == NULL);
+    if (isOutermostCallSite)
+        _outermostCallSite = callTree;
 
-   TR_Array<TR::Node*> *oldParms = _parms;
-   _parms = newParms;
+    TR_Array<TR::Node *> *oldParms = _parms;
+    _parms = newParms;
 
-   bool sniffedCompleteMethod = findNewCandidatesInBlock(firstCalleeBlock->getEntry(), firstCalleeBlock->getExit());
+    bool sniffedCompleteMethod = findNewCandidatesInBlock(firstCalleeBlock->getEntry(), firstCalleeBlock->getExit());
 
-   _parms = oldParms;
+    _parms = oldParms;
 
-   if (isOutermostCallSite)
-      _outermostCallSite = NULL;
+    if (isOutermostCallSite)
+        _outermostCallSite = NULL;
 
-   if (trace())
-      traceMsg(comp(), "Finished sniffing into call at [%p]\n", callNode);
+    if (trace())
+        traceMsg(comp(), "Finished sniffing into call at [%p]\n", callNode);
 
-   return sniffedCompleteMethod;
-   }
+    return sniffedCompleteMethod;
+}
 
 TR::ResolvedMethodSymbol *TR_NewInitialization::findInlinableMethod(TR::TreeTop *callTree)
-   {
-   // See if this call is a candidate for inlining.
-   //
-   if (!_sniffCalls || !_firstActiveCandidate)
-      return NULL;
+{
+    // See if this call is a candidate for inlining.
+    //
+    if (!_sniffCalls || !_firstActiveCandidate)
+        return NULL;
 
-   TR::Node *callNode = callTree->getNode()->getFirstChild();
-   if (callNode->getOpCode().isCallIndirect())
-      return NULL;
+    TR::Node *callNode = callTree->getNode()->getFirstChild();
+    if (callNode->getOpCode().isCallIndirect())
+        return NULL;
 
-   TR::ResolvedMethodSymbol *calleeSymbol = callNode->getSymbol()->getResolvedMethodSymbol();
-   if (!calleeSymbol)
-      return NULL;
+    TR::ResolvedMethodSymbol *calleeSymbol = callNode->getSymbol()->getResolvedMethodSymbol();
+    if (!calleeSymbol)
+        return NULL;
 
-   TR_ResolvedMethod *method = calleeSymbol->getResolvedMethod();
-   if (!method)
-      return NULL;
+    TR_ResolvedMethod *method = calleeSymbol->getResolvedMethod();
+    if (!method)
+        return NULL;
 
-   if (_sniffConstructorsOnly)
-      {
-      if (!calleeSymbol->isSpecial() || !method->isConstructor())
-      return NULL;
-      }
+    if (_sniffConstructorsOnly) {
+        if (!calleeSymbol->isSpecial() || !method->isConstructor())
+            return NULL;
+    }
 
     uint32_t bytecodeSize = method->maxBytecodeIndex();
-    if (bytecodeSize > (uint32_t) _maxInlinedBytecodeSize)
-      {
-      /////if (trace())
-      /////   printf("secs Single inline too big in %s\n", comp()->signature());
-      return NULL;
-      }
-    if (_totalInlinedBytecodeSize + bytecodeSize > (uint32_t) _maxTotalInlinedBytecodeSize)
-      {
-      /////if (trace())
-      /////   printf("secs Total inline too big in %s\n", comp()->signature());
-      return NULL;
-      }
+    if (bytecodeSize > (uint32_t)_maxInlinedBytecodeSize) {
+        /////if (trace())
+        /////   printf("secs Single inline too big in %s\n", comp()->signature());
+        return NULL;
+    }
+    if (_totalInlinedBytecodeSize + bytecodeSize > (uint32_t)_maxTotalInlinedBytecodeSize) {
+        /////if (trace())
+        /////   printf("secs Total inline too big in %s\n", comp()->signature());
+        return NULL;
+    }
 
-   // Make sure the inliner will be able to inline this call
-   //
-   vcount_t visitCount = comp()->getVisitCount();
-   //comp()->setVisitCount(1);
+    // Make sure the inliner will be able to inline this call
+    //
+    vcount_t visitCount = comp()->getVisitCount();
+    // comp()->setVisitCount(1);
 
-   //TR_VirtualGuardKind guardKind = TR_NoGuard;
-   TR_VirtualGuardSelection *guard = 0;
-   TR_InlineCall newInlineCall(optimizer(), this);
-   newInlineCall.setSizeThreshold(_maxInlinedBytecodeSize);
-   TR_OpaqueClassBlock * thisClass = 0;
-   TR::SymbolReference *symRef = callNode->getSymbolReference();
-   TR::MethodSymbol *calleeMethodSymbol = symRef->getSymbol()->castToMethodSymbol();
-   TR::Node * parent = callTree->getNode();
+    // TR_VirtualGuardKind guardKind = TR_NoGuard;
+    TR_VirtualGuardSelection *guard = 0;
+    TR_InlineCall newInlineCall(optimizer(), this);
+    newInlineCall.setSizeThreshold(_maxInlinedBytecodeSize);
+    TR_OpaqueClassBlock *thisClass = 0;
+    TR::SymbolReference *symRef = callNode->getSymbolReference();
+    TR::MethodSymbol *calleeMethodSymbol = symRef->getSymbol()->castToMethodSymbol();
+    TR::Node *parent = callTree->getNode();
 
-   //TR_CallSite *callsite = TR_CallSite::create(callTree, parent, callNode, thisClass, symRef,  0, comp(), trStackMemory());
+    // TR_CallSite *callsite = TR_CallSite::create(callTree, parent, callNode, thisClass, symRef,  0, comp(),
+    // trStackMemory());
 
-   TR_CallSite *callsite = TR_CallSite::create(callTree, parent, callNode, thisClass, symRef,  0, comp(), comp()->trMemory(), stackAlloc);
+    TR_CallSite *callsite
+        = TR_CallSite::create(callTree, parent, callNode, thisClass, symRef, 0, comp(), comp()->trMemory(), stackAlloc);
 
-	//TR_CallSite *callsite = new (trStackMemory()) TR_CallSite (symRef->getOwningMethod(comp()),callTree,parent,callNode,calleeMethodSymbol->getMethod(),thisClass,(int32_t)symRef->getOffset(),symRef->getCPIndex(),0,calleeMethodSymbol->getResolvedMethodSymbol(),callNode->getOpCode().isCallIndirect(),calleeMethodSymbol->isInterface(),callNode->getByteCodeInfo(),comp());
+    // TR_CallSite *callsite = new (trStackMemory()) TR_CallSite
+    // (symRef->getOwningMethod(comp()),callTree,parent,callNode,calleeMethodSymbol->getMethod(),thisClass,(int32_t)symRef->getOffset(),symRef->getCPIndex(),0,calleeMethodSymbol->getResolvedMethodSymbol(),callNode->getOpCode().isCallIndirect(),calleeMethodSymbol->isInterface(),callNode->getByteCodeInfo(),comp());
 
-   newInlineCall.getSymbolAndFindInlineTargets(NULL,callsite);
-   bool canSniff = callsite->numTargets() ? true : false;
+    newInlineCall.getSymbolAndFindInlineTargets(NULL, callsite);
+    bool canSniff = callsite->numTargets() ? true : false;
 
-// (newInlineCall.isInlineable(NULL, callNode, guard, thisClass, callTree) != NULL);
-   //comp()->setVisitCount(visitCount);
+    // (newInlineCall.isInlineable(NULL, callNode, guard, thisClass, callTree) != NULL);
+    // comp()->setVisitCount(visitCount);
 
-   if (!canSniff)
-      {
-      if (trace())
-         traceMsg(comp(), "\nCall at [%p] to %s is NOT inlineable\n", callTree->getNode()->getFirstChild(), calleeSymbol->getResolvedMethod()->signature(trMemory()));
-      return NULL;
-      }
+    if (!canSniff) {
+        if (trace())
+            traceMsg(comp(), "\nCall at [%p] to %s is NOT inlineable\n", callTree->getNode()->getFirstChild(),
+                calleeSymbol->getResolvedMethod()->signature(trMemory()));
+        return NULL;
+    }
 
-   if (trace())
-      {
-      traceMsg(comp(), "\nGenerating trees for call at [%p] to %s\n", callTree->getNode()->getFirstChild(), calleeSymbol->getResolvedMethod()->signature(trMemory()));
-      }
+    if (trace()) {
+        traceMsg(comp(), "\nGenerating trees for call at [%p] to %s\n", callTree->getNode()->getFirstChild(),
+            calleeSymbol->getResolvedMethod()->signature(trMemory()));
+    }
 
-   dumpOptDetails(comp(), "O^O NEW INITIALIZATION: Peeking into the IL to check for inlineable calls \n");
+    dumpOptDetails(comp(), "O^O NEW INITIALIZATION: Peeking into the IL to check for inlineable calls \n");
 
-   //comp()->setVisitCount(1);
+    // comp()->setVisitCount(1);
 
-   canSniff = (calleeSymbol->getResolvedMethod()->genMethodILForPeeking(calleeSymbol, comp()) != NULL);
-   //comp()->setVisitCount(visitCount);
+    canSniff = (calleeSymbol->getResolvedMethod()->genMethodILForPeeking(calleeSymbol, comp()) != NULL);
+    // comp()->setVisitCount(visitCount);
 
-   if (!canSniff)
-      {
-      if (trace())
-         traceMsg(comp(), "   (IL generation failed)\n");
-      return NULL;
-      }
+    if (!canSniff) {
+        if (trace())
+            traceMsg(comp(), "   (IL generation failed)\n");
+        return NULL;
+    }
 
-   if (trace())
-      {
-      //comp()->setVisitCount(1);
-      for (TR::TreeTop *tt = calleeSymbol->getFirstTreeTop(); tt; tt = tt->getNextTreeTop())
-         comp()->getDebug()->print(comp()->getOutFile(), tt);
-      //comp()->setVisitCount(visitCount);
-      }
+    if (trace()) {
+        // comp()->setVisitCount(1);
+        for (TR::TreeTop *tt = calleeSymbol->getFirstTreeTop(); tt; tt = tt->getNextTreeTop())
+            comp()->getDebug()->print(comp()->getOutFile(), tt);
+        // comp()->setVisitCount(visitCount);
+    }
 
-   _totalInlinedBytecodeSize += bytecodeSize;
-   return calleeSymbol;
-   }
-
+    _totalInlinedBytecodeSize += bytecodeSize;
+    return calleeSymbol;
+}
 
 // Resolve the node if it is a parameter reference
 //
 TR::Node *TR_NewInitialization::resolveNode(TR::Node *node)
-   {
-   if (_parms == NULL)
-      return node;
-   if (!node->getOpCode().isLoadVarOrStore())
-      return node;
-   TR::Symbol *sym = node->getSymbol();
-   if (!sym->isParm())
-      return node;
-   int32_t parmNum = sym->getParmSymbol()->getOrdinal();
-   if (_parms->element(parmNum) == NULL)
-      return node;
+{
+    if (_parms == NULL)
+        return node;
+    if (!node->getOpCode().isLoadVarOrStore())
+        return node;
+    TR::Symbol *sym = node->getSymbol();
+    if (!sym->isParm())
+        return node;
+    int32_t parmNum = sym->getParmSymbol()->getOrdinal();
+    if (_parms->element(parmNum) == NULL)
+        return node;
 
-   // If this is a load of a parm, return the underlying argument node.
-   // If this is a store of a parm, it no longer represents an underlying
-   // argument, so remove it from the parm list.
-   //
-   if (node->getOpCode().isLoadVar())
-      return _parms->element(parmNum);
-   _parms->element(parmNum) = NULL;
-   return node;
-   }
+    // If this is a load of a parm, return the underlying argument node.
+    // If this is a store of a parm, it no longer represents an underlying
+    // argument, so remove it from the parm list.
+    //
+    if (node->getOpCode().isLoadVar())
+        return _parms->element(parmNum);
+    _parms->element(parmNum) = NULL;
+    return node;
+}
 
 int32_t TR_LocalNewInitialization::getValueNumber(TR::Node *node)
-   {
-   if (node->getOpCode().isStore())
-      {
-      if (node->getOpCode().isIndirect())
-         return node->getSecondChild()->getGlobalIndex();
-      else
-         return node->getFirstChild()->getGlobalIndex();
-      }
-   else
-      return node->getGlobalIndex();
-   }
-
+{
+    if (node->getOpCode().isStore()) {
+        if (node->getOpCode().isIndirect())
+            return node->getSecondChild()->getGlobalIndex();
+        else
+            return node->getFirstChild()->getGlobalIndex();
+    } else
+        return node->getGlobalIndex();
+}
 
 bool TR_NewInitialization::matchLocalLoad(TR::Node *node, Candidate *c)
-   {
-   // See if the node is a local load that matches any of the local loads or
-   // stores that represent this allocation
-   //
-   if (node->getOpCodeValue() != TR::aload)
-      return false;
-   TR::SymbolReference *symRef = node->getSymbolReference();
-   TR::Symbol           *sym    = symRef->getSymbol();
-   int32_t             offset = symRef->getOffset();
+{
+    // See if the node is a local load that matches any of the local loads or
+    // stores that represent this allocation
+    //
+    if (node->getOpCodeValue() != TR::aload)
+        return false;
+    TR::SymbolReference *symRef = node->getSymbolReference();
+    TR::Symbol *sym = symRef->getSymbol();
+    int32_t offset = symRef->getOffset();
 
-   if (!sym->isAutoOrParm())
-      return false;
+    if (!sym->isAutoOrParm())
+        return false;
 
-   // See if this is a load that has already been matched with the allocation
-   //
-   NodeEntry *entry;
-   for (entry = c->localLoads.getFirst(); entry; entry = entry->getNext())
-      {
-      if (node == entry->node)
-         return true;
-      }
+    // See if this is a load that has already been matched with the allocation
+    //
+    NodeEntry *entry;
+    for (entry = c->localLoads.getFirst(); entry; entry = entry->getNext()) {
+        if (node == entry->node)
+            return true;
+    }
 
-   // See if this is a load that matches a store for the allocation. If so, it
-   // becomes a matching local load
-   //
-   for (entry = c->localStores.getFirst(); entry; entry = entry->getNext())
-      {
-      if (sym == entry->node->getSymbol() &&
-          offset == entry->node->getSymbolReference()->getOffset() &&
-          getValueNumber(node) == getValueNumber(entry->node))
-         {
-         entry = new (trStackMemory()) NodeEntry;
-         entry->node = node;
-         c->localLoads.add(entry);
-         return true;
-         }
-      }
+    // See if this is a load that matches a store for the allocation. If so, it
+    // becomes a matching local load
+    //
+    for (entry = c->localStores.getFirst(); entry; entry = entry->getNext()) {
+        if (sym == entry->node->getSymbol() && offset == entry->node->getSymbolReference()->getOffset()
+            && getValueNumber(node) == getValueNumber(entry->node)) {
+            entry = new (trStackMemory()) NodeEntry;
+            entry->node = node;
+            c->localLoads.add(entry);
+            return true;
+        }
+    }
 
-   return false;
-   }
+    return false;
+}
 
 bool TR_NewInitialization::isNewObject(TR::Node *node, Candidate *c)
-   {
-   TR::Node *resolvedNode = resolveNode(node);
-   if (resolvedNode == c->node)
-      return true;
+{
+    TR::Node *resolvedNode = resolveNode(node);
+    if (resolvedNode == c->node)
+        return true;
 
-   // See if the node is a local load that matches any of the local loads or
-   // stores that represent this allocation
-   //
-   if (matchLocalLoad(node, c))
-      return true;
+    // See if the node is a local load that matches any of the local loads or
+    // stores that represent this allocation
+    //
+    if (matchLocalLoad(node, c))
+        return true;
 
-   // See if the node is a parm that resolves to a local load that matches any
-   // of the local loads or stores that represent this allocation
-   //
-   if (resolvedNode != node && matchLocalLoad(resolvedNode, c))
-      return true;
+    // See if the node is a parm that resolves to a local load that matches any
+    // of the local loads or stores that represent this allocation
+    //
+    if (resolvedNode != node && matchLocalLoad(resolvedNode, c))
+        return true;
 
-   return false;
-   }
+    return false;
+}
 
-TR_NewInitialization::Candidate *TR_NewInitialization::findCandidateReferenceInSubTree(TR::Node *node, TR_ScratchList<TR::Node> *seenNodes)
-   {
-   if (!node ||
-       seenNodes->find(node))
-      return NULL;
+TR_NewInitialization::Candidate *TR_NewInitialization::findCandidateReferenceInSubTree(TR::Node *node,
+    TR_ScratchList<TR::Node> *seenNodes)
+{
+    if (!node || seenNodes->find(node))
+        return NULL;
 
-   seenNodes->add(node);
+    seenNodes->add(node);
 
-   // look in subtree for a new object, return first one that matches a candidate
-   for (Candidate *c = _firstActiveCandidate; c; c = c->getNext())
-      {
-      if (isNewObject(node, c))
-         return c;
-      }
+    // look in subtree for a new object, return first one that matches a candidate
+    for (Candidate *c = _firstActiveCandidate; c; c = c->getNext()) {
+        if (isNewObject(node, c))
+            return c;
+    }
 
-   int32_t i;
-   for (i = 0; i < node->getNumChildren(); i++)
-      {
-      Candidate *c = findCandidateReferenceInSubTree(node->getChild(i), seenNodes);
-      if (c)
-         return c;
-      }
-   return NULL;
-   }
+    int32_t i;
+    for (i = 0; i < node->getNumChildren(); i++) {
+        Candidate *c = findCandidateReferenceInSubTree(node->getChild(i), seenNodes);
+        if (c)
+            return c;
+    }
+    return NULL;
+}
 
 TR_NewInitialization::Candidate *TR_NewInitialization::findCandidateReference(TR::Node *node)
-   {
-
-   for (Candidate *c = _firstActiveCandidate; c; c = c->getNext())
-      {
-      if (isNewObject(node, c))
-         return c;
-      }
-   return NULL;
-   }
-
+{
+    for (Candidate *c = _firstActiveCandidate; c; c = c->getNext()) {
+        if (isNewObject(node, c))
+            return c;
+    }
+    return NULL;
+}
 
 TR_NewInitialization::Candidate *TR_NewInitialization::findBaseOfIndirection(TR::Node *directBase)
-   {
-   for (Candidate *c = _firstActiveCandidate; c; c = c->getNext())
-      {
-      if (c->isArrayNew)
-         {
-         if (directBase->getOpCode().isArrayRef() && isNewObject(directBase->getFirstChild(), c))
-            return c;
-         }
-      else
-         {
-         if (isNewObject(directBase, c))
-            return c;
-         }
-      }
-   return NULL;
-   }
+{
+    for (Candidate *c = _firstActiveCandidate; c; c = c->getNext()) {
+        if (c->isArrayNew) {
+            if (directBase->getOpCode().isArrayRef() && isNewObject(directBase->getFirstChild(), c))
+                return c;
+        } else {
+            if (isNewObject(directBase, c))
+                return c;
+        }
+    }
+    return NULL;
+}
 
 bool TR_NewInitialization::visitNode(TR::Node *node)
-   {
-   if (node->getVisitCount() == comp()->getVisitCount())
-      return false;
-   node->setVisitCount(comp()->getVisitCount());
+{
+    if (node->getVisitCount() == comp()->getVisitCount())
+        return false;
+    node->setVisitCount(comp()->getVisitCount());
 
-   // Look at the children first, they will be processed before this node
-   //
-   int32_t i;
-   for (i = node->getNumChildren()-1; i >= 0; --i)
-      {
-      if (visitNode(node->getChild(i)))
-         return true;
-      }
+    // Look at the children first, they will be processed before this node
+    //
+    int32_t i;
+    for (i = node->getNumChildren() - 1; i >= 0; --i) {
+        if (visitNode(node->getChild(i)))
+            return true;
+    }
 
-   Candidate *c;
+    Candidate *c;
 
-   if (node->getOpCode().isLoadVarOrStore() && node->getOpCode().isIndirect())
-      {
-      TR::Node *base = node->getFirstChild();
-      c = findBaseOfIndirection(base);
-      if (c && c->numInitializedBytes+c->numUninitializedBytes < c->size)
-         {
-         int32_t offset = -1;
+    if (node->getOpCode().isLoadVarOrStore() && node->getOpCode().isIndirect()) {
+        TR::Node *base = node->getFirstChild();
+        c = findBaseOfIndirection(base);
+        if (c && c->numInitializedBytes + c->numUninitializedBytes < c->size) {
+            int32_t offset = -1;
 
-         TR::Node* targetNode =
-            (node->getOpCode().isStore()) ?
-               node->getSecondChild() :
-               node;
-         int32_t size =
-            targetNode->getDataType() == TR::Address ?
-               TR::Compiler->om.sizeofReferenceField() :
-               node->getOpCode().getSize();
+            TR::Node *targetNode = (node->getOpCode().isStore()) ? node->getSecondChild() : node;
+            int32_t size = targetNode->getDataType() == TR::Address ? TR::Compiler->om.sizeofReferenceField()
+                                                                    : node->getOpCode().getSize();
 
-         if (!c->isArrayNew)
-            {
-            // Object reference
-            //
-            offset = node->getSymbolReference()->getOffset() - c->startOffset;
-            }
-         else if (base->getSecondChild()->getOpCodeValue() == TR::iconst)
-            {
-            // Array new reference with constant index
-            //
-            offset = node->getSymbolReference()->getOffset() + base->getSecondChild()->getInt() - c->startOffset;
-            }
-         else if (base->getSecondChild()->getOpCodeValue() == TR::lconst)
-            {
-            int64_t longOffset = base->getSecondChild()->getLongInt();
-	    if ((longOffset <= (int64_t) INT_MAX) && (longOffset >= (int64_t) INT_MIN))
-	       {
-               // Array new reference with constant index
-               //
-               offset = node->getSymbolReference()->getOffset() + ((int32_t) longOffset) - c->startOffset;
-	       }
-            }
-	 else if (node->getOpCode().isLoadVar())
-            {
-            // Array new reference with unknown index
-            //
-            escapeToUserCode(c, node);
+            if (!c->isArrayNew) {
+                // Object reference
+                //
+                offset = node->getSymbolReference()->getOffset() - c->startOffset;
+            } else if (base->getSecondChild()->getOpCodeValue() == TR::iconst) {
+                // Array new reference with constant index
+                //
+                offset = node->getSymbolReference()->getOffset() + base->getSecondChild()->getInt() - c->startOffset;
+            } else if (base->getSecondChild()->getOpCodeValue() == TR::lconst) {
+                int64_t longOffset = base->getSecondChild()->getLongInt();
+                if ((longOffset <= (int64_t)INT_MAX) && (longOffset >= (int64_t)INT_MIN)) {
+                    // Array new reference with constant index
+                    //
+                    offset = node->getSymbolReference()->getOffset() + ((int32_t)longOffset) - c->startOffset;
+                }
+            } else if (node->getOpCode().isLoadVar()) {
+                // Array new reference with unknown index
+                //
+                escapeToUserCode(c, node);
             }
 
-        if (offset >= 0 && offset < c->size &&
-             !c->initializedBytes->get(offset) &&
-             !c->uninitializedBytes->get(offset))
-            {
-            // This is the first reference to this part of the object
-            //
-            #if DEBUG
-               for (i = size-1; i >= 0; --i)
-                  {
-                  TR_ASSERT(!c->initializedBytes->get(offset+i) &&
-                            !c->uninitializedBytes->get(offset+i), "assertion failure");
-                  }
-            #endif
+            if (offset >= 0 && offset < c->size && !c->initializedBytes->get(offset)
+                && !c->uninitializedBytes->get(offset)) {
+// This is the first reference to this part of the object
+//
+#if DEBUG
+                for (i = size - 1; i >= 0; --i) {
+                    TR_ASSERT(!c->initializedBytes->get(offset + i) && !c->uninitializedBytes->get(offset + i),
+                        "assertion failure");
+                }
+#endif
 
-            // real-time write barriers read before they write, so treat them as loads
-            if (node->getOpCode().isStore() && (!comp()->getOptions()->realTimeGC() || !node->getOpCode().isWrtBar()))
-               {
-               // If this is a store of a zero value and we are allowed to
-               // remove it, do so. It is useless since the allocation will
-               // zero-initialize anyway.
-               //
-               if (_removeZeroStores)
-                  {
-                  TR::Node *value = node->getSecondChild();
-                  if (value->isConstZeroBytes())
-                     {
-                         setAffectedCandidate(c);
-                         return true;
-                     }
-                  }
+                // real-time write barriers read before they write, so treat them as loads
+                if (node->getOpCode().isStore()
+                    && (!comp()->getOptions()->realTimeGC() || !node->getOpCode().isWrtBar())) {
+                    // If this is a store of a zero value and we are allowed to
+                    // remove it, do so. It is useless since the allocation will
+                    // zero-initialize anyway.
+                    //
+                    if (_removeZeroStores) {
+                        TR::Node *value = node->getSecondChild();
+                        if (value->isConstZeroBytes()) {
+                            setAffectedCandidate(c);
+                            return true;
+                        }
+                    }
 
-               if (trace())
-                  traceMsg(comp(), "Node [%p]: Initialize bytes %d-%d for candidate [%p]\n", node, offset, offset+size-1, c->node);
+                    if (trace())
+                        traceMsg(comp(), "Node [%p]: Initialize bytes %d-%d for candidate [%p]\n", node, offset,
+                            offset + size - 1, c->node);
 
-               for (i = size-1; i >= 0; --i)
-                 {
-                 c->initializedBytes->set(offset+i);
-                 }
-               c->numInitializedBytes += size;
+                    for (i = size - 1; i >= 0; --i) {
+                        c->initializedBytes->set(offset + i);
+                    }
+                    c->numInitializedBytes += size;
 
-               if (trace())
-                  traceMsg(comp(), "Node [%p]: Uninitialized %d Initialized %d\n", node, c->numUninitializedBytes, c->numInitializedBytes);
+                    if (trace())
+                        traceMsg(comp(), "Node [%p]: Uninitialized %d Initialized %d\n", node, c->numUninitializedBytes,
+                            c->numInitializedBytes);
 
-               setAffectedCandidate(c);
-               }
+                    setAffectedCandidate(c);
+                } else {
+                    for (i = size - 1; i >= 0; --i)
+                        c->uninitializedBytes->set(offset + i);
+                    c->numUninitializedBytes += size;
+                    if (trace())
+                        traceMsg(comp(), "Node [%p]: Uninitialize bytes %d-%d for candidate [%p]\n", node, offset,
+                            offset + size - 1, c->node);
+                }
+            }
+        }
+    }
+
+    // Keep track of stores of allocation nodes to locals and parms.
+    // Otherwise if the object reference escapes via a store, stop looking.
+    //
+    if (node->getOpCode().isStore()) {
+        // if (node->getOpCode().isIndirect())
+        if (!node->getSymbolReference()->getSymbol()->isAutoOrParm()) {
+            if (node->getOpCode().isIndirect())
+                c = findCandidateReference(node->getSecondChild());
             else
-               {
-               for (i = size-1; i >= 0; --i)
-                  c->uninitializedBytes->set(offset+i);
-               c->numUninitializedBytes += size;
-               if (trace())
-                  traceMsg(comp(), "Node [%p]: Uninitialize bytes %d-%d for candidate [%p]\n", node, offset, offset+size-1, c->node);
-               }
-            }
-         }
-      }
+                c = findCandidateReference(node->getFirstChild());
 
-   // Keep track of stores of allocation nodes to locals and parms.
-   // Otherwise if the object reference escapes via a store, stop looking.
-   //
-   if (node->getOpCode().isStore())
-      {
-      //if (node->getOpCode().isIndirect())
-      if (!node->getSymbolReference()->getSymbol()->isAutoOrParm())
-         {
-         if (node->getOpCode().isIndirect())
-            c = findCandidateReference(node->getSecondChild());
-         else
+            if (c) {
+                // This allocation could escape and it must be completely
+                // initialized by this point.
+                //
+                escapeToUserCode(c, node);
+            }
+        } else if (node->getOpCodeValue() == TR::astore) {
+            // If a candidate reference was previously stored into this local,
+            // it is not stored there any more so remove it from the localStores
+            // list for the candidate.
+            // Note that there may be more than one store to the local in the list
+            // so we can't stop when one is found.
+            //
+            if (node->getSymbol()->isAutoOrParm()) {
+                for (c = _firstActiveCandidate; c; c = c->getNext()) {
+                    NodeEntry *entry, *prev = NULL;
+                    for (entry = c->localStores.getFirst(); entry; entry = entry->getNext()) {
+                        if (entry->node->getSymbol() == node->getSymbol()
+                            && entry->node->getSymbolReference()->getOffset()
+                                == node->getSymbolReference()->getOffset()) {
+                            if (prev)
+                                prev->setNext(entry->getNext());
+                            else
+                                c->localStores.setFirst(entry->getNext());
+                        } else
+                            prev = entry;
+                    }
+                }
+            }
+
+            // If this is a store into a parm, it no longer represents the
+            // underlying argument
+            //
+            TR::Symbol *sym = node->getSymbol();
+            if (_parms && sym->isParm()) {
+                int32_t parmNum = sym->getParmSymbol()->getOrdinal();
+                _parms->element(parmNum) = NULL;
+            }
+
+            // See if it is one of the candidates that is being stored
+            //
             c = findCandidateReference(node->getFirstChild());
-
-         if (c)
-            {
-            // This allocation could escape and it must be completely
-            // initialized by this point.
-            //
-            escapeToUserCode(c, node);
+            if (c) {
+                if (node->getSymbol()->isAutoOrParm()) {
+                    // Object reference is stored into a local - keep track of it
+                    //
+                    NodeEntry *entry = new (trStackMemory()) NodeEntry;
+                    entry->node = node;
+                    c->localStores.add(entry);
+                } else
+                    // Object reference escapes via an indirect store
+                    //
+                    escapeToUserCode(c, node);
             }
-         }
-      else if (node->getOpCodeValue() == TR::astore)
-         {
-         // If a candidate reference was previously stored into this local,
-         // it is not stored there any more so remove it from the localStores
-         // list for the candidate.
-         // Note that there may be more than one store to the local in the list
-         // so we can't stop when one is found.
-         //
-         if (node->getSymbol()->isAutoOrParm())
-            {
-            for (c = _firstActiveCandidate; c; c = c->getNext())
-               {
-               NodeEntry *entry, *prev = NULL;
-               for (entry = c->localStores.getFirst(); entry; entry = entry->getNext())
-                  {
-                  if (entry->node->getSymbol() == node->getSymbol() &&
-                      entry->node->getSymbolReference()->getOffset() == node->getSymbolReference()->getOffset())
-                     {
-                     if (prev)
-                        prev->setNext(entry->getNext());
-                     else
-                        c->localStores.setFirst(entry->getNext());
-                     }
-                  else
-                     prev = entry;
-                  }
-               }
-            }
+        }
+    }
 
-         // If this is a store into a parm, it no longer represents the
-         // underlying argument
-         //
-         TR::Symbol *sym = node->getSymbol();
-         if (_parms && sym->isParm())
-            {
-            int32_t parmNum = sym->getParmSymbol()->getOrdinal();
-            _parms->element(parmNum) = NULL;
-            }
-
-         // See if it is one of the candidates that is being stored
-         //
-         c = findCandidateReference(node->getFirstChild());
-         if (c)
-            {
-            if (node->getSymbol()->isAutoOrParm())
-               {
-               // Object reference is stored into a local - keep track of it
-               //
-               NodeEntry *entry = new (trStackMemory()) NodeEntry;
-               entry->node = node;
-               c->localStores.add(entry);
-               }
-            else
-               // Object reference escapes via an indirect store
-               //
-               escapeToUserCode(c, node);
-            }
-         }
-      }
-
-   return false;
-   }
+    return false;
+}
 
 void TR_NewInitialization::setAffectedCandidate(Candidate *c)
-   {
-   // If the current position is inside sniffed methods, remember the outermost
-   // call site as being useful to inline for this candidate.
-   //
-   if (_outermostCallSite)
-      {
-      TreeTopEntry *callEntry = new (trStackMemory()) TreeTopEntry;
-      callEntry->treeTop = _outermostCallSite;
-      c->inlinedCalls.add(callEntry);
-      }
-   }
-
+{
+    // If the current position is inside sniffed methods, remember the outermost
+    // call site as being useful to inline for this candidate.
+    //
+    if (_outermostCallSite) {
+        TreeTopEntry *callEntry = new (trStackMemory()) TreeTopEntry;
+        callEntry->treeTop = _outermostCallSite;
+        c->inlinedCalls.add(callEntry);
+    }
+}
 
 void TR_NewInitialization::escapeToUserCode(Candidate *c, TR::Node *cause)
-   {
-   if (c->numInitializedBytes + c->numUninitializedBytes < c->size)
-      {
-      if (c->numInitializedBytes == 0)
-         {
-         c->numUninitializedBytes = c->size;
-         c->uninitializedBytes->setAll(c->size);
-         }
-      else
-         {
-         c->uninitializedBytes->setAll(c->size);
-         *c->uninitializedBytes -= *c->initializedBytes;
-         c->numUninitializedBytes = c->size - c->numInitializedBytes;
-         }
+{
+    if (c->numInitializedBytes + c->numUninitializedBytes < c->size) {
+        if (c->numInitializedBytes == 0) {
+            c->numUninitializedBytes = c->size;
+            c->uninitializedBytes->setAll(c->size);
+        } else {
+            c->uninitializedBytes->setAll(c->size);
+            *c->uninitializedBytes -= *c->initializedBytes;
+            c->numUninitializedBytes = c->size - c->numInitializedBytes;
+        }
 
-      if (trace())
-         traceMsg(comp(), "Node [%p]: Make the rest of candidate [%p] uninitialized\n", cause, c->node);
-      }
-   }
+        if (trace())
+            traceMsg(comp(), "Node [%p]: Make the rest of candidate [%p] uninitialized\n", cause, c->node);
+    }
+}
 
 void TR_NewInitialization::escapeToUserCodeAllCandidates(TR::Node *cause, bool onlyArrays)
-   {
-   for (Candidate *c = _firstActiveCandidate; c; c = c->getNext())
-      {
-      if (!onlyArrays ||
-          (c->node->getOpCodeValue() == TR::newarray ||
-           c->node->getOpCodeValue() == TR::anewarray))
-         escapeToUserCode(c, cause);
-      }
-   }
+{
+    for (Candidate *c = _firstActiveCandidate; c; c = c->getNext()) {
+        if (!onlyArrays || (c->node->getOpCodeValue() == TR::newarray || c->node->getOpCodeValue() == TR::anewarray))
+            escapeToUserCode(c, cause);
+    }
+}
 
 void TR_NewInitialization::escapeToGC(Candidate *c, TR::Node *cause)
-   {
-   if (c->numUninitializedBytes + c->numInitializedBytes == c->size)
-      {
-      // Candidate's initialization status is complete
-      //
-      return;
-      }
+{
+    if (c->numUninitializedBytes + c->numInitializedBytes == c->size) {
+        // Candidate's initialization status is complete
+        //
+        return;
+    }
 
-   if (c->node->getOpCodeValue() == TR::newarray)
-      {
-      // No GC slots to initialize for a primitive array
-      //
-      return;
-      }
+    if (c->node->getOpCodeValue() == TR::newarray) {
+        // No GC slots to initialize for a primitive array
+        //
+        return;
+    }
 
-   if (c->node->getOpCodeValue() == TR::New)
-      {
-      int32_t *referenceSlots = comp()->fej9()->getReferenceSlotsInClass(comp(), (TR_OpaqueClassBlock*)c->node->getFirstChild()->getSymbol()->getStaticSymbol()->getStaticAddress());
-      if (referenceSlots)
-         {
-         for (int32_t i = 0; referenceSlots[i]; i++)
-            {
-            //int32_t byteOffset = referenceSlots[i]*_cg->sizeOfJavaPointer() - c->startOffset;
-            int32_t byteOffset = referenceSlots[i]*TR::Compiler->om.sizeofReferenceField() - c->startOffset;
-            //for (int32_t j = byteOffset; j < byteOffset+_cg->sizeOfJavaPointer(); j++)
-            for (int32_t j = byteOffset; j < byteOffset+TR::Compiler->om.sizeofReferenceField(); j++)
-               {
-               if (c->uninitializedBytes->get(j))
-                  continue;
-               if (c->initializedBytes->get(j))
-                  continue;
-               c->uninitializedBytes->set(j);
-               c->numUninitializedBytes++;
-               }
+    if (c->node->getOpCodeValue() == TR::New) {
+        int32_t *referenceSlots = comp()->fej9()->getReferenceSlotsInClass(comp(),
+            (TR_OpaqueClassBlock *)c->node->getFirstChild()->getSymbol()->getStaticSymbol()->getStaticAddress());
+        if (referenceSlots) {
+            for (int32_t i = 0; referenceSlots[i]; i++) {
+                // int32_t byteOffset = referenceSlots[i]*_cg->sizeOfJavaPointer() - c->startOffset;
+                int32_t byteOffset = referenceSlots[i] * TR::Compiler->om.sizeofReferenceField() - c->startOffset;
+                // for (int32_t j = byteOffset; j < byteOffset+_cg->sizeOfJavaPointer(); j++)
+                for (int32_t j = byteOffset; j < byteOffset + TR::Compiler->om.sizeofReferenceField(); j++) {
+                    if (c->uninitializedBytes->get(j))
+                        continue;
+                    if (c->initializedBytes->get(j))
+                        continue;
+                    c->uninitializedBytes->set(j);
+                    c->numUninitializedBytes++;
+                }
             }
-         if (trace())
-            traceMsg(comp(), "Node [%p]: Make reference slots of candidate [%p] uninitialized\n", cause, c->node);
-         }
-      }
-   else // (c->node->getOpCodeValue() == TR::anewarray)
-      {
-      // All of the slots of a reference array must be initialized at this
-      // point
-      //
-      escapeToUserCode(c, cause);
-      }
-   }
+            if (trace())
+                traceMsg(comp(), "Node [%p]: Make reference slots of candidate [%p] uninitialized\n", cause, c->node);
+        }
+    } else // (c->node->getOpCodeValue() == TR::anewarray)
+    {
+        // All of the slots of a reference array must be initialized at this
+        // point
+        //
+        escapeToUserCode(c, cause);
+    }
+}
 
 void TR_NewInitialization::escapeToGC(TR::Node *cause)
-   {
-   for (Candidate *c = _firstActiveCandidate; c; c = c->getNext())
-      escapeToGC(c, cause);
-   }
+{
+    for (Candidate *c = _firstActiveCandidate; c; c = c->getNext())
+        escapeToGC(c, cause);
+}
 
 void TR_NewInitialization::escapeViaCall(TR::Node *callNode)
-   {
-   // For each candidate that can escape to the called method via argument,
-   // completely initialize it.
-   //
-   int32_t i;
-   for (i = callNode->getFirstArgumentIndex(); i < callNode->getNumChildren(); i++)
-      {
-      Candidate *c = findCandidateReference(callNode->getChild(i));
-      if (c)
-         escapeToUserCode(c, callNode);
-      }
+{
+    // For each candidate that can escape to the called method via argument,
+    // completely initialize it.
+    //
+    int32_t i;
+    for (i = callNode->getFirstArgumentIndex(); i < callNode->getNumChildren(); i++) {
+        Candidate *c = findCandidateReference(callNode->getChild(i));
+        if (c)
+            escapeToUserCode(c, callNode);
+    }
 
-   // For all of the other active candidates, their reference fields must be
-   // initialized since the call can cause a GC
-   //
-   escapeToGC(callNode);
-   }
+    // For all of the other active candidates, their reference fields must be
+    // initialized since the call can cause a GC
+    //
+    escapeToGC(callNode);
+}
 
 void TR_NewInitialization::escapeViaArrayCopyOrArraySet(TR::Node *arrayCopyNode)
-   {
-   // array copies cause complete or incomplete initialization of candidates
-   // determine which, parameters to array copy are:
-   // (scrObj + hdrSize), dstObj + hdrSize), copyLen, [arrayType]
-   //
-   // optimization would be to filter only the incomplete elements, for now
-   // treat as completely initialized
+{
+    // array copies cause complete or incomplete initialization of candidates
+    // determine which, parameters to array copy are:
+    // (scrObj + hdrSize), dstObj + hdrSize), copyLen, [arrayType]
+    //
+    // optimization would be to filter only the incomplete elements, for now
+    // treat as completely initialized
 
-   // For each candidate that can escape to the called method via argument,
-   // completely initialize it.
-   //
-   TR_ScratchList<TR::Node> seenNodes(trMemory());
-   Candidate *c = findCandidateReferenceInSubTree(arrayCopyNode->getFirstChild(), &seenNodes);
-   if (c)
-      escapeToUserCode(c, arrayCopyNode);
-   else
-      escapeToUserCodeAllCandidates(arrayCopyNode, true);
+    // For each candidate that can escape to the called method via argument,
+    // completely initialize it.
+    //
+    TR_ScratchList<TR::Node> seenNodes(trMemory());
+    Candidate *c = findCandidateReferenceInSubTree(arrayCopyNode->getFirstChild(), &seenNodes);
+    if (c)
+        escapeToUserCode(c, arrayCopyNode);
+    else
+        escapeToUserCodeAllCandidates(arrayCopyNode, true);
 
-   if (arrayCopyNode->getOpCodeValue() == TR::arraycopy)
-      {
-      seenNodes.deleteAll();
-      c = findCandidateReferenceInSubTree(arrayCopyNode->getSecondChild(), &seenNodes);
-      if (c)
-         escapeToUserCode(c, arrayCopyNode);
-      else
-         escapeToUserCodeAllCandidates(arrayCopyNode, true);
-      }
+    if (arrayCopyNode->getOpCodeValue() == TR::arraycopy) {
+        seenNodes.deleteAll();
+        c = findCandidateReferenceInSubTree(arrayCopyNode->getSecondChild(), &seenNodes);
+        if (c)
+            escapeToUserCode(c, arrayCopyNode);
+        else
+            escapeToUserCodeAllCandidates(arrayCopyNode, true);
+    }
 
-   // For all of the other active candidates, their reference fields must be
-   // initialized since the call can cause a GC
-   //
-   escapeToGC(arrayCopyNode);
-   }
+    // For all of the other active candidates, their reference fields must be
+    // initialized since the call can cause a GC
+    //
+    escapeToGC(arrayCopyNode);
+}
 
 // Convert uninitialized bytes to uninitialized words
 //
 void TR_NewInitialization::findUninitializedWords()
-   {
-   // Find out how many and which words need to be zero-initialized and
-   // store this information in the candidate entry.
-   //
-   Candidate *c;
-   for (c = _candidates.getFirst(); c; c = c->getNext())
-      {
-      if (c->numUninitializedBytes == 0)
-         c->numUninitializedWords = 0;
-      else if (c->numUninitializedBytes == c->size)
-         c->numUninitializedWords = (c->size+3)/4;
-      else
-         {
-         c->numUninitializedWords = 0;
-         int32_t numWords = (c->size+3)/4;
-         c->uninitializedWords = new (trStackMemory()) TR_BitVector(numWords, trMemory(), stackAlloc);
-         for (int32_t j = 0; j < numWords; j++)
-            {
-            for (int32_t k = 0; k < 4; ++k)
-               {
-               if (c->uninitializedBytes->get(4*j+k))
-                  {
-                  c->uninitializedWords->set(j);
-                  c->numUninitializedWords++;
-                  break;
-                  }
-               }
+{
+    // Find out how many and which words need to be zero-initialized and
+    // store this information in the candidate entry.
+    //
+    Candidate *c;
+    for (c = _candidates.getFirst(); c; c = c->getNext()) {
+        if (c->numUninitializedBytes == 0)
+            c->numUninitializedWords = 0;
+        else if (c->numUninitializedBytes == c->size)
+            c->numUninitializedWords = (c->size + 3) / 4;
+        else {
+            c->numUninitializedWords = 0;
+            int32_t numWords = (c->size + 3) / 4;
+            c->uninitializedWords = new (trStackMemory()) TR_BitVector(numWords, trMemory(), stackAlloc);
+            for (int32_t j = 0; j < numWords; j++) {
+                for (int32_t k = 0; k < 4; ++k) {
+                    if (c->uninitializedBytes->get(4 * j + k)) {
+                        c->uninitializedWords->set(j);
+                        c->numUninitializedWords++;
+                        break;
+                    }
+                }
             }
-         }
+        }
 
-      if (trace())
-         {
-         traceMsg(comp(), "Uninitialized words for candidate [%p] = %d/%d : ", c->node, c->numUninitializedWords, c->size/4);
-         if (c->uninitializedWords)
-            {
-            c->uninitializedWords->print(comp());
-            traceMsg(comp(), "\n");
-            }
-         else if (c->numUninitializedWords)
-            traceMsg(comp(), "{all}\n");
-         else
-            traceMsg(comp(), "{}\n");
-         }
-      }
-   }
+        if (trace()) {
+            traceMsg(comp(), "Uninitialized words for candidate [%p] = %d/%d : ", c->node, c->numUninitializedWords,
+                c->size / 4);
+            if (c->uninitializedWords) {
+                c->uninitializedWords->print(comp());
+                traceMsg(comp(), "\n");
+            } else if (c->numUninitializedWords)
+                traceMsg(comp(), "{all}\n");
+            else
+                traceMsg(comp(), "{}\n");
+        }
+    }
+}
 
 bool TR_NewInitialization::changeNewCandidates()
-   {
-   // First look through the candidates to see if we should be doing any
-   // inlining
-   //
-   Candidate *c;
-   for (c = _candidates.getFirst(); c; c = c->getNext())
-      {
-      if (!c->isInSniffedMethod)
-         {
-         while (!c->inlinedCalls.isEmpty())
-            {
-            TreeTopEntry *inlinedCall = c->inlinedCalls.pop();
-            TreeTopEntry *tt;
-            for (tt = _inlinedCallSites.getFirst(); tt; tt = tt->getNext())
-               {
-               if (tt->treeTop == inlinedCall->treeTop)
-                  break;
-               }
-            if (!tt)
-               _inlinedCallSites.add(inlinedCall);
+{
+    // First look through the candidates to see if we should be doing any
+    // inlining
+    //
+    Candidate *c;
+    for (c = _candidates.getFirst(); c; c = c->getNext()) {
+        if (!c->isInSniffedMethod) {
+            while (!c->inlinedCalls.isEmpty()) {
+                TreeTopEntry *inlinedCall = c->inlinedCalls.pop();
+                TreeTopEntry *tt;
+                for (tt = _inlinedCallSites.getFirst(); tt; tt = tt->getNext()) {
+                    if (tt->treeTop == inlinedCall->treeTop)
+                        break;
+                }
+                if (!tt)
+                    _inlinedCallSites.add(inlinedCall);
             }
-         }
-      }
+        }
+    }
 
-   // If changes to candidates can be done but it involves inlining some
-   // methods, just do the inlining and wait until the next iteration to
-   // actually do the work.
-   //
-   if (!_inlinedCallSites.isEmpty())
-      {
-      inlineCalls();
-      return true;
-      }
+    // If changes to candidates can be done but it involves inlining some
+    // methods, just do the inlining and wait until the next iteration to
+    // actually do the work.
+    //
+    if (!_inlinedCallSites.isEmpty()) {
+        inlineCalls();
+        return true;
+    }
 
-   // Now go through the candidates again to see if any can have
-   // explicit zero-initialization information added.
-   //
-   for (c = _candidates.getFirst(); c; c = c->getNext())
-      {
-      // If the candidate has already been processed, skip it
-      //
-      if (c->treeTop == NULL)
-         continue;
-      if (!c->isInSniffedMethod)
-         modifyTrees(c);
-      }
+    // Now go through the candidates again to see if any can have
+    // explicit zero-initialization information added.
+    //
+    for (c = _candidates.getFirst(); c; c = c->getNext()) {
+        // If the candidate has already been processed, skip it
+        //
+        if (c->treeTop == NULL)
+            continue;
+        if (!c->isInSniffedMethod)
+            modifyTrees(c);
+    }
 
-   return false;
-   }
+    return false;
+}
 
 // Inline any calls that need to be inlined for the analysis to make progress
 //
 void TR_NewInitialization::inlineCalls()
-   {
-   while (!_inlinedCallSites.isEmpty())
-      {
-      TreeTopEntry            *entry     = _inlinedCallSites.pop();
-      TR::TreeTop              *treeTop   = entry->treeTop;
-      TR::ResolvedMethodSymbol *methodSym = treeTop->getNode()->getFirstChild()->getSymbol()->getResolvedMethodSymbol();
-      TR_ResolvedMethod     *method    = methodSym->getResolvedMethod();
-      if (trace())
-         {
-         traceMsg(comp(), "\nInlining method %s into treetop at [%p], total inlined size = %d\n", method->signature(trMemory()), treeTop->getNode(), _totalInlinedBytecodeSize+method->maxBytecodeIndex());
-         /////printf("secs Inlining method %s in %s\n", method->signature(trMemory()), comp()->signature());
-         }
+{
+    while (!_inlinedCallSites.isEmpty()) {
+        TreeTopEntry *entry = _inlinedCallSites.pop();
+        TR::TreeTop *treeTop = entry->treeTop;
+        TR::ResolvedMethodSymbol *methodSym
+            = treeTop->getNode()->getFirstChild()->getSymbol()->getResolvedMethodSymbol();
+        TR_ResolvedMethod *method = methodSym->getResolvedMethod();
+        if (trace()) {
+            traceMsg(comp(), "\nInlining method %s into treetop at [%p], total inlined size = %d\n",
+                method->signature(trMemory()), treeTop->getNode(),
+                _totalInlinedBytecodeSize + method->maxBytecodeIndex());
+            /////printf("secs Inlining method %s in %s\n", method->signature(trMemory()), comp()->signature());
+        }
 
-      // Now inline the call
-      //
-      TR_InlineCall newInlineCall(optimizer(), this);
-      newInlineCall.setSizeThreshold(_maxInlinedBytecodeSize);
-      bool inlineOK = newInlineCall.inlineCall(treeTop);
+        // Now inline the call
+        //
+        TR_InlineCall newInlineCall(optimizer(), this);
+        newInlineCall.setSizeThreshold(_maxInlinedBytecodeSize);
+        bool inlineOK = newInlineCall.inlineCall(treeTop);
 
-      // If the inlining failed for some reason, prohibit inlining
-      // next time through.
-      //
-      if (!inlineOK)
-         _sniffCalls = false;
+        // If the inlining failed for some reason, prohibit inlining
+        // next time through.
+        //
+        if (!inlineOK)
+            _sniffCalls = false;
 
-      // Otherwise, usedef and value number info will now be invalid
-      //
-      else
-         {
-         _invalidateUseDefInfo = true;
-         _totalInlinedBytecodeSize += method->maxBytecodeIndex();
-         }
-      }
-   }
+        // Otherwise, usedef and value number info will now be invalid
+        //
+        else {
+            _invalidateUseDefInfo = true;
+            _totalInlinedBytecodeSize += method->maxBytecodeIndex();
+        }
+    }
+}
 
 // Insert the explicit initializations for the given candidate
 //
 void TR_NewInitialization::modifyTrees(Candidate *candidate)
-   {
-   int32_t allocationSize = (candidate->size + candidate->startOffset + 3) & ~3;
+{
+    int32_t allocationSize = (candidate->size + candidate->startOffset + 3) & ~3;
 
-   // Change the symbol reference on the allocation node so that it can hold
-   // the zero-initialization information.
-   //
-   TR_ExtraInfoForNew *extraInfo = new (trHeapMemory()) TR_ExtraInfoForNew;
-   if (candidate->node->canSkipZeroInitialization())
-      {
-      extraInfo->numZeroInitSlots = 0;
-      //printf("Skip zero init for new in %s\n", comp()->signature());
-      }
-   else
-      extraInfo->numZeroInitSlots = candidate->numUninitializedWords;
+    // Change the symbol reference on the allocation node so that it can hold
+    // the zero-initialization information.
+    //
+    TR_ExtraInfoForNew *extraInfo = new (trHeapMemory()) TR_ExtraInfoForNew;
+    if (candidate->node->canSkipZeroInitialization()) {
+        extraInfo->numZeroInitSlots = 0;
+        // printf("Skip zero init for new in %s\n", comp()->signature());
+    } else
+        extraInfo->numZeroInitSlots = candidate->numUninitializedWords;
 
-   if (candidate->uninitializedWords &&
-       !candidate->node->canSkipZeroInitialization())
-      {
-      extraInfo->zeroInitSlots = new (trHeapMemory()) TR_BitVector(allocationSize, trMemory());
-      *extraInfo->zeroInitSlots = *candidate->uninitializedWords;
-      }
-   else
-      extraInfo->zeroInitSlots = NULL;
+    if (candidate->uninitializedWords && !candidate->node->canSkipZeroInitialization()) {
+        extraInfo->zeroInitSlots = new (trHeapMemory()) TR_BitVector(allocationSize, trMemory());
+        *extraInfo->zeroInitSlots = *candidate->uninitializedWords;
+    } else
+        extraInfo->zeroInitSlots = NULL;
 
-   TR::SymbolReference *symRef = new (trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), *candidate->node->getSymbolReference(), 0);
-   symRef->setReferenceNumber(candidate->node->getSymbolReference()->getReferenceNumber());
-   symRef->setExtraInfo(extraInfo);
-   candidate->node->setSymbolReference(symRef);
-   candidate->treeTop = NULL;
-   }
+    TR::SymbolReference *symRef
+        = new (trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), *candidate->node->getSymbolReference(), 0);
+    symRef->setReferenceNumber(candidate->node->getSymbolReference()->getReferenceNumber());
+    symRef->setExtraInfo(extraInfo);
+    candidate->node->setSymbolReference(symRef);
+    candidate->treeTop = NULL;
+}
 
-int32_t TR_NewInitialization::buildInitializationInfo(Candidate *c, TR_BitVector *wordsToBeInitialized, int32_t startWord)
-   {
-   int32_t numWordsInitialized = 0;
+int32_t TR_NewInitialization::buildInitializationInfo(Candidate *c, TR_BitVector *wordsToBeInitialized,
+    int32_t startWord)
+{
+    int32_t numWordsInitialized = 0;
 
-   if (c->numUninitializedWords && !c->uninitializedWords)
-      {
-      // All words in the allocation must be zero-initialized
-      //
-      for (int32_t i = ((c->size+3)/4)-1; i >= 0; i--)
-         {
-         wordsToBeInitialized->set(startWord + (c->startOffset/4) + i);
-         numWordsInitialized++;
-         }
-      }
-   else if (c->numUninitializedWords)
-      {
-      TR_BitVectorIterator bvi(*c->uninitializedWords);
-      while (bvi.hasMoreElements())
-         {
-         wordsToBeInitialized->set(startWord + (c->startOffset/4) + bvi.getNextElement());
-         numWordsInitialized++;
-         }
-      }
-   return numWordsInitialized;
-   }
+    if (c->numUninitializedWords && !c->uninitializedWords) {
+        // All words in the allocation must be zero-initialized
+        //
+        for (int32_t i = ((c->size + 3) / 4) - 1; i >= 0; i--) {
+            wordsToBeInitialized->set(startWord + (c->startOffset / 4) + i);
+            numWordsInitialized++;
+        }
+    } else if (c->numUninitializedWords) {
+        TR_BitVectorIterator bvi(*c->uninitializedWords);
+        while (bvi.hasMoreElements()) {
+            wordsToBeInitialized->set(startWord + (c->startOffset / 4) + bvi.getNextElement());
+            numWordsInitialized++;
+        }
+    }
+    return numWordsInitialized;
+}

@@ -31,28 +31,22 @@
 #include "infra/Assert.hpp"
 #include "thrtypes.h"
 
-
 #if defined(LINUX) || defined(AIXPPC) || defined(OSX)
 #include <signal.h>
 #endif
 
-void
-J9::DebugEnv::breakPoint()
-   {
-
+void J9::DebugEnv::breakPoint()
+{
 #if defined(LINUX) || defined(AIXPPC) || defined(OSX)
-   raise(SIGTRAP);
+    raise(SIGTRAP);
 #elif defined(_MSC_VER)
-   DebugBreak();
+    DebugBreak();
 #else
-   assert(0);
+    assert(0);
 #endif
+}
 
-   }
-
-
-char *
-J9::DebugEnv::extraAssertMessage(TR::Compilation *comp)
-   {
-   return comp->fej9()->printAdditionalInfoOnAssertionFailure(comp);
-   }
+char *J9::DebugEnv::extraAssertMessage(TR::Compilation *comp)
+{
+    return comp->fej9()->printAdditionalInfoOnAssertionFailure(comp);
+}

@@ -25,7 +25,6 @@
 #include "optimizer/Optimization.hpp"
 #include "optimizer/OptimizationManager.hpp"
 
-
 namespace TR {
 
 /**
@@ -33,20 +32,20 @@ namespace TR {
    @brief Catch block profiler is a simple optimization that aims to count
           how many times all the catch blocks in the method are executed.
  */
-class CatchBlockProfiler : public TR::Optimization
-   {
-   public:
-   CatchBlockProfiler(TR::OptimizationManager *manager);
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) CatchBlockProfiler(manager);
-      }
+class CatchBlockProfiler : public TR::Optimization {
+public:
+    CatchBlockProfiler(TR::OptimizationManager *manager);
 
-   virtual int32_t perform();
-   virtual const char * optDetailString() const throw();
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) CatchBlockProfiler(manager);
+    }
 
-   private :
-   TR::SymbolReference * _catchBlockCounterSymRef;
-   };
-}
+    virtual int32_t perform();
+    virtual const char *optDetailString() const throw();
+
+private:
+    TR::SymbolReference *_catchBlockCounterSymRef;
+};
+} // namespace TR
 #endif

@@ -118,11 +118,11 @@ class TR_ResolvedMethod;
  *     0x000003ffe064a8d8 ffffffde [0x000003ffdb1eaf00]           +--------------> DC      0x000003ff
  *     0x000003ffe064a8dc ffffffe2 [0x000003ffdb1eaff0]           |                DC      0xf15f4f50
  *     0x000003ffe064a8e0 ffffffe6 [0x000003ffdb1eb5d0]           |                NOP
- *     0x000003ffe064a8e2 ffffffe8 [0x000003ffdb1eb0e0]           |   +----------> BRC     J(0xf), Label L0017, labelTargetAddr=0x000003FFE064A8B8
- *     0x000003ffe064a8e6 ffffffec [0x000003ffdb1eb1e0]           |   |   +------> BRC     J(0xf), Label L0016, labelTargetAddr=0x000003FFE064A890
- *     0x000003ffe064a8ea fffffff0 [0x000003ffdb1eb2e0]           |   |   |   +--> DC      0xdeafbeef
- *     0x000003ffe064a8ee fffffff4 [0x000003ffdb1eb3f0]           |   |   |   |    DC      0x000003ff
- *     0x000003ffe064a8f2 fffffff8 [0x000003ffdb1eb4e0]          [4] [3] [2] [1]   DC      0xdc047540
+ *     0x000003ffe064a8e2 ffffffe8 [0x000003ffdb1eb0e0]           |   +----------> BRC     J(0xf), Label L0017,
+ * labelTargetAddr=0x000003FFE064A8B8 0x000003ffe064a8e6 ffffffec [0x000003ffdb1eb1e0]           |   |   +------> BRC
+ * J(0xf), Label L0016, labelTargetAddr=0x000003FFE064A890 0x000003ffe064a8ea fffffff0 [0x000003ffdb1eb2e0]           |
+ * |   |   +--> DC      0xdeafbeef 0x000003ffe064a8ee fffffff4 [0x000003ffdb1eb3f0]           |   |   |   |    DC
+ * 0x000003ff 0x000003ffe064a8f2 fffffff8 [0x000003ffdb1eb4e0]          [4] [3] [2] [1]   DC      0xdc047540
  *     0x000003ffe064a8f6 fffffffc [0x000003ffdb1e33e0]           |   |   |   |    DC      0x00060010
  *     0x000003ffe064a8fa 00000000 [0x000003ffdb1e9480]           +---+---+---+--- LG      GPR1, 0(GPR5)
  *     0x000003ffe064a900 00000006 [0x000003ffdb1e34d0]                            PROC
@@ -183,9 +183,9 @@ class TR_ResolvedMethod;
  *     0x000003ffe0718754 0000001a [0x000003ffdb4d00d0]               |   |   |    LG      GPR1, -30(GPR1)
  *     0x000003ffe071875a 00000020 [0x000003ffdb4d0290]               |   |   |    L       GPR2, 0(GPR1)
  *     0x000003ffe071875e 00000024 [0x000003ffdb4d0380]               |   |   |    LTR     GPR2,GPR2
- *     0x000003ffe0718760 00000026 [0x000003ffdb4d04d0]               |   |  [1]   BRC     BNLRC(0xa), Label L0338, labelTargetAddr=0x000003FFE07187BC
- *     0x000003ffe0718764 0000002a [0x000003ffdb4d05d0]               |   |   |    BASR    GPR2,GPR0
- *     0x000003ffe0718766 0000002c [0x000003ffdb4d06c0]               |   |   |    AGHI    GPR2,0x60
+ *     0x000003ffe0718760 00000026 [0x000003ffdb4d04d0]               |   |  [1]   BRC     BNLRC(0xa), Label L0338,
+ * labelTargetAddr=0x000003FFE07187BC 0x000003ffe0718764 0000002a [0x000003ffdb4d05d0]               |   |   |    BASR
+ * GPR2,GPR0 0x000003ffe0718766 0000002c [0x000003ffdb4d06c0]               |   |   |    AGHI    GPR2,0x60
  *     0x000003ffe071876a 00000030 [0x000003ffdb4d0890]               |   |   |    STG     GPR2, 0(GPR5)
  *     0x000003ffe0718770 00000036 [0x000003ffdb4d0990]               |   |   |    AGHI    GPR2,0xffba
  *     0x000003ffe0718774 0000003a [0x000003ffdb4d0b60]               |   |   |    LG      GPR2, 0(GPR2)
@@ -218,55 +218,50 @@ class TR_ResolvedMethod;
  *     [2] OFFSET_JITEP_COUNTING_PATCH_CALL_SITE_SNIPPET_END
  *     [3] COUNTING_PROLOGUE_SIZE
  */
-class TR_S390Recompilation : public TR::Recompilation
-   {
-   public:
-   TR_S390Recompilation(TR::Compilation *);
-   static TR::Recompilation         * allocate(TR::Compilation *);
+class TR_S390Recompilation : public TR::Recompilation {
+public:
+    TR_S390Recompilation(TR::Compilation *);
+    static TR::Recompilation *allocate(TR::Compilation *);
 
-   /** \brief
-    *     Generates the pre-prologue which may consist of the VM Call Helper Snippet and the SamplingRecompileMethod
-    *     Snippet.
-    *
-    *  \return
-    *     The last generated instruction.
-    */
-   virtual TR::Instruction* generatePrePrologue();
+    /** \brief
+     *     Generates the pre-prologue which may consist of the VM Call Helper Snippet and the SamplingRecompileMethod
+     *     Snippet.
+     *
+     *  \return
+     *     The last generated instruction.
+     */
+    virtual TR::Instruction *generatePrePrologue();
 
-   /** \brief
-    *     Generates the prologue which consists of the CountingRecompileMethod Snippet and the SamplingRecompileMethod
-    *     Snippet.
-    *
-    *  \param cursor
-    *     The cursor to which the generated instructions will be appended.
-    *
-    *  \return
-    *     The last generated instruction.
-    */
-   virtual TR::Instruction* generatePrologue(TR::Instruction* cursor);
+    /** \brief
+     *     Generates the prologue which consists of the CountingRecompileMethod Snippet and the SamplingRecompileMethod
+     *     Snippet.
+     *
+     *  \param cursor
+     *     The cursor to which the generated instructions will be appended.
+     *
+     *  \return
+     *     The last generated instruction.
+     */
+    virtual TR::Instruction *generatePrologue(TR::Instruction *cursor);
 
-   virtual void                      postCompilation();
-   virtual TR_PersistentMethodInfo * getExistingMethodInfo(TR_ResolvedMethod *method);
+    virtual void postCompilation();
+    virtual TR_PersistentMethodInfo *getExistingMethodInfo(TR_ResolvedMethod *method);
 
-   void setLoadArgSize(int32_t size)
-      {
-      _loadArgumentSize = size;
-      }
+    void setLoadArgSize(int32_t size) { _loadArgumentSize = size; }
 
-   private:
+private:
+    int32_t _loadArgumentSize; // size of load arguments instr
 
-   int32_t _loadArgumentSize; // size of load arguments instr
-
-   /** \brief
-    *     The data constant instruction pointing to the body info address.
-    *
-    *  \note
-    *     The data constant is encoded in the pre-prologue and is used in both the sampling and counting
-    *     recompilation sequences emitted in the pre-prologue and prologue respectively. This pointer is used to
-    *     calculate the offset within a memory reference to load the body info at runtime.
-    */
-   TR::Instruction* bodyInfoDataConstant;
-   };
+    /** \brief
+     *     The data constant instruction pointing to the body info address.
+     *
+     *  \note
+     *     The data constant is encoded in the pre-prologue and is used in both the sampling and counting
+     *     recompilation sequences emitted in the pre-prologue and prologue respectively. This pointer is used to
+     *     calculate the offset within a memory reference to load the body info at runtime.
+     */
+    TR::Instruction *bodyInfoDataConstant;
+};
 
 #define FOUR_BYTE_JUMP_INSTRUCTION 0xA7F40000
 

@@ -20,9 +20,9 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0 OR GPL-2.0-only WITH OpenJDK-assembly-exception-1.0
  *******************************************************************************/
 
-#pragma csect(CODE,"TRJ9ZAOTComp#C")
-#pragma csect(STATIC,"TRJ9ZAOTComp#S")
-#pragma csect(TEST,"TRJ9ZAOTComp#T")
+#pragma csect(CODE, "TRJ9ZAOTComp#C")
+#pragma csect(STATIC, "TRJ9ZAOTComp#S")
+#pragma csect(TEST, "TRJ9ZAOTComp#T")
 
 #include "codegen/AheadOfTimeCompile.hpp"
 #include "codegen/CodeGenerator.hpp"
@@ -45,57 +45,49 @@
 #include "runtime/RelocationRuntime.hpp"
 #include "runtime/RelocationRecord.hpp"
 
-#define  WIDE_OFFSETS       0x80
-#define  EIP_RELATIVE       0x40
-#define  ORDERED_PAIR       0x20
-#define  NON_HELPER         0
+#define WIDE_OFFSETS 0x80
+#define EIP_RELATIVE 0x40
+#define ORDERED_PAIR 0x20
+#define NON_HELPER 0
 
 J9::Z::AheadOfTimeCompile::AheadOfTimeCompile(TR::CodeGenerator *cg)
-   : J9::AheadOfTimeCompile(NULL, cg->comp()),
-     _relocationList(getTypedAllocator<TR::S390Relocation*>(cg->comp()->allocator())),
-     _cg(cg)
-   {
-   }
+    : J9::AheadOfTimeCompile(NULL, cg->comp())
+    , _relocationList(getTypedAllocator<TR::S390Relocation *>(cg->comp()->allocator()))
+    , _cg(cg)
+{}
 
 void J9::Z::AheadOfTimeCompile::processRelocations()
-   {
-   for (auto iterator = self()->getRelocationList().begin();
-        iterator != self()->getRelocationList().end();
-        ++iterator)
-      {
-      (*iterator)->mapRelocation(_cg);
-      }
+{
+    for (auto iterator = self()->getRelocationList().begin(); iterator != self()->getRelocationList().end();
+         ++iterator) {
+        (*iterator)->mapRelocation(_cg);
+    }
 
-   J9::AheadOfTimeCompile::processRelocations();
-   }
+    J9::AheadOfTimeCompile::processRelocations();
+}
 
-bool
-J9::Z::AheadOfTimeCompile::initializePlatformSpecificAOTRelocationHeader(TR::IteratedExternalRelocation *relocation,
-                                                                         TR_RelocationTarget *reloTarget,
-                                                                         TR_RelocationRecord *reloRecord,
-                                                                         uint8_t targetKind)
-   {
-   bool platformSpecificReloInitialized = true;
+bool J9::Z::AheadOfTimeCompile::initializePlatformSpecificAOTRelocationHeader(
+    TR::IteratedExternalRelocation *relocation, TR_RelocationTarget *reloTarget, TR_RelocationRecord *reloRecord,
+    uint8_t targetKind)
+{
+    bool platformSpecificReloInitialized = true;
 
-   switch (targetKind)
-      {
-      case TR_EmitClass:
-         {
-         TR_RelocationRecordEmitClass *ecRecord = reinterpret_cast<TR_RelocationRecordEmitClass *>(reloRecord);
+    switch (targetKind) {
+        case TR_EmitClass: {
+            TR_RelocationRecordEmitClass *ecRecord = reinterpret_cast<TR_RelocationRecordEmitClass *>(reloRecord);
 
-         TR_ByteCodeInfo *bcInfo = reinterpret_cast<TR_ByteCodeInfo *>(relocation->getTargetAddress());
-         int32_t bcIndex = bcInfo->getByteCodeIndex();
-         uintptr_t inlinedSiteIndex = reinterpret_cast<uintptr_t>(relocation->getTargetAddress2());
+            TR_ByteCodeInfo *bcInfo = reinterpret_cast<TR_ByteCodeInfo *>(relocation->getTargetAddress());
+            int32_t bcIndex = bcInfo->getByteCodeIndex();
+            uintptr_t inlinedSiteIndex = reinterpret_cast<uintptr_t>(relocation->getTargetAddress2());
 
-         ecRecord->setInlinedSiteIndex(reloTarget, inlinedSiteIndex);
-         ecRecord->setBCIndex(reloTarget, bcIndex);
-         }
-         break;
+            ecRecord->setInlinedSiteIndex(reloTarget, inlinedSiteIndex);
+            ecRecord->setBCIndex(reloTarget, bcIndex);
+        } break;
 
-      default:
-         platformSpecificReloInitialized = false;
-      }
+        default:
+            platformSpecificReloInitialized = false;
+    }
 
-   return platformSpecificReloInitialized;
-   }
+    return platformSpecificReloInitialized;
+}
 

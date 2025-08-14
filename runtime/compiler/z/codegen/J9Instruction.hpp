@@ -28,12 +28,16 @@
  */
 #ifndef J9_INSTRUCTION_CONNECTOR
 #define J9_INSTRUCTION_CONNECTOR
+
 namespace J9 {
-   namespace Z { class Instruction; }
-   typedef J9::Z::Instruction InstructionConnector;
+namespace Z {
+class Instruction;
 }
+
+typedef J9::Z::Instruction InstructionConnector;
+} // namespace J9
 #else
-   #error J9::Z::Instruction expected to be a primary connector, but a J9 connector is already defined
+#error J9::Z::Instruction expected to be a primary connector, but a J9 connector is already defined
 #endif
 
 #include "compiler/codegen/J9Instruction.hpp"
@@ -43,40 +47,40 @@ namespace TR {
 class S390EncodingRelocation;
 }
 
-namespace J9
-{
+namespace J9 {
 
 namespace Z
 
 {
 
-class OMR_EXTENSIBLE Instruction : public J9::Instruction
-   {
-   public:
+class OMR_EXTENSIBLE Instruction : public J9::Instruction {
+public:
+    Instruction(TR::CodeGenerator *cg, TR::InstOpCode::Mnemonic op, TR::Node *node = 0)
+        : J9::Instruction(cg, op, node)
+    {
+        _encodingRelocation = NULL;
+    }
 
-   Instruction(
-      TR::CodeGenerator *cg,
-      TR::InstOpCode::Mnemonic op,
-      TR::Node *node = 0) : J9::Instruction(cg, op, node) { _encodingRelocation = NULL; }
+    Instruction(TR::CodeGenerator *cg, TR::Instruction *precedingInstruction, TR::InstOpCode::Mnemonic op,
+        TR::Node *node = 0)
+        : J9::Instruction(cg, precedingInstruction, op, node)
+    {
+        _encodingRelocation = NULL;
+    }
 
-   Instruction(
-      TR::CodeGenerator *cg,
-      TR::Instruction *precedingInstruction,
-      TR::InstOpCode::Mnemonic op,
-      TR::Node *node = 0) : J9::Instruction(cg, precedingInstruction, op, node) { _encodingRelocation = NULL; }
+    void addEncodingRelocation(TR::CodeGenerator *codeGen, uint8_t *cursor, char *file, uintptr_t line, TR::Node *node);
 
-   void addEncodingRelocation(TR::CodeGenerator *codeGen, uint8_t *cursor, char* file, uintptr_t line, TR::Node* node);
+    TR::S390EncodingRelocation *getEncodingRelocation() { return _encodingRelocation; }
 
-   TR::S390EncodingRelocation* getEncodingRelocation() { return _encodingRelocation; }
-   TR::S390EncodingRelocation* setEncodingRelocation(TR::S390EncodingRelocation *encodeRelo) { return _encodingRelocation = encodeRelo; } 
+    TR::S390EncodingRelocation *setEncodingRelocation(TR::S390EncodingRelocation *encodeRelo)
+    {
+        return _encodingRelocation = encodeRelo;
+    }
 
-   private:
+private:
+    TR::S390EncodingRelocation *_encodingRelocation;
+};
 
-   TR::S390EncodingRelocation *_encodingRelocation;
-   };
-
-}
-
-}
+}} // namespace J9::Z
 
 #endif /* TRJ9_INSTRUCTIONBASE_INCL */

@@ -25,6 +25,7 @@
 
 #include "control/Recompilation.hpp"
 #include "control/RecompilationInfo.hpp"
+
 namespace TR {
 class CodeGenerator;
 }
@@ -121,58 +122,55 @@ class TR_ResolvedMethod;
 //
 #if defined(TR_TARGET_64BIT)
 
-#  define START_PC_TO_ITR_GLUE_SAMPLING             (-21)
-#  define START_PC_TO_ORIGINAL_ENTRY_BYTES          (-19)
-#  define START_PC_TO_RECOMPILE_SAMPLING            (-17)
-#  define START_PC_TO_ITR_GLUE_COUNTING             (-16)
-#  define START_PC_TO_METHOD_INFO_ADDRESS           (-12)
+#define START_PC_TO_ITR_GLUE_SAMPLING (-21)
+#define START_PC_TO_ORIGINAL_ENTRY_BYTES (-19)
+#define START_PC_TO_RECOMPILE_SAMPLING (-17)
+#define START_PC_TO_ITR_GLUE_COUNTING (-16)
+#define START_PC_TO_METHOD_INFO_ADDRESS (-12)
 
-#  define COUNTING_PROLOGUE_SIZE                    (19)
+#define COUNTING_PROLOGUE_SIZE (19)
 
-#  define COUNTING_RECOMPILE_METHOD           TR_AMD64countingRecompileMethod
-#  define SAMPLING_RECOMPILE_METHOD           TR_AMD64samplingRecompileMethod
-#  define COUNTING_PATCH_CALL_SITE            TR_AMD64countingPatchCallSite
-#  define SAMPLING_PATCH_CALL_SITE            TR_AMD64samplingPatchCallSite
+#define COUNTING_RECOMPILE_METHOD TR_AMD64countingRecompileMethod
+#define SAMPLING_RECOMPILE_METHOD TR_AMD64samplingRecompileMethod
+#define COUNTING_PATCH_CALL_SITE TR_AMD64countingPatchCallSite
+#define SAMPLING_PATCH_CALL_SITE TR_AMD64samplingPatchCallSite
 
 #else
 
-#  define START_PC_TO_ITR_GLUE_SAMPLING             (-23)
-#  define START_PC_TO_ITR_GLUE_COUNTING             (-18)
-#  define START_PC_TO_RECOMPILE_SAMPLING            (-13)
-#  define START_PC_TO_METHOD_INFO_ADDRESS           (-8)
-#  define START_PC_TO_ORIGINAL_ENTRY_BYTES          (-2)
+#define START_PC_TO_ITR_GLUE_SAMPLING (-23)
+#define START_PC_TO_ITR_GLUE_COUNTING (-18)
+#define START_PC_TO_RECOMPILE_SAMPLING (-13)
+#define START_PC_TO_METHOD_INFO_ADDRESS (-8)
+#define START_PC_TO_ORIGINAL_ENTRY_BYTES (-2)
 
-#  define COUNTING_PROLOGUE_SIZE                    (13)
+#define COUNTING_PROLOGUE_SIZE (13)
 
-#  define COUNTING_RECOMPILE_METHOD           TR_IA32countingRecompileMethod
-#  define SAMPLING_RECOMPILE_METHOD           TR_IA32samplingRecompileMethod
-#  define COUNTING_PATCH_CALL_SITE            TR_IA32countingPatchCallSite
-#  define SAMPLING_PATCH_CALL_SITE            TR_IA32samplingPatchCallSite
+#define COUNTING_RECOMPILE_METHOD TR_IA32countingRecompileMethod
+#define SAMPLING_RECOMPILE_METHOD TR_IA32samplingRecompileMethod
+#define COUNTING_PATCH_CALL_SITE TR_IA32countingPatchCallSite
+#define SAMPLING_PATCH_CALL_SITE TR_IA32samplingPatchCallSite
 
 #endif
 
-#define CALL_INSTRUCTION                   0xE8
-#define TWO_BYTE_JUMP_INSTRUCTION          0xEB
-#define SPIN_LOOP_INSTRUCTION              0xFEEB
+#define CALL_INSTRUCTION 0xE8
+#define TWO_BYTE_JUMP_INSTRUCTION 0xEB
+#define SPIN_LOOP_INSTRUCTION 0xFEEB
 
+class TR_X86Recompilation : public TR::Recompilation {
+public:
+    TR_X86Recompilation(TR::Compilation *);
 
-class TR_X86Recompilation : public TR::Recompilation
-   {
-   public:
+    static TR::Recompilation *allocate(TR::Compilation *);
 
-   TR_X86Recompilation(TR::Compilation *);
+    virtual TR_PersistentMethodInfo *getExistingMethodInfo(TR_ResolvedMethod *method);
+    virtual TR::Instruction *generatePrePrologue();
+    virtual TR::Instruction *generatePrologue(TR::Instruction *);
+    virtual void postCompilation();
 
-   static TR::Recompilation * allocate(TR::Compilation *);
+    TR::CodeGenerator *cg() { return _compilation->cg(); }
 
-   virtual TR_PersistentMethodInfo *getExistingMethodInfo(TR_ResolvedMethod *method);
-   virtual TR::Instruction *generatePrePrologue();
-   virtual TR::Instruction *generatePrologue(TR::Instruction *);
-   virtual void postCompilation();
-
-   TR::CodeGenerator *cg() { return _compilation->cg(); }
-
-   private:
-   void setMethodReturnInfoBits();
-   };
+private:
+    void setMethodReturnInfoBits();
+};
 
 #endif

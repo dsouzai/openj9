@@ -25,7 +25,7 @@
 #include <string.h>
 
 #if defined(J9ZOS390)
-extern "C"{
+extern "C" {
 #include "atoe.h"
 }
 #undef fwrite
@@ -43,343 +43,302 @@ extern "C"{
 
 extern char *feGetEnv(const char *);
 
-
 extern "C" {
 
 I_64 j9jit_time_current_time_millis()
-   {
-   I_64 time_millis;
-   PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
+{
+    I_64 time_millis;
+    PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
 
-   time_millis = j9time_usec_clock();
+    time_millis = j9time_usec_clock();
 
-   return time_millis;
-   }
-
+    return time_millis;
+}
 
 I_32 j9jit_fseek(I_32 fd, I_32 whence)
-   {
-   I_32 fileId=0;
-   PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
+{
+    I_32 fileId = 0;
+    PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
 
-   j9file_seek(fd,0,whence);
-   return fileId;
-   }
+    j9file_seek(fd, 0, whence);
+    return fileId;
+}
 
+I_32 j9jit_fread(I_32 fd, void *buf, IDATA nbytes)
+{
+    PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
+    I_32 fileId;
+    I_32 bytesRead;
 
-I_32 j9jit_fread(I_32 fd, void * buf, IDATA nbytes)
-   {
-   PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
-   I_32 fileId;
-   I_32 bytesRead;
+    bytesRead = j9file_read(fd, buf, nbytes);
 
-   bytesRead = j9file_read(fd, buf, nbytes);
-
-   return bytesRead;
-   }
-
+    return bytesRead;
+}
 
 I_32 j9jit_fmove(const char *pathExist, const char *pathNew)
-   {
-   PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
-   I_32 fileId;
+{
+    PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
+    I_32 fileId;
 
-   if(j9file_unlink(pathNew))
-      j9tty_printf(privatePortLibrary, "Non-Fatal Error: Unable to delete file (%s)\n", pathNew);
-   fileId = j9file_move(pathExist, pathNew);
-   if (fileId == -1)
-      j9tty_printf(privatePortLibrary, "Non-Fatal Error: Unable to rename file (%s)\n", pathExist);
-   return fileId;
-   }
-
+    if (j9file_unlink(pathNew))
+        j9tty_printf(privatePortLibrary, "Non-Fatal Error: Unable to delete file (%s)\n", pathNew);
+    fileId = j9file_move(pathExist, pathNew);
+    if (fileId == -1)
+        j9tty_printf(privatePortLibrary, "Non-Fatal Error: Unable to rename file (%s)\n", pathExist);
+    return fileId;
+}
 
 I_32 j9jit_fopen_existing(const char *fileName)
-   {
-   PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
-   I_32 fileId;
+{
+    PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
+    I_32 fileId;
 
-   fileId = j9file_open(fileName, EsOpenWrite | EsOpenRead | EsOpenAppend, 0660);
-   if (fileId == -1)
-      j9tty_printf(privatePortLibrary, "Non-Fatal Error: Unable to open file (%s)\n", fileName);
-   return fileId;
-   }
-
+    fileId = j9file_open(fileName, EsOpenWrite | EsOpenRead | EsOpenAppend, 0660);
+    if (fileId == -1)
+        j9tty_printf(privatePortLibrary, "Non-Fatal Error: Unable to open file (%s)\n", fileName);
+    return fileId;
+}
 
 void j9jit_fcloseId(I_32 fileId)
-   {
-   PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
-   if (fileId != -1)
-      j9file_close(fileId);
-   }
-
+{
+    PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
+    if (fileId != -1)
+        j9file_close(fileId);
+}
 
 I_32 j9jit_fopenName(const char *fileName)
-   {
-   PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
-   I_32 fileId;
+{
+    PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
+    I_32 fileId;
 
-   j9file_unlink(fileName);
-   fileId = j9file_open(fileName, EsOpenRead | EsOpenWrite | EsOpenCreate , 0660);
-   if (fileId == -1)
-      j9tty_printf(privatePortLibrary, "Non-Fatal Error: Unable to open file (%s)\n", fileName);
-   return fileId;
-   }
+    j9file_unlink(fileName);
+    fileId = j9file_open(fileName, EsOpenRead | EsOpenWrite | EsOpenCreate, 0660);
+    if (fileId == -1)
+        j9tty_printf(privatePortLibrary, "Non-Fatal Error: Unable to open file (%s)\n", fileName);
+    return fileId;
+}
 
+TR::FILE *j9jit_fopen(const char *fileName, const char *mode, bool useJ9IO)
+{
+    PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
+    TR::FILE *pFile;
 
-TR::FILE *
-j9jit_fopen(const char *fileName, const char *mode, bool useJ9IO)
-   {
-   PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
-   TR::FILE *pFile;
+    if (useJ9IO) {
+        I_32 fileId;
 
-   if (useJ9IO)
-      {
-      I_32 fileId;
+        // FIXME: this will nuke the file if it was being opened for reading!!
+        j9file_unlink(fileName);
+        fileId = j9file_open(fileName, EsOpenRead | EsOpenWrite | EsOpenCreate, 0660);
+        if (fileId == -1) {
+            j9tty_printf(privatePortLibrary, "Non-Fatal Error: Unable to open file (%s)\n", fileName);
+            return NULL;
+        }
 
-      // FIXME: this will nuke the file if it was being opened for reading!!
-      j9file_unlink(fileName);
-      fileId = j9file_open(fileName, EsOpenRead | EsOpenWrite | EsOpenCreate , 0660);
-      if (fileId == -1)
-         {
-         j9tty_printf(privatePortLibrary, "Non-Fatal Error: Unable to open file (%s)\n", fileName);
-         return NULL;
-         }
+        pFile = (TR::FILE *)j9mem_allocate_memory(sizeof(TR::FILE), J9MEM_CATEGORY_JIT);
+        if (!pFile) {
+            j9tty_printf(privatePortLibrary, "Non-Fatal Error: Unable to open file (%s)\n", fileName);
+            return NULL;
+        }
+        pFile->initialize(privatePortLibrary, fileId);
+    } else {
+        FILE *f = fopen(fileName, mode);
+        if (!f) {
+            j9tty_printf(privatePortLibrary, "Non-Fatal Error: Unable to open file (%s)\n", fileName);
+            return NULL;
+        }
 
-      pFile = (TR::FILE *)j9mem_allocate_memory(sizeof(TR::FILE), J9MEM_CATEGORY_JIT);
-      if (!pFile)
-         {
-         j9tty_printf(privatePortLibrary, "Non-Fatal Error: Unable to open file (%s)\n", fileName);
-         return NULL;
-         }
-      pFile->initialize(privatePortLibrary, fileId);
-      }
-   else
-      {
-      FILE *f = fopen(fileName, mode);
-      if (!f)
-         {
-         j9tty_printf(privatePortLibrary, "Non-Fatal Error: Unable to open file (%s)\n", fileName);
-         return NULL;
-         }
+        pFile = (TR::FILE *)j9mem_allocate_memory(sizeof(TR::FILE), J9MEM_CATEGORY_JIT);
+        if (!pFile) {
+            j9tty_printf(privatePortLibrary, "Non-Fatal Error: Unable to open file (%s)\n", fileName);
+            return NULL;
+        }
 
-      pFile = (TR::FILE *)j9mem_allocate_memory(sizeof(TR::FILE), J9MEM_CATEGORY_JIT);
-      if (!pFile)
-         {
-         j9tty_printf(privatePortLibrary, "Non-Fatal Error: Unable to open file (%s)\n", fileName);
-         return NULL;
-         }
+        pFile->initialize(f);
+    }
 
-      pFile->initialize(f);
-      }
-
-   return pFile;
-   }
-
+    return pFile;
+}
 
 void j9jit_fclose(TR::FILE *pFile)
-   {
-   PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
-   if (pFile && pFile != TR::IO::Stdout && pFile != TR::IO::Stderr)
-      {
-      pFile->close(privatePortLibrary);
-      j9mem_free_memory(pFile);
-      }
-   }
-
+{
+    PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
+    if (pFile && pFile != TR::IO::Stdout && pFile != TR::IO::Stderr) {
+        pFile->close(privatePortLibrary);
+        j9mem_free_memory(pFile);
+    }
+}
 
 void j9jit_fflush(TR::FILE *pFile)
-   {
-   PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
-   if (pFile)
-      {
-      if (pFile == TR::IO::Stdout || pFile == TR::IO::Stderr)
-         ;
-      else
-         pFile->flush(privatePortLibrary);
-      }
-   }
-
+{
+    PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
+    if (pFile) {
+        if (pFile == TR::IO::Stdout || pFile == TR::IO::Stderr)
+            ;
+        else
+            pFile->flush(privatePortLibrary);
+    }
+}
 
 void j9jit_lock_vlog(void *voidConfig)
-   {
-   J9JITConfig *config = (J9JITConfig *) voidConfig;
-   TR::CompilationInfo *compInfo = TR::CompilationInfo::get();
-   compInfo->vlogAcquire();
-   }
-
+{
+    J9JITConfig *config = (J9JITConfig *)voidConfig;
+    TR::CompilationInfo *compInfo = TR::CompilationInfo::get();
+    compInfo->vlogAcquire();
+}
 
 void j9jit_unlock_vlog(void *voidConfig)
-   {
-   J9JITConfig *config = (J9JITConfig *) voidConfig;
-   TR::CompilationInfo *compInfo = TR::CompilationInfo::get();
-   compInfo->vlogRelease();
-   }
-
+{
+    J9JITConfig *config = (J9JITConfig *)voidConfig;
+    TR::CompilationInfo *compInfo = TR::CompilationInfo::get();
+    compInfo->vlogRelease();
+}
 
 void j9jitrt_lock_log(void *voidConfig)
-   {
-   J9JITConfig *config = (J9JITConfig *) voidConfig;
-   TR::CompilationInfo *compInfo = TR::CompilationInfo::get();
-   compInfo->rtlogAcquire();
-   }
-
+{
+    J9JITConfig *config = (J9JITConfig *)voidConfig;
+    TR::CompilationInfo *compInfo = TR::CompilationInfo::get();
+    compInfo->rtlogAcquire();
+}
 
 void j9jitrt_unlock_log(void *voidConfig)
-   {
-   J9JITConfig *config = (J9JITConfig *) voidConfig;
-   TR::CompilationInfo *compInfo = TR::CompilationInfo::get();
-   compInfo->rtlogRelease();
-   }
-
+{
+    J9JITConfig *config = (J9JITConfig *)voidConfig;
+    TR::CompilationInfo *compInfo = TR::CompilationInfo::get();
+    compInfo->rtlogRelease();
+}
 
 I_32 j9jit_vfprintfId(I_32 fileId, const char *format, ...)
-   {
-   PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
-   char buf[512];
-   I_32 length;
-   va_list args;
-   va_start(args, format);
+{
+    PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
+    char buf[512];
+    I_32 length;
+    va_list args;
+    va_start(args, format);
 
-   length = j9str_vprintf(buf, 512, format, args);
-   va_end(args);
-   if (fileId != -1)
-      {
-       char * bufPtr = buf;
+    length = j9str_vprintf(buf, 512, format, args);
+    va_end(args);
+    if (fileId != -1) {
+        char *bufPtr = buf;
 #if defined(J9ZOS390)
-       bufPtr = a2e(bufPtr,length);
+        bufPtr = a2e(bufPtr, length);
 #endif
-      if ((U_32)j9file_write(fileId, bufPtr, length) == length)
-         {
-         static char *forceFlush = feGetEnv("TR_ForceFileFlush");
-         if (forceFlush)
-            j9file_sync(fileId);
-         }
+        if ((U_32)j9file_write(fileId, bufPtr, length) == length) {
+            static char *forceFlush = feGetEnv("TR_ForceFileFlush");
+            if (forceFlush)
+                j9file_sync(fileId);
+        }
 #if defined(J9ZOS390)
-      free(bufPtr);
+        free(bufPtr);
 #endif
-      }
-   else
-      j9tty_printf(privatePortLibrary, "%s", buf);
-   return length;
-   }
-
+    } else
+        j9tty_printf(privatePortLibrary, "%s", buf);
+    return length;
+}
 
 I_32 j9jit_fprintfId(I_32 fileId, const char *format, ...)
-   {
-   va_list args;
-   va_start(args, format);
-   I_32 length=j9jit_vfprintfId(fileId, format, args);
-   va_end(args);
-   return length;
-   }
-
+{
+    va_list args;
+    va_start(args, format);
+    I_32 length = j9jit_vfprintfId(fileId, format, args);
+    va_end(args);
+    return length;
+}
 
 I_32 j9jit_vfprintf(TR::FILE *pFile, const char *format, va_list args)
-   {
-   PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
-   const int32_t BUFSIZE = 640;
-   char buffer[BUFSIZE];
-   char *buf = buffer;
-   I_32 length;
-   bool grewBuf = false;
+{
+    PORT_ACCESS_FROM_PORT(TR::Compiler->portLib);
+    const int32_t BUFSIZE = 640;
+    char buffer[BUFSIZE];
+    char *buf = buffer;
+    I_32 length;
+    bool grewBuf = false;
 
-   va_list copyOfArgs;
-   memcpy(VA_PTR(copyOfArgs), VA_PTR(args), sizeof(copyOfArgs));
-   length = j9str_vprintf(buf, BUFSIZE, format, copyOfArgs);
-   va_end(copyOfArgs);
+    va_list copyOfArgs;
+    memcpy(VA_PTR(copyOfArgs), VA_PTR(args), sizeof(copyOfArgs));
+    length = j9str_vprintf(buf, BUFSIZE, format, copyOfArgs);
+    va_end(copyOfArgs);
 
-   if (length >= BUFSIZE)
-      {
-      grewBuf = true;
-      buf = (char*)j9mem_allocate_memory(length+1, J9MEM_CATEGORY_JIT);
-      if (!buf)
-         return length;
-      length = j9str_vprintf(buf, length+1, format, args);
-      }
+    if (length >= BUFSIZE) {
+        grewBuf = true;
+        buf = (char *)j9mem_allocate_memory(length + 1, J9MEM_CATEGORY_JIT);
+        if (!buf)
+            return length;
+        length = j9str_vprintf(buf, length + 1, format, args);
+    }
 
-   if (!pFile || pFile == TR::IO::Stdout)
-      j9tty_printf(privatePortLibrary, "%s", buf);
-   else if (pFile == TR::IO::Stderr)
-      j9tty_err_printf("%s", buf);
-   else
-      {
-      char *bufPtr = buf;
+    if (!pFile || pFile == TR::IO::Stdout)
+        j9tty_printf(privatePortLibrary, "%s", buf);
+    else if (pFile == TR::IO::Stderr)
+        j9tty_err_printf("%s", buf);
+    else {
+        char *bufPtr = buf;
 #if defined(J9ZOS390)
-      bufPtr = a2e(bufPtr, length);
+        bufPtr = a2e(bufPtr, length);
 #endif
-      if (pFile->write(privatePortLibrary, bufPtr, length) == length)
-         {
-         static char *forceFlush = feGetEnv("TR_ForceFileFlush");
-         if (forceFlush)
-            pFile->flush(privatePortLibrary);
-         }
+        if (pFile->write(privatePortLibrary, bufPtr, length) == length) {
+            static char *forceFlush = feGetEnv("TR_ForceFileFlush");
+            if (forceFlush)
+                pFile->flush(privatePortLibrary);
+        }
 #if defined(J9ZOS390)
-      free(bufPtr);
+        free(bufPtr);
 #endif
-      }
-   if (grewBuf)
-      j9mem_free_memory(buf);
+    }
+    if (grewBuf)
+        j9mem_free_memory(buf);
 
-   return length;
-   }
-
+    return length;
+}
 
 I_32 j9jit_fprintf(TR::FILE *pFile, const char *format, ...)
-   {
-   va_list args;
-   va_start(args, format);
-   I_32 length = j9jit_vfprintf(pFile, format, args);
-   va_end(args);
-   return length;
-   }
-
+{
+    va_list args;
+    va_start(args, format);
+    I_32 length = j9jit_vfprintf(pFile, format, args);
+    va_end(args);
+    return length;
+}
 
 static I_32 vlog_vprintf(J9JITConfig *config, const char *format, va_list args)
-   {
-   return j9jit_vfprintf(((TR_JitPrivateConfig*)config->privateConfig)->vLogFile, format, args);
-   }
-
+{
+    return j9jit_vfprintf(((TR_JitPrivateConfig *)config->privateConfig)->vLogFile, format, args);
+}
 
 static I_32 vlog_printf(J9JITConfig *config, const char *format, ...)
-   {
-   va_list args;
-   va_start(args, format);
-   I_32 length = vlog_vprintf(config, format, args);
-   va_end(args);
-   return length;
-   }
-
+{
+    va_list args;
+    va_start(args, format);
+    I_32 length = vlog_vprintf(config, format, args);
+    va_end(args);
+    return length;
+}
 
 I_32 j9jit_vprintf(void *voidConfig, const char *format, va_list args)
-   {
-   J9JITConfig *config = (J9JITConfig *) voidConfig;
-   return vlog_vprintf(config, format, args);
-   }
-
+{
+    J9JITConfig *config = (J9JITConfig *)voidConfig;
+    return vlog_vprintf(config, format, args);
+}
 
 void j9jit_printf(void *voidConfig, const char *format, ...)
-   {
-   va_list args;
-   va_start(args, format);
-   j9jit_vprintf(voidConfig, format, args);
-   va_end(args);
-   }
-
+{
+    va_list args;
+    va_start(args, format);
+    j9jit_vprintf(voidConfig, format, args);
+    va_end(args);
+}
 
 static I_32 rtlog_vprintf(J9JITConfig *config, const char *format, va_list args)
-   {
-   return j9jit_vfprintf(((TR_JitPrivateConfig*)config->privateConfig)->rtLogFile, format, args);
-   }
-
+{
+    return j9jit_vfprintf(((TR_JitPrivateConfig *)config->privateConfig)->rtLogFile, format, args);
+}
 
 I_32 j9jitrt_printf(void *voidConfig, const char *format, ...)
-   {
-   va_list args;
-   va_start(args, format);
-   I_32 length=rtlog_vprintf((J9JITConfig *)voidConfig, format, args);
-   va_end(args);
-   return length;
-   }
-
+{
+    va_list args;
+    va_start(args, format);
+    I_32 length = rtlog_vprintf((J9JITConfig *)voidConfig, format, args);
+    va_end(args);
+    return length;
+}
 }
 
