@@ -28,15 +28,19 @@
  */
 #ifndef J9_RECOMPILATION_CONNECTOR
 #define J9_RECOMPILATION_CONNECTOR
-namespace J9 { class Recompilation; }
-namespace J9 { typedef J9::Recompilation RecompilationConnector; }
+namespace J9 {
+class Recompilation;
+typedef J9::Recompilation RecompilationConnector;
+}
 #endif
 
 #include "control/OMRRecompilation.hpp"
 #include "control/RecompilationInfo.hpp"
 #include <stdint.h>
 
-namespace J9 { class CompilationStrategy; }
+namespace J9 {
+class CompilationStrategy;
+}
 class TR_ValueProfiler;
 class TR_RecompilationProfiler;
 

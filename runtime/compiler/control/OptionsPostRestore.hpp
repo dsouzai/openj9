@@ -25,8 +25,10 @@
 struct J9JITConfig;
 struct J9VMThread;
 struct J9Method;
-namespace TR { class CompilationInfo; }
-namespace TR { struct Region; }
+namespace TR {
+class CompilationInfo;
+struct Region;
+}
 struct TR_Memory;
 struct TR_J9VMBase;
 struct TR_JitPrivateConfig;

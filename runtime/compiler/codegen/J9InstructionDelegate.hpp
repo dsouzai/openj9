@@ -29,8 +29,10 @@
 #ifndef J9_INSTRUCTIONDELEGATE_CONNECTOR
 #define J9_INSTRUCTIONDELEGATE_CONNECTOR
 
-namespace J9 { class InstructionDelegate; }
-namespace J9 { typedef J9::InstructionDelegate InstructionDelegateConnector; }
+namespace J9 {
+class InstructionDelegate;
+typedef J9::InstructionDelegate InstructionDelegateConnector;
+}
 #endif
 
 #include "codegen/OMRInstructionDelegate.hpp"

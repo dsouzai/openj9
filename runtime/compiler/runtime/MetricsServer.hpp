@@ -28,7 +28,9 @@
 #include "j9.h" // for J9JavaVM
 #include "infra/Monitor.hpp"  // for TR::Monitor
 
-namespace TR { class CompilationInfo; }
+namespace TR {
+class CompilationInfo;
+}
 
 /**
    @class PrometheusMetric

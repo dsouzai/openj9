@@ -23,8 +23,10 @@
 #ifndef CODERUNTIME_HPP
 #define CODERUNTIME_HPP
 
-namespace TR { class CodeGenerator; }
-namespace TR { class CompilationInfoPerThread; }
+namespace TR {
+class CodeGenerator;
+class CompilationInfoPerThread;
+}
 
 namespace TR {
 

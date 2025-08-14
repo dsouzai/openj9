@@ -27,7 +27,9 @@
 #include "z/codegen/ConstantDataSnippet.hpp"
 #include "codegen/CodeGenerator.hpp"
 
-namespace TR { class LabelSymbol; }
+namespace TR {
+class LabelSymbol;
+}
 
 namespace TR {
 

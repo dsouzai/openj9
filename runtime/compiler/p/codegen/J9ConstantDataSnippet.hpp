@@ -28,8 +28,10 @@
  */
 #ifndef J9_PPCCONSTANTDATASNIPPET_CONNECTOR
 #define J9_PPCCONSTANTDATASNIPPET_CONNECTOR
-namespace J9 { class ConstantDataSnippet; }
-namespace J9 { typedef J9::ConstantDataSnippet ConstantDataSnippetConnector; }
+namespace J9 {
+class ConstantDataSnippet;
+typedef J9::ConstantDataSnippet ConstantDataSnippetConnector;
+}
 #endif
 
 

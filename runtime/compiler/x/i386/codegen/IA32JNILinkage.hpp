@@ -27,9 +27,11 @@
 
 #include "codegen/IA32J9SystemLinkage.hpp"
 
-namespace TR { class CodeGenerator; }
-namespace TR { class Node; }
-namespace TR { class Register; }
+namespace TR {
+class CodeGenerator;
+class Node;
+class Register;
+}
 
 namespace J9
 {

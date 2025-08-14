@@ -36,8 +36,10 @@ struct J9VMThread;
 struct J9Method;
 }
 
-namespace TR { class Monitor; }
-namespace TR { class CompilationInfo; }
+namespace TR {
+class Monitor;
+class CompilationInfo;
+}
 
 namespace TR
 {

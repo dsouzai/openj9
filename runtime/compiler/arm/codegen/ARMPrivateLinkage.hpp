@@ -26,9 +26,11 @@
 #include "codegen/PrivateLinkage.hpp"
 #include "infra/Assert.hpp"
 
-namespace TR { class CodeGenerator; }
-namespace TR { class Instruction; }
-namespace TR { class Register; }
+namespace TR {
+class CodeGenerator;
+class Instruction;
+class Register;
+}
 
 namespace J9
 {

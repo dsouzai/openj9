@@ -38,7 +38,9 @@ class TR_RelocationRecord;
 class TR_RelocationTarget;
 struct TR_RelocationRecordBinaryTemplate;
 typedef TR_ExternalRelocationTargetKind TR_RelocationRecordType;
-namespace TR { class AheadOfTimeCompile; }
+namespace TR {
+class AheadOfTimeCompile;
+}
 class AOTCacheClassChainRecord;
 
 class TR_RelocationRecordGroup

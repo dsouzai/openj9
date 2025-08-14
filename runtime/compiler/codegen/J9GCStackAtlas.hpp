@@ -28,8 +28,10 @@
  */
 #ifndef J9_GCSTACKATLAS_CONNECTOR
 #define J9_GCSTACKATLAS_CONNECTOR
-namespace J9 { class GCStackAtlas; }
-namespace J9 { typedef GCStackAtlas GCStackAtlasConnector; }
+namespace J9 {
+class GCStackAtlas;
+typedef GCStackAtlas GCStackAtlasConnector;
+}
 #endif
 
 #include "codegen/OMRGCStackAtlas.hpp"

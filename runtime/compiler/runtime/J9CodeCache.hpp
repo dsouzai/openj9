@@ -26,8 +26,10 @@
 
 #ifndef J9_CODECACHE_COMPOSED
 #define J9_CODECACHE_COMPOSED
-namespace J9 { class CodeCache; }
-namespace J9 { typedef CodeCache CodeCacheConnector; }
+namespace J9 {
+class CodeCache;
+typedef CodeCache CodeCacheConnector;
+}
 #endif
 
 
@@ -40,8 +42,10 @@ struct J9MemorySegment;
 struct J9ClassLoader;
 
 class TR_OpaqueMethodBlock;
-namespace TR { class CodeCacheMemorySegment; }
-namespace TR { class CodeCacheManager; }
+namespace TR {
+class CodeCacheMemorySegment;
+class CodeCacheManager;
+}
 
 namespace J9
 {

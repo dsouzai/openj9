@@ -30,7 +30,9 @@
 #include "env/TRMemory.hpp"
 #include "il/DataTypes.hpp"
 
-namespace TR { class PersistentInfo; }
+namespace TR {
+class PersistentInfo;
+}
 
 // TODO: maybe move this to a global config?
 #define INITIAL_USAGE (77) // assume relatively high usage at start
@@ -136,7 +138,9 @@ private:
 //       - must be called only by the thread for which we want CPu time
 // Use getThreadLastCpuUtil() to print CPU utilization of the thread during the last interval (should be <= 100)
 
-namespace TR { class CompilationInfo; }
+namespace TR {
+class CompilationInfo;
+}
 namespace TR {
 class PersistentInfo;
 }

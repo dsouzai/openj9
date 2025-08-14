@@ -28,7 +28,9 @@
 #include <stddef.h>
 #include "codegen/LinkageConventionsEnum.hpp"
 
-namespace TR { class Method; }
+namespace TR {
+class Method;
+}
 
 namespace TR
 {

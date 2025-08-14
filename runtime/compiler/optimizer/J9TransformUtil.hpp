@@ -28,18 +28,22 @@
  */
 #ifndef J9_TRANSFORMUTIL_CONNECTOR
 #define J9_TRANSFORMUTIL_CONNECTOR
-namespace J9 { class TransformUtil; }
-namespace J9 { typedef J9::TransformUtil TransformUtilConnector; }
+namespace J9 {
+class TransformUtil;
+typedef J9::TransformUtil TransformUtilConnector;
+}
 #endif
 
 #include "optimizer/OMRTransformUtil.hpp"
 #include "optimizer/Optimization.hpp"
 #include "control/RecompilationInfo.hpp"
 
-namespace TR { class AnyConst; }
-namespace TR { class Compilation; }
-namespace TR { class Node; }
-namespace TR { class Block; }
+namespace TR {
+class AnyConst;
+class Compilation;
+class Node;
+class Block;
+}
 
 namespace J9
 {

@@ -38,7 +38,9 @@
 #include "env/TRMemory.hpp"
 
 class TR_FrontEnd;
-namespace TR { class Compilation; }
+namespace TR {
+class Compilation;
+}
 
 
 class TR_InternalFunctions

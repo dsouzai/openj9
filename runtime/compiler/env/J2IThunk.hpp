@@ -28,8 +28,10 @@
 #include "env/IO.hpp"
 
 class TR_MHJ2IThunkTable;
-namespace TR { class CodeGenerator; }
-namespace TR { class Monitor; }
+namespace TR {
+class CodeGenerator;
+class Monitor;
+}
 
 class TR_MHJ2IThunk
    {

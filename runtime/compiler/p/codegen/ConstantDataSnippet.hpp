@@ -25,7 +25,9 @@
 
 #include "codegen/J9ConstantDataSnippet.hpp"
 
-namespace TR { class CodeGenerator; }
+namespace TR {
+class CodeGenerator;
+}
 
 namespace TR
    {

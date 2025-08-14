@@ -39,7 +39,9 @@
 #include "optimizer/Optimization.hpp"
 #include "optimizer/OptimizationManager.hpp"
 
-namespace TR { class TreeTop; }
+namespace TR {
+class TreeTop;
+}
 
 /** \brief
  *

@@ -28,16 +28,20 @@
  */
 #ifndef J9_SNIPPET_CONNECTOR
 #define J9_SNIPPET_CONNECTOR
-namespace J9 { namespace Z { class Snippet; } }
-namespace J9 { typedef J9::Z::Snippet SnippetConnector; }
+namespace J9 {
+namespace Z { class Snippet; }
+typedef J9::Z::Snippet SnippetConnector;
+}
 #endif
 
 #include "compiler/codegen/J9Snippet.hpp"
 #include "codegen/InstOpCode.hpp"
 
-namespace TR { class CodeGenerator; }
-namespace TR { class LabelSymbol; }
-namespace TR { class Node; }
+namespace TR {
+class CodeGenerator;
+class LabelSymbol;
+class Node;
+}
 
 namespace J9
 {

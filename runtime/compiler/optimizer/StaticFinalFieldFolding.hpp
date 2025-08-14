@@ -28,7 +28,9 @@
 #include "optimizer/Optimization.hpp"
 #include "optimizer/OptimizationManager.hpp"
 
-namespace TR { class NodeChecklist; }
+namespace TR {
+class NodeChecklist;
+}
 
 /** \brief
  *

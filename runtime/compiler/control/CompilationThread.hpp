@@ -58,12 +58,14 @@ const uint8_t SHUTDOWN_COMP_INTERRUPT = 2;
 
 const  int32_t IDLE_THRESHOLD       = 50;  // % CPU
 
-namespace TR { class Monitor; }
-namespace TR { class PersistentInfo; }
-namespace TR { class SegmentAllocator; }
-namespace TR { class CompilationInfoPerThreadBase; } // forward declaration
-namespace TR { class CompilationInfoPerThread; }     // forward declaration
-namespace TR { class CompilationInfo; }              // forward declaration
+namespace TR {
+class Monitor;
+class PersistentInfo;
+class SegmentAllocator;
+}
+class CompilationInfoPerThreadBase; // forward declaration
+class CompilationInfoPerThread;     // forward declaration
+class CompilationInfo;              // forward declaration
 struct TR_MethodToBeCompiled;
 class TR_ResolvedMethod;
 class TR_RelocationRuntime;

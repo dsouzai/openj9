@@ -27,7 +27,9 @@
 #include "optimizer/OptimizationManager.hpp"
 #include "optimizer/DataFlowAnalysis.hpp"
 
-namespace TR { class Block; }
+namespace TR {
+class Block;
+}
 
 class TR_OSRGuardRemoval : public TR::Optimization
    {

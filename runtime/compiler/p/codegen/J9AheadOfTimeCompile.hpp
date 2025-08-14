@@ -25,15 +25,19 @@
 
 #ifndef J9_AHEADOFTIMECOMPILE_CONNECTOR
 #define J9_AHEADOFTIMECOMPILE_CONNECTOR
-namespace J9 { namespace Power { class AheadOfTimeCompile; } }
-namespace J9 { typedef J9::Power::AheadOfTimeCompile AheadOfTimeCompileConnector; }
+namespace J9 {
+namespace Power { class AheadOfTimeCompile; }
+typedef J9::Power::AheadOfTimeCompile AheadOfTimeCompileConnector;
+}
 #endif // J9_AHEADOFTIMECOMPILE_CONNECTOR
 
 #include "compiler/codegen/J9AheadOfTimeCompile.hpp"
 #include "compile/SymbolReferenceTable.hpp"
 #include "p/codegen/PPCAOTRelocation.hpp"
 
-namespace TR { class CodeGenerator; }
+namespace TR {
+class CodeGenerator;
+}
 
 /*************************************************************************
  *  Change on this numbering scheme (even only value change) has to be   *

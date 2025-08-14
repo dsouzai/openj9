@@ -26,7 +26,9 @@
 #include "codegen/Snippet.hpp"
 #include "env/VMJ9.h"
 
-namespace TR { class CodeGenerator; }
+namespace TR {
+class CodeGenerator;
+}
 class TR_MHJ2IThunk;
 
 extern void arm64CodeSync(uint8_t *codePointer, uint32_t codeSize);

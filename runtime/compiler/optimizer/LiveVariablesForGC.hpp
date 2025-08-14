@@ -28,7 +28,9 @@
 #include "optimizer/OptimizationManager.hpp"
 
 class TR_BitVector;
-namespace TR { class Block; }
+namespace TR {
+class Block;
+}
 
 class TR_LocalLiveVariablesForGC : public TR::Optimization
    {

@@ -46,15 +46,17 @@
 class TR_CISCTransformer;
 class TR_RegionStructure;
 class TR_UseDefInfo;
-namespace TR { class Block; }
-namespace TR { class CFG; }
-namespace TR { class CFGEdge; }
-namespace TR { class CFGNode; }
-namespace TR { class Node; }
-namespace TR { class Optimization; }
-namespace TR { class Optimizer; }
-namespace TR { class SymbolReference; }
-namespace TR { class TreeTop; }
+namespace TR {
+class Block;
+class CFG;
+class CFGEdge;
+class CFGNode;
+class Node;
+class Optimization;
+class Optimizer;
+class SymbolReference;
+class TreeTop;
+}
 
 typedef enum
    {

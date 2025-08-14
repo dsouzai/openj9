@@ -28,8 +28,10 @@
  */
 #ifndef J9_CPU_CONNECTOR
 #define J9_CPU_CONNECTOR
-namespace J9 { namespace Power { class CPU; } }
-namespace J9 { typedef J9::Power::CPU CPUConnector; }
+namespace J9 {
+namespace Power { class CPU; }
+typedef J9::Power::CPU CPUConnector;
+}
 #else
 #error J9::Power::CPU expected to be a primary connector, but a J9 connector is already defined
 #endif

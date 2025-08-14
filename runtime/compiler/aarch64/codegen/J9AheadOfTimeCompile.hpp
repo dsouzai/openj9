@@ -25,8 +25,10 @@
 
 #ifndef J9_AHEADOFTIMECOMPILE_CONNECTOR
 #define J9_AHEADOFTIMECOMPILE_CONNECTOR
-namespace J9 { namespace ARM64 { class AheadOfTimeCompile; } }
-namespace J9 { typedef J9::ARM64::AheadOfTimeCompile AheadOfTimeCompileConnector; }
+namespace J9 {
+namespace ARM64 { class AheadOfTimeCompile; }
+typedef J9::ARM64::AheadOfTimeCompile AheadOfTimeCompileConnector;
+}
 #endif // J9_AHEADOFTIMECOMPILE_CONNECTOR
 
 #include "compiler/codegen/J9AheadOfTimeCompile.hpp"
@@ -34,7 +36,9 @@ namespace J9 { typedef J9::ARM64::AheadOfTimeCompile AheadOfTimeCompileConnector
 #include "codegen/ARM64AOTRelocation.hpp"
 #include "il/SymbolReference.hpp"
 
-namespace TR { class CodeGenerator; }
+namespace TR {
+class CodeGenerator;
+}
 
 namespace J9
 {

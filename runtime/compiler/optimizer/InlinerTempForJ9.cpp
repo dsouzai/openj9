@@ -65,7 +65,9 @@
 #include "j9consts.h"
 #include "optimizer/TransformUtil.hpp"
 
-namespace TR { class SimpleRegex; }
+namespace TR {
+class SimpleRegex;
+}
 
 #define OPT_DETAILS "O^O INLINER: "
 

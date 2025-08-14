@@ -41,12 +41,14 @@ class TR_ClassLoadCheck;
 class TR_OpaqueClassBlock;
 class TR_Structure;
 class TR_StructureSubGraphNode;
-namespace TR { class SymbolReference; }
-namespace TR { class Block; }
-namespace TR { class CFGEdge; }
-namespace TR { class CFGNode; }
-namespace TR { class Compilation; }
-namespace TR { class TreeTop; }
+namespace TR {
+class SymbolReference;
+class Block;
+class CFGEdge;
+class CFGNode;
+class Compilation;
+class TreeTop;
+}
 template <class T> class TR_Array;
 template <class T> class TR_Stack;
 

@@ -37,7 +37,9 @@
 #include "optimizer/Optimizations.hpp"
 
 
-namespace TR { class Optimizer; }
+namespace TR {
+class Optimizer;
+}
 struct OptimizationStrategy;
 
 J9::OptimizationManager::OptimizationManager(TR::Optimizer *o, OptimizationFactory factory, OMR::Optimizations optNum, const OptimizationStrategy *groupOfOpts)

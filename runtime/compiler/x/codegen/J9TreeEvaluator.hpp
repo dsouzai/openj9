@@ -28,8 +28,10 @@
  */
 #ifndef J9_TREE_EVALUATOR_CONNECTOR
 #define J9_TREE_EVALUATOR_CONNECTOR
-namespace J9 { namespace X86 { class TreeEvaluator; } }
-namespace J9 { typedef J9::X86::TreeEvaluator TreeEvaluatorConnector; }
+namespace J9 {
+namespace X86 { class TreeEvaluator; }
+typedef J9::X86::TreeEvaluator TreeEvaluatorConnector;
+}
 #endif
 
 #include "codegen/Snippet.hpp"

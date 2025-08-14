@@ -44,7 +44,9 @@
 #include "optimizer/SPMDPreCheck.hpp"
 #include "optimizer/Structure.hpp"
 
-namespace TR { class TreeTop; }
+namespace TR {
+class TreeTop;
+}
 
 TR_LoopAliasRefiner::TR_LoopAliasRefiner(TR::OptimizationManager *manager)
    : TR_LoopVersioner(manager, true, true)

@@ -29,7 +29,9 @@
 #include "optimizer/EscapeAnalysis.hpp"
 #include "il/SymbolReference.hpp"
 
-namespace TR { class Block; class Node; }
+namespace TR {
+class Block; class Node;
+}
 
 class TR_EscapeAnalysisTools
    {

@@ -27,9 +27,11 @@
 #include "optimizer/Optimization.hpp"
 #include "optimizer/OptimizationManager.hpp"
 
-namespace TR { class CFG; }
-namespace TR { class Node; }
-namespace TR { class TreeTop; }
+namespace TR {
+class CFG;
+class Node;
+class TreeTop;
+}
 
 // Profile generator
 //

@@ -26,7 +26,9 @@
 #include "env/J9VMAccessCriticalSection.hpp"
 #include "infra/Annotations.hpp"
 
-namespace TR { class Compilation; }
+namespace TR {
+class Compilation;
+}
 
 namespace TR
 {

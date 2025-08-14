@@ -31,9 +31,11 @@
 #include "control/Options.hpp"
 #include "il/SymbolReference.hpp"
 
-namespace TR { class CodeGenerator; }
-namespace TR { class LabelSymbol; }
-namespace TR { class Symbol; }
+namespace TR {
+class CodeGenerator;
+class LabelSymbol;
+class Symbol;
+}
 
 #define TR_BREAKONTHROW_NPE  1
 #define TR_BREAKONTHROW_AIOB 2

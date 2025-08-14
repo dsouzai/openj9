@@ -32,8 +32,10 @@
 #include "optimizer/Optimization.hpp"
 #include "optimizer/OptimizationManager.hpp"
 
-namespace TR { class Block; }
-namespace TR { class BlockChecklist; }
+namespace TR {
+class Block;
+class BlockChecklist;
+}
 class TR_BlockFrequencyInfo;
 
 class BlockParents;

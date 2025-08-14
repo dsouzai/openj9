@@ -29,11 +29,13 @@
 #include <stdint.h>
 #include "env/jittypes.h"
 
-namespace TR { class CodeGenerator; }
-namespace TR { class Linkage; }
-namespace TR { class Register; }
-namespace TR { class RegisterDependencyConditions; }
-namespace TR { class SystemLinkage; }
+namespace TR {
+class CodeGenerator;
+class Linkage;
+class Register;
+class RegisterDependencyConditions;
+class SystemLinkage;
+}
 
 namespace J9
 {

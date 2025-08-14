@@ -28,8 +28,10 @@
  */
 #ifndef J9_ILGENERATOR_METHOD_DETAILS_CONNECTOR
 #define J9_ILGENERATOR_METHOD_DETAILS_CONNECTOR
-namespace J9 { class IlGeneratorMethodDetails; }
-namespace J9 { typedef J9::IlGeneratorMethodDetails IlGeneratorMethodDetailsConnector; }
+namespace J9 {
+class IlGeneratorMethodDetails;
+typedef J9::IlGeneratorMethodDetails IlGeneratorMethodDetailsConnector;
+}
 #endif
 
 #include "ilgen/OMRIlGeneratorMethodDetails.hpp"
@@ -49,10 +51,12 @@ class TR_IlGenerator;
 class TR_InlineBlocks;
 class TR_J9VMBase;
 class TR_ResolvedMethod;
-namespace TR { class Compilation; }
-namespace TR { class IlGeneratorMethodDetails; }
-namespace TR { class ResolvedMethodSymbol; }
-namespace TR { class SymbolReferenceTable;}
+namespace TR {
+class Compilation;
+class IlGeneratorMethodDetails;
+class ResolvedMethodSymbol;
+class SymbolReferenceTable;
+}
 
 namespace J9
 {

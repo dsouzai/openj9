@@ -27,8 +27,10 @@
  */
 #ifndef J9_METHOD_CONNECTOR
 #define J9_METHOD_CONNECTOR
-namespace J9 { class Method; }
-namespace J9 { typedef J9::Method MethodConnector; }
+namespace J9 {
+class Method;
+typedef J9::Method MethodConnector;
+}
 #endif
 
 #include "compile/OMRMethod.hpp"

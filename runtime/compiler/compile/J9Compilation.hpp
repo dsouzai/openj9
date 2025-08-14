@@ -28,8 +28,10 @@
  */
 #ifndef TR_J9_COMPILATIONBASE_CONNECTOR
 #define TR_J9_COMPILATIONBASE_CONNECTOR
-namespace J9 { class Compilation; }
-namespace J9 { typedef J9::Compilation CompilationConnector; }
+namespace J9 {
+class Compilation;
+typedef J9::Compilation CompilationConnector;
+}
 #endif
 
 #include "compile/OMRCompilation.hpp"
@@ -58,7 +60,9 @@ class TR_ExternalValueProfileInfo;
 class TR_J9VM;
 class TR_AccessedProfileInfo;
 class TR_RelocationRuntime;
-namespace TR { class IlGenRequest; }
+namespace TR {
+class IlGenRequest;
+}
 #ifdef J9VM_OPT_JITSERVER
 struct SerializedRuntimeAssumption;
 class ClientSessionData;

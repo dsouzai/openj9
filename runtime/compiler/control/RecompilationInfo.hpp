@@ -44,9 +44,13 @@ class TR_FrontEnd;
 class TR_OpaqueMethodBlock;
 class TR_OptimizationPlan;
 class TR_ResolvedMethod;
-namespace TR { class Instruction; }
-namespace TR { class SymbolReference; }
-namespace J9 { class CompilationStrategy; }
+namespace TR {
+class Instruction;
+class SymbolReference;
+}
+namespace J9 {
+class CompilationStrategy;
+}
 
 // Bits to represent sampling mechanism in method return info field.
 // Bits 3, 4, 5, 6, 7 are reserved for this purpose (could use fewer)
@@ -68,7 +72,9 @@ static int32_t profilingFreqTable  [] = {  19,  29,   47,   47,   47,    53 }; /
 #define DEFAULT_PROFILING_COUNT     (profilingCountsTable[MAX_BACKEDGES])
 
 namespace OMR { class Recompilation; }
-namespace J9 { class Recompilation; }
+namespace J9 {
+class Recompilation;
+}
 
 class TR_JitBodyInvalidations
    {

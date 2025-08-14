@@ -28,7 +28,9 @@
 #include "optimizer/Optimization.hpp"
 #include "optimizer/OptimizationManager.hpp"
 
-namespace TR { class Block; }
+namespace TR {
+class Block;
+}
 
 /** \brief
  *     Transforms StringBuilder constructor calls to preallocate a heuristically determined capacity for StringBuilder

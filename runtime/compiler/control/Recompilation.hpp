@@ -25,8 +25,10 @@
 
 #include "control/J9Recompilation.hpp"
 
-namespace TR { class Recompilation; }
-namespace TR { class Compilation; }
+namespace TR {
+class Recompilation;
+class Compilation;
+}
 
 namespace TR
 {

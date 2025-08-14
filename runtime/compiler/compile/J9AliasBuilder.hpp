@@ -28,8 +28,10 @@
  */
 #ifndef J9_ALIASBUILDER_CONNECTOR
 #define J9_ALIASBUILDER_CONNECTOR
-namespace J9 { class AliasBuilder; }
-namespace J9 { typedef J9::AliasBuilder AliasBuilderConnector; }
+namespace J9 {
+class AliasBuilder;
+typedef J9::AliasBuilder AliasBuilderConnector;
+}
 #endif
 
 #include "compile/OMRAliasBuilder.hpp"
@@ -37,8 +39,10 @@ namespace J9 { typedef J9::AliasBuilder AliasBuilderConnector; }
 #include "infra/BitVector.hpp"
 #include "infra/Array.hpp"
 
-namespace TR { class SymbolReferenceTable; }
-namespace TR { class Compilation; }
+namespace TR {
+class SymbolReferenceTable;
+class Compilation;
+}
 
 namespace J9
 {

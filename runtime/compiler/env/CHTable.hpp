@@ -44,9 +44,11 @@ class TR_PersistentArrayFieldInfo;
 class TR_PersistentCHTable;
 class TR_ResolvedMethod;
 class TR_VirtualGuard;
-namespace TR { class Node; }
-namespace TR { class Symbol; }
-namespace TR { class SymbolReference; }
+namespace TR {
+class Node;
+class Symbol;
+class SymbolReference;
+}
 template <class T> class List;
 template <class T> class TR_Array;
 template <class T> class TR_ScratchList;

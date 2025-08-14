@@ -32,7 +32,9 @@
 #include "runtime/J9Runtime.hpp"
 #include "env/VMJ9.h"
 
-namespace TR { class PersistentInfo; }
+namespace TR {
+class PersistentInfo;
+}
 
 extern "C"
    {

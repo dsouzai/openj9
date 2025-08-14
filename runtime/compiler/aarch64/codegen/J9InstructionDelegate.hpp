@@ -27,8 +27,10 @@
  */
 #ifndef J9_INSTRUCTIONDELEGATE_CONNECTOR
 #define J9_INSTRUCTIONDELEGATE_CONNECTOR
-namespace J9 { namespace ARM64 { class InstructionDelegate; } }
-namespace J9 { typedef J9::ARM64::InstructionDelegate InstructionDelegateConnector; }
+namespace J9 {
+namespace ARM64 { class InstructionDelegate; }
+typedef J9::ARM64::InstructionDelegate InstructionDelegateConnector;
+}
 #else
 #error J9::ARM64::InstructionDelegate expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -36,9 +38,11 @@ namespace J9 { typedef J9::ARM64::InstructionDelegate InstructionDelegateConnect
 #include "compiler/codegen/J9InstructionDelegate.hpp"
 #include "infra/Annotations.hpp"
 
-namespace TR { class ARM64ImmSymInstruction; }
-namespace TR { class ARM64Trg1MemInstruction; }
-namespace TR { class ARM64MemInstruction; }
+namespace TR {
+class ARM64ImmSymInstruction;
+class ARM64Trg1MemInstruction;
+class ARM64MemInstruction;
+}
 
 namespace J9
 {

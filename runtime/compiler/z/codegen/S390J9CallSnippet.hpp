@@ -28,9 +28,11 @@
 #include "z/codegen/S390Instruction.hpp"
 
 class TR_MHJ2IThunk;
-namespace TR { class CodeGenerator; }
-namespace TR { class LabelSymbol; }
-namespace TR { class Node; }
+namespace TR {
+class CodeGenerator;
+class LabelSymbol;
+class Node;
+}
 
 namespace TR {
 

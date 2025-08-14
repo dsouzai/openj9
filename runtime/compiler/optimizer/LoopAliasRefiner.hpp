@@ -36,10 +36,12 @@
 
 class TR_InductionVariable;
 class TR_RegionStructure;
-namespace TR { class Block; }
-namespace TR { class Compilation; }
-namespace TR { class Optimization; }
-namespace TR { class TreeTop; }
+namespace TR {
+class Block;
+class Compilation;
+class Optimization;
+class TreeTop;
+}
 
 
 /*

@@ -27,8 +27,10 @@
  */
 #ifndef J9_INSTRUCTIONDELEGATE_CONNECTOR
 #define J9_INSTRUCTIONDELEGATE_CONNECTOR
-namespace J9 { namespace X86 { class InstructionDelegate; } }
-namespace J9 { typedef J9::X86::InstructionDelegate InstructionDelegateConnector; }
+namespace J9 {
+namespace X86 { class InstructionDelegate; }
+typedef J9::X86::InstructionDelegate InstructionDelegateConnector;
+}
 #else
 #error J9::X86::InstructionDelegate expected to be a primary connector, but a J9 connector is already defined
 #endif

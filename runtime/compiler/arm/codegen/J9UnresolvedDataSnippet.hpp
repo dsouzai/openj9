@@ -28,8 +28,10 @@
  */
 #ifndef J9_UNRESOLVEDDATASNIPPET_CONNECTOR
 #define J9_UNRESOLVEDDATASNIPPET_CONNECTOR
-namespace J9 { namespace ARM { class UnresolvedDataSnippet; } }
-namespace J9 { typedef J9::ARM::UnresolvedDataSnippet UnresolvedDataSnippetConnector; }
+namespace J9 {
+namespace ARM { class UnresolvedDataSnippet; }
+typedef J9::ARM::UnresolvedDataSnippet UnresolvedDataSnippetConnector;
+}
 #else
 #error J9::ARM::UnresolvedDataSnippet expected to be a primary connector, but an J9 connector is already defined
 #endif

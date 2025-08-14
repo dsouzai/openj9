@@ -59,7 +59,9 @@
 #include "runtime/J9Runtime.hpp"
 #include "env/CompilerEnv.hpp"
 
-namespace TR { class S390WritableDataSnippet; }
+namespace TR {
+class S390WritableDataSnippet;
+}
 
 J9::Z::UnresolvedDataSnippet::UnresolvedDataSnippet(
       TR::CodeGenerator *cg,

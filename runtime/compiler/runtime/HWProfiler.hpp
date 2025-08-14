@@ -57,7 +57,9 @@
 #endif
 
 class TR_OpaqueMethodBlock;
-namespace TR { class Monitor; }
+namespace TR {
+class Monitor;
+}
 
 class TR_HWPRecord
    {
