@@ -297,7 +297,8 @@ enum MessageType : uint16_t
 
    AOTCacheMap_request,
    AOTCacheMap_reply,
-
+   AOTCacheMapWithDeps_request,
+   AOTCacheMapWithDeps_reply,
 
    MessageType_MAXTYPE
    };

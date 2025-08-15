@@ -27,8 +27,10 @@
 #include "control/JITServerHelpers.hpp"
 #include "compile/Compilation.hpp"
 #include "env/ClassLoaderTable.hpp"
+#include "env/DependencyTable.hpp"
 #include "env/StackMemoryRegion.hpp"
 #include "env/VerboseLog.hpp"
+#include "env/VMAccessCriticalSection.hpp"
 #include "infra/CriticalSection.hpp"
 #include "runtime/CodeCacheExceptions.hpp"
 #include "runtime/JITServerAOTDeserializer.hpp"
@@ -107,6 +109,45 @@ JITServerAOTDeserializer::classLoadTRMemory()
    return _classLoadTRMemory;
    }
 
+bool
+JITServerAOTDeserializer::deserialize(SerializedAOTDependencyRecord *record, DeserializerHelper *helper, bool &wasReset)
+   {
+   TR::StackMemoryRegion stackMemoryRegion(*helper->_trMemory);
+   Vector<uintptr_t> newIds(Vector<uintptr_t>::allocator_type(helper->_trMemory->currentStackRegion()));
+   newIds.reserve(record->numSerializationRecords());
+   bool failed = false;
+
+   // process serialization records
+   const std::string & dependencySerializationRecords = record->serializationRecords();
+   auto sRecords = record->serializationRecords().data();
+   for (size_t i = 0; i < record->numSerializationRecords(); ++i)
+      {
+      auto serializedRecord = AOTSerializationRecord::get(sRecords);
+      bool isNew = false;
+
+      if (!cacheRecord(serializedRecord, helper, isNew, wasReset))
+         {
+         failed = true;
+         break;
+         }
+      if (isNew)
+         newIds.push_back(AOTSerializationRecord::idAndType(serializedRecord->id(), serializedRecord->type()));
+
+      sRecords += serializedRecord->size();
+      }
+
+   if (!wasReset)
+      {
+      OMR::CriticalSection cs(getNewKnownIdsMonitor());
+      if (!deserializerWasReset(helper->_fej9, wasReset))
+         _newKnownIds.insert(newIds.begin(), newIds.end());
+      }
+
+   if (failed)
+      return deserializationFailure(helper, wasReset);
+
+   return true;
+   }
 
 bool
 JITServerAOTDeserializer::deserializerWasReset(TR_J9VMBase *vm, bool &wasReset)
@@ -115,8 +156,7 @@ JITServerAOTDeserializer::deserializerWasReset(TR_J9VMBase *vm, bool &wasReset)
    }
 
 bool
-JITServerAOTDeserializer::deserializationFailure(const SerializedAOTMethod *method,
-                                                 DeserializerHelper *helper, bool wasReset)
+JITServerAOTDeserializer::deserializationFailure(DeserializerHelper *helper, bool wasReset)
    {
    ++_numDeserializationFailures;
 
@@ -214,11 +254,11 @@ JITServerAOTDeserializer::deserialize(SerializedAOTMethod *method, const std::ve
       }
 
    if (failed)
-      return deserializationFailure(method, helper, wasReset);
+      return deserializationFailure(helper, wasReset);
 
    // Update SCC offsets in relocation data so that the method can be stored in the local SCC and AOT-loaded
    if (!updateSCCOffsets(method, helper, wasReset, usesSVM))
-      return deserializationFailure(method, helper, wasReset);
+      return deserializationFailure(helper, wasReset);
 
    if (TR::Options::getVerboseOption(TR_VerboseJITServer))
       TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Deserialized AOT method %s", helper->_comp->signature());
@@ -1215,7 +1255,8 @@ JITServerNoSCCAOTDeserializer::JITServerNoSCCAOTDeserializer(TR_PersistentClassL
    _methodIdMap(decltype(_methodIdMap)::allocator_type(TR::Compiler->persistentAllocator())),
    _methodPtrMap(decltype(_methodPtrMap)::allocator_type(TR::Compiler->persistentAllocator())),
    _classChainMap(decltype(_classChainMap)::allocator_type(TR::Compiler->persistentAllocator())),
-   _wellKnownClassesMap(decltype(_wellKnownClassesMap)::allocator_type(TR::Compiler->persistentAllocator()))
+   _wellKnownClassesMap(decltype(_wellKnownClassesMap)::allocator_type(TR::Compiler->persistentAllocator())),
+   _depRecordId(decltype(_depRecordId)::allocator_type(TR::Compiler->persistentAllocator()))
    { }
 
 
@@ -1318,6 +1359,21 @@ JITServerNoSCCAOTDeserializer::getGeneratedClass(J9ClassLoader *loader, uintptr_
    return ramClass;
    }
 
+bool
+JITServerNoSCCAOTDeserializer::dependencyNeedsClassInitialized(uintptr_t offset)
+   {
+   bool ret = false;
+
+   OMR::CriticalSection cs(getClassMonitor());
+   auto it = _classIdMap.find(offset);
+   ClassEntry &entry = it->second;
+   if (entry._ramClass)
+      {
+      ret = entry._needsInitialization;
+      }
+
+   return ret;
+   }
 
 void
 JITServerNoSCCAOTDeserializer::clearCachedData()
@@ -1437,11 +1493,11 @@ JITServerNoSCCAOTDeserializer::cacheRecord(const ClassSerializationRecord *recor
       //    new to the server if we fail to cache it, so the server will keep sending us this exact class record).
       // 2. If ramClass ever gets unloaded, we want invalidateClass to be able to remove both entries from the maps, so that
       //    in subsequent deserializations we can attempt to find a new candidate ramClass that might end up matching after all.
-      addToMaps(_classIdMap, _classPtrMap, it, record->id(), { NULL, record->classLoaderId() }, ramClass);
+      addToMaps(_classIdMap, _classPtrMap, it, record->id(), { NULL, record->classLoaderId(), false }, ramClass);
       return false;
       }
 
-   addToMaps(_classIdMap, _classPtrMap, it, record->id(), { ramClass, record->classLoaderId() }, ramClass);
+   addToMaps(_classIdMap, _classPtrMap, it, record->id(), { ramClass, record->classLoaderId(), false }, ramClass);
 
    if (TR::Options::getVerboseOption(TR_VerboseJITServer))
       TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
@@ -1712,6 +1768,91 @@ JITServerNoSCCAOTDeserializer::updateSCCOffsets(SerializedAOTMethod *method, Des
       }
 
    return true;
+   }
+
+bool
+JITServerNoSCCAOTDeserializer::populateAOTMethodDependencies(SerializedAOTDependencyRecord *record, TR::CompilationInfo *compInfo, DeserializerHelper *helper, bool &wasReset)
+   {
+   if (TR::Options::getCmdLineOptions()->getOption(TR_DisableDependencyTracking))
+      return false;
+
+   // Process serialization records associated with the dependencies
+   if (!deserialize(record, helper, wasReset))
+      return false;
+
+   // Allocate array of method dependencies to be populated
+   uintptr_t * methodDependencies = (uintptr_t *)jitPersistentAlloc(sizeof(uintptr_t) * record->numDependencies());
+
+   // process dependencies
+   const std::string & serializedAOTDependencies = record->serializedAOTDependencies();
+   const SerializedAOTDependency * deps = reinterpret_cast<const SerializedAOTDependency *>(record->serializedAOTDependencies().data());
+   for (size_t i = 0; i < record->numDependencies(); ++i)
+      {
+      // Get the Serialized Method Dependency
+      const SerializedAOTDependency &serializedDep = deps[i];
+
+      TR_ASSERT_FATAL(serializedDep.recordType() == AOTSerializationRecordType::Class, "Dependency %d not of type AOTSerializationRecordType::Class", serializedDep.recordType());
+
+      if (!revalidateRecord(serializedDep.recordType(), serializedDep.recordId(), helper->_fej9, wasReset))
+         return false;
+
+      bool needsInitialization = serializedDep.ensureClassIsInitialized();
+      if (needsInitialization)
+         {
+         // Update _needsInitialization field in the ClassEntry
+         OMR::CriticalSection cs(getClassMonitor());
+         auto it = _classIdMap.find(serializedDep.recordId());
+         ClassEntry &entry = it->second;
+         if (!deserializerWasReset(helper->_fej9, wasReset))
+            {
+            if (entry._ramClass)
+               {
+               entry._needsInitialization = entry._needsInitialization || needsInitialization;
+               }
+            }
+         else
+            {
+            return false;
+            }
+         }
+
+      methodDependencies[i] = serializedDep.recordId();
+      }
+
+   auto clazz = findInMap(_classIdMap, record->definingClassId(), getClassMonitor(), helper->_fej9, wasReset)._ramClass;
+   if (wasReset)
+      return false;
+
+   J9Method *j9method;
+      {
+      TR::VMAccessCriticalSection cs(helper->_fej9); // Prevent HCR
+      j9method = &((J9Method *)helper->_fej9->getMethods((TR_OpaqueClassBlock *)clazz))[record->index()];
+      }
+
+   auto j9rommethod = J9_ROM_METHOD_FROM_RAM_METHOD(j9method);
+
+   bool dependenciesSatisfied;
+   auto dependencyTable = compInfo->getPersistentInfo()->getAOTDependencyTable();
+   dependencyTable->trackMethod(helper->_vmThread, j9method, j9rommethod, dependenciesSatisfied, methodDependencies);
+
+   return true;
+   }
+
+bool
+JITServerNoSCCAOTDeserializer::deserializeDependencies(std::vector<SerializedAOTDependencyRecord> &cachedMethods, TR::CompilationInfo *compInfo, DeserializerHelper *helper)
+   {
+   bool success = true;
+   bool wasReset = false;
+   for (auto & record : cachedMethods)
+      {
+      populateAOTMethodDependencies(&record, compInfo, helper, wasReset);
+      if (wasReset)
+         {
+         success = false;
+         break;
+         }
+      }
+   return success;
    }
 
 bool

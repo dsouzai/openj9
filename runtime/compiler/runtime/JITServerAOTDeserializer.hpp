@@ -116,6 +116,10 @@ public:
    // Get the RAMClass for a previously deserialized ROMClass offset for a runtime-generated class
    virtual J9Class *getGeneratedClass(J9ClassLoader *loader, uintptr_t romClassSccOffset, DeserializerHelper *helper) = 0;
 
+   virtual bool dependencyNeedsClassInitialized(uintptr_t offset) = 0;
+
+   virtual bool deserializeDependencies(std::vector<SerializedAOTDependencyRecord> &cachedMethods, TR::CompilationInfo *compInfo, DeserializerHelper *helper) = 0;
+
    void incNumCacheBypasses() { ++_numCacheBypasses; }
    void incNumCacheMisses() { ++_numCacheMisses; }
    size_t getNumDeserializedMethods() const { return _numDeserializedMethods; }
@@ -126,6 +130,9 @@ public:
    void unregisterThreadToNotifyOnReset(J9VMThread *vmThread);
 
 protected:
+   bool deserialize(SerializedAOTDependencyRecord *record, DeserializerHelper *helper, bool &wasReset);
+
+
    // Keeps track of runtime-generated classes for a specific class loader and deterministic class name prefix.
    // E.g., for lambdas there will be one instance of this struct for each host class that defines any lambdas.
    struct GeneratedClassMap
@@ -140,7 +147,7 @@ protected:
       };
 
    bool deserializerWasReset(TR_J9VMBase *vm, bool &wasReset);
-   bool deserializationFailure(const SerializedAOTMethod *method, DeserializerHelper *helper, bool wasReset);
+   bool deserializationFailure(DeserializerHelper *helper, bool wasReset);
 
    // Returns true if ROMClass hash matches the one in the serialization record
    bool isClassMatching(const ClassSerializationRecord *record, J9Class *ramClass, DeserializerHelper *helper);
@@ -206,6 +213,9 @@ private:
    // Returns false on failure
    virtual bool updateSCCOffsets(SerializedAOTMethod *method, DeserializerHelper *helper, bool &wasReset, bool &usesSVM) = 0;
 
+   // Returns false on failure
+   virtual bool populateAOTMethodDependencies(SerializedAOTDependencyRecord *record, TR::CompilationInfo *compInfo, DeserializerHelper *helper, bool &wasReset) = 0;
+
    TR_PersistentClassLoaderTable *const _loaderTable;
 
    // Scratch memory used in the class load hook to pack generated ROMClasses. Synchronized with the class table mutex.
@@ -269,6 +279,11 @@ public:
 
    virtual J9Class *getGeneratedClass(J9ClassLoader *loader, uintptr_t romClassSccOffset, DeserializerHelper *helper) override;
 
+   // TODO
+   virtual bool dependencyNeedsClassInitialized(uintptr_t offset) override { return false; }
+
+   virtual bool deserializeDependencies(std::vector<SerializedAOTDependencyRecord> &cachedMethods, TR::CompilationInfo *compInfo, DeserializerHelper *helper) override { return false; }
+
 private:
    virtual void clearCachedData() override;
 
@@ -302,6 +317,8 @@ private:
 
    virtual bool updateSCCOffsets(SerializedAOTMethod *method, DeserializerHelper *helper, bool &wasReset, bool &usesSVM) override;
 
+   // TODO
+   virtual bool populateAOTMethodDependencies(SerializedAOTDependencyRecord *record, TR::CompilationInfo *compInfo, DeserializerHelper *helper, bool &wasReset) override { return false; }
    // Returns -1 on failure
    uintptr_t getSCCOffset(AOTSerializationRecordType type, uintptr_t id, DeserializerHelper *helper, bool &wasReset);
 
@@ -347,6 +364,10 @@ public:
 
    virtual J9Class *getGeneratedClass(J9ClassLoader *loader, uintptr_t romClassSccOffset, DeserializerHelper *helper) override;
 
+   virtual bool dependencyNeedsClassInitialized(uintptr_t offset) override;
+
+   virtual bool deserializeDependencies(std::vector<SerializedAOTDependencyRecord> &cachedMethods, TR::CompilationInfo *compInfo, DeserializerHelper *helper) override;
+
    static uintptr_t offsetId(uintptr_t offset)
       { return AOTSerializationRecord::getId(offset); }
    static AOTSerializationRecordType offsetType(uintptr_t offset)
@@ -358,6 +379,7 @@ private:
       // NULL if class ID is invalid (was not found or its hash didn't match), or class was unloaded
       J9Class *_ramClass;
       uintptr_t _classLoaderId;
+      bool _needsInitialization;
       };
 
    virtual void clearCachedData() override;
@@ -370,6 +392,8 @@ private:
    virtual bool cacheRecord(const ThunkSerializationRecord *record, DeserializerHelper *helper, bool &isNew, bool &wasReset) override;
 
    virtual bool updateSCCOffsets(SerializedAOTMethod *method, DeserializerHelper *helper, bool &wasReset, bool &usesSVM) override;
+   virtual bool populateAOTMethodDependencies(SerializedAOTDependencyRecord *record, TR::CompilationInfo *compInfo, DeserializerHelper *helper, bool &wasReset) override;
+
    bool revalidateRecord(AOTSerializationRecordType type, uintptr_t id, TR_J9VMBase *vm, bool &wasReset);
 
    void getRAMClassChain(DeserializerHelper *helper, J9Class *clazz, J9Class **chainBuffer, size_t &chainLength);
@@ -403,6 +427,8 @@ private:
    PersistentUnorderedMap<uintptr_t/*ID*/, uintptr_t * /*deserializer chain*/> _classChainMap;
 
    PersistentUnorderedMap<uintptr_t/*ID*/, uintptr_t * /*deserializer chain offsets*/> _wellKnownClassesMap;
+
+   PersistentUnorderedSet<uintptr_t> _depRecordId;
    };
 
 

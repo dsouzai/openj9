@@ -47,6 +47,8 @@ public:
 
 #else
 
+namespace TR { class CompilationInfo; }
+
 struct MethodEntry
    {
    // The number of dependencies left to be satisfied
@@ -91,7 +93,7 @@ class TR_AOTDependencyTable
    {
 public:
    TR_PERSISTENT_ALLOC(TR_Memory::PersistentCHTable)
-   TR_AOTDependencyTable(TR_J9SharedCache *sharedCache);
+   TR_AOTDependencyTable(TR_J9SharedCache *sharedCache, TR::CompilationInfo *compInfo);
 
    // If the given method has an AOT body with stored dependencies in the local
    // SCC, trackMethod() will determine how many are currently satisfied. If all
@@ -101,7 +103,7 @@ public:
    //
    // Returns true if the method had stored dependencies and either they were
    // all satisfied immediately, or the method was successfully tracked.
-   bool trackMethod(J9VMThread *vmThread, J9Method *method, J9ROMMethod *romMethod, bool &dependenciesSatisfied);
+   bool trackMethod(J9VMThread *vmThread, J9Method *method, J9ROMMethod *romMethod, bool &dependenciesSatisfied, const uintptr_t *methodDependencies = NULL);
 
    // Inform the dependency table that a method is being compiled, so it can
    // stop tracking the method. Will invalidate the MethodEntryRef pointer for
@@ -125,22 +127,25 @@ public:
    J9Class *findCandidateWithChainAndLoader(TR::Compilation *comp, uintptr_t classChainOffset, void *classLoaderChain);
    J9Class *findCandidateWithChainAndLoader(TR::Compilation *comp, uintptr_t *classChain, void *classLoaderChain);
 
-   static uintptr_t decodeDependencyOffset(uintptr_t offset)
-      {
-      return offset | 1;
-      }
-   static uintptr_t decodeDependencyOffset(uintptr_t offset, bool &needsInitialization)
-      {
-      needsInitialization = (offset & 1) == 1;
-      return decodeDependencyOffset(offset);
-      }
+   // encode an SCC class chain offset as a dependency offset
    static uintptr_t encodeDependencyOffset(uintptr_t offset, bool needsInitialization)
       {
-      return needsInitialization ? offset : (offset & ~1);
+      uintptr_t rawOffset = TR_J9SharedCache::decodeClassChainoffset(offset);
+      uintptr_t encodedRawOffset = needsInitialization ? (offset | 1) : offset;
+      return encodedRawOffset;
       }
 
    void printStats();
+
 private:
+   static uintptr_t decodeDependencyOffset(uintptr_t encodedRawOffset)
+      {
+      uintptr_t rawOffset = encodedRawOffset & ~1;
+      return TR_J9SharedCache::encodeClassChainOffset(rawOffset);
+      }
+
+   static uintptr_t decodeDependencyOffset(uintptr_t offset, bool &needsInitialization);
+
    bool isActive() const { return _isActive; }
    void setInactive() { _isActive = false; }
 
@@ -190,6 +195,8 @@ private:
 
    void registerSatisfaction(PersistentUnorderedSet<MethodEntryRef> waitingMethods);
    void registerDissatisfaction(PersistentUnorderedSet<MethodEntryRef> waitingMethods);
+
+   static TR::CompilationInfo * _compInfo;
 
    // Initially true, and set to false if there is a failure to allocate.
    bool _isActive;

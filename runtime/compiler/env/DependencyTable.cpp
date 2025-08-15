@@ -26,23 +26,48 @@
 #include "env/DependencyTable.hpp"
 #include "env/J9SharedCache.hpp"
 #include "env/PersistentCHTable.hpp"
+#if defined(J9VM_OPT_JITSERVER)
+#include "runtime/JITServerAOTDeserializer.hpp"
+#endif
 
 #if !defined(PERSISTENT_COLLECTIONS_UNSUPPORTED)
 
-TR_AOTDependencyTable::TR_AOTDependencyTable(TR_J9SharedCache *sharedCache) :
+TR::CompilationInfo * TR_AOTDependencyTable::_compInfo = NULL;
+
+uintptr_t
+TR_AOTDependencyTable::decodeDependencyOffset(uintptr_t offset, bool &needsInitialization)
+   {
+#if defined(J9VM_OPT_JITSERVER)
+   if (_compInfo->getPersistentInfo()->getJITServerAOTCacheIgnoreLocalSCC())
+      {
+      needsInitialization = _compInfo->getJITServerAOTDeserializer()->dependencyNeedsClassInitialized(offset);
+      return offset;
+      }
+   else
+#endif
+      {
+      needsInitialization = (offset & 1) == 1;
+      return decodeDependencyOffset(offset);
+      }
+   }
+
+TR_AOTDependencyTable::TR_AOTDependencyTable(TR_J9SharedCache *sharedCache, TR::CompilationInfo *compInfo) :
    _isActive(true),
    _sharedCache(sharedCache),
    _tableMonitor(TR::Monitor::create("JIT-AOTDependencyTableMonitor")),
    _offsetMap(decltype(_offsetMap)::allocator_type(TR::Compiler->persistentAllocator())),
    _methodMap(decltype(_methodMap)::allocator_type(TR::Compiler->persistentAllocator())),
    _pendingLoads(decltype(_pendingLoads)::allocator_type(TR::Compiler->persistentAllocator()))
-   { }
+   {
+   _compInfo = compInfo;
+   }
 
 bool
-TR_AOTDependencyTable::trackMethod(J9VMThread *vmThread, J9Method *method, J9ROMMethod *romMethod, bool &dependenciesSatisfied)
+TR_AOTDependencyTable::trackMethod(J9VMThread *vmThread, J9Method *method, J9ROMMethod *romMethod, bool &dependenciesSatisfied, const uintptr_t *methodDependencies)
    {
-   const uintptr_t *methodDependencies = NULL;
-   if (!_sharedCache->methodHasAOTBodyWithDependencies(vmThread, romMethod, methodDependencies))
+   // Collect method dependences if they are not passed in
+   bool hasDeps = methodDependencies ? true : _sharedCache->methodHasAOTBodyWithDependencies(vmThread, romMethod, methodDependencies);
+   if (!hasDeps)
       return false;
 
    if (!methodDependencies)
@@ -70,7 +95,14 @@ TR_AOTDependencyTable::trackMethod(J9VMThread *vmThread, J9Method *method, J9ROM
          {
          bool needsInitialization = false;
          uintptr_t chainOffset = decodeDependencyOffset(methodDependencies[i], needsInitialization);
-         uintptr_t offset = _sharedCache->startingROMClassOffsetOfClassChain(_sharedCache->pointerFromOffsetInSharedCache(chainOffset));
+
+         uintptr_t offset =
+#if defined(J9VM_OPT_JITSERVER)
+           _compInfo->getPersistentInfo()->getJITServerAOTCacheIgnoreLocalSCC()
+           ? chainOffset :
+#endif
+            _sharedCache->startingROMClassOffsetOfClassChain(_sharedCache->pointerFromOffsetInSharedCache(chainOffset));
+
          auto entry = getOffsetEntry(offset, true);
          if (needsInitialization)
             entry->_waitingInitMethods.insert(methodEntry);
