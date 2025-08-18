@@ -1139,6 +1139,7 @@ bool TR_InlinerBase::tryToGenerateILForMethod (TR::ResolvedMethodSymbol* calleeS
 
 void TR_InlinerBase::getBorderFrequencies(int32_t &hotBorderFrequency, int32_t &coldBorderFrequency, TR_ResolvedMethod * calleeResolvedMethod, TR::Node *callNode)
    {
+   bool smallerFreqs = false;
    if (comp()->getMethodHotness() > warm)
       {
       hotBorderFrequency = comp()->isServerInlining() ? 2000 : 2500;
@@ -1155,6 +1156,7 @@ void TR_InlinerBase::getBorderFrequencies(int32_t &hotBorderFrequency, int32_t &
       {
       if (comp()->isServerInlining())
          {
+         smallerFreqs = true;
          hotBorderFrequency = 2000;
          coldBorderFrequency = 50;
          }
@@ -1165,15 +1167,24 @@ void TR_InlinerBase::getBorderFrequencies(int32_t &hotBorderFrequency, int32_t &
          }
       }
 
-   // Did the user specify specific values? If so, use those
-   if (comp()->getOptions()->getInlinerBorderFrequency() >= 0)
-      hotBorderFrequency = comp()->getOptions()->getInlinerBorderFrequency();
-   //if (comp()->getOptions()->getInlinerColdBorderFrequency() >= 0)
-   //   coldBorderFrequency = comp()->getOptions()->getInlinerColdBorderFrequency();
-   if (comp()->getOptions()->getInlinerVeryColdBorderFrequency() >= 0)
-      coldBorderFrequency = comp()->getOptions()->getInlinerVeryColdBorderFrequency();
-
-
+   if (smallerFreqs)
+      {
+      // Did the user specify specific values? If so, use those
+      if (comp()->getOptions()->getSmallInlinerBorderFrequency() >= 0)
+         hotBorderFrequency = comp()->getOptions()->getSmallInlinerBorderFrequency();
+      if (comp()->getOptions()->getSmallInlinerVeryColdBorderFrequency() >= 0)
+         coldBorderFrequency = comp()->getOptions()->getSmallInlinerVeryColdBorderFrequency();
+      }
+   else
+      {
+      // Did the user specify specific values? If so, use those
+      if (comp()->getOptions()->getInlinerBorderFrequency() >= 0)
+         hotBorderFrequency = comp()->getOptions()->getInlinerBorderFrequency();
+      //if (comp()->getOptions()->getInlinerColdBorderFrequency() >= 0)
+      //   coldBorderFrequency = comp()->getOptions()->getInlinerColdBorderFrequency();
+      if (comp()->getOptions()->getInlinerVeryColdBorderFrequency() >= 0)
+         coldBorderFrequency = comp()->getOptions()->getInlinerVeryColdBorderFrequency();
+      }
 
    return;
    }
