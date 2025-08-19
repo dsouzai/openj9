@@ -448,6 +448,134 @@ private:
    uint8_t _varSizedData[];
    }; // struct SerializedAOTMethod
 
+/**
+ * \brief This struct contains data to materialize dependencies on the client
+ *
+ *
+ */
+struct SerializedAOTDependencyRecord
+   {
+public:
+   /**
+    * \brief This struct encapsulates data within the SerializedAOTDependencyRecord
+    *        needed during deserialization.
+    *
+    * This structure contains four main components:
+    *
+    * 1. A Metadata struct
+    * 2. A std::string containing the serialization records needed to deserialize
+    *    the serialized dependencies. Note, this is not the full set of serialization
+    *    records needed to deserialize a SerializedAOTMethod.
+    * 3. A std::string containing the serialized aot dependencies
+    * 4. A std::string containing the signature of the medthod associated with
+    *    this record.
+    *
+    * This allows the AOTCache to return multiple SerializedAOTDependencyRecords
+    * in a std::vector. The std::strings containing the serialization records
+    * and serialized aot dependencies can be iterated since each record contains
+    * information about its type and its size.
+    */
+   struct Metadata
+      {
+      /**
+       * \brief SerializedAOTDependencyRecord::Metadata constructor
+       *
+       * \param definingClassId The ID of the defining class of the method
+       *                        this Metadata struct is associated with.
+       *
+       * \param index The index of this method in the defining class defined
+       *              by definingClassId.
+       *
+       * \param aotHeaderId The AOT Header ID associated with the client.
+       *
+       * \param numSerializationRecords The number of serialization records needed
+       *                                to deserialize the dependencies associated
+       *                                with this metadata struct.
+       *
+       * \param numDependencies The number of dependencies associated with this
+       *                        metadata struct.
+       */
+      Metadata(uintptr_t definingClassId, uint32_t index, uintptr_t aotHeaderId, size_t numSerializationRecords, size_t numDependencies)
+      :
+      _definingClassId(definingClassId),
+      _index(index),
+      _aotHeaderId(aotHeaderId),
+      _numSerializationRecords(numSerializationRecords),
+      _numDependencies(numDependencies)
+      {}
+
+      const uintptr_t _definingClassId;
+      // Index in the array of methods of the defining class
+      const uint32_t _index;
+      // Represents the TR_AOTHeader of the client JVM that this method was originally compiled for
+      const uintptr_t _aotHeaderId;
+      const size_t _numSerializationRecords;
+      const size_t _numDependencies;
+      };
+
+   /**
+    * \brief SerializedAOTDependencyRecord constructor
+    *
+    * \param serializedMethod Reference to the SerializedAOTMethod this
+    *                         serialized dependency record is associated with.
+    *
+    * \param definingClassId The ID of the defining class of the method this
+    *                        serialized dependency record is associated with.
+    *
+    * \param numSerializationRecords The number of serialization records needed
+    *                                to deserialize the dependencies associated
+    *                                with this record.
+    *
+    * \param serializationRecords The serialization records needed to deserialize
+    *                             the dependencies associated with this record.
+    *                             Note, these records are not the full set of
+    *                             serialization records needed to deserialize
+    *                             the SerializedAOTMethod this record is
+    *                             associated with.
+    *
+    * \param serializedAOTDependencies The serialized AOT dependencies associated
+    *                                  with this record.
+    */
+   SerializedAOTDependencyRecord(const SerializedAOTMethod& serializedMethod, uintptr_t definingClassId, size_t numSerializationRecords, std::string serializationRecords, std::string serializedAOTDependencies);
+
+   /**
+    * \brief SerializedAOTDependencyRecord constructor
+    *
+    * \param metadata A populated SerializedAOTDependencyRecord::Metadata struct
+    *                 containing data associated with this serialized dependency
+    *                 record.
+    *
+    * \param signature The signature of the method associated with this record.
+    *
+    * \param serializationRecords The serialization records needed to deserialize
+    *                             the dependencies associated with this record.
+    *                             Note, these records are not the full set of
+    *                             serialization records needed to deserialize
+    *                             the SerializedAOTMethod this record is
+    *                             associated with.
+    *
+    * \param serializedAOTDependencies The serialized AOT dependencies associated
+    *                                  with this record.
+    */
+   SerializedAOTDependencyRecord(const Metadata metadata, std::string signature, std::string serializationRecords, std::string serializedAOTDependencies);
+
+   const Metadata metadata() const { return _metadata; }
+   uintptr_t definingClassId() const { return _metadata._definingClassId; }
+   uint32_t index() const { return _metadata._index; }
+   uintptr_t aotHeaderId() const { return _metadata._aotHeaderId; }
+   size_t numSerializationRecords() const { return _metadata._numSerializationRecords; }
+   size_t numDependencies() const { return _metadata._numDependencies; }
+   const std::string & serializationRecords() const { return _serializationRecords; }
+   const std::string & serializedAOTDependencies() const { return _serializedAOTDependencies; }
+   const std::string & signature() const { return _signature; }
+
+private:
+   const Metadata _metadata;
+   const std::string _serializationRecords;
+   const std::string _serializedAOTDependencies;
+   const std::string _signature;
+   };
+
 // Helper macros to make the code for printing class and method names to vlog more concise
 #define RECORD_NAME(record) (int)(record)->nameLength(), (const char *)(record)->name()
 #define LENGTH_AND_DATA(str) J9UTF8_LENGTH(str), (const char *)J9UTF8_DATA(str)

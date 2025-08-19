@@ -453,6 +453,29 @@ SerializedAOTMethod::isValidHeader(const JITServerAOTCacheReadContext &context) 
           context._aotHeaderRecords[aotHeaderId()];
    }
 
+SerializedAOTDependencyRecord::SerializedAOTDependencyRecord(const SerializedAOTMethod &serializedMethod,
+                                                             uintptr_t definingClassId,
+                                                             size_t numSerializationRecords,
+                                                             std::string serializationRecords,
+                                                             std::string serializedAOTDependencies)
+   :
+   _metadata(definingClassId, serializedMethod.index(), serializedMethod.aotHeaderId(), numSerializationRecords, serializedMethod.numDependencies()),
+   _serializationRecords(serializationRecords),
+   _serializedAOTDependencies(serializedAOTDependencies),
+   _signature(serializedMethod.signature())
+   {}
+
+SerializedAOTDependencyRecord::SerializedAOTDependencyRecord(const SerializedAOTDependencyRecord::Metadata metadata,
+                                                             std::string signature,
+                                                             std::string serializationRecords,
+                                                             std::string serializedAOTDependencies)
+   :
+   _metadata(metadata),
+   _serializationRecords(serializationRecords),
+   _serializedAOTDependencies(serializedAOTDependencies),
+   _signature(signature)
+   {}
+
 CachedAOTMethod::CachedAOTMethod(const AOTCacheClassChainRecord *definingClassChainRecord,
                                  uint32_t index,
                                  TR_Hotness optLevel,
