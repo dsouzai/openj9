@@ -1226,12 +1226,84 @@ JITServerAOTCache::getSerializationRecords(const CachedAOTMethod *method, const 
    // Keep track of visited records to avoid duplicates
    UnorderedSet<const AOTCacheRecord *> newRecords(newRecordsAllocator);
 
-   addRecord(method->definingClassChainRecord(), result, newRecords, knownIds);
+   size_t size = 0;
+
+   addRecord(method->definingClassChainRecord(), result, newRecords, knownIds, size);
    //NOTE: AOT header record doesn't need to be sent to the client.
    //      If the cached method was found for this client's compilation
    //      request, its AOT header is already guaranteed to be compatible.
    for (size_t i = 0; i < method->data().numRecords(); ++i)
-      addRecord(method->records()[i], result, newRecords, knownIds);
+      addRecord(method->records()[i], result, newRecords, knownIds, size);
+
+   // Add serialization records for dependencies
+   //
+   // TODO: Perhaps this only makes sense to do when not using server offsets?
+   for (size_t i = 0; i < method->data().numDependencies(); ++i)
+      addRecord(method->deps()[i], result, newRecords, knownIds, size);
+
+   return result;
+   }
+
+std::pair<std::string, size_t>
+JITServerAOTCache::getDependencySerializationRecords(const CachedAOTMethod *method, const KnownIdSet &knownIds,
+                                                     TR_Memory &trMemory) const
+   {
+   VectorAllocator<const AOTSerializationRecord *> resultAllocator(trMemory.heapMemoryRegion());
+   Vector<const AOTSerializationRecord *> result(resultAllocator);
+
+   TR::StackMemoryRegion stackMemoryRegion(trMemory);
+   UnorderedSetAllocator<const AOTCacheRecord *> newRecordsAllocator(trMemory.currentStackRegion());
+   // Keep track of visited records to avoid duplicates
+   UnorderedSet<const AOTCacheRecord *> newRecords(newRecordsAllocator);
+
+   size_t size = 0;
+
+   // Collect records for dependencies
+   for (size_t i = 0; i < method->data().numDependencies(); ++i)
+      addRecord(method->deps()[i], result, newRecords, knownIds, size);
+
+   // Do the actual serialization
+   std::string serializationRecords;
+   serializationRecords.reserve(size);
+   for (auto record : result)
+      {
+      auto temp = std::string((const char *)record, record->size());
+      serializationRecords.append(temp);
+      }
+
+   return std::make_pair(serializationRecords, result.size());
+   }
+
+SerializedAOTDependencyRecord
+JITServerAOTCache::getSerializedAOTDependencyRecord(const CachedAOTMethod *method, const KnownIdSet &knownIds, TR_Memory &trMemory) const
+   {
+   auto dependencySerializationRecords = getDependencySerializationRecords(method, knownIds, trMemory);
+   std::string serializedAOTDependencies((const char *)method->data().deps(), (sizeof(SerializedAOTDependency) * method->data().numDependencies()));
+
+   auto definingClassChainRecord = method->definingClassChainRecord();
+   auto definingClassId = definingClassChainRecord->data().list().ids()[0];
+
+   return
+      SerializedAOTDependencyRecord(
+         method->data(),
+         definingClassId,
+         dependencySerializationRecords.second,
+         dependencySerializationRecords.first,
+         serializedAOTDependencies);
+   }
+
+std::vector<SerializedAOTDependencyRecord>
+JITServerAOTCache::getSerializedAOTDependencyRecords(const KnownIdSet &knownIds, TR_Memory &trMemory) const
+   {
+   OMR::CriticalSection cs(_cachedMethodMonitor);
+
+   std::vector<SerializedAOTDependencyRecord> result;
+   result.reserve(_cachedMethodMap.size());
+
+   for (auto entry : _cachedMethodMap)
+      {
+      result.emplace_back(getSerializedAOTDependencyRecord(entry.second, knownIds, trMemory));
+      }
 
    return result;
    }
@@ -1259,7 +1331,8 @@ JITServerAOTCache::packSerializationRecords(const Vector<const AOTSerializationR
 
 void
 JITServerAOTCache::addRecord(const AOTCacheRecord *record, Vector<const AOTSerializationRecord *> &result,
-                             UnorderedSet<const AOTCacheRecord *> &newRecords, const KnownIdSet &knownIds) const
+                             UnorderedSet<const AOTCacheRecord *> &newRecords, const KnownIdSet &knownIds,
+                             size_t &size) const
    {
    // Check if the record is already known and deserialized at the client
    const AOTSerializationRecord *data = record->dataAddr();
@@ -1276,11 +1349,12 @@ JITServerAOTCache::addRecord(const AOTCacheRecord *record, Vector<const AOTSeria
    //      wkc record -> class chain record -> class record -> class loader record
    record->subRecordsDo([&](const AOTCacheRecord *r)
       {
-      addRecord(r, result, newRecords, knownIds);
+      addRecord(r, result, newRecords, knownIds, size);
       });
 
    newRecords.insert(record);
    result.push_back(data);
+   size += data->size();
    }
 
 
