@@ -28,8 +28,10 @@
  */
 #ifndef J9_CODEGEN_PHASE_CONNECTOR
 #define J9_CODEGEN_PHASE_CONNECTOR
-   namespace J9 { class CodeGenPhase; }
-   namespace J9 { typedef J9::CodeGenPhase CodeGenPhaseConnector; }
+namespace J9 {
+   class CodeGenPhase;
+   typedef J9::CodeGenPhase CodeGenPhaseConnector;
+}
 #endif
 
 #include "codegen/OMRCodeGenPhase.hpp"

@@ -31,7 +31,9 @@ class TR_IPBCDataCallGraph;
 class AOTCacheMethodRecord;
 class TR_ContiguousIPMethodHashTableEntry;
 class TR_FaninSummaryInfo;
-namespace TR { class Monitor; }
+namespace TR {
+class Monitor;
+}
 
 
 struct BytecodeProfileSummary

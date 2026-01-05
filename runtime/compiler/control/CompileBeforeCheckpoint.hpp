@@ -31,8 +31,10 @@ struct J9JavaVM;
 struct J9VMThread;
 struct J9Method;
 
-namespace TR { class Region; }
-namespace TR { class CompilationInfo; }
+namespace TR {
+class Region;
+class CompilationInfo;
+}
 class TR_J9VMBase;
 
 namespace TR

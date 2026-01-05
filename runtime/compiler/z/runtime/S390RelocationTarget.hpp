@@ -29,7 +29,9 @@
 #include "runtime/RelocationRuntime.hpp"
 #include "runtime/RelocationTarget.hpp"
 
-namespace TR { class Compilation; }
+namespace TR {
+class Compilation;
+}
 
 // TR_RelocationTarget defines how a platform target implements the individual steps of processing
 //    relocation records.

@@ -27,8 +27,10 @@
 #include "optimizer/Optimization.hpp"
 #include "optimizer/OptimizationManager.hpp"
 
-namespace TR { class Node; }
-namespace TR { class TreeTop; }
+namespace TR {
+class Node;
+class TreeTop;
+}
 
 class TR_StoreBaseWalker;
 

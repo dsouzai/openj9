@@ -28,8 +28,10 @@
  */
 #ifndef J9_VMENV_CONNECTOR
 #define J9_VMENV_CONNECTOR
-namespace J9 { class VMEnv; }
-namespace J9 { typedef J9::VMEnv VMEnvConnector; }
+namespace J9 {
+class VMEnv;
+typedef J9::VMEnv VMEnvConnector;
+}
 #endif
 
 #include "env/OMRVMEnv.hpp"
@@ -40,7 +42,9 @@ namespace J9 { typedef J9::VMEnv VMEnvConnector; }
 struct OMR_VMThread;
 class TR_J9VMBase;
 class TR_FrontEnd;
-namespace TR { class Compilation; }
+namespace TR {
+class Compilation;
+}
 
 namespace J9
 {

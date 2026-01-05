@@ -30,11 +30,13 @@
 #include "codegen/AMD64PrivateLinkage.hpp"
 #include "env/jittypes.h"
 
-namespace TR { class CodeGenerator; }
-namespace TR { class Instruction; }
-namespace TR { class LabelSymbol; }
-namespace TR { class Node; }
-namespace TR { class RegisterDependencyConditions; }
+namespace TR {
+class CodeGenerator;
+class Instruction;
+class LabelSymbol;
+class Node;
+class RegisterDependencyConditions;
+}
 
 #define IMCOMPLETELINKAGE  "This class is only used to generate call-out sequence but no call-in sequence, so it is not used as a complete linkage."
 

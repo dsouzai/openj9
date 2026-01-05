@@ -28,8 +28,10 @@
  */
 #ifndef J9_STATICSYMBOL_CONNECTOR
 #define J9_STATICSYMBOL_CONNECTOR
-namespace J9 { class StaticSymbol; }
-namespace J9 { typedef J9::StaticSymbol StaticSymbolConnector; }
+namespace J9 {
+class StaticSymbol;
+typedef J9::StaticSymbol StaticSymbolConnector;
+}
 #endif
 
 #include <stdint.h>
@@ -37,7 +39,9 @@ namespace J9 { typedef J9::StaticSymbol StaticSymbolConnector; }
 #include "il/OMRStaticSymbol.hpp"
 #include "il/Symbol.hpp"
 
-namespace TR { class StaticSymbol; }
+namespace TR {
+class StaticSymbol;
+}
 
 namespace J9
 {

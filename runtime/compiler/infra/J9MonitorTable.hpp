@@ -25,8 +25,10 @@
 
 #ifndef TRJ9_MONITORTABLE_CONNECTOR
 #define TRJ9_MONITORTABLE_CONNECTOR
-namespace J9 { class MonitorTable; }
-namespace J9 { typedef MonitorTable MonitorTableConnector; }
+namespace J9 {
+class MonitorTable;
+typedef MonitorTable MonitorTableConnector;
+}
 #endif
 
 
@@ -38,7 +40,9 @@ namespace J9 { typedef MonitorTable MonitorTableConnector; }
 struct J9PortLibrary;
 struct J9JavaVM;
 struct J9VMThread;
-namespace TR { class MonitorTable; }
+namespace TR {
+class MonitorTable;
+}
 
 namespace J9
 {

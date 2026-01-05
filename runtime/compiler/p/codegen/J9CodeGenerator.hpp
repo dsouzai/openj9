@@ -28,8 +28,10 @@
  */
 #ifndef J9_CODEGENERATOR_CONNECTOR
 #define J9_CODEGENERATOR_CONNECTOR
-namespace J9 { namespace Power { class CodeGenerator; } }
-namespace J9 { typedef J9::Power::CodeGenerator CodeGeneratorConnector; }
+namespace J9 {
+namespace Power { class CodeGenerator; }
+typedef J9::Power::CodeGenerator CodeGeneratorConnector;
+}
 #else
 #error J9::Power::CodeGenerator expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -41,7 +43,9 @@ namespace J9 { typedef J9::Power::CodeGenerator CodeGeneratorConnector; }
 #include "codegen/LinkageConventionsEnum.hpp"
 #include "env/jittypes.h"
 
-namespace TR { class Recompilation; }
+namespace TR {
+class Recompilation;
+}
 
 extern TR::Instruction *loadAddressRAM32(TR::CodeGenerator *cg,
                                     TR::Node * node,

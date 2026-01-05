@@ -28,8 +28,10 @@
  */
 #ifndef J9_OPTIONS_CONNECTOR
 #define J9_OPTIONS_CONNECTOR
-namespace J9 { class Options; }
-namespace J9 { typedef J9::Options OptionsConnector; }
+namespace J9 {
+class Options;
+typedef J9::Options OptionsConnector;
+}
 #endif
 
 #include "control/OMROptions.hpp"
@@ -38,8 +40,10 @@ namespace J9 { typedef J9::Options OptionsConnector; }
 #include "control/OptionsUtil.hpp"
 #include "env/jittypes.h"
 #if defined(J9VM_OPT_JITSERVER)
-namespace TR { class CompilationInfo; }
-namespace TR { class CompilationInfoPerThreadBase; }
+namespace TR {
+class CompilationInfo;
+class CompilationInfoPerThreadBase;
+}
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
 struct J9VMInitArgs;

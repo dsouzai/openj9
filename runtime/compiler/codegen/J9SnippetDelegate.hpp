@@ -29,8 +29,10 @@
 #ifndef J9_SNIPPETDELEGATE_CONNECTOR
 #define J9_SNIPPETDELEGATE_CONNECTOR
 
-namespace J9 { class SnippetDelegate; }
-namespace J9 { typedef J9::SnippetDelegate SnippetDelegateConnector; }
+namespace J9 {
+class SnippetDelegate;
+typedef J9::SnippetDelegate SnippetDelegateConnector;
+}
 #endif
 
 #include "codegen/OMRSnippetDelegate.hpp"

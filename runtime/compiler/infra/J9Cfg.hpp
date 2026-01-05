@@ -28,8 +28,10 @@
  */
 #ifndef J9_CFG_CONNECTOR
 #define J9_CFG_CONNECTOR
-namespace J9 { class CFG; }
-namespace J9 { typedef J9::CFG CFGConnector; }
+namespace J9 {
+class CFG;
+typedef J9::CFG CFGConnector;
+}
 #endif
 
 #include "infra/OMRCfg.hpp"
@@ -49,11 +51,13 @@ class TR_BlockFrequencyInfo;
 class TR_ExternalProfiler;
 class TR_RegionStructure;
 class TR_Structure;
-namespace TR { class Block; }
-namespace TR { class CFG; }
-namespace TR { class Compilation; }
-namespace TR { class ResolvedMethodSymbol; }
-namespace TR { class TreeTop; }
+namespace TR {
+class Block;
+class CFG;
+class Compilation;
+class ResolvedMethodSymbol;
+class TreeTop;
+}
 template <class T> class TR_Array;
 
 namespace J9

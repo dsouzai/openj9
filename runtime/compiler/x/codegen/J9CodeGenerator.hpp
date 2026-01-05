@@ -25,7 +25,9 @@
 
 #include "compiler/codegen/J9CodeGenerator.hpp"
 
-namespace TR { class Recompilation; }
+namespace TR {
+class Recompilation;
+}
 
 namespace J9
 {

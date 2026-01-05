@@ -28,8 +28,10 @@
  */
 #ifndef J9_OPTIMIZATION_CONNECTOR
 #define J9_OPTIMIZATION_CONNECTOR
-namespace J9 { class   Optimization; }
-namespace J9 { typedef J9::Optimization OptimizationConnector; }
+namespace J9 {
+class   Optimization;
+typedef J9::Optimization OptimizationConnector;
+}
 #endif
 
 #include "optimizer/OMROptimization.hpp"

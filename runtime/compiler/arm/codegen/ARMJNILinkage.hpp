@@ -29,11 +29,13 @@
 #include "codegen/Linkage.hpp"
 #include "infra/Assert.hpp"
 
-namespace TR { class ARMMemoryArgument; }
-namespace TR { class MemoryReference; }
-namespace TR { class Node; }
-namespace TR { class Register; }
-namespace TR { class RegisterDependencyConditions; }
+namespace TR {
+class ARMMemoryArgument;
+class MemoryReference;
+class Node;
+class Register;
+class RegisterDependencyConditions;
+}
 
 namespace J9
 {

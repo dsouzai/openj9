@@ -31,7 +31,9 @@
 struct J9ClassLoader;
 class TR_J9SharedCache;
 struct TR_ClassLoaderInfo;
-namespace TR { class CompilationInfo; }
+namespace TR {
+class CompilationInfo;
+}
 
 class TR_PersistentClassLoaderTable
    {

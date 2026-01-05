@@ -28,8 +28,10 @@
  */
 #ifndef J9_CODEGENERATOR_CONNECTOR
 #define J9_CODEGENERATOR_CONNECTOR
-namespace J9 { namespace ARM64 { class CodeGenerator; } }
-namespace J9 { typedef J9::ARM64::CodeGenerator CodeGeneratorConnector; }
+namespace J9 {
+namespace ARM64 { class CodeGenerator; }
+typedef J9::ARM64::CodeGenerator CodeGeneratorConnector;
+}
 #else
 #error J9::ARM64::CodeGenerator expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -37,7 +39,9 @@ namespace J9 { typedef J9::ARM64::CodeGenerator CodeGeneratorConnector; }
 #include "compiler/codegen/J9CodeGenerator.hpp"
 #include "codegen/LinkageConventionsEnum.hpp"
 
-namespace TR { class Recompilation; }
+namespace TR {
+class Recompilation;
+}
 
 namespace J9
 {

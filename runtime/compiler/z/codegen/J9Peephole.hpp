@@ -28,8 +28,10 @@
  */
 #ifndef J9_PEEPHOLE_CONNECTOR
 #define J9_PEEPHOLE_CONNECTOR
-   namespace J9 { namespace Z { class Peephole; } }
-   namespace J9 {typedef J9::Z::Peephole PeepholeConnector; }
+namespace J9 {
+   namespace Z { class Peephole; }
+   typedef J9::Z::Peephole PeepholeConnector;
+}
 #else
    #error J9::Z::Peephole expected to be a primary connector, but a J9 connector is already defined
 #endif

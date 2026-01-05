@@ -27,10 +27,12 @@
 
 class TR_ValueProfileInfo;
 class TR_ExternalValueProfileInfo;
-namespace TR { class CFG; }
-namespace TR { class Compilation; }
-namespace TR { class Node; }
-namespace TR { class TreeTop; }
+namespace TR {
+class CFG;
+class Compilation;
+class Node;
+class TreeTop;
+}
 struct TR_ByteCodeInfo;
 
 class TR_ExternalProfiler

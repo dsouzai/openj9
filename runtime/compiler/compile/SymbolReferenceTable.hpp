@@ -25,7 +25,9 @@
 
 #include "compile/J9SymbolReferenceTable.hpp"
 
-namespace TR { class Compilation; }
+namespace TR {
+class Compilation;
+}
 
 namespace TR
    {

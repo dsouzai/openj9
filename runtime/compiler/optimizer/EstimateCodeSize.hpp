@@ -30,7 +30,9 @@
 #include "optimizer/Inliner.hpp"
 
 class TR_CallStack;
-namespace TR { class Compilation; }
+namespace TR {
+class Compilation;
+}
 struct TR_CallSite;
 struct TR_CallTarget;
 

@@ -28,8 +28,10 @@
  */
 #ifndef J9_VMMETHODENV_CONNECTOR
 #define J9_VMMETHODENV_CONNECTOR
-namespace J9 { class VMMethodEnv; }
-namespace J9 { typedef J9::VMMethodEnv VMMethodEnvConnector; }
+namespace J9 {
+class VMMethodEnv;
+typedef J9::VMMethodEnv VMMethodEnvConnector;
+}
 #endif
 
 #include "env/OMRVMMethodEnv.hpp"

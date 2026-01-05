@@ -28,8 +28,10 @@
  */
 #ifndef J9_SYMBOLREFERENCE_CONNECTOR
 #define J9_SYMBOLREFERENCE_CONNECTOR
-namespace J9 { class SymbolReference; }
-namespace J9 { typedef J9::SymbolReference SymbolReferenceConnector; }
+namespace J9 {
+class SymbolReference;
+typedef J9::SymbolReference SymbolReferenceConnector;
+}
 #endif
 
 #include "il/OMRSymbolReference.hpp"
@@ -41,7 +43,9 @@ namespace J9 { typedef J9::SymbolReference SymbolReferenceConnector; }
 #include "infra/Annotations.hpp"
 
 class mcount_t;
-namespace TR { class Symbol; }
+namespace TR {
+class Symbol;
+}
 
 namespace J9
 {

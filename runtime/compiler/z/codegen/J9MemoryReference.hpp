@@ -28,15 +28,19 @@
  */
 #ifndef J9_MEMORY_REFERENCE_CONNECTOR
 #define J9_MEMORY_REFERENCE_CONNECTOR
-   namespace J9 { namespace Z { class MemoryReference; } }
-   namespace J9 {typedef J9::Z::MemoryReference MemoryReferenceConnector; }
+namespace J9 {
+   namespace Z { class MemoryReference; }
+   typedef J9::Z::MemoryReference MemoryReferenceConnector;
+}
 #else
    #error J9::Z::MemoryReference expected to be a primary connector, but a J9 connector is already defined
 #endif
 
 #include "codegen/OMRMemoryReference.hpp"
 
-namespace TR { class Snippet; }
+namespace TR {
+class Snippet;
+}
 
 
 namespace J9

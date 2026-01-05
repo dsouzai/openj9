@@ -40,7 +40,9 @@
 #include "optimizer/OptimizationManager.hpp"
 #include "ras/Logger.hpp"
 
-namespace TR { class TreeTop; }
+namespace TR {
+class TreeTop;
+}
 
 /** \brief
  *

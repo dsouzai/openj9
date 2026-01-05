@@ -26,7 +26,9 @@
 #include "env/TRMemory.hpp"
 
 class TR_RelocationRuntime;
-namespace TR { class Options; }
+namespace TR {
+class Options;
+}
 struct J9JavaVM;
 struct J9JITConfig;
 

@@ -28,16 +28,20 @@
  */
 #ifndef J9_INSTRUCTION_CONNECTOR
 #define J9_INSTRUCTION_CONNECTOR
-   namespace J9 { class Instruction; }
-   namespace J9 { typedef J9::Instruction InstructionConnector; }
+namespace J9 {
+   class Instruction;
+   typedef J9::Instruction InstructionConnector;
+}
 #endif
 
 #include "codegen/OMRInstruction.hpp"
 
 class TR_BitVector;
 class TR_GCStackMap;
-namespace TR { class CodeGenerator; }
-namespace TR { class Node; }
+namespace TR {
+class CodeGenerator;
+class Node;
+}
 
 namespace J9
 {

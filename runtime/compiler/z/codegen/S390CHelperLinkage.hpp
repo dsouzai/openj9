@@ -22,11 +22,13 @@
 
 #include "codegen/Linkage.hpp"
 
-namespace TR { class AutomaticSymbol; }
-namespace TR { class CodeGenerator; }
-namespace TR { class RegisterDependencyConditions; }
-namespace TR { class ResolvedMethodSymbol; }
-namespace TR { class Snippet; }
+namespace TR {
+class AutomaticSymbol;
+class CodeGenerator;
+class RegisterDependencyConditions;
+class ResolvedMethodSymbol;
+class Snippet;
+}
 
 namespace J9
 {

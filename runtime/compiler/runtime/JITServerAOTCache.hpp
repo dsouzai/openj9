@@ -37,8 +37,12 @@ static const char JITSERVER_AOTCACHE_EYECATCHER[] = "AOTCACHE";
 // the eye-catcher is not null-terminated in the snapshot files
 static const size_t JITSERVER_AOTCACHE_EYECATCHER_LENGTH = sizeof(JITSERVER_AOTCACHE_EYECATCHER) - 1;
 
-namespace TR { class Monitor; }
-namespace J9 { class J9SegmentProvider;}
+namespace TR {
+class Monitor;
+}
+namespace J9 {
+class J9SegmentProvider;
+}
 
 // Information relevant to the compatibility of a cache snapshot with the server.
 struct JITServerAOTCacheVersion

@@ -28,8 +28,10 @@
  */
 #ifndef J9_METHODSYMBOL_CONNECTOR
 #define J9_METHODSYMBOL_CONNECTOR
-namespace J9 { class MethodSymbol; }
-namespace J9 { typedef J9::MethodSymbol MethodSymbolConnector; }
+namespace J9 {
+class MethodSymbol;
+typedef J9::MethodSymbol MethodSymbolConnector;
+}
 #endif
 
 
@@ -40,7 +42,9 @@ namespace J9 { typedef J9::MethodSymbol MethodSymbolConnector; }
 #include "il/OMRMethodSymbol.hpp"
 #include "runtime/J9Runtime.hpp"
 
-namespace TR { class Compilation; }
+namespace TR {
+class Compilation;
+}
 
 namespace J9
 {

@@ -26,7 +26,9 @@
 #include "optimizer/OMRValuePropagation.hpp"
 #include "infra/List.hpp"
 
-namespace TR { class VP_BCDSign; }
+namespace TR {
+class VP_BCDSign;
+}
 
 namespace J9
 {

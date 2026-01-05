@@ -28,8 +28,10 @@
  */
 #ifndef J9_COMPILATIONSTRATEGY_CONNECTOR
 #define J9_COMPILATIONSTRATEGY_CONNECTOR
-   namespace J9 { class CompilationStrategy; }
-   namespace J9 { typedef J9::CompilationStrategy CompilationStrategyConnector; }
+namespace J9 {
+   class CompilationStrategy;
+   typedef J9::CompilationStrategy CompilationStrategyConnector;
+}
 #endif
 
 #include "control/OMRCompilationStrategy.hpp"
@@ -37,9 +39,11 @@
 #include "compile/CompilationTypes.hpp"
 #include "runtime/CodeCacheManager.hpp"
 
-namespace TR { class CompilationStrategy; }
-namespace TR { class CompilationInfo; }
-namespace TR { class Options; }
+namespace TR {
+class CompilationStrategy;
+class CompilationInfo;
+class Options;
+}
 class TR_J9VMBase;
 class TR_PersistentMethodInfo;
 class TR_PersistentJittedBodyInfo;

@@ -31,10 +31,12 @@
 
 class TR_ResolvedMethod;
 
-namespace TR { class CodeGenerator; }
-namespace TR { class Instruction; }
-namespace TR { class Register; }
-namespace TR { class ResolvedMethodSymbol; }
+namespace TR {
+class CodeGenerator;
+class Instruction;
+class Register;
+class ResolvedMethodSymbol;
+}
 
 namespace J9
 {

@@ -25,7 +25,9 @@
 
 #include "control/J9Options.hpp"
 
-namespace TR { class Options; }
+namespace TR {
+class Options;
+}
 
 namespace TR
 {

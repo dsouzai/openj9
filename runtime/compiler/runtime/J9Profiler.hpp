@@ -52,13 +52,17 @@ class TR_ExternalProfiler;
 class TR_HWProfiler;
 class TR_OpaqueClassBlock;
 class TR_OpaqueMethodBlock;
-namespace TR { class Recompilation; }
+namespace TR {
+class Recompilation;
+}
 class TR_ResolvedMethod;
 class TR_Structure;
 class TR_ValueProfileInfo;
-namespace TR { class Block; }
-namespace TR { class SymbolReference; }
-namespace TR { class TreeTop; }
+namespace TR {
+class Block;
+class SymbolReference;
+class TreeTop;
+}
 class TR_PersistentMethodInfo;
 struct TR_ByteCodeInfo;
 struct TR_InlinedCallSite;

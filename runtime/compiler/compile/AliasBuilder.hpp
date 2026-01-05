@@ -25,8 +25,10 @@
 
 #include "compile/J9AliasBuilder.hpp"
 
-namespace TR { class Compilation; }
-namespace TR { class SymbolReferenceTable; }
+namespace TR {
+class Compilation;
+class SymbolReferenceTable;
+}
 
 namespace TR
    {

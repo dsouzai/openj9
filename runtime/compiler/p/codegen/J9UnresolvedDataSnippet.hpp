@@ -28,8 +28,10 @@
  */
 #ifndef J9_UNRESOLVEDDATASNIPPET_CONNECTOR
 #define J9_UNRESOLVEDDATASNIPPET_CONNECTOR
-namespace J9 { namespace Power { class UnresolvedDataSnippet; } }
-namespace J9 { typedef J9::Power::UnresolvedDataSnippet UnresolvedDataSnippetConnector; }
+namespace J9 {
+namespace Power { class UnresolvedDataSnippet; }
+typedef J9::Power::UnresolvedDataSnippet UnresolvedDataSnippetConnector;
+}
 #else
 #error J9::Power::UnresolvedDataSnippet expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -41,11 +43,13 @@ namespace J9 { typedef J9::Power::UnresolvedDataSnippet UnresolvedDataSnippetCon
 #include "il/SymbolReference.hpp"
 #include "infra/Flags.hpp"
 
-namespace TR { class CodeGenerator; }
-namespace TR { class MemoryReference; }
-namespace TR { class Node; }
-namespace TR { class RealRegister; }
-namespace TR { class Symbol; }
+namespace TR {
+class CodeGenerator;
+class MemoryReference;
+class Node;
+class RealRegister;
+class Symbol;
+}
 
 namespace J9
 {

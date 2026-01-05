@@ -28,8 +28,10 @@
  */
 #ifndef J9_TREE_EVALUATOR_CONNECTOR
 #define J9_TREE_EVALUATOR_CONNECTOR
-namespace J9 { namespace Z { class TreeEvaluator; } }
-namespace J9 { typedef J9::Z::TreeEvaluator TreeEvaluatorConnector; }
+namespace J9 {
+namespace Z { class TreeEvaluator; }
+typedef J9::Z::TreeEvaluator TreeEvaluatorConnector;
+}
 #else
 #error J9::Z::TreeEvaluator expected to be a primary connector, but a J9 connector is already defined
 #endif

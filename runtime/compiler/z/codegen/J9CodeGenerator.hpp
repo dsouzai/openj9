@@ -28,8 +28,10 @@
  */
 #ifndef J9_CODEGENERATOR_CONNECTOR
 #define J9_CODEGENERATOR_CONNECTOR
-namespace J9 { namespace Z { class CodeGenerator; } }
-namespace J9 { typedef J9::Z::CodeGenerator CodeGeneratorConnector; }
+namespace J9 {
+namespace Z { class CodeGenerator; }
+typedef J9::Z::CodeGenerator CodeGeneratorConnector;
+}
 #else
 #error J9::Z::CodeGenerator expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -37,8 +39,10 @@ namespace J9 { typedef J9::Z::CodeGenerator CodeGeneratorConnector; }
 #include "compiler/codegen/J9CodeGenerator.hpp"
 #include "j9cfg.h"
 
-namespace TR { class S390EyeCatcherDataSnippet; }
-namespace TR { class Node; }
+namespace TR {
+class S390EyeCatcherDataSnippet;
+class Node;
+}
 
 
 namespace J9

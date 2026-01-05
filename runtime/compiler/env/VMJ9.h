@@ -48,8 +48,10 @@
 #include "env/CompilerEnv.hpp"
 
 class TR_CallStack;
-namespace TR { class CompilationInfo; }
-namespace TR { class CompilationInfoPerThread; }
+namespace TR {
+class CompilationInfo;
+class CompilationInfoPerThread;
+}
 class TR_IProfiler;
 class TR_HWProfiler;
 class TR_JProfilerThread;
@@ -69,12 +71,16 @@ class MetricsServer;
 #endif /* defined(J9VM_OPT_JITSERVER) */
 struct TR_CallSite;
 struct TR_CallTarget;
-namespace J9 { class ObjectModel; }
-namespace TR { class CodeCache; }
-namespace TR { class CodeCacheManager; }
-namespace TR { class Compilation; }
-namespace TR { class StaticSymbol; }
-namespace TR { class ParameterSymbol; }
+namespace J9 {
+class ObjectModel;
+}
+namespace TR {
+class CodeCache;
+class CodeCacheManager;
+class Compilation;
+class StaticSymbol;
+class ParameterSymbol;
+}
 
 // XLC cannot determine uintptr_t is equivalent to uint32_t
 // or uint64_t, so make it clear with this test

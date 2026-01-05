@@ -28,7 +28,9 @@
 #include "compile/CompilationTypes.hpp"
 #include "infra/Assert.hpp"
 
-namespace TR { class CodeGenerator; }
+namespace TR {
+class CodeGenerator;
+}
 
 namespace J9
 {

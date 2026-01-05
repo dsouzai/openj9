@@ -28,8 +28,10 @@
  */
 #ifndef J9_TREE_EVALUATOR_CONNECTOR
 #define J9_TREE_EVALUATOR_CONNECTOR
-namespace J9 { class TreeEvaluator; }
-namespace J9 { typedef J9::TreeEvaluator TreeEvaluatorConnector; }
+namespace J9 {
+class TreeEvaluator;
+typedef J9::TreeEvaluator TreeEvaluatorConnector;
+}
 #endif
 
 #include "codegen/OMRTreeEvaluator.hpp"

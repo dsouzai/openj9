@@ -45,14 +45,16 @@ class TR_OpaqueClassBlock;
 class TR_ResolvedMethod;
 class TR_UseDefInfo;
 class TR_ValueNumberInfo;
-namespace TR { class Block; }
-namespace TR { class BlockChecklist; }
-namespace TR { class CFGEdge; }
-namespace TR { class NodeChecklist; }
-namespace TR { class Optimizer; }
-namespace TR { class ResolvedMethodSymbol; }
-namespace TR { class SymbolReference; }
-namespace TR { class TreeTop; }
+namespace TR {
+class Block;
+class BlockChecklist;
+class CFGEdge;
+class NodeChecklist;
+class Optimizer;
+class ResolvedMethodSymbol;
+class SymbolReference;
+class TreeTop;
+}
 template <class T> class TR_Array;
 
 typedef TR::typed_allocator<TR::Node *, TR::Region &> NodeDequeAllocator;

@@ -37,8 +37,10 @@
 #include "optimizer/OptimizationManager.hpp"
 
 
-namespace TR { class SymbolReference; }
-namespace TR { class TreeTop; }
+namespace TR {
+class SymbolReference;
+class TreeTop;
+}
 
 
 class TR_DynamicLiteralPool : public TR::Optimization

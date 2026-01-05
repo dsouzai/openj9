@@ -28,8 +28,10 @@
  */
 #ifndef J9_UNRESOLVEDDATASNIPPET_CONNECTOR
 #define J9_UNRESOLVEDDATASNIPPET_CONNECTOR
-namespace J9 { namespace Z { class UnresolvedDataSnippet; } }
-namespace J9 { typedef J9::Z::UnresolvedDataSnippet UnresolvedDataSnippetConnector; }
+namespace J9 {
+namespace Z { class UnresolvedDataSnippet; }
+typedef J9::Z::UnresolvedDataSnippet UnresolvedDataSnippetConnector;
+}
 #else
 #error J9::Z::UnresolvedDataSnippet expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -40,12 +42,14 @@ namespace J9 { typedef J9::Z::UnresolvedDataSnippet UnresolvedDataSnippetConnect
 #include "codegen/Snippet.hpp"
 #include "il/SymbolReference.hpp"
 
-namespace TR { class S390WritableDataSnippet; }
-namespace TR { class CodeGenerator; }
-namespace TR { class Instruction; }
-namespace TR { class MemoryReference; }
-namespace TR { class Node; }
-namespace TR { class Symbol; }
+namespace TR {
+class S390WritableDataSnippet;
+class CodeGenerator;
+class Instruction;
+class MemoryReference;
+class Node;
+class Symbol;
+}
 
 namespace J9
 {

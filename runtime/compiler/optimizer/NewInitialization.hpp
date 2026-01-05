@@ -30,9 +30,11 @@
 #include "optimizer/OptimizationManager.hpp"
 
 class TR_BitVector;
-namespace TR { class Node; }
-namespace TR { class ResolvedMethodSymbol; }
-namespace TR { class TreeTop; }
+namespace TR {
+class Node;
+class ResolvedMethodSymbol;
+class TreeTop;
+}
 template <class T> class TR_Array;
 template <class T> class TR_ScratchList;
 

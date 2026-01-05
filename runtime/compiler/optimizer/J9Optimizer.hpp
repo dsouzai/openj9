@@ -28,8 +28,10 @@
  */
 #ifndef J9_OPTIMIZER_CONNECTOR
 #define J9_OPTIMIZER_CONNECTOR
-namespace J9 { class Optimizer; }
-namespace J9 { typedef J9::Optimizer OptimizerConnector; }
+namespace J9 {
+class Optimizer;
+typedef J9::Optimizer OptimizerConnector;
+}
 #endif
 
 #include "optimizer/OMROptimizer.hpp"
@@ -37,9 +39,11 @@ namespace J9 { typedef J9::Optimizer OptimizerConnector; }
 #include <stddef.h>
 #include <stdint.h>
 
-namespace TR { class Compilation; }
-namespace TR { class Optimizer; }
-namespace TR { class ResolvedMethodSymbol; }
+namespace TR {
+class Compilation;
+class Optimizer;
+class ResolvedMethodSymbol;
+}
 struct OptimizationStrategy;
 class TR_J9InlinerPolicy;
 class TR_J9InlinerUtil;

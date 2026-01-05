@@ -29,7 +29,9 @@
 #include "il/Node.hpp"
 #include "infra/List.hpp"
 
-namespace TR { class TreeTop; }
+namespace TR {
+class TreeTop;
+}
 
 class InMemoryLoadStoreMarking
    {

@@ -28,8 +28,10 @@
  */
 #ifndef J9_CLASSENV_CONNECTOR
 #define J9_CLASSENV_CONNECTOR
-namespace J9 { class ClassEnv; }
-namespace J9 { typedef J9::ClassEnv ClassEnvConnector; }
+namespace J9 {
+class ClassEnv;
+typedef J9::ClassEnv ClassEnvConnector;
+}
 #endif
 
 #if defined(J9VM_OPT_JITSERVER)
@@ -41,9 +43,11 @@ namespace J9 { typedef J9::ClassEnv ClassEnvConnector; }
 #include "il/DataTypes.hpp"
 #include "j9.h"
 
-namespace TR { class SymbolReference; }
-namespace TR { class TypeLayout; }
-namespace TR { class Region; }
+namespace TR {
+class SymbolReference;
+class TypeLayout;
+class Region;
+}
 class TR_PersistentClassInfo;
 template <typename ListKind> class List;
 

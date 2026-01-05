@@ -28,8 +28,10 @@
  */
 #ifndef J9_RESOLVEDMETHODSYMBOL_CONNECTOR
 #define J9_RESOLVEDMETHODSYMBOL_CONNECTOR
-namespace J9 { class ResolvedMethodSymbol; }
-namespace J9 { typedef J9::ResolvedMethodSymbol ResolvedMethodSymbolConnector; }
+namespace J9 {
+class ResolvedMethodSymbol;
+typedef J9::ResolvedMethodSymbol ResolvedMethodSymbolConnector;
+}
 #endif
 
 #include "il/OMRResolvedMethodSymbol.hpp"
@@ -38,7 +40,9 @@ namespace J9 { typedef J9::ResolvedMethodSymbol ResolvedMethodSymbolConnector; }
 #include "infra/Annotations.hpp"
 
 class TR_ResolvedMethod;
-namespace TR { class Compilation; }
+namespace TR {
+class Compilation;
+}
 
 namespace J9
 {

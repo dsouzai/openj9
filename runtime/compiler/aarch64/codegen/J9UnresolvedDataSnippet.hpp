@@ -28,8 +28,10 @@
  */
 #ifndef J9_UNRESOLVEDDATASNIPPET_CONNECTOR
 #define J9_UNRESOLVEDDATASNIPPET_CONNECTOR
-namespace J9 { namespace ARM64 { class UnresolvedDataSnippet; } }
-namespace J9 { typedef J9::ARM64::UnresolvedDataSnippet UnresolvedDataSnippetConnector; }
+namespace J9 {
+namespace ARM64 { class UnresolvedDataSnippet; }
+typedef J9::ARM64::UnresolvedDataSnippet UnresolvedDataSnippetConnector;
+}
 #else
 #error J9::ARM64::UnresolvedDataSnippet expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -38,8 +40,10 @@ namespace J9 { typedef J9::ARM64::UnresolvedDataSnippet UnresolvedDataSnippetCon
 
 #include "il/SymbolReference.hpp"
 
-namespace TR { class MemoryReference; }
-namespace TR { class Symbol; }
+namespace TR {
+class MemoryReference;
+class Symbol;
+}
 
 namespace J9
 {

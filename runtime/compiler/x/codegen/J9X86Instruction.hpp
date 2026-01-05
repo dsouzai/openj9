@@ -25,12 +25,16 @@
 
 #include "codegen/OMRX86Instruction.hpp"
 
-namespace TR { class Node; }
+namespace TR {
+class Node;
+}
 
-namespace TR { class MemoryReference; }
-namespace TR { class CodeGenerator; }
-namespace TR { class Snippet; }
-namespace TR { class UnresolvedDataSnippet; }
+namespace TR {
+class MemoryReference;
+class CodeGenerator;
+class Snippet;
+class UnresolvedDataSnippet;
+}
 
 namespace TR {
 

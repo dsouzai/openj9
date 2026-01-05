@@ -25,9 +25,11 @@
 
 #include "codegen/Snippet.hpp"
 
-namespace TR { class CodeGenerator; }
-namespace TR { class Instruction; }
-namespace TR { class LabelSymbol; }
+namespace TR {
+class CodeGenerator;
+class Instruction;
+class LabelSymbol;
+}
 
 namespace TR {
 

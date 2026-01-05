@@ -29,8 +29,10 @@
 
 #ifndef J9_CODEGEN_PHASE_CONNECTOR
 #define J9_CODEGEN_PHASE_CONNECTOR
-   namespace J9 { namespace Z { class CodeGenPhase; } }
-   namespace J9 { typedef J9::Z::CodeGenPhase CodeGenPhaseConnector; }
+namespace J9 {
+   namespace Z { class CodeGenPhase; }
+   typedef J9::Z::CodeGenPhase CodeGenPhaseConnector;
+}
 #else
 #error J9::Z::CodeGenPhase expected to be a primary connector, but a J9 connector is already defined
 #endif

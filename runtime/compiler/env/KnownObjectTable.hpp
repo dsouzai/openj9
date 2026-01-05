@@ -26,7 +26,9 @@
 #include "env/J9KnownObjectTable.hpp"
 #include "infra/Annotations.hpp"
 
-namespace TR { class Compilation; }
+namespace TR {
+class Compilation;
+}
 
 namespace TR
 {

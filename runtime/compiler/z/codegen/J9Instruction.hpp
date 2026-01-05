@@ -28,8 +28,10 @@
  */
 #ifndef J9_INSTRUCTION_CONNECTOR
 #define J9_INSTRUCTION_CONNECTOR
-   namespace J9 { namespace Z { class Instruction; } }
-   namespace J9 { typedef J9::Z::Instruction InstructionConnector; }
+namespace J9 {
+   namespace Z { class Instruction; }
+   typedef J9::Z::Instruction InstructionConnector;
+}
 #else
    #error J9::Z::Instruction expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -37,7 +39,9 @@
 #include "compiler/codegen/J9Instruction.hpp"
 #include "z/codegen/S390AOTRelocation.hpp"
 
-namespace TR { class S390EncodingRelocation; }
+namespace TR {
+class S390EncodingRelocation;
+}
 
 namespace J9
 {

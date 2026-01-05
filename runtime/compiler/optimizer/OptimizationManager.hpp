@@ -28,7 +28,9 @@
 #include <stddef.h>
 #include "optimizer/Optimizations.hpp"
 
-namespace TR { class Optimizer; }
+namespace TR {
+class Optimizer;
+}
 struct OptimizationStrategy;
 
 namespace TR

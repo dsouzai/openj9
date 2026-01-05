@@ -26,7 +26,9 @@
 #if defined(TR_TARGET_32BIT)
 
 #include "x/i386/codegen/IA32SystemLinkage.hpp"
-namespace TR { class CodeGenerator; }
+namespace TR {
+class CodeGenerator;
+}
 
 #define INCOMPLETELINKAGE  "This class is only used to generate call-out sequence but no call-in sequence, so it is not used as a complete linkage."
 

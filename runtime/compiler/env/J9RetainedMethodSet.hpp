@@ -31,7 +31,9 @@
 struct J9Class;
 struct J9ClassLoader;
 struct J9JITExceptionTable;
-namespace TR { class Compilation; }
+namespace TR {
+class Compilation;
+}
 class TR_ResolvedMethod;
 
 namespace J9 {

@@ -32,13 +32,17 @@
 #include "env/VMJ9.h"
 #include "env/J9CPU.hpp"
 
-namespace TR { class CompilationInfo; }
+namespace TR {
+class CompilationInfo;
+}
 class TR_RelocationRecord;
 class TR_RelocationRuntimeLogger;
 class TR_RelocationTarget;
 class TR_ResolvedMethod;
-namespace TR { class CodeCache; }
-namespace TR { class PersistentInfo; }
+namespace TR {
+class CodeCache;
+class PersistentInfo;
+}
 
 #ifdef __cplusplus
 extern "C" {

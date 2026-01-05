@@ -35,9 +35,13 @@
 
 class TR_J9VMBase;
 class TR_ResolvedMethod;
-namespace TR { class CompilationInfo; }
+namespace TR {
+class CompilationInfo;
+}
 #if defined(J9VM_OPT_JITSERVER)
-namespace TR { class CompilationInfoPerThread; }
+namespace TR {
+class CompilationInfoPerThread;
+}
 namespace JITServer { class ServerStream; }
 class JITServerNoSCCAOTDeserializer;
 #endif

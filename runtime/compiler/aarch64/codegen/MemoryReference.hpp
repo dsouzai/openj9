@@ -26,7 +26,9 @@
 #include "codegen/ARM64ShiftCode.hpp"
 #include "codegen/J9MemoryReference.hpp"
 
-namespace TR { class Snippet; }
+namespace TR {
+class Snippet;
+}
 
 namespace TR
 {

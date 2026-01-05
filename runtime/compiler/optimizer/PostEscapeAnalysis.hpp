@@ -26,7 +26,9 @@
 #include "optimizer/Optimization.hpp"         // for Optimization
 #include "optimizer/OptimizationManager.hpp"  // for OptimizationManager
 
-namespace TR { class Block; }
+namespace TR {
+class Block;
+}
 
 /**
  * The \c TR_PostEscapeAnalysis optimization performs a simple

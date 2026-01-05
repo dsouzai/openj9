@@ -28,7 +28,9 @@
 #include "control/RecompilationInfo.hpp"
 #include "optimizer/HCRGuardAnalysis.hpp"
 
-namespace TR { class Block; }
+namespace TR {
+class Block;
+}
 
 class TR_OSRGuardInsertion : public TR::Optimization
    {

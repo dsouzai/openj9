@@ -26,11 +26,13 @@
 #include "codegen/Snippet.hpp"
 #include "codegen/UnresolvedDataSnippet.hpp"
 
-namespace TR { class CodeGenerator; }
-namespace TR { class Instruction; }
-namespace TR { class LabelSymbol; }
-namespace TR { class MethodSymbol; }
-namespace TR { class SymbolReference; }
+namespace TR {
+class CodeGenerator;
+class Instruction;
+class LabelSymbol;
+class MethodSymbol;
+class SymbolReference;
+}
 
 namespace TR {
 

@@ -27,9 +27,11 @@
 
 #include <stdint.h>
 
-namespace TR { class CodeGenerator; }
-namespace TR { class LabelSymbol; }
-namespace TR { class Node; }
+namespace TR {
+class CodeGenerator;
+class LabelSymbol;
+class Node;
+}
 
 namespace TR {
 

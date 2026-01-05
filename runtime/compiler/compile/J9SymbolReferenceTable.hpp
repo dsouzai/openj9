@@ -28,8 +28,10 @@
  */
 #ifndef J9_SYMBOLREFERENCETABLE_CONNECTOR
 #define J9_SYMBOLREFERENCETABLE_CONNECTOR
-namespace J9 { class SymbolReferenceTable; }
-namespace J9 { typedef J9::SymbolReferenceTable SymbolReferenceTableConnector; }
+namespace J9 {
+class SymbolReferenceTable;
+typedef J9::SymbolReferenceTable SymbolReferenceTableConnector;
+}
 #endif
 
 #include "compile/OMRSymbolReferenceTable.hpp"
@@ -41,7 +43,9 @@ namespace J9 { typedef J9::SymbolReferenceTable SymbolReferenceTableConnector; }
 
 class TR_BitVector;
 class TR_PersistentClassInfo;
-namespace TR { class Compilation; }
+namespace TR {
+class Compilation;
+}
 
 
 class TR_ImmutableInfo

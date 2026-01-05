@@ -29,9 +29,11 @@
 #include "il/SymbolReference.hpp"
 #include "infra/Stack.hpp"
 
-namespace TR { class Block; }
-namespace TR { class CFGNode; }
-namespace TR { class SymbolReference; }
+namespace TR {
+class Block;
+class CFGNode;
+class SymbolReference;
+}
 
 namespace J9
 {

@@ -25,8 +25,10 @@
 
 #ifndef J9_CODECACHEMANAGER_COMPOSED
 #define J9_CODECACHEMANAGER_COMPOSED
-namespace J9 { class CodeCacheManager; }
-namespace J9 { typedef CodeCacheManager CodeCacheManagerConnector; }
+namespace J9 {
+class CodeCacheManager;
+typedef CodeCacheManager CodeCacheManagerConnector;
+}
 #endif
 
 #include "control/Options.hpp"
@@ -41,8 +43,10 @@ struct J9JITConfig;
 struct J9JavaVM;
 struct J9ClassLoader;
 
-namespace TR { class CodeCacheMemorySegment; }
-namespace TR { class CodeCache; }
+namespace TR {
+class CodeCacheMemorySegment;
+class CodeCache;
+}
 
 namespace J9 {
 

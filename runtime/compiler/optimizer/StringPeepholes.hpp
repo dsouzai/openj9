@@ -38,9 +38,11 @@
 #include "optimizer/Optimization.hpp"
 #include "optimizer/OptimizationManager.hpp"
 
-namespace TR { class ResolvedMethodSymbol; }
-namespace TR { class SymbolReference; }
-namespace TR { class TreeTop; }
+namespace TR {
+class ResolvedMethodSymbol;
+class SymbolReference;
+class TreeTop;
+}
 struct TR_BDChain;
 
 class TR_StringPeepholes : public TR::Optimization

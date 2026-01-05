@@ -25,8 +25,10 @@
 
 #ifndef J9_MONITOR_CONNECTOR
 #define J9_MONITOR_CONNECTOR
-namespace J9 { class Monitor; }
-namespace J9 { typedef J9::Monitor MonitorConnector; }
+namespace J9 {
+class Monitor;
+typedef J9::Monitor MonitorConnector;
+}
 #endif
 
 #include "env/TRMemory.hpp"
@@ -36,9 +38,13 @@ struct J9PortLibrary;
 struct J9ThreadMonitor;
 struct J9JavaVM;
 struct J9VMThread;
-namespace TR { class MonitorTable; }
-namespace TR { class Monitor; }
-namespace J9 { class MonitorTable; }
+namespace TR {
+class MonitorTable;
+class Monitor;
+}
+namespace J9 {
+class MonitorTable;
+}
 
 namespace J9
 {

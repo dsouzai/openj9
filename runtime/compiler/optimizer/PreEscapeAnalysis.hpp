@@ -26,7 +26,9 @@
 #include "optimizer/Optimization.hpp"         // for Optimization
 #include "optimizer/OptimizationManager.hpp"  // for OptimizationManager
 
-namespace TR { class Block; class Node; }
+namespace TR {
+class Block; class Node;
+}
 
 // TODO:  Bring Doxygen comments up to date
 /**

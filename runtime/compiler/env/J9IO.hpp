@@ -28,8 +28,10 @@
  */
 #ifndef J9_IO_CONNECTOR
 #define J9_IO_CONNECTOR
-   namespace J9 { class IO; }
-   namespace J9 { typedef J9::IO IOConnector; }
+namespace J9 {
+   class IO;
+   typedef J9::IO IOConnector;
+}
 #endif
 
 #include <stdint.h>

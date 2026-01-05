@@ -28,7 +28,9 @@
 #include "infra/Annotations.hpp"
 #include "p/codegen/PPCInstruction.hpp"
 
-namespace TR { class CodeGenerator; }
+namespace TR {
+class CodeGenerator;
+}
 class TR_MHJ2IThunk;
 
 extern void ppcCodeSync(uint8_t *codePointer, uint32_t codeSize);

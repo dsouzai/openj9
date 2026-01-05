@@ -28,13 +28,15 @@
 #include "codegen/Snippet.hpp"
 #include "x/codegen/RestartSnippet.hpp"
 
-namespace TR { class Block; }
-namespace TR { class CodeGenerator; }
-namespace TR { class LabelSymbol; }
-namespace TR { class MethodSymbol; }
-namespace TR { class Node; }
-namespace TR { class Register; }
-namespace TR { class SymbolReference; }
+namespace TR {
+class Block;
+class CodeGenerator;
+class LabelSymbol;
+class MethodSymbol;
+class Node;
+class Register;
+class SymbolReference;
+}
 
 namespace TR {
 

@@ -28,8 +28,10 @@
  */
 #ifndef J9_OBJECTMODEL_CONNECTOR
 #define J9_OBJECTMODEL_CONNECTOR
-namespace J9 { class ObjectModel; }
-namespace J9 { typedef J9::ObjectModel ObjectModelConnector; }
+namespace J9 {
+class ObjectModel;
+typedef J9::ObjectModel ObjectModelConnector;
+}
 #endif
 
 #include "env/OMRObjectModel.hpp"
@@ -37,8 +39,10 @@ namespace J9 { typedef J9::ObjectModel ObjectModelConnector; }
 #include <stdint.h>
 #include "env/jittypes.h"
 
-namespace TR { class Node; }
-namespace TR { class Compilation; }
+namespace TR {
+class Node;
+class Compilation;
+}
 
 namespace J9
 {

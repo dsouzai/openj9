@@ -43,7 +43,9 @@
 class TR_InlineBlocks;
 class TR_PersistentClassInfo;
 class TR_BitVector;
-namespace TR { class IlGeneratorMethodDetails; }
+namespace TR {
+class IlGeneratorMethodDetails;
+}
 
 class TR_J9ByteCodeIlGenerator : public TR_IlGenerator, public TR_J9ByteCodeIteratorWithState
    {

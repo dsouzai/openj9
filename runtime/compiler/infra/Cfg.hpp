@@ -25,8 +25,10 @@
 
 #include "infra/J9Cfg.hpp"
 
-namespace TR { class Compilation; }
-namespace TR { class ResolvedMethodSymbol; }
+namespace TR {
+class Compilation;
+class ResolvedMethodSymbol;
+}
 
 namespace TR
 {

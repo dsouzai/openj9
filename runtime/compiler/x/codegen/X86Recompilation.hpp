@@ -25,7 +25,9 @@
 
 #include "control/Recompilation.hpp"
 #include "control/RecompilationInfo.hpp"
-namespace TR { class CodeGenerator; }
+namespace TR {
+class CodeGenerator;
+}
 class TR_ResolvedMethod;
 
 // ***************************************************************************
