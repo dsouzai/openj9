@@ -20,6 +20,8 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0 OR GPL-2.0-only WITH OpenJDK-assembly-exception-1.0
  *******************************************************************************/
 
+// clang-format off
+
 #define CRC32C 0x1edc6f41
 #define CRC_XOR
 #define REFLECT
@@ -2028,3 +2030,5 @@ static const unsigned int crc32c_table[] = {
 
 #endif
 #endif
+
+// clang-format on
