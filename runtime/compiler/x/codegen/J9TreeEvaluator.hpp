@@ -28,164 +28,163 @@
  */
 #ifndef J9_TREE_EVALUATOR_CONNECTOR
 #define J9_TREE_EVALUATOR_CONNECTOR
+
 namespace J9 {
-namespace X86 { class TreeEvaluator; }
-typedef J9::X86::TreeEvaluator TreeEvaluatorConnector;
+namespace X86 {
+class TreeEvaluator;
 }
+
+typedef J9::X86::TreeEvaluator TreeEvaluatorConnector;
+} // namespace J9
 #endif
 
 #include "codegen/Snippet.hpp"
-#include "compiler/codegen/J9TreeEvaluator.hpp"  // include parent
+#include "compiler/codegen/J9TreeEvaluator.hpp" // include parent
 
-namespace J9
-{
+namespace J9 { namespace X86 {
 
-namespace X86
-{
+class OMR_EXTENSIBLE TreeEvaluator : public J9::TreeEvaluator {
+public:
+    static TR::Register *writeBarrierEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *monentEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *monexitEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *asynccheckEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *newEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *multianewArrayEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *arraycopyEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *arraylengthEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *exceptionRangeFenceEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *NULLCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *ZEROCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *resolveAndNULLCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *evaluateNULLCHKWithPossibleResolve(TR::Node *node, bool needResolution, TR::CodeGenerator *cg);
+    static TR::Register *DIVCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *BNDCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *ArrayCopyBNDCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *BNDCHKwithSpineCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *ArrayStoreCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *ArrayCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *barrierFenceEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *atccheckEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *ScopeCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *readbarEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *integerHighestOneBit(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *integerLowestOneBit(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *integerNumberOfLeadingZeros(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *integerNumberOfTrailingZeros(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *longHighestOneBit(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *longLowestOneBit(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *longNumberOfLeadingZeros(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *longNumberOfTrailingZeros(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *tstartEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *tfinishEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *tabortEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static void generateVFTMaskInstruction(TR::Node *node, TR::Register *reg, TR::CodeGenerator *cg);
+    static bool VMinlineCallEvaluator(TR::Node *node, bool isIndirect, TR::CodeGenerator *cg);
+    static TR::Register *VMmonentEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *VMmonexitEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *VMnewEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *VMarrayCheckEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *checkcastinstanceofEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static void asyncGCMapCheckPatching(TR::Node *node, TR::CodeGenerator *cg, TR::LabelSymbol *snippetLabel);
+    static void inlineRecursiveMonitor(TR::Node *node, TR::CodeGenerator *cg, TR::LabelSymbol *startLabel,
+        TR::LabelSymbol *snippetLabel, TR::LabelSymbol *JITMonitorEnterSnippetLabel, TR::Register *objectReg,
+        int lwoffset, TR::LabelSymbol *snippetRestartLabel, bool reservingLock);
 
-class OMR_EXTENSIBLE TreeEvaluator: public J9::TreeEvaluator
-   {
-   public:
+    /*
+     * \brief
+     *     Generates the sequence to handle cases where the monitor object
+     *     is value type or value based class type
+     *
+     * \param node
+     *     the monitor enter/exit node
+     *
+     * \param snippetLabel
+     *     the label for OOL code calling VM monitor enter/exit helpers
+     *
+     * \details
+     *     Call the VM helper if it's detected at runtime that the monitor object
+     *     is value type or value based class type.
+     *     The VM helper throws appropriate IllegalMonitorStateException for value type
+     *     and VirtualMachineError for value based class type.
+     *
+     * \note
+     *     This method only handles the cases where, at compile time, it's unknown whether the
+     *     object is reference type or value type or value based class type.
+     */
+    static void generateCheckForValueMonitorEnterOrExit(TR::Node *node, int32_t classFlag,
+        TR::LabelSymbol *snippetLabel, TR::CodeGenerator *cg);
+    static bool monEntryExitHelper(bool entry, TR::Node *node, bool reservingLock, bool normalLockPreservingReservation,
+        TR_RuntimeHelper &helper, TR::CodeGenerator *cg);
+    static void VMarrayStoreCHKEvaluator(TR::Node *, TR::Node *, TR::Node *, TR_X86ScratchRegisterManager *,
+        TR::LabelSymbol *, TR::Instruction *, TR::CodeGenerator *cg);
+    static void VMwrtbarRealTimeWithoutStoreEvaluator(TR::Node *node, TR::MemoryReference *storeMRForRealTime,
+        TR::Register *stoerAddressRegForRealTime, TR::Node *destOwningObject, TR::Node *sourceObject,
+        TR::Register *srcReg, TR_X86ScratchRegisterManager *scratchRegisterManager, TR::CodeGenerator *cg);
+    static void VMwrtbarWithoutStoreEvaluator(TR::Node *node, TR::Node *destOwningObject, TR::Node *sourceObject,
+        TR::Register *srcReg, TR_X86ScratchRegisterManager *scratchRegisterManager, TR::CodeGenerator *cg);
+    static void VMwrtbarWithStoreEvaluator(TR::Node *node, TR::MemoryReference *storeMR, TR_X86ScratchRegisterManager *,
+        TR::Node *destinationChild, TR::Node *sourceChild, bool isIndirect, TR::CodeGenerator *cg,
+        bool nullAdjusted = false);
 
-   static TR::Register *writeBarrierEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *monentEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *monexitEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *asynccheckEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *newEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *multianewArrayEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *arraycopyEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *arraylengthEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *exceptionRangeFenceEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *NULLCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *ZEROCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *resolveAndNULLCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *evaluateNULLCHKWithPossibleResolve(TR::Node *node, bool needResolution, TR::CodeGenerator *cg);
-   static TR::Register *DIVCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *BNDCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *ArrayCopyBNDCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *BNDCHKwithSpineCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *ArrayStoreCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *ArrayCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *barrierFenceEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *atccheckEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *ScopeCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *readbarEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *integerHighestOneBit(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *integerLowestOneBit(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *integerNumberOfLeadingZeros(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *integerNumberOfTrailingZeros(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *longHighestOneBit(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *longLowestOneBit(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *longNumberOfLeadingZeros(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *longNumberOfTrailingZeros(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *tstartEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *tfinishEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *tabortEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static void generateVFTMaskInstruction(TR::Node *node, TR::Register *reg, TR::CodeGenerator *cg);
-   static bool VMinlineCallEvaluator(TR::Node *node, bool isIndirect, TR::CodeGenerator *cg);
-   static TR::Register *VMmonentEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *VMmonexitEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *VMnewEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *VMarrayCheckEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *checkcastinstanceofEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static void asyncGCMapCheckPatching(TR::Node *node, TR::CodeGenerator *cg, TR::LabelSymbol *snippetLabel);
-   static void inlineRecursiveMonitor(TR::Node *node, TR::CodeGenerator *cg, TR::LabelSymbol *startLabel, TR::LabelSymbol *snippetLabel, TR::LabelSymbol *JITMonitorEnterSnippetLabel, TR::Register *objectReg, int lwoffset, TR::LabelSymbol *snippetRestartLabel, bool reservingLock);
+    /*
+     * Generate instructions for static/instance field access report.
+     * @param dataSnippetRegister: Optional, can be used to pass the address of the snippet inside the register.
+     */
+    static void generateTestAndReportFieldWatchInstructions(TR::CodeGenerator *cg, TR::Node *node,
+        TR::Snippet *dataSnippet, bool isWrite, TR::Register *sideEffectRegister, TR::Register *valueReg,
+        TR::Register *dataSnippetRegister);
 
-   /*
-   * \brief
-   *     Generates the sequence to handle cases where the monitor object
-   *     is value type or value based class type
-   *
-   * \param node
-   *     the monitor enter/exit node
-   *
-   * \param snippetLabel
-   *     the label for OOL code calling VM monitor enter/exit helpers
-   *
-   * \details
-   *     Call the VM helper if it's detected at runtime that the monitor object
-   *     is value type or value based class type.
-   *     The VM helper throws appropriate IllegalMonitorStateException for value type
-   *     and VirtualMachineError for value based class type.
-   *
-   * \note
-   *     This method only handles the cases where, at compile time, it's unknown whether the
-   *     object is reference type or value type or value based class type.
-   */
-   static void generateCheckForValueMonitorEnterOrExit(TR::Node *node, int32_t classFlag, TR::LabelSymbol *snippetLabel, TR::CodeGenerator *cg);
-   static bool monEntryExitHelper(bool entry, TR::Node* node, bool reservingLock, bool normalLockPreservingReservation, TR_RuntimeHelper &helper, TR::CodeGenerator* cg);
-   static void VMarrayStoreCHKEvaluator(TR::Node *, TR::Node *, TR::Node *, TR_X86ScratchRegisterManager *, TR::LabelSymbol *, TR::Instruction *, TR::CodeGenerator *cg);
-   static void VMwrtbarRealTimeWithoutStoreEvaluator(TR::Node *node, TR::MemoryReference *storeMRForRealTime, TR::Register *stoerAddressRegForRealTime, TR::Node *destOwningObject, TR::Node *sourceObject, TR::Register *srcReg, TR_X86ScratchRegisterManager *scratchRegisterManager, TR::CodeGenerator *cg);
-   static void VMwrtbarWithoutStoreEvaluator(TR::Node *node, TR::Node *destOwningObject, TR::Node *sourceObject, TR::Register *srcReg, TR_X86ScratchRegisterManager *scratchRegisterManager, TR::CodeGenerator *cg);
-   static void VMwrtbarWithStoreEvaluator(TR::Node *node, TR::MemoryReference  *storeMR, TR_X86ScratchRegisterManager *, TR::Node *destinationChild, TR::Node *sourceChild, bool isIndirect, TR::CodeGenerator *cg, bool nullAdjusted = false);
+    /*
+     * Generates instructions to fill in the J9JITWatchedStaticFieldData.fieldAddress,
+     * J9JITWatchedStaticFieldData.fieldClass for static fields, and J9JITWatchedInstanceFieldData.offset for instance
+     * fields at runtime. Used for fieldwatch support.
+     * @param dataSnippetRegister: Optional, can be used to pass the address of the snippet inside the register.
+     */
+    static void generateFillInDataBlockSequenceForUnresolvedField(TR::CodeGenerator *cg, TR::Node *node,
+        TR::Snippet *dataSnippet, bool isWrite, TR::Register *sideEffectRegister, TR::Register *dataSnippetRegister);
+    static TR::Register *directCallEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *encodeUTF16Evaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *toUpperIntrinsicUTF16Evaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *toLowerIntrinsicUTF16Evaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *toUpperIntrinsicLatin1Evaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *toLowerIntrinsicLatin1Evaluator(TR::Node *node, TR::CodeGenerator *cg);
 
-   /*
-    * Generate instructions for static/instance field access report.
-    * @param dataSnippetRegister: Optional, can be used to pass the address of the snippet inside the register.
-    */
-   static void generateTestAndReportFieldWatchInstructions(TR::CodeGenerator *cg, TR::Node *node, TR::Snippet *dataSnippet, bool isWrite, TR::Register *sideEffectRegister, TR::Register *valueReg, TR::Register *dataSnippetRegister);
+    static TR::Register *irdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *irdbariEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *ardbarEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *ardbariEvaluator(TR::Node *node, TR::CodeGenerator *cg);
 
-   /*
-    * Generates instructions to fill in the J9JITWatchedStaticFieldData.fieldAddress, J9JITWatchedStaticFieldData.fieldClass for static fields,
-    * and J9JITWatchedInstanceFieldData.offset for instance fields at runtime. Used for fieldwatch support.
-    * @param dataSnippetRegister: Optional, can be used to pass the address of the snippet inside the register.
-    */
-   static void generateFillInDataBlockSequenceForUnresolvedField (TR::CodeGenerator *cg, TR::Node *node, TR::Snippet *dataSnippet, bool isWrite, TR::Register *sideEffectRegister, TR::Register *dataSnippetRegister);
-   static TR::Register *directCallEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *encodeUTF16Evaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *toUpperIntrinsicUTF16Evaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *toLowerIntrinsicUTF16Evaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *toUpperIntrinsicLatin1Evaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *toLowerIntrinsicLatin1Evaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *fwrtbarEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *fwrtbariEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *awrtbarEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *awrtbariEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *inlineStringLatin1Inflate(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *inlineMathFma(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *inlineVectorizedHashCode(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *vectorizedHashCodeReductionHelper(TR::Node *node, TR::Register **vectorRegisters,
+        int32_t numVectors, TR::Register *tmpVectorRegVRF, TR::Register *resultReg, TR::VectorLength vl,
+        TR::DataType dt, TR::CodeGenerator *cg);
+    static TR::Register *vectorizedHashCodeHelper(TR::Node *node, TR::DataType dt, TR::Node *nodeHash, bool isSigned,
+        TR::CodeGenerator *cg);
 
-   static TR::Register *irdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *irdbariEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *ardbarEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *ardbariEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *vectorizedHashCodeLoopHelper(TR::Node *node, TR::DataType dt, TR::VectorLength vl,
+        bool isSigned, TR::Register *result, TR::Register *initialHash, TR::Register *index, TR::Register *length,
+        TR::Register *arrayAddress, int32_t unrollCount, TR::CodeGenerator *cg);
 
-   static TR::Register *fwrtbarEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *fwrtbariEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *awrtbarEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *awrtbariEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *inlineStringLatin1Inflate(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *inlineMathFma(TR::Node* node, TR::CodeGenerator* cg);
-   static TR::Register *inlineVectorizedHashCode(TR::Node* node, TR::CodeGenerator* cg);
-   static TR::Register *vectorizedHashCodeReductionHelper(TR::Node* node,
-                                                          TR::Register **vectorRegisters,
-                                                          int32_t numVectors,
-                                                          TR::Register *tmpVectorRegVRF,
-                                                          TR::Register *resultReg,
-                                                          TR::VectorLength vl,
-                                                          TR::DataType dt,
-                                                          TR::CodeGenerator* cg);
-   static TR::Register *vectorizedHashCodeHelper(TR::Node* node, TR::DataType dt, TR::Node *nodeHash, bool isSigned, TR::CodeGenerator* cg);
+    static TR::Register *generateConcurrentScavengeSequence(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *fpConvertToLong(TR::Node *node, TR::SymbolReference *helperSymRef, TR::CodeGenerator *cg);
+    static TR::Register *f2iEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *f2lEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *d2lEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    class CaseConversionManager;
+    static TR::Register *stringCaseConversionHelper(TR::Node *node, TR::CodeGenerator *cg,
+        CaseConversionManager &manager);
 
-   static TR::Register *vectorizedHashCodeLoopHelper(TR::Node *node,
-                                                     TR::DataType dt,
-                                                     TR::VectorLength vl,
-                                                     bool isSigned,
-                                                     TR::Register *result,
-                                                     TR::Register *initialHash,
-                                                     TR::Register *index,
-                                                     TR::Register *length,
-                                                     TR::Register *arrayAddress,
-                                                     int32_t unrollCount,
-                                                     TR::CodeGenerator *cg);
+private:
+    static TR::Register *performHeapLoadWithReadBarrier(TR::Node *node, TR::CodeGenerator *cg);
+};
 
-   static TR::Register *generateConcurrentScavengeSequence(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *fpConvertToLong(TR::Node *node, TR::SymbolReference *helperSymRef, TR::CodeGenerator *cg);
-   static TR::Register *f2iEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *f2lEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *d2lEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   class CaseConversionManager;
-   static TR::Register *stringCaseConversionHelper(TR::Node *node, TR::CodeGenerator *cg, CaseConversionManager& manager);
-
-   private:
-   static TR::Register* performHeapLoadWithReadBarrier(TR::Node* node, TR::CodeGenerator* cg);
-   };
-
-}
-
-}
+}} // namespace J9::X86
 
 #endif

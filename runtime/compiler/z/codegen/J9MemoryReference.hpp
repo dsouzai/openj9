@@ -28,12 +28,16 @@
  */
 #ifndef J9_MEMORY_REFERENCE_CONNECTOR
 #define J9_MEMORY_REFERENCE_CONNECTOR
+
 namespace J9 {
-   namespace Z { class MemoryReference; }
-   typedef J9::Z::MemoryReference MemoryReferenceConnector;
+namespace Z {
+class MemoryReference;
 }
+
+typedef J9::Z::MemoryReference MemoryReferenceConnector;
+} // namespace J9
 #else
-   #error J9::Z::MemoryReference expected to be a primary connector, but a J9 connector is already defined
+#error J9::Z::MemoryReference expected to be a primary connector, but a J9 connector is already defined
 #endif
 
 #include "codegen/OMRMemoryReference.hpp"
@@ -42,86 +46,93 @@ namespace TR {
 class Snippet;
 }
 
+namespace J9 { namespace Z {
 
-namespace J9
-{
-
-namespace Z
-{
-
-class OMR_EXTENSIBLE MemoryReference : public OMR::MemoryReferenceConnector
-   {
+class OMR_EXTENSIBLE MemoryReference : public OMR::MemoryReferenceConnector {
 public:
-   MemoryReference(TR::CodeGenerator *cg) : OMR::MemoryReferenceConnector(cg) {}
+    MemoryReference(TR::CodeGenerator *cg)
+        : OMR::MemoryReferenceConnector(cg)
+    {}
 
-   MemoryReference(TR::Register      *br,
-                          int32_t           disp,
-                          TR::CodeGenerator *cg,
-                          const char *name=NULL ) :
-           OMR::MemoryReferenceConnector(br, disp, cg, name) {}
+    MemoryReference(TR::Register *br, int32_t disp, TR::CodeGenerator *cg, const char *name = NULL)
+        : OMR::MemoryReferenceConnector(br, disp, cg, name)
+    {}
 
-   MemoryReference(TR::Register      *br,
-                          int32_t           disp,
-                          TR::SymbolReference *symRef,
-                          TR::CodeGenerator *cg) :
-           OMR::MemoryReferenceConnector(br, disp, symRef, cg) {}
+    MemoryReference(TR::Register *br, int32_t disp, TR::SymbolReference *symRef, TR::CodeGenerator *cg)
+        : OMR::MemoryReferenceConnector(br, disp, symRef, cg)
+    {}
 
-   MemoryReference(TR::Register      *br,
-                          TR::Register      *ir,
-                          int32_t           disp,
-                          TR::CodeGenerator *cg) :
-           OMR::MemoryReferenceConnector(br, ir, disp, cg) {}
+    MemoryReference(TR::Register *br, TR::Register *ir, int32_t disp, TR::CodeGenerator *cg)
+        : OMR::MemoryReferenceConnector(br, ir, disp, cg)
+    {}
 
-   MemoryReference(int32_t disp, TR::CodeGenerator *cg, bool isConstantDataSnippet=false) :
-            OMR::MemoryReferenceConnector(disp, cg, isConstantDataSnippet) {}
+    MemoryReference(int32_t disp, TR::CodeGenerator *cg, bool isConstantDataSnippet = false)
+        : OMR::MemoryReferenceConnector(disp, cg, isConstantDataSnippet)
+    {}
 
-   MemoryReference(TR::Node *rootLoadOrStore, TR::CodeGenerator *cg, bool canUseRX = false, TR_StorageReference *storageReference=NULL) :
-            OMR::MemoryReferenceConnector(rootLoadOrStore, cg, canUseRX, storageReference) {}
+    MemoryReference(TR::Node *rootLoadOrStore, TR::CodeGenerator *cg, bool canUseRX = false,
+        TR_StorageReference *storageReference = NULL)
+        : OMR::MemoryReferenceConnector(rootLoadOrStore, cg, canUseRX, storageReference)
+    {}
 
-   MemoryReference(TR::Node *addressTree, bool canUseIndex, TR::CodeGenerator *cg) :
-            OMR::MemoryReferenceConnector(addressTree, canUseIndex, cg) {}
+    MemoryReference(TR::Node *addressTree, bool canUseIndex, TR::CodeGenerator *cg)
+        : OMR::MemoryReferenceConnector(addressTree, canUseIndex, cg)
+    {}
 
-   MemoryReference(TR::Node *node, TR::SymbolReference *symRef, TR::CodeGenerator *cg, TR_StorageReference *storageReference=NULL) :
-            OMR::MemoryReferenceConnector(node, symRef, cg, storageReference) {}
-   MemoryReference(TR::Snippet *s, TR::CodeGenerator *cg, TR::Register* base, TR::Node* node) :
-            OMR::MemoryReferenceConnector(s, cg, base, node) {}
+    MemoryReference(TR::Node *node, TR::SymbolReference *symRef, TR::CodeGenerator *cg,
+        TR_StorageReference *storageReference = NULL)
+        : OMR::MemoryReferenceConnector(node, symRef, cg, storageReference)
+    {}
 
-   MemoryReference(TR::Snippet *s, TR::Register* indx, int32_t disp, TR::CodeGenerator *cg) :
-            OMR::MemoryReferenceConnector(s, indx, disp, cg) {}
+    MemoryReference(TR::Snippet *s, TR::CodeGenerator *cg, TR::Register *base, TR::Node *node)
+        : OMR::MemoryReferenceConnector(s, cg, base, node)
+    {}
 
-   MemoryReference(MemoryReference& mr, int32_t n, TR::CodeGenerator *cg) :
-            OMR::MemoryReferenceConnector(mr, n, cg) {}
+    MemoryReference(TR::Snippet *s, TR::Register *indx, int32_t disp, TR::CodeGenerator *cg)
+        : OMR::MemoryReferenceConnector(s, indx, disp, cg)
+    {}
 
-   void addInstrSpecificRelocation(TR::CodeGenerator* cg, TR::Instruction* instr, int32_t disp, uint8_t * cursor);
+    MemoryReference(MemoryReference &mr, int32_t n, TR::CodeGenerator *cg)
+        : OMR::MemoryReferenceConnector(mr, n, cg)
+    {}
 
+    void addInstrSpecificRelocation(TR::CodeGenerator *cg, TR::Instruction *instr, int32_t disp, uint8_t *cursor);
 
-   static bool typeNeedsAlignment(TR::Node *node);
+    static bool typeNeedsAlignment(TR::Node *node);
 
-   TR::UnresolvedDataSnippet * createUnresolvedDataSnippet(TR::Node * node, TR::CodeGenerator * cg, TR::SymbolReference * symRef, TR::Register * tempReg, bool isStore);
-   TR::UnresolvedDataSnippet * createUnresolvedDataSnippetForAloadi(TR::Node * node, TR::CodeGenerator * cg, TR::SymbolReference * symRef, TR::Register * tempReg, bool & isStore);
-   void createUnresolvedSnippetWithNodeRegister(TR::Node * node, TR::CodeGenerator * cg, TR::SymbolReference * symRef, TR::Register *& writableLiteralPoolRegister);
-   void createUnresolvedDataSnippetForBaseNode(TR::CodeGenerator * cg, TR::Register * writableLiteralPoolRegister);
+    TR::UnresolvedDataSnippet *createUnresolvedDataSnippet(TR::Node *node, TR::CodeGenerator *cg,
+        TR::SymbolReference *symRef, TR::Register *tempReg, bool isStore);
+    TR::UnresolvedDataSnippet *createUnresolvedDataSnippetForAloadi(TR::Node *node, TR::CodeGenerator *cg,
+        TR::SymbolReference *symRef, TR::Register *tempReg, bool &isStore);
+    void createUnresolvedSnippetWithNodeRegister(TR::Node *node, TR::CodeGenerator *cg, TR::SymbolReference *symRef,
+        TR::Register *&writableLiteralPoolRegister);
+    void createUnresolvedDataSnippetForBaseNode(TR::CodeGenerator *cg, TR::Register *writableLiteralPoolRegister);
 
-   void createPatchableDataInLitpool(TR::Node * node, TR::CodeGenerator * cg, TR::Register * tempReg, TR::UnresolvedDataSnippet * uds);
+    void createPatchableDataInLitpool(TR::Node *node, TR::CodeGenerator *cg, TR::Register *tempReg,
+        TR::UnresolvedDataSnippet *uds);
 
-   void incRefCountForOpaquePseudoRegister(TR::Node * node, TR::CodeGenerator * cg, TR::Compilation * comp);
+    void incRefCountForOpaquePseudoRegister(TR::Node *node, TR::CodeGenerator *cg, TR::Compilation *comp);
 
-   bool symRefHasTemporaryNegativeOffset();
+    bool symRefHasTemporaryNegativeOffset();
 
-   void setMemRefAndGetUnresolvedData(TR::Snippet *& snippet);
-   void tryForceFolding(TR::Node *& rootLoadOrStore, TR::CodeGenerator *& cg, TR_StorageReference *& storageReference, TR::SymbolReference *& symRef, TR::Symbol *& symbol,
-                        List<TR::Node>& nodesAlreadyEvaluatedBeforeFoldingList);
-   };
-}
+    void setMemRefAndGetUnresolvedData(TR::Snippet *&snippet);
+    void tryForceFolding(TR::Node *&rootLoadOrStore, TR::CodeGenerator *&cg, TR_StorageReference *&storageReference,
+        TR::SymbolReference *&symRef, TR::Symbol *&symbol, List<TR::Node> &nodesAlreadyEvaluatedBeforeFoldingList);
+};
+}} // namespace J9::Z
 
-}
+TR::MemoryReference *reuseS390MemRefFromStorageRef(TR::MemoryReference *baseMR, int32_t offset, TR::Node *node,
+    TR_StorageReference *storageReference, TR::CodeGenerator *cg, bool enforceSSLimits = true);
+TR::MemoryReference *generateS390MemRefFromStorageRef(TR::Node *node, TR_StorageReference *storageReference,
+    TR::CodeGenerator *cg, bool enforceSSLimits = true, bool isNewTemp = false);
+TR::MemoryReference *generateS390RightAlignedMemoryReference(TR::Node *node, TR_StorageReference *storageReference,
+    TR::CodeGenerator *cg, bool enforceSSLimits = true, bool isNewTemp = false);
+TR::MemoryReference *generateS390LeftAlignedMemoryReference(TR::Node *node, TR_StorageReference *storageReference,
+    TR::CodeGenerator *cg, int32_t leftMostByte, bool enforceSSLimits = true, bool isNewTemp = false);
 
-TR::MemoryReference * reuseS390MemRefFromStorageRef(TR::MemoryReference *baseMR, int32_t offset, TR::Node *node, TR_StorageReference *storageReference, TR::CodeGenerator *cg, bool enforceSSLimits=true);
-TR::MemoryReference * generateS390MemRefFromStorageRef(TR::Node *node, TR_StorageReference *storageReference, TR::CodeGenerator * cg, bool enforceSSLimits=true, bool isNewTemp=false);
-TR::MemoryReference * generateS390RightAlignedMemoryReference(TR::Node *node, TR_StorageReference *storageReference, TR::CodeGenerator * cg, bool enforceSSLimits=true, bool isNewTemp=false);
-TR::MemoryReference * generateS390LeftAlignedMemoryReference(TR::Node *node, TR_StorageReference *storageReference, TR::CodeGenerator * cg, int32_t leftMostByte, bool enforceSSLimits=true, bool isNewTemp=false);
-
-TR::MemoryReference * reuseS390LeftAlignedMemoryReference(TR::MemoryReference *baseMR, TR::Node *node, TR_StorageReference *storageReference, TR::CodeGenerator *cg, int32_t leftMostByte, bool enforceSSLimits=true);
-TR::MemoryReference * reuseS390RightAlignedMemoryReference(TR::MemoryReference *baseMR, TR::Node *node, TR_StorageReference *storageReference, TR::CodeGenerator *cg, bool enforceSSLimits=true);
+TR::MemoryReference *reuseS390LeftAlignedMemoryReference(TR::MemoryReference *baseMR, TR::Node *node,
+    TR_StorageReference *storageReference, TR::CodeGenerator *cg, int32_t leftMostByte, bool enforceSSLimits = true);
+TR::MemoryReference *reuseS390RightAlignedMemoryReference(TR::MemoryReference *baseMR, TR::Node *node,
+    TR_StorageReference *storageReference, TR::CodeGenerator *cg, bool enforceSSLimits = true);
 
 #endif

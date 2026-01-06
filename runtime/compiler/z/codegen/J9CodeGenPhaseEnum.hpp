@@ -29,7 +29,5 @@
 
 // The entries in this file must be kept in sync with z/codegen/J9CodeGenPhaseFunctionTable.hpp
 
-InMemoryLoadStoreMarkingPhase,
-ReduceSynchronizedFieldLoadPhase,
-UncommonBCDCHKAddressNodePhase,
-LastJ9ZPhase = UncommonBCDCHKAddressNodePhase,
+InMemoryLoadStoreMarkingPhase, ReduceSynchronizedFieldLoadPhase, UncommonBCDCHKAddressNodePhase,
+    LastJ9ZPhase = UncommonBCDCHKAddressNodePhase,

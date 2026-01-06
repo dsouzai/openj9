@@ -31,54 +31,51 @@ namespace TR {
 class CodeGenerator;
 class LabelSymbol;
 class Node;
-}
+} // namespace TR
 
 namespace TR {
 
-class ARM64StackCheckFailureSnippet : public TR::Snippet
-   {
-   TR::LabelSymbol *reStartLabel;
+class ARM64StackCheckFailureSnippet : public TR::Snippet {
+    TR::LabelSymbol *reStartLabel;
 
-   public:
+public:
+    ARM64StackCheckFailureSnippet(TR::CodeGenerator *cg, TR::Node *node, TR::LabelSymbol *restartlab,
+        TR::LabelSymbol *snippetlab)
+        : TR::Snippet(cg, node, snippetlab)
+        , reStartLabel(restartlab)
+    {}
 
-   ARM64StackCheckFailureSnippet(TR::CodeGenerator *cg,
-                                 TR::Node *node,
-                                 TR::LabelSymbol *restartlab,
-                                 TR::LabelSymbol *snippetlab)
-      : TR::Snippet(cg, node, snippetlab), reStartLabel(restartlab)
-      {
-      }
+    /**
+     * @brief Answers the Snippet kind
+     * @return Snippet kind
+     */
+    virtual Kind getKind() { return IsStackCheckFailure; }
 
-   /**
-    * @brief Answers the Snippet kind
-    * @return Snippet kind
-    */
-   virtual Kind getKind() { return IsStackCheckFailure; }
+    /**
+     * @brief Answers the restart label
+     * @return restart label
+     */
+    TR::LabelSymbol *getReStartLabel() { return reStartLabel; }
 
-   /**
-    * @brief Answers the restart label
-    * @return restart label
-    */
-   TR::LabelSymbol *getReStartLabel() { return reStartLabel; }
-   /**
-    * @brief Sets the restart label
-    * @return restart label
-    */
-   TR::LabelSymbol *setReStartLabel(TR::LabelSymbol *l) { return (reStartLabel = l); }
+    /**
+     * @brief Sets the restart label
+     * @return restart label
+     */
+    TR::LabelSymbol *setReStartLabel(TR::LabelSymbol *l) { return (reStartLabel = l); }
 
-   /**
-    * @brief Emits the Snippet body
-    * @return instruction cursor
-    */
-   virtual uint8_t *emitSnippetBody();
+    /**
+     * @brief Emits the Snippet body
+     * @return instruction cursor
+     */
+    virtual uint8_t *emitSnippetBody();
 
-   /**
-    * @brief Answers the Snippet length
-    * @return Snippet length
-    */
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-   };
+    /**
+     * @brief Answers the Snippet length
+     * @return Snippet length
+     */
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
+};
 
-}
+} // namespace TR
 
 #endif

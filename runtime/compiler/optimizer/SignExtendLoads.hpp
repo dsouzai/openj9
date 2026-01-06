@@ -35,59 +35,57 @@
 namespace TR {
 class Node;
 }
-template <class T> class TR_ScratchList;
+template<class T> class TR_ScratchList;
 
-class TR_SignExtendLoads : public TR::Optimization
-   {
-   public:
-   TR_SignExtendLoads(TR::OptimizationManager *manager)
-      : TR::Optimization(manager)
-      {}
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_SignExtendLoads(manager);
-      }
+class TR_SignExtendLoads : public TR::Optimization {
+public:
+    TR_SignExtendLoads(TR::OptimizationManager *manager)
+        : TR::Optimization(manager)
+    {}
 
-   virtual int32_t perform();
-   virtual const char * optDetailString() const throw();
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_SignExtendLoads(manager);
+    }
 
-   private:
-   bool gatheri2lNodes(TR::Node* parent,TR::Node *node, TR_ScratchList<TR::Node> & i2lList,
-                       TR_ScratchList<TR::Node> & userI2lList,bool);
+    virtual int32_t perform();
+    virtual const char *optDetailString() const throw();
 
-   friend struct HashTable;
+private:
+    bool gatheri2lNodes(TR::Node *parent, TR::Node *node, TR_ScratchList<TR::Node> &i2lList,
+        TR_ScratchList<TR::Node> &userI2lList, bool);
 
-   // Hash table mapping of nodes to lists of referring nodes
-   //
-   struct HashTableEntry
-      {
-      HashTableEntry          *_next;
-      TR::Node                 *_node;
-      TR_ScratchList<TR::Node> *_referringList;
-      };
+    friend struct HashTable;
 
-   struct HashTable
-      {
-      int32_t          _numBuckets;
-      HashTableEntry **_buckets;
-      };
+    // Hash table mapping of nodes to lists of referring nodes
+    //
+    struct HashTableEntry {
+        HashTableEntry *_next;
+        TR::Node *_node;
+        TR_ScratchList<TR::Node> *_referringList;
+    };
 
-   int32_t nodeHashBucket(TR::Node *node)
-               {return ((uintptr_t)node >> 2) % _sharedNodesHash._numBuckets;}
+    struct HashTable {
+        int32_t _numBuckets;
+        HashTableEntry **_buckets;
+    };
 
-   void    InitializeHashTable();
-   TR_ScratchList<TR::Node> * getListFromHash(TR::Node *node);
-   void    addListToHash(TR::Node *node,TR_ScratchList<TR::Node> *nodeList);
-   void    addNodeToHash(TR::Node *node,TR::Node *parent);
-   void    Propagatei2lNode(TR::Node *i2lNode,TR::Node *parent,int32_t childIndex,bool);
-   void    ProcessNodeList(TR_ScratchList<TR::Node> &list,bool isAddressCalc);
-   void    Insertl2iNode(TR::Node *targetNode);
-   bool    ConvertSubTreeToLong(TR::Node *parent,TR::Node *node,bool changeNode);
-   void    emptyHashTable();
-   void    Inserti2lNode(TR::Node *targetNode,TR::Node* newI2LNode);
-   void    ReplaceI2LNode(TR::Node *i2lNode,TR::Node *newNode);
+    int32_t nodeHashBucket(TR::Node *node) { return ((uintptr_t)node >> 2) % _sharedNodesHash._numBuckets; }
 
-   HashTable _sharedNodesHash;
-   };
+    void InitializeHashTable();
+    TR_ScratchList<TR::Node> *getListFromHash(TR::Node *node);
+    void addListToHash(TR::Node *node, TR_ScratchList<TR::Node> *nodeList);
+    void addNodeToHash(TR::Node *node, TR::Node *parent);
+    void Propagatei2lNode(TR::Node *i2lNode, TR::Node *parent, int32_t childIndex, bool);
+    void ProcessNodeList(TR_ScratchList<TR::Node> &list, bool isAddressCalc);
+    void Insertl2iNode(TR::Node *targetNode);
+    bool ConvertSubTreeToLong(TR::Node *parent, TR::Node *node, bool changeNode);
+    void emptyHashTable();
+    void Inserti2lNode(TR::Node *targetNode, TR::Node *newI2LNode);
+    void ReplaceI2LNode(TR::Node *i2lNode, TR::Node *newNode);
+
+    HashTable _sharedNodesHash;
+};
+
 extern bool shouldEnableSEL(TR::Compilation *c);
 #endif

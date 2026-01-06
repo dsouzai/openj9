@@ -29,14 +29,12 @@
 extern "C" {
 #endif
 
-JNIEXPORT jint JNICALL Java_java_lang_invoke_InterfaceHandle_convertITableIndexToVTableIndex
-  (JNIEnv *, jclass, jlong, jint, jlong);
+JNIEXPORT jint JNICALL Java_java_lang_invoke_InterfaceHandle_convertITableIndexToVTableIndex(JNIEnv *, jclass, jlong,
+    jint, jlong);
 
-JNIEXPORT void JNICALL Java_java_lang_invoke_MutableCallSite_invalidate
-  (JNIEnv *, jclass, jlongArray);
+JNIEXPORT void JNICALL Java_java_lang_invoke_MutableCallSite_invalidate(JNIEnv *, jclass, jlongArray);
 
-JNIEXPORT jlong JNICALL Java_java_lang_invoke_ThunkTuple_initialInvokeExactThunk
-  (JNIEnv *, jclass);
+JNIEXPORT jlong JNICALL Java_java_lang_invoke_ThunkTuple_initialInvokeExactThunk(JNIEnv *, jclass);
 
 #ifdef __cplusplus
 } /* extern "C" */

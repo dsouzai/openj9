@@ -39,610 +39,540 @@ static int32_t baseEventHandler(TR_PPCHWProfilerEBBContext *context);
 static int32_t methodHotnessEventHandler(TR_PPCHWProfilerEBBContext *context, int32_t pmu);
 static int32_t updatePMC(int32_t pmcNumber, uint32_t pmc[]);
 
-static struct TR_PPCHWProfilerPMUConfig configs[NumProfilingConfigs] =
-   {
-      { // MethodHotness
-         baseEventHandler,
-         {
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            methodHotnessEventHandler,
-            NULL
-         },
+static struct TR_PPCHWProfilerPMUConfig configs[NumProfilingConfigs] = {
+    {
+     // MethodHotness
+     baseEventHandler, { NULL, NULL, NULL, NULL, methodHotnessEventHandler, NULL },
 #ifdef AIXPPC
-         {
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            "PM_RUN_INST_CMPL",
-            NULL
-         },
-         -1,
+     { NULL, NULL, NULL, NULL, "PM_RUN_INST_CMPL", NULL }, -1,
 #elif defined(LINUXPPC)
-         {
-            0x0,
-            0x0,
-            0x0,
-            0x0,
-            0xFA,       // PM_RUN_INST_CMPL
-            0x0
-         },
+        { 0x0, 0x0, 0x0, 0x0,
+            0xFA, // PM_RUN_INST_CMPL
+            0x0 },
 #endif /* LINUXPPC */
-         BHRB_IFM1,     // Calls
-         {0, 0, 0, 0, 512, 0},
-         {0, 0, 0, 0, sizeof(TR_PPCMethodHotnessSample), 0},
-         {INVALID_SAMPLERATE, INVALID_SAMPLERATE, INVALID_SAMPLERATE, INVALID_SAMPLERATE, 1000000, INVALID_SAMPLERATE},
-         0 // XXX: Re-enable when interpreter is fixed //J9_JIT_TOGGLE_RI_ON_TRANSITION
-      },
-      { // BlockHotness
-         NULL,
-         {NULL},
+     BHRB_IFM1, // Calls
+ { 0, 0, 0, 0, 512, 0 }, { 0, 0, 0, 0, sizeof(TR_PPCMethodHotnessSample), 0 },
+     { INVALID_SAMPLERATE, INVALID_SAMPLERATE, INVALID_SAMPLERATE, INVALID_SAMPLERATE, 1000000, INVALID_SAMPLERATE },
+     0 // XXX: Re-enable when interpreter is fixed //J9_JIT_TOGGLE_RI_ON_TRANSITION
+                                           },
+    {        // BlockHotness
+        NULL,                                                    { NULL },
 #ifdef AIXPPC
-         {NULL},
-         0,
+     { NULL },  0,
 #elif defined(LINUXPPC)
-         {0},
+        { 0 },
 #endif /* LINUXPPC */
-         BHRB_IFM0,
-         {0},
-         {0},
-         {0},
-         0
-      },
-      { // FieldHotness
-         NULL,
-         {NULL},
+     BHRB_IFM0,                         { 0 },                                                { 0 },                  { 0 }, 0 },
+    {        // FieldHotness
+        NULL,                                                    { NULL },
 #ifdef AIXPPC
-         {NULL},
-         0,
+     { NULL },  0,
 #elif defined(LINUXPPC)
-         {0},
+        { 0 },
 #endif /* LINUXPPC */
-         BHRB_IFM0,
-         {0},
-         {0},
-         {0},
-         0
-      }
-   };
+     BHRB_IFM0,                         { 0 },                                                { 0 },                  { 0 }, 0 }
+};
 
-TR_PPCHWProfilerPMUConfig* TR_PPCHWProfilerPMUConfig::getPMUConfigs()
-   {
-   return configs;
-   }
+TR_PPCHWProfilerPMUConfig *TR_PPCHWProfilerPMUConfig::getPMUConfigs() { return configs; }
 
 static int32_t updatePMC(int32_t pmcNumber, uint32_t pmc[])
-   {
-   switch (pmcNumber)
-      {
-      case 1: return tr_pmc_write(PMC1, &pmc[0]);
-      case 2: return tr_pmc_write(PMC2, &pmc[1]);
-      case 3: return tr_pmc_write(PMC3, &pmc[2]);
-      case 4: return tr_pmc_write(PMC4, &pmc[3]);
-      case 5: return tr_pmc_write(PMC5, &pmc[4]);
-      case 6: return tr_pmc_write(PMC6, &pmc[5]);
-      default: return 1;
-      }
-   }
+{
+    switch (pmcNumber) {
+        case 1:
+            return tr_pmc_write(PMC1, &pmc[0]);
+        case 2:
+            return tr_pmc_write(PMC2, &pmc[1]);
+        case 3:
+            return tr_pmc_write(PMC3, &pmc[2]);
+        case 4:
+            return tr_pmc_write(PMC4, &pmc[3]);
+        case 5:
+            return tr_pmc_write(PMC5, &pmc[4]);
+        case 6:
+            return tr_pmc_write(PMC6, &pmc[5]);
+        default:
+            return 1;
+    }
+}
 
 static int32_t baseEventHandler(TR_PPCHWProfilerEBBContext *context)
-   {
-   uint32_t pmc[MAX_PMCS];
+{
+    uint32_t pmc[MAX_PMCS];
 
 #if defined(DEBUG) || defined(PPCRI_VERBOSE)
-   bool counterNegative = false;
+    bool counterNegative = false;
 #endif /* DEBUG || PPCRI_VERBOSE */
 
-   if (OMR_UNLIKELY(tr_pmc_read_1to4(&pmc[0]))) goto lostpmu;
-   if (OMR_UNLIKELY(tr_pmc_read_5to6(&pmc[4]))) goto lostpmu;
+    if (OMR_UNLIKELY(tr_pmc_read_1to4(&pmc[0])))
+        goto lostpmu;
+    if (OMR_UNLIKELY(tr_pmc_read_5to6(&pmc[4])))
+        goto lostpmu;
 
-   uint64_t mmcr[3];
-   if (OMR_UNLIKELY(tr_mmcr_read(mmcr))) goto lostpmu;
+    uint64_t mmcr[3];
+    if (OMR_UNLIKELY(tr_mmcr_read(mmcr)))
+        goto lostpmu;
 
-   for (int32_t i = 0; i < MAX_PMCS; i++)
-      {
-      if ((context->counterBitMask & (1 << i)) &&
-          pmc[i] >= 0x80000000)
-         {
-         if (configs[context->currentConfig].eventHandlerTable[i])
-            {
+    for (int32_t i = 0; i < MAX_PMCS; i++) {
+        if ((context->counterBitMask & (1 << i)) && pmc[i] >= 0x80000000) {
+            if (configs[context->currentConfig].eventHandlerTable[i]) {
 #if defined(DEBUG) || defined(PPCRI_VERBOSE)
-            ++context->eventCounts[i];
+                ++context->eventCounts[i];
 #endif
-            TR_ASSERT(context->sampleRates[i] != INVALID_SAMPLERATE, "Unexpected sample rate");
-            pmc[i] = 0x80000000 - context->sampleRates[i];
+                TR_ASSERT(context->sampleRates[i] != INVALID_SAMPLERATE, "Unexpected sample rate");
+                pmc[i] = 0x80000000 - context->sampleRates[i];
 
-            if (configs[context->currentConfig].eventHandlerTable[i](context, i)) goto lostpmu;
+                if (configs[context->currentConfig].eventHandlerTable[i](context, i))
+                    goto lostpmu;
 
-            if (updatePMC(i+1, pmc)) goto lostpmu;
+                if (updatePMC(i + 1, pmc))
+                    goto lostpmu;
 
-            // If the buffer is full we want to disable the current counter, so we freeze it through MMCR2
-            if (OMR_UNLIKELY(!context->buffers[i].spaceLeft))
-               {
-               context->counterBitMask &= (0xFF ^ (1 << i));
-               TR_PPCHWProfilerPMUConfig::calcMMCR2ToDisablePMC(mmcr[1], i);
-               if (OMR_UNLIKELY(tr_mmcr_write(MMCR2, &mmcr[1]))) goto lostpmu;
-               }
-            }
-         else
-            {
+                // If the buffer is full we want to disable the current counter, so we freeze it through MMCR2
+                if (OMR_UNLIKELY(!context->buffers[i].spaceLeft)) {
+                    context->counterBitMask &= (0xFF ^ (1 << i));
+                    TR_PPCHWProfilerPMUConfig::calcMMCR2ToDisablePMC(mmcr[1], i);
+                    if (OMR_UNLIKELY(tr_mmcr_write(MMCR2, &mmcr[1])))
+                        goto lostpmu;
+                }
+            } else {
 #if defined(DEBUG) || defined(PPCRI_VERBOSE)
-            ++context->eventCounts[i];
-            counterNegative = true;
+                ++context->eventCounts[i];
+                counterNegative = true;
 #endif /* DEBUG || PPCRI_VERBOSE */
-            pmc[i] = context->sampleRates[i] != INVALID_SAMPLERATE ? 0x80000000 - context->sampleRates[i] : 0;
-            if (updatePMC(i+1, pmc)) goto lostpmu;
+                pmc[i] = context->sampleRates[i] != INVALID_SAMPLERATE ? 0x80000000 - context->sampleRates[i] : 0;
+                if (updatePMC(i + 1, pmc))
+                    goto lostpmu;
             }
-         }
-      }
+        }
+    }
 
 #if defined(DEBUG) || defined(PPCRI_VERBOSE)
-      if (OMR_UNLIKELY(!counterNegative))
-         ++context->unknownEventCount;
+    if (OMR_UNLIKELY(!counterNegative))
+        ++context->unknownEventCount;
 #endif /* DEBUG || PPCRI_VERBOSE */
 
-   // In order to re-enable EBBs and restart the PMU we need to clear MMCR0[PMAO|FC] and BESCR[PMEO] and set MMCR0[PMAE] and BESCR[GE|PME]
-   // however the order is important for a couple of reasons. First, the BESCR bits can't be manipulated until MMCR0[PMAO] is cleared.
-   // Second, we have to unfreeze the PMU before returning from the EBB handler, but we don't want instructions that are executed as part of the
-   // EBB handler to be counted. To minimize the number of EBB instructions counted we clear MMCR0[FC] as the last step before returning from the
-   // assembly EBB handler.
+    // In order to re-enable EBBs and restart the PMU we need to clear MMCR0[PMAO|FC] and BESCR[PMEO] and set
+    // MMCR0[PMAE] and BESCR[GE|PME] however the order is important for a couple of reasons. First, the BESCR bits can't
+    // be manipulated until MMCR0[PMAO] is cleared. Second, we have to unfreeze the PMU before returning from the EBB
+    // handler, but we don't want instructions that are executed as part of the EBB handler to be counted. To minimize
+    // the number of EBB instructions counted we clear MMCR0[FC] as the last step before returning from the assembly EBB
+    // handler.
 
-   // First clear MMCR0[PMAO] and set MMCR[PMAE], but leave MMCR[FC] set
-   // goto bypasses decl of mmcr0
-      {
-      const uint64_t mmcr0 = MMCR0_FC | MMCR0_PMAE;
-      if (OMR_UNLIKELY(tr_mmcr_write(MMCR0, &mmcr0))) goto lostpmu;
-      }
+    // First clear MMCR0[PMAO] and set MMCR[PMAE], but leave MMCR[FC] set
+    // goto bypasses decl of mmcr0
+    {
+        const uint64_t mmcr0 = MMCR0_FC | MMCR0_PMAE;
+        if (OMR_UNLIKELY(tr_mmcr_write(MMCR0, &mmcr0)))
+            goto lostpmu;
+    }
 
-   // Then clear BESCR[PMEO] and set BESCR[PME]
-   MTSPR(BESCRR, BESCR_PMEO);
-   MTSPR(BESCRSU, BESCRU_PME);
+    // Then clear BESCR[PMEO] and set BESCR[PME]
+    MTSPR(BESCRR, BESCR_PMEO);
+    MTSPR(BESCRSU, BESCRU_PME);
 
-   // MMCR0[FC] will be cleared by the assembly EBB handler
-   return 0;
+    // MMCR0[FC] will be cleared by the assembly EBB handler
+    return 0;
 
 lostpmu:
-   // If we've lost access to the PMU while servicing the EBB we can't re-initialize it until we
-   // get access back so we set a flag and deal with it later
-   context->lostPMU = true;
-   return 1;
-   }
+    // If we've lost access to the PMU while servicing the EBB we can't re-initialize it until we
+    // get access back so we set a flag and deal with it later
+    context->lostPMU = true;
+    return 1;
+}
 
 static int32_t methodHotnessEventHandler(TR_PPCHWProfilerEBBContext *context, int32_t pmu)
-   {
-   if (OMR_LIKELY(context->buffers[pmu].spaceLeft))
-      {
-      TR_PPCMethodHotnessSample *buffer = (TR_PPCMethodHotnessSample *)context->buffers[pmu].start;
-      TR_PPCMethodHotnessSample *sample = &buffer[configs[context->currentConfig].bufferSize[pmu] - context->buffers[pmu].spaceLeft];
-      sample->sia = context->ebbrr;
+{
+    if (OMR_LIKELY(context->buffers[pmu].spaceLeft)) {
+        TR_PPCMethodHotnessSample *buffer = (TR_PPCMethodHotnessSample *)context->buffers[pmu].start;
+        TR_PPCMethodHotnessSample *sample
+            = &buffer[configs[context->currentConfig].bufferSize[pmu] - context->buffers[pmu].spaceLeft];
+        sample->sia = context->ebbrr;
 #ifdef HAVE_BHRBES
-      readBHRB(sample->calls);
-      CLRBHRB();
+        readBHRB(sample->calls);
+        CLRBHRB();
 #endif /* HAVE_BHRBES */
-      --context->buffers[pmu].spaceLeft;
-      }
+        --context->buffers[pmu].spaceLeft;
+    }
 
-   return 0;
-   }
+    return 0;
+}
 
 void TR_PPCHWProfilerPMUConfig::calcMMCR2ForConfig(uint64_t &mmcr2, TR_PPCHWProfilingConfigs c)
-   {
-   uint64_t fcnp = 0;
-   for (int i = 0; i < MAX_PMCS; ++i)
-      {
-      if (configs[c].sampleRates[i] == INVALID_SAMPLERATE)
-         fcnp |= MMCR2_FCnP << ((5 - i) * 9 + 10);
-      }
-   mmcr2 = fcnp;
-   }
+{
+    uint64_t fcnp = 0;
+    for (int i = 0; i < MAX_PMCS; ++i) {
+        if (configs[c].sampleRates[i] == INVALID_SAMPLERATE)
+            fcnp |= MMCR2_FCnP << ((5 - i) * 9 + 10);
+    }
+    mmcr2 = fcnp;
+}
 
 void TR_PPCHWProfilerPMUConfig::calcMMCR2ToDisablePMC(uint64_t &mmcr2, int32_t pmcNumber)
-   {
-   TR_ASSERT(pmcNumber >= 0 && pmcNumber < MAX_PMCS, "Trying to disable invalid pmcNumber");
-   uint64_t fcnp = 0;
-   fcnp |= MMCR2_FCnP << ((5 - pmcNumber) * 9 + 10);
-   mmcr2 |= fcnp;
-   }
+{
+    TR_ASSERT(pmcNumber >= 0 && pmcNumber < MAX_PMCS, "Trying to disable invalid pmcNumber");
+    uint64_t fcnp = 0;
+    fcnp |= MMCR2_FCnP << ((5 - pmcNumber) * 9 + 10);
+    mmcr2 |= fcnp;
+}
 
 TR_PPCHWProfiler::TR_PPCHWProfiler(J9JITConfig *jitConfig)
-   : TR_HWProfiler(jitConfig),
-     _ppcHWProfilerBufferMemoryAllocated(0), _ppcHWProfilerBufferMaximumMemory(TR::Options::_hwprofilerRIBufferPoolSize)
-   {}
+    : TR_HWProfiler(jitConfig)
+    , _ppcHWProfilerBufferMemoryAllocated(0)
+    , _ppcHWProfilerBufferMaximumMemory(TR::Options::_hwprofilerRIBufferPoolSize)
+{}
 
-bool
-TR_PPCHWProfiler::processBuffers(J9VMThread *vmThread, TR_J9VMBase *fe)
-   {
-   TR_ASSERT(IS_THREAD_RI_INITIALIZED(vmThread), "processBuffers() called on uninitialized thread");
-   TR_ASSERT((vmThread->publicFlags & J9_PUBLIC_FLAGS_VM_ACCESS), "Must have vm access!");
+bool TR_PPCHWProfiler::processBuffers(J9VMThread *vmThread, TR_J9VMBase *fe)
+{
+    TR_ASSERT(IS_THREAD_RI_INITIALIZED(vmThread), "processBuffers() called on uninitialized thread");
+    TR_ASSERT((vmThread->publicFlags & J9_PUBLIC_FLAGS_VM_ACCESS), "Must have vm access!");
 
-   const uint64_t freeze = MMCR0_FC;
-   if (OMR_UNLIKELY(tr_mmcr_write(MMCR0, &freeze)))
-      return false;
+    const uint64_t freeze = MMCR0_FC;
+    if (OMR_UNLIKELY(tr_mmcr_write(MMCR0, &freeze)))
+        return false;
 
-   TR_PPCHWProfilerEBBContext *context = (TR_PPCHWProfilerEBBContext *)vmThread->riParameters->controlBlock;
+    TR_PPCHWProfilerEBBContext *context = (TR_PPCHWProfilerEBBContext *)vmThread->riParameters->controlBlock;
 
-   if (OMR_UNLIKELY(context->lostPMU))
-      {
-      // TODO: If we lost PMU access in the EBB we need to re-initialize
-      VERBOSE("J9VMThread=%p lost PMU access while handling an EBB, resetting PMU.");
-      }
+    if (OMR_UNLIKELY(context->lostPMU)) {
+        // TODO: If we lost PMU access in the EBB we need to re-initialize
+        VERBOSE("J9VMThread=%p lost PMU access while handling an EBB, resetting PMU.");
+    }
 
-   bool isRIEnabled = IS_THREAD_RI_ENABLED(vmThread);
+    bool isRIEnabled = IS_THREAD_RI_ENABLED(vmThread);
 
-   bool pmuFrozen = false;
-   for (int i = 0; i < MAX_PMCS; ++i)
-      {
-      if (!context->buffers[i].start)
-         continue;
-      else
-         context->counterBitMask |= (1 << i);
+    bool pmuFrozen = false;
+    for (int i = 0; i < MAX_PMCS; ++i) {
+        if (!context->buffers[i].start)
+            continue;
+        else
+            context->counterBitMask |= (1 << i);
 
-      if (!context->buffers[i].spaceLeft)
-         pmuFrozen = true;
-      }
+        if (!context->buffers[i].spaceLeft)
+            pmuFrozen = true;
+    }
 
-   if (pmuFrozen)
-      {
-      uint64_t mmcr2;
-      TR_PPCHWProfilerPMUConfig::calcMMCR2ForConfig(mmcr2, context->currentConfig);
-      if (OMR_UNLIKELY(tr_mmcr_write(MMCR2, &mmcr2)))
-         return false;
-      }
+    if (pmuFrozen) {
+        uint64_t mmcr2;
+        TR_PPCHWProfilerPMUConfig::calcMMCR2ForConfig(mmcr2, context->currentConfig);
+        if (OMR_UNLIKELY(tr_mmcr_write(MMCR2, &mmcr2)))
+            return false;
+    }
 
-   for (int i = 0; i < MAX_PMCS; ++i)
-      {
-      if (!context->buffers[i].start)
-         continue;
-      uint32_t bufferSize = configs[context->currentConfig].bufferSize[i];
-      uint32_t spaceLeft = context->buffers[i].spaceLeft;
-      float    bufferSpaceLeftPercentage = (float)spaceLeft / (float)bufferSize * 100.0f;
-      if (bufferSpaceLeftPercentage > (100 - TR::Options::_hwprofilerRIBufferThreshold))
-         continue;
+    for (int i = 0; i < MAX_PMCS; ++i) {
+        if (!context->buffers[i].start)
+            continue;
+        uint32_t bufferSize = configs[context->currentConfig].bufferSize[i];
+        uint32_t spaceLeft = context->buffers[i].spaceLeft;
+        float bufferSpaceLeftPercentage = (float)spaceLeft / (float)bufferSize * 100.0f;
+        if (bufferSpaceLeftPercentage > (100 - TR::Options::_hwprofilerRIBufferThreshold))
+            continue;
 
-      // The data tag for the buffer is the PMC index in the high 16 bits and the RI config in the low 16 bits.
-      // processBufferRecords() will use this to figure out what kind of samples the buffer contains.
-      uint32_t dataTag = i << 16 | context->currentConfig;
-      uint32_t bufferElementSize = configs[context->currentConfig].bufferElementSize[i];
-      uint32_t bufferSizeInBytes = bufferSize * bufferElementSize;
-      uint32_t bufferFilledSize = bufferSize - spaceLeft;
-      uint32_t bufferFilledSizeInBytes = bufferFilledSize * bufferElementSize;
+        // The data tag for the buffer is the PMC index in the high 16 bits and the RI config in the low 16 bits.
+        // processBufferRecords() will use this to figure out what kind of samples the buffer contains.
+        uint32_t dataTag = i << 16 | context->currentConfig;
+        uint32_t bufferElementSize = configs[context->currentConfig].bufferElementSize[i];
+        uint32_t bufferSizeInBytes = bufferSize * bufferElementSize;
+        uint32_t bufferFilledSize = bufferSize - spaceLeft;
+        uint32_t bufferFilledSizeInBytes = bufferFilledSize * bufferElementSize;
 
 #ifdef TOSS_HW_SAMPLES
-      // For testing purposes, throw away the collected samples
-      context->buffers[i].spaceLeft = bufferSize;
+        // For testing purposes, throw away the collected samples
+        context->buffers[i].spaceLeft = bufferSize;
 #else /* !TOSS_HW_SAMPLES */
 
-      _numRequests++;
+        _numRequests++;
 
-      uint8_t *newBuffer = swapBufferToWorkingQueue((U_8*)context->buffers[i].start,
-                                                     bufferSizeInBytes,
-                                                     bufferFilledSizeInBytes,
-                                                     dataTag);
-      if (OMR_LIKELY(newBuffer != NULL))
-         {
+        uint8_t *newBuffer = swapBufferToWorkingQueue((U_8 *)context->buffers[i].start, bufferSizeInBytes,
+            bufferFilledSizeInBytes, dataTag);
+        if (OMR_LIKELY(newBuffer != NULL)) {
 #if defined(DEBUG) || defined(PPCRI_VERBOSE)
-         VERBOSE("Swapped buffers %p (old) and %p (new) for J9VMThread=%p.", context->buffers[i].start, newBuffer, vmThread);
+            VERBOSE("Swapped buffers %p (old) and %p (new) for J9VMThread=%p.", context->buffers[i].start, newBuffer,
+                vmThread);
 #endif /* DEBUG || PPCRI_VERBOSE */
-         context->buffers[i].start = newBuffer;
-         context->buffers[i].spaceLeft = bufferSize;
-         }
-      else
+            context->buffers[i].start = newBuffer;
+            context->buffers[i].spaceLeft = bufferSize;
+        } else
 #ifdef AVOID_PROCESSING_ON_APPTHREAD
-      // Only process on the app thread if the buffer is near full and we can't swap for a free one, otherwise keep collecting samples
-      if (bufferSpaceLeftPercentage < 10)
+            // Only process on the app thread if the buffer is near full and we can't swap for a free one, otherwise
+            // keep collecting samples
+            if (bufferSpaceLeftPercentage < 10)
 #endif /* AVOID_PROCESSING_ON_APPTHREAD */
-         {
-         if (TR::Options::getCmdLineOptions()->getOption(TR_DisableHWProfilerThread) ||
-             (100*_numRequestsSkipped) >= ((uint64_t)TR::Options::_hwProfilerBufferMaxPercentageToDiscard * _numRequests))
             {
-            // Process buffer by application thread and reuse the buffer
-            processBufferRecords(vmThread, (U_8*)context->buffers[i].start,
-                                 bufferSizeInBytes,
-                                 bufferFilledSizeInBytes,
-                                 dataTag);
-            _STATS_BuffersProcessedByAppThread++;
+                if (TR::Options::getCmdLineOptions()->getOption(TR_DisableHWProfilerThread)
+                    || (100 * _numRequestsSkipped)
+                        >= ((uint64_t)TR::Options::_hwProfilerBufferMaxPercentageToDiscard * _numRequests)) {
+                    // Process buffer by application thread and reuse the buffer
+                    processBufferRecords(vmThread, (U_8 *)context->buffers[i].start, bufferSizeInBytes,
+                        bufferFilledSizeInBytes, dataTag);
+                    _STATS_BuffersProcessedByAppThread++;
+                } else {
+                    _numRequestsSkipped++;
+                }
+                context->buffers[i].spaceLeft = bufferSize;
             }
-         else
-            {
-            _numRequestsSkipped++;
-            }
-         context->buffers[i].spaceLeft = bufferSize;
-         }
 #endif /* !TOSS_HW_SAMPLES */
-      }
+    }
 
-   if (isRIEnabled)
-      {
-      const uint64_t unfreeze = MMCR0_PMAE;
-      tr_mmcr_write(MMCR0, &unfreeze);
-      }
+    if (isRIEnabled) {
+        const uint64_t unfreeze = MMCR0_PMAE;
+        tr_mmcr_write(MMCR0, &unfreeze);
+    }
 
-   return false;
-   }
+    return false;
+}
 
 // This helps when you have several consecutive samples in a buffer hitting the same method,
 // however even with just a few hits it's probably a net win considering how much work is
 // done for a single metadata search.
 #define CACHE_LAST_METADATA
 
-static void processMethodHotness(J9VMThread *vmThread, J9JITConfig *jitConfig, TR_HWProfiler *hwProfiler, TR_PPCMethodHotnessSample *samples, uint32_t numSamples)
-   {
-   uint32_t numJittedSamples = 0;
-   uint32_t numJit2JitCalls = 0;
-   TR_FrontEnd *fe           = TR_J9VMBase::get(jitConfig, vmThread);
-   bool recompilationEnabled = false;
-   TR::CompilationInfo * compInfo = TR::CompilationInfo::get(jitConfig);
+static void processMethodHotness(J9VMThread *vmThread, J9JITConfig *jitConfig, TR_HWProfiler *hwProfiler,
+    TR_PPCMethodHotnessSample *samples, uint32_t numSamples)
+{
+    uint32_t numJittedSamples = 0;
+    uint32_t numJit2JitCalls = 0;
+    TR_FrontEnd *fe = TR_J9VMBase::get(jitConfig, vmThread);
+    bool recompilationEnabled = false;
+    TR::CompilationInfo *compInfo = TR::CompilationInfo::get(jitConfig);
 
-   if (compInfo->getPersistentInfo()->isRuntimeInstrumentationRecompilationEnabled()
-       && vmThread != NULL
-       && fe != NULL)
-      {
-      recompilationEnabled = true;
-      }
+    if (compInfo->getPersistentInfo()->isRuntimeInstrumentationRecompilationEnabled() && vmThread != NULL
+        && fe != NULL) {
+        recompilationEnabled = true;
+    }
 
 #ifdef CACHE_LAST_METADATA
-   J9JITExceptionTable *lastMetaData = NULL;
+    J9JITExceptionTable *lastMetaData = NULL;
 #if defined(DEBUG) || defined(PPCRI_VERBOSE)
-   uint32_t             lastMetaDataHit = 0;
+    uint32_t lastMetaDataHit = 0;
 #endif /* DEBUG || PPCRI_VERBOSE */
 #endif /* CACHE_LAST_METADATA */
-   J9JITExceptionTable *metaData;
-   for (uint32_t i = 0; i < numSamples; ++i)
-      {
+    J9JITExceptionTable *metaData;
+    for (uint32_t i = 0; i < numSamples; ++i) {
 #ifdef CACHE_LAST_METADATA
-      if (lastMetaData && samples[i].sia >= lastMetaData->startPC && samples[i].sia <= lastMetaData->endPC)
-         {
-         metaData = lastMetaData;
+        if (lastMetaData && samples[i].sia >= lastMetaData->startPC && samples[i].sia <= lastMetaData->endPC) {
+            metaData = lastMetaData;
 #if defined(DEBUG) || defined(PPCRI_VERBOSE)
-         ++lastMetaDataHit;
+            ++lastMetaDataHit;
 #endif /* DEBUG || PPCRI_VERBOSE */
-         }
-      else
+        } else
 #endif /* CACHE_LAST_METADATA */
-         {
-         metaData = jit_artifact_search(jitConfig->translationArtifacts, samples[i].sia);
-         if (!metaData)
-            {
-            continue;
+        {
+            metaData = jit_artifact_search(jitConfig->translationArtifacts, samples[i].sia);
+            if (!metaData) {
+                continue;
             }
 #ifdef CACHE_LAST_METADATA
-         lastMetaData = metaData;
+            lastMetaData = metaData;
 #endif /* CACHE_LAST_METADATA */
-         }
+        }
 
-      ++numJittedSamples;
+        ++numJittedSamples;
 
-      TR::Recompilation::hwpGlobalSampleCount++;
-      if (recompilationEnabled && metaData->bodyInfo != NULL)
-         {
-         TR_PersistentJittedBodyInfo *bodyInfo = (TR_PersistentJittedBodyInfo *) metaData->bodyInfo;
+        TR::Recompilation::hwpGlobalSampleCount++;
+        if (recompilationEnabled && metaData->bodyInfo != NULL) {
+            TR_PersistentJittedBodyInfo *bodyInfo = (TR_PersistentJittedBodyInfo *)metaData->bodyInfo;
 
-         bodyInfo->_hwpInstructionCount++;
-         if (hwProfiler->recompilationLogic(bodyInfo,
-                                            (void *) metaData->startPC,
-                                            bodyInfo->_hwpInstructionStartCount,
-                                            bodyInfo->_hwpInstructionCount,
-                                            TR::Recompilation::hwpGlobalSampleCount,
-                                            fe,
-                                            vmThread))
-            {
-            // Start a new interval
-            bodyInfo->_hwpInstructionStartCount   = TR::Recompilation::hwpGlobalSampleCount;
-            bodyInfo->_hwpInstructionCount        = 0;
+            bodyInfo->_hwpInstructionCount++;
+            if (hwProfiler->recompilationLogic(bodyInfo, (void *)metaData->startPC, bodyInfo->_hwpInstructionStartCount,
+                    bodyInfo->_hwpInstructionCount, TR::Recompilation::hwpGlobalSampleCount, fe, vmThread)) {
+                // Start a new interval
+                bodyInfo->_hwpInstructionStartCount = TR::Recompilation::hwpGlobalSampleCount;
+                bodyInfo->_hwpInstructionCount = 0;
             }
-         }
+        }
 
 #ifdef HAVE_BHRBES
-      uintptr_t callerAddr = 0;
-      uintptr_t calleeAddr = 0;
-      for (uint32_t j = 0; j < MAX_BHRBES; ++j)
-         {
-         uintptr_t bhrbEntry = samples[i].calls[j];
+        uintptr_t callerAddr = 0;
+        uintptr_t calleeAddr = 0;
+        for (uint32_t j = 0; j < MAX_BHRBES; ++j) {
+            uintptr_t bhrbEntry = samples[i].calls[j];
 
-         // No more entries
-         if (!bhrbEntry)
-            break;
+            // No more entries
+            if (!bhrbEntry)
+                break;
 
-         uintptr_t bhrbEntryEA = bhrbEntry & BHRBE_EA_MASK;
-         if (OMR_LIKELY(bhrbEntryEA))
-            {
-            if (bhrbEntry & BHRBE_T_MASK)
-               {
-               // Indirect call target address
-               calleeAddr = bhrbEntryEA;
-               }
-            else
-               {
-               // Call address
-               callerAddr = bhrbEntryEA;
+            uintptr_t bhrbEntryEA = bhrbEntry & BHRBE_EA_MASK;
+            if (OMR_LIKELY(bhrbEntryEA)) {
+                if (bhrbEntry & BHRBE_T_MASK) {
+                    // Indirect call target address
+                    calleeAddr = bhrbEntryEA;
+                } else {
+                    // Call address
+                    callerAddr = bhrbEntryEA;
 
-               if (!configs[MethodHotness].vmFlags)  // If no VM flags are set then samples can come from anywhere and we need to be more careful
-                  {
-                  // Need to check if the caller address is in a JIT codecache before we dereference it, otherwise
-                  // we risk accessing memory that's been unmapped since the instruction was executed
-                  J9MemorySegment *codeCache = jitConfig->codeCache;
-                  while (codeCache)
-                     {
-                     if (callerAddr >= (uintptr_t)codeCache->heapBase && callerAddr < (uintptr_t)codeCache->heapTop)
-                        break;
-                     codeCache = codeCache->nextSegment;
-                     }
-                  if (!codeCache)
-                     continue;
-                  }
+                    if (!configs[MethodHotness].vmFlags) // If no VM flags are set then samples can come from anywhere
+                                                         // and we need to be more careful
+                    {
+                        // Need to check if the caller address is in a JIT codecache before we dereference it, otherwise
+                        // we risk accessing memory that's been unmapped since the instruction was executed
+                        J9MemorySegment *codeCache = jitConfig->codeCache;
+                        while (codeCache) {
+                            if (callerAddr >= (uintptr_t)codeCache->heapBase
+                                && callerAddr < (uintptr_t)codeCache->heapTop)
+                                break;
+                            codeCache = codeCache->nextSegment;
+                        }
+                        if (!codeCache)
+                            continue;
+                    }
 
-               uint32_t callInsn = *(uint32_t *)callerAddr;
-               uint32_t op = callInsn >> 26;
+                    uint32_t callInsn = *(uint32_t *)callerAddr;
+                    uint32_t op = callInsn >> 26;
 
-               // If free block recycling is not disabled the data in the BHRB could be stale
-               if (OMR_LIKELY(!TR::Options::getCmdLineOptions()->getOption(TR_DisableFreeCodeCacheBlockRecycling)))
-                  {
-                  if (op != 16 && op != 18 && op != 19)
-                     continue;
-                  if ((callInsn & 1) == 0)
-                     continue;
-                  }
+                    // If free block recycling is not disabled the data in the BHRB could be stale
+                    if (OMR_LIKELY(
+                            !TR::Options::getCmdLineOptions()->getOption(TR_DisableFreeCodeCacheBlockRecycling))) {
+                        if (op != 16 && op != 18 && op != 19)
+                            continue;
+                        if ((callInsn & 1) == 0)
+                            continue;
+                    }
 
-               if (OMR_LIKELY(op == 18))                 // I-form, bl is the most common type of call
-                  {
-                  if (OMR_UNLIKELY(callInsn & 2))        // Don't care about absolute calls
-                     continue;
-                  int32_t offset = callInsn & 0x03FFFFFC;
-                  offset = offset << 6 >> 6;
-                  calleeAddr = callerAddr + offset;
-                  }
-               else if (op == 19)                    // X-form, bctrl/blrl
-                  {
-                  if (OMR_UNLIKELY((callInsn & 0x000007FE) >> 1 != 528)) // Only care about bctrl
-                     continue;
-                  if (OMR_UNLIKELY(!calleeAddr))         // HW wasn't able to capture the target address
-                     continue;
-                  }
-               else if (OMR_UNLIKELY(op == 16))          // B-form, bcl is fairly uncommon and is never used to call Java methods anyway
-                  {
-                  // We don't use bcl for Java calls, just skip these
-                  continue;
-                  }
-               else
-                  {
+                    if (OMR_LIKELY(op == 18)) // I-form, bl is the most common type of call
+                    {
+                        if (OMR_UNLIKELY(callInsn & 2)) // Don't care about absolute calls
+                            continue;
+                        int32_t offset = callInsn & 0x03FFFFFC;
+                        offset = offset << 6 >> 6;
+                        calleeAddr = callerAddr + offset;
+                    } else if (op == 19) // X-form, bctrl/blrl
+                    {
+                        if (OMR_UNLIKELY((callInsn & 0x000007FE) >> 1 != 528)) // Only care about bctrl
+                            continue;
+                        if (OMR_UNLIKELY(!calleeAddr)) // HW wasn't able to capture the target address
+                            continue;
+                    } else if (OMR_UNLIKELY(op == 16)) // B-form, bcl is fairly uncommon and is never used to call Java
+                                                       // methods anyway
+                    {
+                        // We don't use bcl for Java calls, just skip these
+                        continue;
+                    } else {
 #if defined(DEBUG) || defined(PPCRI_VERBOSE)
-                  VERBOSE("Unrecognized call instruction %x (BHRBE[%u]=%p).", callInsn, j, bhrbEntry);
+                        VERBOSE("Unrecognized call instruction %x (BHRBE[%u]=%p).", callInsn, j, bhrbEntry);
 #endif /* DEBUG || PPCRI_VERBOSE  */
-                  continue;
-                  }
+                        continue;
+                    }
 
-               J9JITExceptionTable *callerMetaData = jit_artifact_search(jitConfig->translationArtifacts, callerAddr);
-               if (!callerMetaData)
-                  continue;
-               J9JITExceptionTable *calleeMetaData = jit_artifact_search(jitConfig->translationArtifacts, calleeAddr);
-               if (!calleeMetaData)
-                  continue;
+                    J9JITExceptionTable *callerMetaData
+                        = jit_artifact_search(jitConfig->translationArtifacts, callerAddr);
+                    if (!callerMetaData)
+                        continue;
+                    J9JITExceptionTable *calleeMetaData
+                        = jit_artifact_search(jitConfig->translationArtifacts, calleeAddr);
+                    if (!calleeMetaData)
+                        continue;
 
-               // Skip calls via snippets.
-               // Could also be a recursive call, but those are relatively
-               // uncommon and probably not worth trying to detect.
-               if (callerMetaData == calleeMetaData)
-                  continue;
+                    // Skip calls via snippets.
+                    // Could also be a recursive call, but those are relatively
+                    // uncommon and probably not worth trying to detect.
+                    if (callerMetaData == calleeMetaData)
+                        continue;
 
-               ++numJit2JitCalls;
-               }
-            }
-         else if (bhrbEntry & ~BHRBE_EA_MASK)
-            {
+                    ++numJit2JitCalls;
+                }
+            } else if (bhrbEntry & ~BHRBE_EA_MASK) {
 #if defined(DEBUG) || defined(PPCRI_VERBOSE)
-            VERBOSE("BHRBE has no EA, but has low bits=%u.", bhrbEntry & ~BHRBE_EA_MASK);
+                VERBOSE("BHRBE has no EA, but has low bits=%u.", bhrbEntry & ~BHRBE_EA_MASK);
 #endif /* DEBUG || PPCRI_VERBOSE  */
-            if (bhrbEntry & 1)
-               calleeAddr = 0; // HW wasn't able to enter an address, clear this to make sure we don't leave any stale info lying around
+                if (bhrbEntry & 1)
+                    calleeAddr = 0; // HW wasn't able to enter an address, clear this to make sure we don't leave any
+                                    // stale info lying around
             }
-         }
+        }
 #endif /* HAVE_BHRBES */
-      }
+    }
 
 #if defined(DEBUG) || defined(PPCRI_VERBOSE)
 #ifdef CACHE_LAST_METADATA
-   VERBOSE("Processed buffer %p on J9VMThread=%p, samples=%u, jitted samples=%u, jit2jit calls=%u, lastMetaDataHit=%u.",
-           samples, vmThread, numSamples, numJittedSamples, numJit2JitCalls, lastMetaDataHit);
+    VERBOSE(
+        "Processed buffer %p on J9VMThread=%p, samples=%u, jitted samples=%u, jit2jit calls=%u, lastMetaDataHit=%u.",
+        samples, vmThread, numSamples, numJittedSamples, numJit2JitCalls, lastMetaDataHit);
 #else /* !CACHE_LAST_METADATA */
-   VERBOSE("Processed buffer %p on J9VMThread=%p, samples=%u, jitted samples=%u, jit2jit calls=%u.",
-           samples, vmThread, numSamples, numJittedSamples, numJit2JitCalls);
+    VERBOSE("Processed buffer %p on J9VMThread=%p, samples=%u, jitted samples=%u, jit2jit calls=%u.", samples, vmThread,
+        numSamples, numJittedSamples, numJit2JitCalls);
 #endif /* !CACHE_LAST_METADATA */
 #endif /* DEBUG || PPCRI_VERBOSE  */
-   }
+}
 
-void
-TR_PPCHWProfiler::processBufferRecords(J9VMThread *vmThread, uint8_t *bufferStart, uintptr_t size, uintptr_t bufferFilledSize, uint32_t dataTag)
-   {
-   TR_PPCHWProfilingConfigs config = (TR_PPCHWProfilingConfigs)(dataTag & 0xFFFF);
-   uint32_t                 pmc = dataTag >> 16;
+void TR_PPCHWProfiler::processBufferRecords(J9VMThread *vmThread, uint8_t *bufferStart, uintptr_t size,
+    uintptr_t bufferFilledSize, uint32_t dataTag)
+{
+    TR_PPCHWProfilingConfigs config = (TR_PPCHWProfilingConfigs)(dataTag & 0xFFFF);
+    uint32_t pmc = dataTag >> 16;
 
-   switch (config)
-      {
-      case MethodHotness:
-         {
-         if (configs[config].eventHandlerTable[pmc] == methodHotnessEventHandler)
-            {
-            TR_PPCMethodHotnessSample *samples = (TR_PPCMethodHotnessSample *)bufferStart;
-            uint32_t                   numSamples = bufferFilledSize / sizeof(TR_PPCMethodHotnessSample);
+    switch (config) {
+        case MethodHotness: {
+            if (configs[config].eventHandlerTable[pmc] == methodHotnessEventHandler) {
+                TR_PPCMethodHotnessSample *samples = (TR_PPCMethodHotnessSample *)bufferStart;
+                uint32_t numSamples = bufferFilledSize / sizeof(TR_PPCMethodHotnessSample);
 
-            _STATS_TotalEntriesProcessed += numSamples;
-            processMethodHotness(vmThread, _jitConfig, this, samples, numSamples);
+                _STATS_TotalEntriesProcessed += numSamples;
+                processMethodHotness(vmThread, _jitConfig, this, samples, numSamples);
             }
-         break;
-         }
-      default:
-         break;
-      }
-   if (bufferFilledSize >= size)
-      _numBuffersCompletelyFilled++;
+            break;
+        }
+        default:
+            break;
+    }
+    if (bufferFilledSize >= size)
+        _numBuffersCompletelyFilled++;
 
-   _bufferSizeSum += size;
-   _bufferFilledSum += bufferFilledSize;
-   ++_STATS_TotalBuffersProcessed;
-   }
+    _bufferSizeSum += size;
+    _bufferFilledSum += bufferFilledSize;
+    ++_STATS_TotalBuffersProcessed;
+}
 
-void *
-TR_PPCHWProfiler::allocateBuffer(uint64_t size)
-   {
-   void * temp = NULL;
+void *TR_PPCHWProfiler::allocateBuffer(uint64_t size)
+{
+    void *temp = NULL;
 
-   if (_hwProfilerMonitor)
-      {
+    if (_hwProfilerMonitor) {
 #ifdef ALLOCATE_BUFFER_NO_TRY
-      _hwProfilerMonitor->enter();
+        _hwProfilerMonitor->enter();
 #else /* ALLOCATE_BUFFER_TRY */
-      if (_hwProfilerMonitor->try_enter())
-         return NULL;
+        if (_hwProfilerMonitor->try_enter())
+            return NULL;
 #endif /* ALLOCATE_BUFFER_TRY */
 
-      // First try to get a buffer from the free list
-      HWProfilerBuffer *newHWProfilerBuffer = _freeBufferList.pop();
-      if (newHWProfilerBuffer)
-         {
-         temp = (void *)newHWProfilerBuffer->getBuffer();
-         TR_Memory::jitPersistentFree(newHWProfilerBuffer);
-         }
-      // Try to allocate a buffer from jitPersistentAlloc
-      else if (_ppcHWProfilerBufferMemoryAllocated + size < _ppcHWProfilerBufferMaximumMemory)
-         {
-         _ppcHWProfilerBufferMemoryAllocated += size;
-         temp = (void*)TR_Memory::jitPersistentAlloc(size, TR_Memory::HWProfile);
-         }
+        // First try to get a buffer from the free list
+        HWProfilerBuffer *newHWProfilerBuffer = _freeBufferList.pop();
+        if (newHWProfilerBuffer) {
+            temp = (void *)newHWProfilerBuffer->getBuffer();
+            TR_Memory::jitPersistentFree(newHWProfilerBuffer);
+        }
+        // Try to allocate a buffer from jitPersistentAlloc
+        else if (_ppcHWProfilerBufferMemoryAllocated + size < _ppcHWProfilerBufferMaximumMemory) {
+            _ppcHWProfilerBufferMemoryAllocated += size;
+            temp = (void *)TR_Memory::jitPersistentAlloc(size, TR_Memory::HWProfile);
+        }
 
-      _hwProfilerMonitor->exit();
-      }
+        _hwProfilerMonitor->exit();
+    }
 
-   return temp;
-   }
+    return temp;
+}
 
-void
-TR_PPCHWProfiler::freeBuffer(void *buffer, uint64_t size)
-   {
-   if (_hwProfilerMonitor)
-      {
-      _hwProfilerMonitor->enter();
+void TR_PPCHWProfiler::freeBuffer(void *buffer, uint64_t size)
+{
+    if (_hwProfilerMonitor) {
+        _hwProfilerMonitor->enter();
 
-      // Put the buffers into the free list for another thread
-      HWProfilerBuffer *newHWProfilerBuffer = (HWProfilerBuffer*)TR_Memory::jitPersistentAlloc(sizeof(HWProfilerBuffer));
-      if (newHWProfilerBuffer)
-         {
-         newHWProfilerBuffer->setBuffer((U_8*)buffer);
-         newHWProfilerBuffer->setSize(size);
-         newHWProfilerBuffer->setIsInvalidated(false);
+        // Put the buffers into the free list for another thread
+        HWProfilerBuffer *newHWProfilerBuffer
+            = (HWProfilerBuffer *)TR_Memory::jitPersistentAlloc(sizeof(HWProfilerBuffer));
+        if (newHWProfilerBuffer) {
+            newHWProfilerBuffer->setBuffer((U_8 *)buffer);
+            newHWProfilerBuffer->setSize(size);
+            newHWProfilerBuffer->setIsInvalidated(false);
 
-         _freeBufferList.add(newHWProfilerBuffer);
-         }
+            _freeBufferList.add(newHWProfilerBuffer);
+        }
 
-      _hwProfilerMonitor->exit();
-      }
-   }
+        _hwProfilerMonitor->exit();
+    }
+}
 
-void
-TR_PPCHWProfiler::printStats()
-   {
-   printf ("\n");
-   TR_HWProfiler::printStats();
-   }
+void TR_PPCHWProfiler::printStats()
+{
+    printf("\n");
+    TR_HWProfiler::printStats();
+}

@@ -25,20 +25,18 @@
 #include "codegen/J9InstructionDelegate.hpp"
 #include "infra/Annotations.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE InstructionDelegate : public J9::InstructionDelegateConnector
-   {
-   // InstructionDelegate cannot be instantiated.  It can only
-   // contain static members.
-   //
+class OMR_EXTENSIBLE InstructionDelegate : public J9::InstructionDelegateConnector {
+    // InstructionDelegate cannot be instantiated.  It can only
+    // contain static members.
+    //
 private:
+    InstructionDelegate()
+        : J9::InstructionDelegateConnector()
+    {}
+};
 
-   InstructionDelegate() : J9::InstructionDelegateConnector() {}
-
-   };
-
-}
+} // namespace TR
 
 #endif

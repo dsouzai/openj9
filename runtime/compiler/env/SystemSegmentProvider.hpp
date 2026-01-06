@@ -35,64 +35,50 @@
 
 namespace J9 {
 
-class SystemSegmentProvider : public TR::SegmentAllocator
-   {
+class SystemSegmentProvider : public TR::SegmentAllocator {
 public:
-   SystemSegmentProvider(size_t defaultSegmentSize, size_t systemSegmentSize, size_t allocationLimit, J9::J9SegmentProvider &segmentAllocator, TR::RawAllocator rawAllocator);
-   ~SystemSegmentProvider() throw();
-   virtual TR::MemorySegment &request(size_t requiredSize);
-   virtual void release(TR::MemorySegment &segment) throw();
-   size_t systemBytesAllocated() const throw();
-   size_t regionBytesAllocated() const throw();
-   size_t bytesAllocated() const throw();
-   size_t allocationLimit() const throw();
-   void setAllocationLimit(size_t allocationLimit);
-   bool isLargeSegment(size_t segmentSize);
+    SystemSegmentProvider(size_t defaultSegmentSize, size_t systemSegmentSize, size_t allocationLimit,
+        J9::J9SegmentProvider &segmentAllocator, TR::RawAllocator rawAllocator);
+    ~SystemSegmentProvider() throw();
+    virtual TR::MemorySegment &request(size_t requiredSize);
+    virtual void release(TR::MemorySegment &segment) throw();
+    size_t systemBytesAllocated() const throw();
+    size_t regionBytesAllocated() const throw();
+    size_t bytesAllocated() const throw();
+    size_t allocationLimit() const throw();
+    void setAllocationLimit(size_t allocationLimit);
+    bool isLargeSegment(size_t segmentSize);
 
 private:
-   size_t round(size_t requestedSize);
-   ptrdiff_t remaining(const J9MemorySegment &memorySegment);
-   TR::MemorySegment &allocateNewSegment(size_t size, TR::reference_wrapper<J9MemorySegment> systemSegment);
-   TR::MemorySegment &createSegmentFromArea(size_t size, void * segmentArea);
+    size_t round(size_t requestedSize);
+    ptrdiff_t remaining(const J9MemorySegment &memorySegment);
+    TR::MemorySegment &allocateNewSegment(size_t size, TR::reference_wrapper<J9MemorySegment> systemSegment);
+    TR::MemorySegment &createSegmentFromArea(size_t size, void *segmentArea);
 
-   // _systemSegmentSize is only to be written once in the constructor
-   size_t _systemSegmentSize;
-   size_t _allocationLimit;
-   size_t _systemBytesAllocated;
-   size_t _regionBytesAllocated;
-   J9::J9SegmentProvider & _systemSegmentAllocator;
+    // _systemSegmentSize is only to be written once in the constructor
+    size_t _systemSegmentSize;
+    size_t _allocationLimit;
+    size_t _systemBytesAllocated;
+    size_t _regionBytesAllocated;
+    J9::J9SegmentProvider &_systemSegmentAllocator;
 
-   typedef TR::typed_allocator<
-      TR::reference_wrapper<J9MemorySegment>,
-      TR::RawAllocator
-      > SystemSegmentDequeAllocator;
+    typedef TR::typed_allocator<TR::reference_wrapper<J9MemorySegment>, TR::RawAllocator> SystemSegmentDequeAllocator;
 
-   std::deque<
-      TR::reference_wrapper<J9MemorySegment>,
-      SystemSegmentDequeAllocator
-      > _systemSegments;
+    std::deque<TR::reference_wrapper<J9MemorySegment>, SystemSegmentDequeAllocator> _systemSegments;
 
-   typedef TR::typed_allocator<
-      TR::MemorySegment,
-      TR::RawAllocator
-      > SegmentSetAllocator;
+    typedef TR::typed_allocator<TR::MemorySegment, TR::RawAllocator> SegmentSetAllocator;
 
-   std::set<
-      TR::MemorySegment,
-      std::less< TR::MemorySegment >,
-      SegmentSetAllocator
-      > _segments;
+    std::set<TR::MemorySegment, std::less<TR::MemorySegment>, SegmentSetAllocator> _segments;
 
-   TR::MemorySegment _freeSegmentsEmpty;
-   TR::MemorySegment *_freeSegments;
+    TR::MemorySegment _freeSegmentsEmpty;
+    TR::MemorySegment *_freeSegments;
 
-   // Current active System segment from where memory might be allocated.
-   // A segment with space larger than _systemSegmentSize is used for only one request,
-   // and is to be released when the release method is invoked, e.g. when a TR::Region
-   // goes out of scope. Thus _currentSystemSegment is not allowed to hold such segment.
-   TR::reference_wrapper<J9MemorySegment> _currentSystemSegment;
-
-   };
+    // Current active System segment from where memory might be allocated.
+    // A segment with space larger than _systemSegmentSize is used for only one request,
+    // and is to be released when the release method is invoked, e.g. when a TR::Region
+    // goes out of scope. Thus _currentSystemSegment is not allowed to hold such segment.
+    TR::reference_wrapper<J9MemorySegment> _currentSystemSegment;
+};
 
 } // namespace J9
 

@@ -23,68 +23,59 @@
 #ifndef JITSERVER_ALLOCATION_REGION_HPP
 #define JITSERVER_ALLOCATION_REGION_HPP
 #include "control/CompilationThread.hpp"
-namespace JITServer
-{
-   /**
-    * @brief The JITServer::PerClientAllocationRegion class wraps enter/exitPerClientAllocationRegion
-    * with RAII functionality to help automate the lifetime of a per-client allocation region.
-    */
-   class PerClientAllocationRegion
-      {
-      public:
-      /**
-       * @brief Declare the beginning of a per-client allocation region.
-       * If already inside a per-client allocation region or per-client allocator
-       * cannot be used, will do nothing.
-       */
-      PerClientAllocationRegion(TR::CompilationInfoPerThreadBase *compInfoPT)
-         : _compInfoPT(compInfoPT)
-         {
-         _compInfoPT->enterPerClientAllocationRegion();
-         }
 
-      /**
-       * @brief Automatically notify the end of a per-client allocation region
-       * and switch back to the global allocator.
-       */
-      ~PerClientAllocationRegion()
-         {
-         _compInfoPT->exitPerClientAllocationRegion();
-         }
+namespace JITServer {
+/**
+ * @brief The JITServer::PerClientAllocationRegion class wraps enter/exitPerClientAllocationRegion
+ * with RAII functionality to help automate the lifetime of a per-client allocation region.
+ */
+class PerClientAllocationRegion {
+public:
+    /**
+     * @brief Declare the beginning of a per-client allocation region.
+     * If already inside a per-client allocation region or per-client allocator
+     * cannot be used, will do nothing.
+     */
+    PerClientAllocationRegion(TR::CompilationInfoPerThreadBase *compInfoPT)
+        : _compInfoPT(compInfoPT)
+    {
+        _compInfoPT->enterPerClientAllocationRegion();
+    }
 
-      private:
-      TR::CompilationInfoPerThreadBase *_compInfoPT;
-      };
+    /**
+     * @brief Automatically notify the end of a per-client allocation region
+     * and switch back to the global allocator.
+     */
+    ~PerClientAllocationRegion() { _compInfoPT->exitPerClientAllocationRegion(); }
 
+private:
+    TR::CompilationInfoPerThreadBase *_compInfoPT;
+};
 
-   /**
-    * @brief The JITServer::GlobalAllocationRegion class wraps exit/enterPerClientAllocationRegion
-    * with RAII functionality to help automate the lifetime of a global allocation region.
-    */
-   class GlobalAllocationRegion
-      {
-      public:
-      /**
-       * @brief Declare the beginning of a global allocation region.
-       * If already inside a global allocation region, this will do nothing.
-       */
-      GlobalAllocationRegion(TR::CompilationInfoPerThreadBase *compInfoPT)
-         : _compInfoPT(compInfoPT)
-         {
-         _compInfoPT->exitPerClientAllocationRegion();
-         }
+/**
+ * @brief The JITServer::GlobalAllocationRegion class wraps exit/enterPerClientAllocationRegion
+ * with RAII functionality to help automate the lifetime of a global allocation region.
+ */
+class GlobalAllocationRegion {
+public:
+    /**
+     * @brief Declare the beginning of a global allocation region.
+     * If already inside a global allocation region, this will do nothing.
+     */
+    GlobalAllocationRegion(TR::CompilationInfoPerThreadBase *compInfoPT)
+        : _compInfoPT(compInfoPT)
+    {
+        _compInfoPT->exitPerClientAllocationRegion();
+    }
 
-      /**
-       * @brief Automatically notify the end of a global allocation region
-       * and switch back to the per-client allocator.
-       */
-      ~GlobalAllocationRegion()
-         {
-         _compInfoPT->enterPerClientAllocationRegion();
-         }
+    /**
+     * @brief Automatically notify the end of a global allocation region
+     * and switch back to the per-client allocator.
+     */
+    ~GlobalAllocationRegion() { _compInfoPT->enterPerClientAllocationRegion(); }
 
-      private:
-      TR::CompilationInfoPerThreadBase *_compInfoPT;
-      };
+private:
+    TR::CompilationInfoPerThreadBase *_compInfoPT;
+};
 } // namespace JITServer
 #endif // JITSERVER_ALLOCATION_REGION_HPP

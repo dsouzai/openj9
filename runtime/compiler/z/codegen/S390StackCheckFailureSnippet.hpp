@@ -27,41 +27,39 @@
 
 namespace TR {
 
-class S390StackCheckFailureSnippet : public TR::Snippet
-   {
-   TR::LabelSymbol           *_reStartLabel;
-   TR::SymbolReference      *_destination;
-   uint32_t                _frameSize;
-   uint16_t                _argSize;
+class S390StackCheckFailureSnippet : public TR::Snippet {
+    TR::LabelSymbol *_reStartLabel;
+    TR::SymbolReference *_destination;
+    uint32_t _frameSize;
+    uint16_t _argSize;
 
-   public:
+public:
+    S390StackCheckFailureSnippet(TR::CodeGenerator *cg, TR::Node *node, TR::LabelSymbol *restartlab,
+        TR::LabelSymbol *snippetlab, TR::SymbolReference *helper, uint32_t frameSize);
 
-   S390StackCheckFailureSnippet(TR::CodeGenerator        *cg,
-                                TR::Node                 *node,
-                                TR::LabelSymbol           *restartlab,
-                                TR::LabelSymbol           *snippetlab,
-                                TR::SymbolReference      *helper,
-                                uint32_t                 frameSize);
+    virtual Kind getKind() { return IsStackCheckFailure; }
 
-   virtual Kind getKind() { return IsStackCheckFailure; }
+    int16_t getSizeOfArguments() { return _argSize; }
 
-   int16_t getSizeOfArguments()          {return _argSize;}
-   int16_t setSizeOfArguments(int32_t s) {return _argSize = s;}     
+    int16_t setSizeOfArguments(int32_t s) { return _argSize = s; }
 
-   TR::SymbolReference *getDestination()             {return _destination;}
-   TR::SymbolReference *setDestination(TR::SymbolReference *s) {return _destination = s;}
+    TR::SymbolReference *getDestination() { return _destination; }
 
-   TR::LabelSymbol *getReStartLabel()                  {return _reStartLabel;}
-   TR::LabelSymbol *setReStartLabel(TR::LabelSymbol *l) {return _reStartLabel = l;}
+    TR::SymbolReference *setDestination(TR::SymbolReference *s) { return _destination = s; }
 
-   void setStackAtlasHelper();
+    TR::LabelSymbol *getReStartLabel() { return _reStartLabel; }
 
-   virtual uint8_t *emitSnippetBody();
+    TR::LabelSymbol *setReStartLabel(TR::LabelSymbol *l) { return _reStartLabel = l; }
 
-   virtual uint32_t getLength(int32_t);
-   uint32_t getFrameSize()             {return _frameSize;}
-   };
+    void setStackAtlasHelper();
 
-}
+    virtual uint8_t *emitSnippetBody();
+
+    virtual uint32_t getLength(int32_t);
+
+    uint32_t getFrameSize() { return _frameSize; }
+};
+
+} // namespace TR
 
 #endif

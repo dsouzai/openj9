@@ -27,27 +27,24 @@
 #include "optimizer/Optimization.hpp"
 #include "optimizer/OptimizationManager.hpp"
 
-class TR_HandleRecompilationOps : public TR::Optimization
-   {
-   private:
+class TR_HandleRecompilationOps : public TR::Optimization {
+private:
+    TR::ResolvedMethodSymbol *_methodSymbol;
 
-   TR::ResolvedMethodSymbol *_methodSymbol;
+    TR_HandleRecompilationOps(TR::OptimizationManager *manager)
+        : TR::Optimization(manager)
+    {
+        _methodSymbol = comp()->getOwningMethodSymbol(comp()->getCurrentMethod());
+    }
 
-   TR_HandleRecompilationOps(TR::OptimizationManager *manager) : TR::Optimization(manager)
-      {
-      _methodSymbol = comp()->getOwningMethodSymbol(comp()->getCurrentMethod());
-      }
+public:
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_HandleRecompilationOps(manager);
+    }
 
-   public:
-
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_HandleRecompilationOps(manager);
-      }
-
-   virtual int32_t perform();
-   virtual const char * optDetailString() const throw();
-
-   };
+    virtual int32_t perform();
+    virtual const char *optDetailString() const throw();
+};
 
 #endif // HANDLERECOMPILATINOOPS_INCL

@@ -26,15 +26,10 @@
 #include "il/J9IL.hpp"
 #include "infra/Annotations.hpp"
 
+namespace TR {
 
-namespace TR
-{
+class OMR_EXTENSIBLE IL : public J9::ILConnector {};
 
-class OMR_EXTENSIBLE IL : public J9::ILConnector
-   {
-
-   };
-
-}
+} // namespace TR
 
 #endif

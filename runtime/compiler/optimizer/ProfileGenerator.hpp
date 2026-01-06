@@ -31,37 +31,35 @@ namespace TR {
 class CFG;
 class Node;
 class TreeTop;
-}
+} // namespace TR
 
 // Profile generator
 //
 // Create a sample-based profiling version of the method
 //
 
-class TR_ProfileGenerator : public TR::Optimization
-   {
-   public:
+class TR_ProfileGenerator : public TR::Optimization {
+public:
+    TR_ProfileGenerator(TR::OptimizationManager *manager);
 
-   TR_ProfileGenerator(TR::OptimizationManager *manager);
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_ProfileGenerator(manager);
-      }
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_ProfileGenerator(manager);
+    }
 
-   virtual int32_t perform();
-   virtual const char * optDetailString() const throw();
+    virtual int32_t perform();
+    virtual const char *optDetailString() const throw();
 
-   private :
+private:
+    int32_t prepareBlocks();
+    void createProfiledMethod();
+    TR::Node *copyRegDeps(TR::Node *from, bool shareChildren);
 
-   int32_t    prepareBlocks();
-   void       createProfiledMethod();
-   TR::Node    *copyRegDeps(TR::Node *from, bool shareChildren);
-
-   TR::CFG     *_cfg;
-   TR::TreeTop *_firstOriginalTree;
-   TR::TreeTop *_lastOriginalTree;
-   static bool      _dynamnicProfilingCount;
-   TR::TreeTop *_asyncTree;
-   };
+    TR::CFG *_cfg;
+    TR::TreeTop *_firstOriginalTree;
+    TR::TreeTop *_lastOriginalTree;
+    static bool _dynamnicProfilingCount;
+    TR::TreeTop *_asyncTree;
+};
 
 #endif

@@ -25,15 +25,15 @@
 
 #include "control/J9CompilationStrategy.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE CompilationStrategy: public J9::CompilationStrategyConnector
-   {
-   public:
-   CompilationStrategy(): J9::CompilationStrategyConnector() {}
-   };
+class OMR_EXTENSIBLE CompilationStrategy : public J9::CompilationStrategyConnector {
+public:
+    CompilationStrategy()
+        : J9::CompilationStrategyConnector()
+    {}
+};
 
-}
+} // namespace TR
 
 #endif

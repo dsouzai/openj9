@@ -28,10 +28,11 @@
  */
 #ifndef J9_GCSTACKATLAS_CONNECTOR
 #define J9_GCSTACKATLAS_CONNECTOR
+
 namespace J9 {
 class GCStackAtlas;
 typedef GCStackAtlas GCStackAtlasConnector;
-}
+} // namespace J9
 #endif
 
 #include "codegen/OMRGCStackAtlas.hpp"
@@ -39,21 +40,19 @@ typedef GCStackAtlas GCStackAtlasConnector;
 #include "codegen/GCStackMap.hpp"
 #include "env/OMRMemory.hpp"
 
-namespace J9
-{
+namespace J9 {
 
-class OMR_EXTENSIBLE GCStackAtlas : public OMR::GCStackAtlasConnector
-   {
-   public:
+class OMR_EXTENSIBLE GCStackAtlas : public OMR::GCStackAtlasConnector {
+public:
+    TR_ALLOC(TR_Memory::GCStackAtlas)
 
-   TR_ALLOC(TR_Memory::GCStackAtlas)
+    GCStackAtlas(uint32_t numParms, uint32_t numSlots, TR_Memory *m)
+        : OMR::GCStackAtlasConnector(numParms, numSlots, m)
+    {}
 
-   GCStackAtlas(uint32_t numParms, uint32_t numSlots, TR_Memory * m) :
-         OMR::GCStackAtlasConnector(numParms, numSlots, m) {}
+    void close(TR::CodeGenerator *);
+};
 
-   void close(TR::CodeGenerator *);
-   };
-
-}
+} // namespace J9
 
 #endif

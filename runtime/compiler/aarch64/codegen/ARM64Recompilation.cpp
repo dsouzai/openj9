@@ -26,80 +26,79 @@
 #include "codegen/GenerateInstructions.hpp"
 #include "env/j9method.h"
 
-TR_ARM64Recompilation::TR_ARM64Recompilation(TR::Compilation * comp)
-   : TR::Recompilation(comp)
-   {
-   _countingSupported = true;
+TR_ARM64Recompilation::TR_ARM64Recompilation(TR::Compilation *comp)
+    : TR::Recompilation(comp)
+{
+    _countingSupported = true;
 
-   setupMethodInfo();
-   }
+    setupMethodInfo();
+}
 
 TR::Recompilation *TR_ARM64Recompilation::allocate(TR::Compilation *comp)
-   {
-   if (comp->isRecompilationEnabled())
-      {
-      return new (comp->trHeapMemory()) TR_ARM64Recompilation(comp);
-      }
+{
+    if (comp->isRecompilationEnabled()) {
+        return new (comp->trHeapMemory()) TR_ARM64Recompilation(comp);
+    }
 
-   return NULL;
-   }
+    return NULL;
+}
 
 TR_PersistentMethodInfo *TR_ARM64Recompilation::getExistingMethodInfo(TR_ResolvedMethod *method)
-   {
-   TR_PersistentJittedBodyInfo *bodyInfo = (static_cast<TR_ResolvedJ9Method *>(method))->getExistingJittedBodyInfo();
-   return bodyInfo ? bodyInfo->getMethodInfo() : NULL;
-   }
+{
+    TR_PersistentJittedBodyInfo *bodyInfo = (static_cast<TR_ResolvedJ9Method *>(method))->getExistingJittedBodyInfo();
+    return bodyInfo ? bodyInfo->getMethodInfo() : NULL;
+}
 
 TR::Instruction *TR_ARM64Recompilation::generatePrePrologue()
-   {
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(comp()->fe());
+{
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(comp()->fe());
 
-   // If in Full Speed Debug, allow to go through
-   if (!couldBeCompiledAgain() && !_compilation->getOption(TR_FullSpeedDebug))
-      return NULL;
+    // If in Full Speed Debug, allow to go through
+    if (!couldBeCompiledAgain() && !_compilation->getOption(TR_FullSpeedDebug))
+        return NULL;
 
-   // x9 may contain the vtable offset, and must be preserved here
-   // See PicBuilder.spp and Recompilation.spp
-   TR::Instruction *cursor = NULL;
-   TR::Machine *machine = cg()->machine();
-   TR::Register *x8 = machine->getRealRegister(TR::RealRegister::x8);
-   TR::Register *lr = machine->getRealRegister(TR::RealRegister::lr); // Link Register
-   TR::Register *xzr = machine->getRealRegister(TR::RealRegister::xzr); // zero register
-   TR::Node *firstNode = comp()->getStartTree()->getNode();
-   TR::SymbolReference *recompileMethodSymRef = cg()->symRefTab()->findOrCreateRuntimeHelper(TR_ARM64samplingRecompileMethod);
-   TR_PersistentJittedBodyInfo *info = getJittedBodyInfo();
+    // x9 may contain the vtable offset, and must be preserved here
+    // See PicBuilder.spp and Recompilation.spp
+    TR::Instruction *cursor = NULL;
+    TR::Machine *machine = cg()->machine();
+    TR::Register *x8 = machine->getRealRegister(TR::RealRegister::x8);
+    TR::Register *lr = machine->getRealRegister(TR::RealRegister::lr); // Link Register
+    TR::Register *xzr = machine->getRealRegister(TR::RealRegister::xzr); // zero register
+    TR::Node *firstNode = comp()->getStartTree()->getNode();
+    TR::SymbolReference *recompileMethodSymRef
+        = cg()->symRefTab()->findOrCreateRuntimeHelper(TR_ARM64samplingRecompileMethod);
+    TR_PersistentJittedBodyInfo *info = getJittedBodyInfo();
 
-   // Force creation of switch to interpreter preprologue if in Full Speed Debug
-   if (cg()->mustGenerateSwitchToInterpreterPrePrologue())
-      {
-      cursor = cg()->generateSwitchToInterpreterPrePrologue(cursor, firstNode);
-      }
+    // Force creation of switch to interpreter preprologue if in Full Speed Debug
+    if (cg()->mustGenerateSwitchToInterpreterPrePrologue()) {
+        cursor = cg()->generateSwitchToInterpreterPrePrologue(cursor, firstNode);
+    }
 
-   if (useSampling() && couldBeCompiledAgain())
-      {
-      // x8 must contain the saved LR; see Recompilation.spp
-      // cannot use generateMovInstruction() here
-      cursor = new (cg()->trHeapMemory()) TR::ARM64Trg1Src2Instruction(TR::InstOpCode::orrx, firstNode, x8, xzr, lr, cursor, cg());
-      cursor = generateImmSymInstruction(cg(), TR::InstOpCode::bl, firstNode,
-                                         (uintptr_t)recompileMethodSymRef->getMethodAddress(),
-                                         new (cg()->trHeapMemory()) TR::RegisterDependencyConditions(0, 0, cg()->trMemory()),
-                                         recompileMethodSymRef, NULL, cursor);
-      cursor = generateRelocatableImmInstruction(cg(), TR::InstOpCode::dd, firstNode, (uintptr_t)info, TR_BodyInfoAddress, cursor);
+    if (useSampling() && couldBeCompiledAgain()) {
+        // x8 must contain the saved LR; see Recompilation.spp
+        // cannot use generateMovInstruction() here
+        cursor = new (cg()->trHeapMemory())
+            TR::ARM64Trg1Src2Instruction(TR::InstOpCode::orrx, firstNode, x8, xzr, lr, cursor, cg());
+        cursor = generateImmSymInstruction(cg(), TR::InstOpCode::bl, firstNode,
+            (uintptr_t)recompileMethodSymRef->getMethodAddress(),
+            new (cg()->trHeapMemory()) TR::RegisterDependencyConditions(0, 0, cg()->trMemory()), recompileMethodSymRef,
+            NULL, cursor);
+        cursor = generateRelocatableImmInstruction(cg(), TR::InstOpCode::dd, firstNode, (uintptr_t)info,
+            TR_BodyInfoAddress, cursor);
 
-      // space for preserving original jitEntry instruction
-      cursor = generateImmInstruction(cg(), TR::InstOpCode::dd, firstNode, 0, cursor);
-      }
+        // space for preserving original jitEntry instruction
+        cursor = generateImmInstruction(cg(), TR::InstOpCode::dd, firstNode, 0, cursor);
+    }
 
-   return cursor;
-   }
+    return cursor;
+}
 
 TR::Instruction *TR_ARM64Recompilation::generatePrologue(TR::Instruction *cursor)
-   {
-   TR::Recompilation *recomp = comp()->getRecompilationInfo();
-   if (!recomp->useSampling())
-      {
-      // counting recompilation
-      TR_UNIMPLEMENTED();
-      }
-   return cursor;
-   }
+{
+    TR::Recompilation *recomp = comp()->getRecompilationInfo();
+    if (!recomp->useSampling()) {
+        // counting recompilation
+        TR_UNIMPLEMENTED();
+    }
+    return cursor;
+}

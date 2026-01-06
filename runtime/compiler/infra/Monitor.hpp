@@ -25,17 +25,15 @@
 
 #include "infra/J9Monitor.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class Monitor : public J9::MonitorConnector
-   {
-   public:
+class Monitor : public J9::MonitorConnector {
+public:
+    Monitor()
+        : J9::MonitorConnector()
+    {}
+};
 
-   Monitor() :
-      J9::MonitorConnector() {}
-   };
-
-}
+} // namespace TR
 
 #endif

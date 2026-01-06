@@ -29,69 +29,71 @@
 namespace TR {
 class CodeGenerator;
 class Instruction;
-}
+} // namespace TR
 
 namespace TR {
 
-class ARM64Relocation
-   {
-   public:
-   TR_ALLOC(TR_Memory::ARM64Relocation)
+class ARM64Relocation {
+public:
+    TR_ALLOC(TR_Memory::ARM64Relocation)
 
-   /**
-    * @brief Constructor
-    */
-   ARM64Relocation(TR::Instruction *src,
-                   uint8_t *trg,
-                   TR_ExternalRelocationTargetKind k):
-      _srcInstruction(src), _relTarget(trg), _kind(k)
-      {}
+    /**
+     * @brief Constructor
+     */
+    ARM64Relocation(TR::Instruction *src, uint8_t *trg, TR_ExternalRelocationTargetKind k)
+        : _srcInstruction(src)
+        , _relTarget(trg)
+        , _kind(k)
+    {}
 
-   /**
-    * @brief Answers source instruction
-    * @return source instruction
-    */
-   TR::Instruction *getSourceInstruction() { return _srcInstruction; }
-   /**
-    * @brief Sets source instruction
-    * @param[in] i : source instruction
-    */
-   void setSourceInstruction(TR::Instruction *i) { _srcInstruction = i; }
+    /**
+     * @brief Answers source instruction
+     * @return source instruction
+     */
+    TR::Instruction *getSourceInstruction() { return _srcInstruction; }
 
-   /**
-    * @brief Answers relocation target
-    * @return relocation target
-    */
-   uint8_t *getRelocationTarget() { return _relTarget; }
-   /**
-    * @brief Sets relocation target
-    * @param[in] t : relocation target
-    */
-   void setRelocationTarget(uint8_t *t) { _relTarget = t; }
+    /**
+     * @brief Sets source instruction
+     * @param[in] i : source instruction
+     */
+    void setSourceInstruction(TR::Instruction *i) { _srcInstruction = i; }
 
-   /**
-    * @brief Answers relocation target kind
-    * @return relocation target kind
-    */
-   TR_ExternalRelocationTargetKind getKind() { return _kind; }
-   /**
-    * @brief Sets relocation target kind
-    * @param[in] k : relocation target kind
-    */
-   void setKind(TR_ExternalRelocationTargetKind k) { _kind = k; }
+    /**
+     * @brief Answers relocation target
+     * @return relocation target
+     */
+    uint8_t *getRelocationTarget() { return _relTarget; }
 
-   /**
-    * @brief Maps relocation
-    * @param[in] cg : CodeGenerator
-    */
-   virtual void mapRelocation(TR::CodeGenerator *cg) = 0;
+    /**
+     * @brief Sets relocation target
+     * @param[in] t : relocation target
+     */
+    void setRelocationTarget(uint8_t *t) { _relTarget = t; }
 
-   private:
-   TR::Instruction *_srcInstruction;
-   uint8_t *_relTarget;
-   TR_ExternalRelocationTargetKind _kind;
-   };
+    /**
+     * @brief Answers relocation target kind
+     * @return relocation target kind
+     */
+    TR_ExternalRelocationTargetKind getKind() { return _kind; }
 
-} // TR
+    /**
+     * @brief Sets relocation target kind
+     * @param[in] k : relocation target kind
+     */
+    void setKind(TR_ExternalRelocationTargetKind k) { _kind = k; }
+
+    /**
+     * @brief Maps relocation
+     * @param[in] cg : CodeGenerator
+     */
+    virtual void mapRelocation(TR::CodeGenerator *cg) = 0;
+
+private:
+    TR::Instruction *_srcInstruction;
+    uint8_t *_relTarget;
+    TR_ExternalRelocationTargetKind _kind;
+};
+
+} // namespace TR
 
 #endif

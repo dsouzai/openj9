@@ -25,17 +25,15 @@
 
 #include "codegen/J9CodeGenPhase.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE CodeGenPhase: public J9::CodeGenPhaseConnector
-   {
-   public:
+class OMR_EXTENSIBLE CodeGenPhase : public J9::CodeGenPhaseConnector {
+public:
+    CodeGenPhase(TR::CodeGenerator *cg)
+        : J9::CodeGenPhaseConnector(cg)
+    {}
+};
 
-   CodeGenPhase(TR::CodeGenerator * cg): J9::CodeGenPhaseConnector(cg) {}
-   };
-
-
-}
+} // namespace TR
 
 #endif

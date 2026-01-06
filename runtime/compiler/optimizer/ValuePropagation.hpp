@@ -25,18 +25,15 @@
 
 #include "optimizer/J9ValuePropagation.hpp"
 
+namespace TR {
 
-namespace TR
-{
+class ValuePropagation : public J9::ValuePropagation {
+public:
+    ValuePropagation(TR::OptimizationManager *manager)
+        : J9::ValuePropagation(manager)
+    {}
+};
 
-class ValuePropagation : public J9::ValuePropagation
-   {
-   public:
-
-   ValuePropagation(TR::OptimizationManager *manager) :
-      J9::ValuePropagation(manager) {}
-   };
-
-}
+} // namespace TR
 
 #endif

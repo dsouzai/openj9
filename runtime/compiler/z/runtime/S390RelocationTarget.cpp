@@ -40,81 +40,72 @@
 #include "runtime/RelocationRuntime.hpp"
 #include "runtime/RelocationTarget.hpp"
 
-uint8_t *
-TR_S390RelocationTarget::eipBaseForCallOffset(uint8_t *reloLocation)
-   {
-   // reloLocation points at the start of the call offset, return address is 4
-   return (uint8_t *) (reloLocation);
-   }
+uint8_t *TR_S390RelocationTarget::eipBaseForCallOffset(uint8_t *reloLocation)
+{
+    // reloLocation points at the start of the call offset, return address is 4
+    return (uint8_t *)(reloLocation);
+}
 
-void
-TR_S390RelocationTarget::storeCallTarget(uint8_t *callTarget, uint8_t *reloLocation)
-   {
-   // reloLocation points at the start of the call offset, so just store the uint8_t * at reloLocation
-   storePointer(callTarget, reloLocation);
-   }
+void TR_S390RelocationTarget::storeCallTarget(uint8_t *callTarget, uint8_t *reloLocation)
+{
+    // reloLocation points at the start of the call offset, so just store the uint8_t * at reloLocation
+    storePointer(callTarget, reloLocation);
+}
 
-void
-TR_S390RelocationTarget::storeRelativeTarget(uintptr_t callTarget, uint8_t *reloLocation)
-   {
-   // reloLocation points at the start of the call offset, so just store the uint8_t * at reloLocation
-   uintptr_t newOffset = ((uintptr_t)callTarget+2)/2;
+void TR_S390RelocationTarget::storeRelativeTarget(uintptr_t callTarget, uint8_t *reloLocation)
+{
+    // reloLocation points at the start of the call offset, so just store the uint8_t * at reloLocation
+    uintptr_t newOffset = ((uintptr_t)callTarget + 2) / 2;
 
-   storeSigned32b((int32_t)newOffset, (uint8_t *)reloLocation);
-   }
+    storeSigned32b((int32_t)newOffset, (uint8_t *)reloLocation);
+}
 
-uint8_t *
-TR_S390RelocationTarget::loadAddressSequence(uint8_t *reloLocation)
-   {
-   // reloLocation points at the start of the address, so just need to dereference as uint8_t *
-   return loadPointer(reloLocation);
-   }
+uint8_t *TR_S390RelocationTarget::loadAddressSequence(uint8_t *reloLocation)
+{
+    // reloLocation points at the start of the address, so just need to dereference as uint8_t *
+    return loadPointer(reloLocation);
+}
 
-void
-TR_S390RelocationTarget::storeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber)
-   {
-   // reloLocation points at the start of the address, so just store the uint8_t * at reloLocation
-   storePointer(address, reloLocation);
-   }
+void TR_S390RelocationTarget::storeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber)
+{
+    // reloLocation points at the start of the address, so just store the uint8_t * at reloLocation
+    storePointer(address, reloLocation);
+}
 
-uint32_t
-TR_S390RelocationTarget::loadCPIndex(uint8_t *reloLocation)
-   {
-   // reloLocation points at the cpAddress in snippet, need to find cpIndex location // KEN
-   reloLocation += sizeof(uintptr_t);
-   return (loadUnsigned32b(reloLocation) & 0xFFFFFF); // Mask out bottom 24 bits for index
-   }
+uint32_t TR_S390RelocationTarget::loadCPIndex(uint8_t *reloLocation)
+{
+    // reloLocation points at the cpAddress in snippet, need to find cpIndex location // KEN
+    reloLocation += sizeof(uintptr_t);
+    return (loadUnsigned32b(reloLocation) & 0xFFFFFF); // Mask out bottom 24 bits for index
+}
 
-uintptr_t
-TR_S390RelocationTarget::loadThunkCPIndex(uint8_t *reloLocation)
-   {
-   // reloLocation points at the cpAddress in snippet, need to find cpIndex location // KEN
-   reloLocation += sizeof(uintptr_t);
-   return (uintptr_t )loadPointer(reloLocation);
-   }
+uintptr_t TR_S390RelocationTarget::loadThunkCPIndex(uint8_t *reloLocation)
+{
+    // reloLocation points at the cpAddress in snippet, need to find cpIndex location // KEN
+    reloLocation += sizeof(uintptr_t);
+    return (uintptr_t)loadPointer(reloLocation);
+}
 
-void
-TR_S390RelocationTarget::performThunkRelocation(uint8_t *thunkAddress, uintptr_t vmHelper)
-   {
-   int32_t *thunkRelocationData = (int32_t *)(thunkAddress - sizeof(int32_t));
-   *(uintptr_t *) (thunkAddress + *thunkRelocationData) = vmHelper;
-   }
+void TR_S390RelocationTarget::performThunkRelocation(uint8_t *thunkAddress, uintptr_t vmHelper)
+{
+    int32_t *thunkRelocationData = (int32_t *)(thunkAddress - sizeof(int32_t));
+    *(uintptr_t *)(thunkAddress + *thunkRelocationData) = vmHelper;
+}
 
-bool TR_S390RelocationTarget::useTrampoline(uint8_t * helperAddress, uint8_t *baseLocation)
-   {
+bool TR_S390RelocationTarget::useTrampoline(uint8_t *helperAddress, uint8_t *baseLocation)
+{
 #if defined(TR_HOST_S390) && defined(TR_TARGET_64BIT) && !defined(J9ZOS390)
-   return !CHECK_32BIT_TRAMPOLINE_RANGE((intptr_t)helperAddress, baseLocation);
+    return !CHECK_32BIT_TRAMPOLINE_RANGE((intptr_t)helperAddress, baseLocation);
 #else
-   TR::Compilation* comp = TR::comp();
-   if (comp->getOption(TR_EnableRMODE64))
-      return !CHECK_32BIT_TRAMPOLINE_RANGE((intptr_t)helperAddress, baseLocation);
-   else
-      return false;
+    TR::Compilation *comp = TR::comp();
+    if (comp->getOption(TR_EnableRMODE64))
+        return !CHECK_32BIT_TRAMPOLINE_RANGE((intptr_t)helperAddress, baseLocation);
+    else
+        return false;
 #endif
-   }
+}
 
-uint8_t *
-TR_S390RelocationTarget::arrayCopyHelperAddress(J9JavaVM *javaVM)
-   {
-   return (uint8_t *)javaVM->memoryManagerFunctions->referenceArrayCopy;
-   }
+uint8_t *TR_S390RelocationTarget::arrayCopyHelperAddress(J9JavaVM *javaVM)
+{
+    return (uint8_t *)javaVM->memoryManagerFunctions->referenceArrayCopy;
+}

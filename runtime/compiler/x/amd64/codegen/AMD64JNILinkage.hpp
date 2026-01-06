@@ -36,79 +36,68 @@ class Instruction;
 class LabelSymbol;
 class Node;
 class RegisterDependencyConditions;
-}
+} // namespace TR
 
-#define IMCOMPLETELINKAGE  "This class is only used to generate call-out sequence but no call-in sequence, so it is not used as a complete linkage."
+#define IMCOMPLETELINKAGE                                                                                             \
+    "This class is only used to generate call-out sequence but no call-in sequence, so it is not used as a complete " \
+    "linkage."
 
-namespace J9
-{
+namespace J9 { namespace X86 { namespace AMD64 {
 
-namespace X86
-{
+class JNILinkage : public PrivateLinkage {
+public:
+    JNILinkage(TR::AMD64SystemLinkage *systemLinkage, TR::CodeGenerator *cg)
+        : PrivateLinkage(cg)
+        , _systemLinkage(systemLinkage)
+    {}
 
-namespace AMD64
-{
+    int32_t computeMemoryArgSize(TR::Node *callNode, int32_t first, int32_t last, bool passThread = true);
+    int32_t buildArgs(TR::Node *callNode, TR::RegisterDependencyConditions *deps, bool passThread = true,
+        bool passReceiver = true);
+    TR::Register *buildVolatileAndReturnDependencies(TR::Node *callNode, TR::RegisterDependencyConditions *deps,
+        bool omitDedicatedFrameRegister);
+    void cleanupReturnValue(TR::Node *callNode, TR::Register *linkageReturnReg, TR::Register *targetReg);
 
-class JNILinkage : public PrivateLinkage
-   {
-   public:
+    TR::Register *buildDirectDispatch(TR::Node *callNode, bool spillFPRegs);
 
-   JNILinkage(TR::AMD64SystemLinkage *systemLinkage, TR::CodeGenerator *cg) :
-      PrivateLinkage(cg),
-         _systemLinkage(systemLinkage) {}
-
-   int32_t computeMemoryArgSize(TR::Node *callNode, int32_t first, int32_t last, bool passThread = true);
-   int32_t buildArgs(TR::Node *callNode, TR::RegisterDependencyConditions *deps, bool passThread = true, bool passReceiver = true);
-   TR::Register *buildVolatileAndReturnDependencies(TR::Node *callNode, TR::RegisterDependencyConditions *deps, bool omitDedicatedFrameRegister);
-   void cleanupReturnValue(TR::Node *callNode, TR::Register *linkageReturnReg, TR::Register *targetReg);
-
-   TR::Register *buildDirectDispatch(TR::Node *callNode, bool spillFPRegs);
-
-   void buildJNICallOutFrame(TR::Node *callNode, TR::LabelSymbol *returnAddrLabel);
-   void buildJNIMergeLabelDependencies(TR::Node *callNode, bool killNonVolatileGPRs = true);
-   void buildOutgoingJNIArgsAndDependencies(TR::Node *callNode, bool passThread = true, bool passReceiver = true, bool killNonVolatileGPRs = true);
-   TR::Register *processJNIReferenceArg(TR::Node *child);
-   TR::Instruction *generateMethodDispatch(TR::Node *callNode, bool isJNIGCPoint = true, uintptr_t targetAddress = 0);
-   void releaseVMAccess(TR::Node *callNode);
-   void acquireVMAccess(TR::Node *callNode);
+    void buildJNICallOutFrame(TR::Node *callNode, TR::LabelSymbol *returnAddrLabel);
+    void buildJNIMergeLabelDependencies(TR::Node *callNode, bool killNonVolatileGPRs = true);
+    void buildOutgoingJNIArgsAndDependencies(TR::Node *callNode, bool passThread = true, bool passReceiver = true,
+        bool killNonVolatileGPRs = true);
+    TR::Register *processJNIReferenceArg(TR::Node *child);
+    TR::Instruction *generateMethodDispatch(TR::Node *callNode, bool isJNIGCPoint = true, uintptr_t targetAddress = 0);
+    void releaseVMAccess(TR::Node *callNode);
+    void acquireVMAccess(TR::Node *callNode);
 #ifdef J9VM_INTERP_ATOMIC_FREE_JNI
-   void releaseVMAccessAtomicFree(TR::Node *callNode);
-   void acquireVMAccessAtomicFree(TR::Node *callNode);
+    void releaseVMAccessAtomicFree(TR::Node *callNode);
+    void acquireVMAccessAtomicFree(TR::Node *callNode);
 #endif /* J9VM_INTERP_ATOMIC_FREE_JNI */
-   void checkForJNIExceptions(TR::Node *callNode);
-   void cleanupJNIRefPool(TR::Node *callNode);
-   void populateJNIDispatchInfo();
+    void checkForJNIExceptions(TR::Node *callNode);
+    void cleanupJNIRefPool(TR::Node *callNode);
+    void populateJNIDispatchInfo();
 
-   private:
+private:
+    TR::Register *buildDirectJNIDispatch(TR::Node *callNode);
+    TR::AMD64SystemLinkage *_systemLinkage;
 
-   TR::Register *buildDirectJNIDispatch(TR::Node *callNode);
-   TR::AMD64SystemLinkage *_systemLinkage;
+    class TR_JNIDispatchInfo {
+    public:
+        int32_t numJNIFrameSlotsPushed;
+        int32_t argSize;
+        bool requiresFPstackPop;
 
-   class TR_JNIDispatchInfo
-      {
-      public:
+        TR::Register *JNIReturnRegister;
+        TR::Register *linkageReturnRegister;
+        TR::Register *dispatchTrampolineRegister;
+        TR::RealRegister::RegNum dedicatedFrameRegisterIndex;
 
-      int32_t numJNIFrameSlotsPushed;
-      int32_t argSize;
-      bool requiresFPstackPop;
+        TR::RegisterDependencyConditions *callPreDeps;
+        TR::RegisterDependencyConditions *callPostDeps;
+        TR::RegisterDependencyConditions *mergeLabelPostDeps;
+    } _JNIDispatchInfo;
+};
 
-      TR::Register *JNIReturnRegister;
-      TR::Register *linkageReturnRegister;
-      TR::Register *dispatchTrampolineRegister;
-      TR::RealRegister::RegNum dedicatedFrameRegisterIndex;
-
-      TR::RegisterDependencyConditions *callPreDeps;
-      TR::RegisterDependencyConditions *callPostDeps;
-      TR::RegisterDependencyConditions *mergeLabelPostDeps;
-      } _JNIDispatchInfo;
-
-   };
-
-}
-
-}
-
-}
+}}} // namespace J9::X86::AMD64
 
 #endif
 

@@ -28,10 +28,14 @@
  */
 #ifndef J9_UNRESOLVEDDATASNIPPET_CONNECTOR
 #define J9_UNRESOLVEDDATASNIPPET_CONNECTOR
+
 namespace J9 {
-namespace ARM { class UnresolvedDataSnippet; }
-typedef J9::ARM::UnresolvedDataSnippet UnresolvedDataSnippetConnector;
+namespace ARM {
+class UnresolvedDataSnippet;
 }
+
+typedef J9::ARM::UnresolvedDataSnippet UnresolvedDataSnippetConnector;
+} // namespace J9
 #else
 #error J9::ARM::UnresolvedDataSnippet expected to be a primary connector, but an J9 connector is already defined
 #endif
@@ -48,49 +52,39 @@ typedef J9::ARM::UnresolvedDataSnippet UnresolvedDataSnippetConnector;
 #include "il/Symbol.hpp"
 #include "il/SymbolReference.hpp"
 
-namespace J9
-{
+namespace J9 { namespace ARM {
 
-namespace ARM
-{
-
-class UnresolvedDataSnippet : public J9::UnresolvedDataSnippet
-   {
-
+class UnresolvedDataSnippet : public J9::UnresolvedDataSnippet {
 private:
-
-   TR::MemoryReference * _memoryReference;
-   bool                  _isStore;
+    TR::MemoryReference *_memoryReference;
+    bool _isStore;
 
 public:
+    UnresolvedDataSnippet(TR::CodeGenerator *cg, TR::Node *node, TR::SymbolReference *symRef, bool isStore,
+        bool isGCSafePoint)
+        : J9::UnresolvedDataSnippet(cg, node, symRef, isStore, isGCSafePoint)
+        , _memoryReference(NULL)
+        , _isStore(isStore)
+    {}
 
-   UnresolvedDataSnippet(TR::CodeGenerator *cg, TR::Node *node, TR::SymbolReference *symRef, bool isStore, bool isGCSafePoint) :
-      J9::UnresolvedDataSnippet(cg, node, symRef, isStore, isGCSafePoint),
-        _memoryReference(NULL),
-        _isStore(isStore)
-      {
-      }
+    virtual Kind getKind() { return IsUnresolvedData; }
 
-   virtual Kind getKind() { return IsUnresolvedData; }
+    TR::Symbol *getDataSymbol() { return getDataSymbolReference()->getSymbol(); }
 
-   TR::Symbol *getDataSymbol() { return getDataSymbolReference()->getSymbol(); }
+    TR::MemoryReference *getMemoryReference() { return _memoryReference; }
 
-   TR::MemoryReference *getMemoryReference()                        { return _memoryReference; }
-   TR::MemoryReference *setMemoryReference(TR::MemoryReference *mr) { return (_memoryReference = mr); }
+    TR::MemoryReference *setMemoryReference(TR::MemoryReference *mr) { return (_memoryReference = mr); }
 
-   bool resolveForStore() { return _isStore; }
+    bool resolveForStore() { return _isStore; }
 
-   virtual uint8_t *emitSnippetBody();
+    virtual uint8_t *emitSnippetBody();
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
 
-   TR_RuntimeHelper getHelper();
+    TR_RuntimeHelper getHelper();
+};
 
-   };
-
-}
-
-}
+}} // namespace J9::ARM
 
 #endif
 

@@ -35,41 +35,47 @@
 namespace TR {
 class Block;
 class BlockChecklist;
+} // namespace TR
+
+namespace OMR {
+class Logger;
 }
-namespace OMR { class Logger; }
 class TR_BlockFrequencyInfo;
 
 class BlockParents;
 
-class TR_JProfilingBlock : public TR::Optimization
-   {
-   protected:
-   typedef std::pair<int32_t, TR::Block*> BlockQueueItem;
-   typedef TR::typed_allocator<BlockQueueItem, TR::Region&> BlockContainerAllocator;
-   typedef std::vector<BlockQueueItem, BlockContainerAllocator> BlockQueueContainer;
-   typedef std::greater<BlockQueueItem> BlockQueueCompare;
-   typedef std::priority_queue<BlockQueueItem,BlockQueueContainer,BlockQueueCompare> BlockPriorityQueue;
+class TR_JProfilingBlock : public TR::Optimization {
+protected:
+    typedef std::pair<int32_t, TR::Block *> BlockQueueItem;
+    typedef TR::typed_allocator<BlockQueueItem, TR::Region &> BlockContainerAllocator;
+    typedef std::vector<BlockQueueItem, BlockContainerAllocator> BlockQueueContainer;
+    typedef std::greater<BlockQueueItem> BlockQueueCompare;
+    typedef std::priority_queue<BlockQueueItem, BlockQueueContainer, BlockQueueCompare> BlockPriorityQueue;
 
-   public:
-   static int32_t nestedLoopRecompileThreshold;
-   static int32_t loopRecompileThreshold;
-   static int32_t recompileThreshold;
-   TR_JProfilingBlock(TR::OptimizationManager *manager)
-      : TR::Optimization(manager)
-      {}
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_JProfilingBlock(manager);
-      }
+public:
+    static int32_t nestedLoopRecompileThreshold;
+    static int32_t loopRecompileThreshold;
+    static int32_t recompileThreshold;
 
-   virtual int32_t perform();
-   virtual const char * optDetailString() const throw();
-   protected:
-   void computeMinimumSpanningTree(BlockParents &parents, BlockPriorityQueue &Q, TR::StackMemoryRegion &stackMemoryRegion);
-   int32_t processCFGForCounting(BlockParents &parent, TR::BlockChecklist &countedBlocks, TR::CFGEdge &loopBack);
-   TR_BlockFrequencyInfo *initRecompDataStructures();
-   void dumpCounterDependencies(OMR::Logger *log, TR_BitVector **componentCounters);
-   void addRecompilationTests(TR_BlockFrequencyInfo *blockFrequencyInfo);
-   };
+    TR_JProfilingBlock(TR::OptimizationManager *manager)
+        : TR::Optimization(manager)
+    {}
+
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_JProfilingBlock(manager);
+    }
+
+    virtual int32_t perform();
+    virtual const char *optDetailString() const throw();
+
+protected:
+    void computeMinimumSpanningTree(BlockParents &parents, BlockPriorityQueue &Q,
+        TR::StackMemoryRegion &stackMemoryRegion);
+    int32_t processCFGForCounting(BlockParents &parent, TR::BlockChecklist &countedBlocks, TR::CFGEdge &loopBack);
+    TR_BlockFrequencyInfo *initRecompDataStructures();
+    void dumpCounterDependencies(OMR::Logger *log, TR_BitVector **componentCounters);
+    void addRecompilationTests(TR_BlockFrequencyInfo *blockFrequencyInfo);
+};
 
 #endif

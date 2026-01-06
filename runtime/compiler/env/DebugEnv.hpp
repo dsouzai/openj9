@@ -26,17 +26,15 @@
 #include "env/J9DebugEnv.hpp"
 #include "infra/Annotations.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE DebugEnv : public J9::DebugEnvConnector
-   {
+class OMR_EXTENSIBLE DebugEnv : public J9::DebugEnvConnector {
 public:
+    DebugEnv()
+        : J9::DebugEnvConnector()
+    {}
+};
 
-   DebugEnv() : J9::DebugEnvConnector() {}
-
-   };
-
-}
+} // namespace TR
 
 #endif

@@ -28,10 +28,11 @@
  */
 #ifndef J9_CFG_CONNECTOR
 #define J9_CFG_CONNECTOR
+
 namespace J9 {
 class CFG;
 typedef J9::CFG CFGConnector;
-}
+} // namespace J9
 #endif
 
 #include "infra/OMRCfg.hpp"
@@ -51,61 +52,57 @@ class TR_BlockFrequencyInfo;
 class TR_ExternalProfiler;
 class TR_RegionStructure;
 class TR_Structure;
+
 namespace TR {
 class Block;
 class CFG;
 class Compilation;
 class ResolvedMethodSymbol;
 class TreeTop;
-}
-template <class T> class TR_Array;
+} // namespace TR
+template<class T> class TR_Array;
 
-namespace J9
-{
+namespace J9 {
 
-class CFG : public OMR::CFGConnector
-   {
+class CFG : public OMR::CFGConnector {
 public:
+    CFG(TR::Compilation *c, TR::ResolvedMethodSymbol *m)
+        : OMR::CFGConnector(c, m)
+        , _externalProfiler(NULL)
+    {}
 
-   CFG(TR::Compilation *c, TR::ResolvedMethodSymbol *m) :
-         OMR::CFGConnector(c, m),
-      _externalProfiler(NULL)
-      {
-      }
+    CFG(TR::Compilation *c, TR::ResolvedMethodSymbol *m, TR::Region &r)
+        : OMR::CFGConnector(c, m, r)
+        , _externalProfiler(NULL)
+    {}
 
-   CFG(TR::Compilation *c, TR::ResolvedMethodSymbol *m, TR::Region &r) :
-         OMR::CFGConnector(c, m, r),
-      _externalProfiler(NULL)
-      {
-      }
+    /**
+     * Set up profiling frequencies for nodes and edges, normalized to the
+     * maxBlockCount in TR::Recompilation.
+     *
+     * Returns true if profiling information was available and used.
+     */
+    bool setFrequencies();
 
-   /**
-    * Set up profiling frequencies for nodes and edges, normalized to the
-    * maxBlockCount in TR::Recompilation.
-    *
-    * Returns true if profiling information was available and used.
-    */
-   bool setFrequencies();
+    void setBlockAndEdgeFrequenciesBasedOnStructure();
+    TR_BitVector *setBlockAndEdgeFrequenciesBasedOnJITProfiler();
+    void setBlockFrequenciesBasedOnInterpreterProfiler();
+    void computeInitialBlockFrequencyBasedOnExternalProfiler(TR::Compilation *comp);
+    void propagateFrequencyInfoFromExternalProfiler(TR_ExternalProfiler *profiler);
+    void getInterpreterProfilerBranchCountersOnDoubleton(TR::CFGNode *cfgNode, int32_t *taken, int32_t *nottaken);
+    void setSwitchEdgeFrequenciesOnNode(TR::CFGNode *node, TR::Compilation *comp);
+    void setBlockFrequency(TR::CFGNode *node, int32_t frequency, bool addFrequency = false);
 
-   void setBlockAndEdgeFrequenciesBasedOnStructure();
-   TR_BitVector *setBlockAndEdgeFrequenciesBasedOnJITProfiler();
-   void setBlockFrequenciesBasedOnInterpreterProfiler();
-   void computeInitialBlockFrequencyBasedOnExternalProfiler(TR::Compilation *comp);
-   void propagateFrequencyInfoFromExternalProfiler(TR_ExternalProfiler *profiler);
-   void getInterpreterProfilerBranchCountersOnDoubleton(TR::CFGNode *cfgNode, int32_t *taken, int32_t *nottaken);
-   void setSwitchEdgeFrequenciesOnNode(TR::CFGNode *node, TR::Compilation *comp);
-   void setBlockFrequency(TR::CFGNode *node, int32_t frequency, bool addFrequency = false);
+    bool hasBranchProfilingData() { return _externalProfiler ? true : false; }
 
-   bool hasBranchProfilingData() { return _externalProfiler ? true : false; }
-   void getBranchCountersFromProfilingData(TR::Node *node, TR::Block *block, int32_t *taken, int32_t *notTaken);
+    void getBranchCountersFromProfilingData(TR::Node *node, TR::Block *block, int32_t *taken, int32_t *notTaken);
 
-   bool emitVerbosePseudoRandomFrequencies();
+    bool emitVerbosePseudoRandomFrequencies();
 
 protected:
+    TR_ExternalProfiler *_externalProfiler;
+};
 
-   TR_ExternalProfiler *_externalProfiler;
-   };
-
-}
+} // namespace J9
 
 #endif

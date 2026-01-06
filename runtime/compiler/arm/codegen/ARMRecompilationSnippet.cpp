@@ -35,32 +35,30 @@
 #include "il/Symbol.hpp"
 
 uint8_t *TR::ARMRecompilationSnippet::emitSnippetBody()
-   {
-   /*
-   Snippet will look like:
-   bl    TR_ARMcountingRecompileMethod
-   dd    jittedBodyInfo
-   dd    code start location
-   */
+{
+    /*
+    Snippet will look like:
+    bl    TR_ARMcountingRecompileMethod
+    dd    jittedBodyInfo
+    dd    code start location
+    */
 
-   uint8_t             *buffer = cg()->getBinaryBufferCursor();
-   TR::SymbolReference  *countingRecompMethodSymRef = cg()->symRefTab()->findOrCreateRuntimeHelper(TR_ARMcountingRecompileMethod);
+    uint8_t *buffer = cg()->getBinaryBufferCursor();
+    TR::SymbolReference *countingRecompMethodSymRef
+        = cg()->symRefTab()->findOrCreateRuntimeHelper(TR_ARMcountingRecompileMethod);
 
-   getSnippetLabel()->setCodeLocation(buffer);
+    getSnippetLabel()->setCodeLocation(buffer);
 
-   *(int32_t *)buffer = encodeHelperBranchAndLink(countingRecompMethodSymRef, buffer, getNode(), cg());  // BL resolve
-   buffer += 4;
+    *(int32_t *)buffer = encodeHelperBranchAndLink(countingRecompMethodSymRef, buffer, getNode(), cg()); // BL resolve
+    buffer += 4;
 
-   *(int32_t *)buffer = (int32_t)(intptr_t)cg()->comp()->getRecompilationInfo()->getJittedBodyInfo();
-   buffer += 4;
+    *(int32_t *)buffer = (int32_t)(intptr_t)cg()->comp()->getRecompilationInfo()->getJittedBodyInfo();
+    buffer += 4;
 
-   *(int32_t *)buffer = ((int32_t)(intptr_t)cg()->getCodeStart());
-   buffer += 4;
+    *(int32_t *)buffer = ((int32_t)(intptr_t)cg()->getCodeStart());
+    buffer += 4;
 
-   return buffer;
-   }
+    return buffer;
+}
 
-uint32_t TR::ARMRecompilationSnippet::getLength(int32_t estimatedSnippetStart)
-   {
-   return  12;
-   }
+uint32_t TR::ARMRecompilationSnippet::getLength(int32_t estimatedSnippetStart) { return 12; }

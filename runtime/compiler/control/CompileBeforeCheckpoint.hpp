@@ -34,52 +34,48 @@ struct J9Method;
 namespace TR {
 class Region;
 class CompilationInfo;
-}
+} // namespace TR
 class TR_J9VMBase;
 
-namespace TR
-{
+namespace TR {
 
-class CompileBeforeCheckpoint
-   {
-   public:
+class CompileBeforeCheckpoint {
+public:
+    CompileBeforeCheckpoint(TR::Region &region, J9VMThread *vmThread, TR_J9VMBase *fej9, TR::CompilationInfo *compInfo);
 
-   CompileBeforeCheckpoint(TR::Region &region, J9VMThread *vmThread, TR_J9VMBase *fej9, TR::CompilationInfo *compInfo);
+    /**
+     * @brief API to trigger compilation in the pre-checkpoint hook.
+     *
+     *        This method is called with the Comp Monitor in hand.
+     */
+    void compileMethodsBeforeCheckpoint();
 
-   /**
-    * @brief API to trigger compilation in the pre-checkpoint hook.
-    *
-    *        This method is called with the Comp Monitor in hand.
-    */
-   void compileMethodsBeforeCheckpoint();
+private:
+    /**
+     * @brief Queue the specified method for compilation
+     *
+     *        This method is called with the CR Runtime Monitor in hand. However,
+     *        it releases it before actually queueing the method for compilation
+     *        and reacquires it before returning.
+     *
+     * @param j9method the J9Method
+     */
+    void queueMethodForCompilationBeforeCheckpoint(J9Method *j9method, bool recomp = false);
 
-   private:
+    /**
+     * @brief Iterates over the list of methods to be compiled proactively
+     *
+     *        This method is called with VMAccess in hand.
+     */
+    void queueMethodsForCompilationBeforeCheckpoint();
 
-   /**
-    * @brief Queue the specified method for compilation
-    *
-    *        This method is called with the CR Runtime Monitor in hand. However,
-    *        it releases it before actually queueing the method for compilation
-    *        and reacquires it before returning.
-    *
-    * @param j9method the J9Method
-    */
-   void queueMethodForCompilationBeforeCheckpoint(J9Method *j9method, bool recomp = false);
+    TR::Region &_region;
+    J9VMThread *_vmThread;
+    TR_J9VMBase *_fej9;
+    TR::CompilationInfo *_compInfo;
+};
 
-   /**
-    * @brief Iterates over the list of methods to be compiled proactively
-    *
-    *        This method is called with VMAccess in hand.
-    */
-   void queueMethodsForCompilationBeforeCheckpoint();
-
-   TR::Region &_region;
-   J9VMThread *_vmThread;
-   TR_J9VMBase *_fej9;
-   TR::CompilationInfo *_compInfo;
-   };
-
-}
+} // namespace TR
 #endif // #if defined(J9VM_OPT_CRIU_SUPPORT)
 
 #endif // TR_COMPILEBEFORECHECKPOINT_INCL

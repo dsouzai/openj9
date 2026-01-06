@@ -24,24 +24,22 @@
 
 #include "optimizer/DataFlowAnalysis.hpp"
 
-class TR_OSRGuardAnalysis : public TR_UnionSingleBitContainerAnalysis
-   {
-   public:
+class TR_OSRGuardAnalysis : public TR_UnionSingleBitContainerAnalysis {
+public:
+    TR_OSRGuardAnalysis(TR::Compilation *comp, TR::Optimizer *optimizer, TR_Structure *);
 
-   TR_OSRGuardAnalysis(TR::Compilation *comp, TR::Optimizer *optimizer, TR_Structure *);
+    virtual Kind getKind();
 
-   virtual Kind getKind();
+    virtual int32_t getNumberOfBits();
+    virtual bool supportsGenAndKillSets();
+    virtual void initializeGenAndKillSetInfo();
+    virtual void analyzeNode(TR::Node *, vcount_t, TR_BlockStructure *, TR_SingleBitContainer *);
+    virtual void analyzeTreeTopsInBlockStructure(TR_BlockStructure *);
+    virtual bool postInitializationProcessing();
+    bool shouldSkipBlock(TR::Block *block);
+    bool containsYields(TR::Block *block);
 
-   virtual int32_t getNumberOfBits();
-   virtual bool supportsGenAndKillSets();
-   virtual void initializeGenAndKillSetInfo();
-   virtual void analyzeNode(TR::Node *, vcount_t, TR_BlockStructure *, TR_SingleBitContainer *);
-   virtual void analyzeTreeTopsInBlockStructure(TR_BlockStructure *);
-   virtual bool postInitializationProcessing();
-   bool shouldSkipBlock(TR::Block *block);
-   bool containsYields(TR::Block *block);
-
-   private:
-   TR_BitVector *_containsYields;   
-   };
+private:
+    TR_BitVector *_containsYields;
+};
 #endif

@@ -30,52 +30,58 @@
 #include "infra/Checklist.hpp"
 #include "infra/List.hpp"
 
-class TR_BoolArrayStoreTransformer
-   {
-   public:
+class TR_BoolArrayStoreTransformer {
+public:
+    typedef TR::typed_allocator<TR::Node *, TR::Region &> NodeAllocator;
+    typedef std::set<TR::Node *, std::less<TR::Node *>, NodeAllocator> NodeSet;
 
-   typedef TR::typed_allocator<TR::Node*, TR::Region &> NodeAllocator;
-   typedef std::set<TR::Node*, std::less<TR::Node*>, NodeAllocator> NodeSet;
+    TR_BoolArrayStoreTransformer(NodeSet *bstoreiNodes, NodeSet *boolArrayTypeNodes);
+    void perform();
 
-   TR_BoolArrayStoreTransformer(NodeSet *bstoreiNodes, NodeSet *boolArrayTypeNodes);
-   void perform();
+    typedef TR::typed_allocator<TR_YesNoMaybe, TR::Region &> TypeInfoAllocator;
+    typedef std::vector<TR_YesNoMaybe, TypeInfoAllocator> TypeInfo;
 
-   typedef TR::typed_allocator<TR_YesNoMaybe, TR::Region &> TypeInfoAllocator;
-   typedef std::vector<TR_YesNoMaybe, TypeInfoAllocator> TypeInfo;
+    TypeInfo *processBlock(TR::Block *block, TypeInfo *typeInfo);
+    static bool isAnyDimensionBoolArrayNode(TR::Node *node);
+    static bool isAnyDimensionByteArrayNode(TR::Node *node);
+    static bool isAnyDimensionBoolArrayParm(TR::ParameterSymbol *symbol);
+    static bool isAnyDimensionByteArrayParm(TR::ParameterSymbol *symbol);
+    static bool isBoolArrayNode(TR::Node *node, bool parmAsAuto = true);
+    static bool isByteArrayNode(TR::Node *node, bool parmAsAuto = true);
+    static bool isBoolArrayParm(TR::ParameterSymbol *symbol);
+    static bool isByteArrayParm(TR::ParameterSymbol *symbol);
+    static int getArrayDimension(TR::Node *node, bool boolType, bool parmAsAuto = true);
+    static int getArrayDimension(const char *signature, int length, bool boolType);
+    void findLoadAddressAutoAndFigureOutType(TR::Node *node, TypeInfo *typeInfo, TR::NodeChecklist &boolArrayNodes,
+        TR::NodeChecklist &byteArrayNodes, TR::NodeChecklist &loadAutoNodes);
+    void mergeTypeInfo(TypeInfo *first, TypeInfo *second);
+    void collectLocals(TR_Array<List<TR::SymbolReference> > *autosListArray);
+    void findBoolArrayStoreNodes();
+    void transformBoolArrayStoreNodes();
+    void transformUnknownTypeArrayStore();
 
-   TypeInfo * processBlock(TR::Block *block, TypeInfo *typeInfo);
-   static bool isAnyDimensionBoolArrayNode(TR::Node *node);
-   static bool isAnyDimensionByteArrayNode(TR::Node *node);
-   static bool isAnyDimensionBoolArrayParm(TR::ParameterSymbol *symbol);
-   static bool isAnyDimensionByteArrayParm(TR::ParameterSymbol *symbol);
-   static bool isBoolArrayNode(TR::Node *node, bool parmAsAuto = true);
-   static bool isByteArrayNode(TR::Node *node, bool parmAsAuto = true);
-   static bool isBoolArrayParm(TR::ParameterSymbol *symbol);
-   static bool isByteArrayParm(TR::ParameterSymbol *symbol);
-   static int getArrayDimension(TR::Node *node, bool boolType, bool parmAsAuto = true);
-   static int getArrayDimension(const char * signature, int length, bool boolType);
-   void findLoadAddressAutoAndFigureOutType(TR::Node *node, TypeInfo * typeInfo, TR::NodeChecklist &boolArrayNodes, TR::NodeChecklist &byteArrayNodes, TR::NodeChecklist &loadAutoNodes);
-   void mergeTypeInfo(TypeInfo *first, TypeInfo *second);
-   void collectLocals(TR_Array<List<TR::SymbolReference>> *autosListArray);
-   void findBoolArrayStoreNodes();
-   void transformBoolArrayStoreNodes();
-   void transformUnknownTypeArrayStore();
-   bool hasBoolArrayAutoOrCheckCast() { return _hasBoolArrayAutoOrCheckCast;}
-   bool hasByteArrayAutoOrCheckCast() { return _hasByteArrayAutoOrCheckCast;}
-   void setHasBoolArrayAutoOrCheckCast() { _hasBoolArrayAutoOrCheckCast = true;}
-   void setHasByteArrayAutoOrCheckCast() { _hasByteArrayAutoOrCheckCast = true;}
-   void setHasVariantArgs() { _hasVariantArgs = true;}
-   uint32_t _numLocals;
-   TR::Compilation *comp() { return _comp; }
+    bool hasBoolArrayAutoOrCheckCast() { return _hasBoolArrayAutoOrCheckCast; }
 
-   private:
-   TR::Compilation *_comp;
-   NodeSet *_bstoreiUnknownArrayTypeNodes;
-   NodeSet *_bstoreiBoolArrayTypeNodes;
-   bool _hasBoolArrayAutoOrCheckCast;
-   bool _hasByteArrayAutoOrCheckCast;
-   bool _hasVariantArgs;
-   int32_t _NumOfBstoreiNodesToVisit;
-   };
+    bool hasByteArrayAutoOrCheckCast() { return _hasByteArrayAutoOrCheckCast; }
+
+    void setHasBoolArrayAutoOrCheckCast() { _hasBoolArrayAutoOrCheckCast = true; }
+
+    void setHasByteArrayAutoOrCheckCast() { _hasByteArrayAutoOrCheckCast = true; }
+
+    void setHasVariantArgs() { _hasVariantArgs = true; }
+
+    uint32_t _numLocals;
+
+    TR::Compilation *comp() { return _comp; }
+
+private:
+    TR::Compilation *_comp;
+    NodeSet *_bstoreiUnknownArrayTypeNodes;
+    NodeSet *_bstoreiBoolArrayTypeNodes;
+    bool _hasBoolArrayAutoOrCheckCast;
+    bool _hasByteArrayAutoOrCheckCast;
+    bool _hasVariantArgs;
+    int32_t _NumOfBstoreiNodesToVisit;
+};
 
 #endif

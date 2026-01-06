@@ -28,10 +28,14 @@
  */
 #ifndef J9_SNIPPET_CONNECTOR
 #define J9_SNIPPET_CONNECTOR
+
 namespace J9 {
-namespace Z { class Snippet; }
-typedef J9::Z::Snippet SnippetConnector;
+namespace Z {
+class Snippet;
 }
+
+typedef J9::Z::Snippet SnippetConnector;
+} // namespace J9
 #endif
 
 #include "compiler/codegen/J9Snippet.hpp"
@@ -41,36 +45,26 @@ namespace TR {
 class CodeGenerator;
 class LabelSymbol;
 class Node;
-}
+} // namespace TR
 
-namespace J9
-{
+namespace J9 { namespace Z {
 
-namespace Z
-{
+class OMR_EXTENSIBLE Snippet : public J9::Snippet {
+public:
+    Snippet(TR::CodeGenerator *cg, TR::Node *node, TR::LabelSymbol *label, bool isGCSafePoint)
+        : J9::Snippet(cg, node, label, isGCSafePoint)
+    {}
 
-class OMR_EXTENSIBLE Snippet : public J9::Snippet
-   {
-   public:
+    Snippet(TR::CodeGenerator *cg, TR::Node *node, TR::LabelSymbol *label)
+        : J9::Snippet(cg, node, label)
+    {}
 
-   Snippet(TR::CodeGenerator *cg, TR::Node *node, TR::LabelSymbol *label, bool isGCSafePoint) :
-      J9::Snippet(cg, node, label, isGCSafePoint)
-      {
-      }
+    // helper methods to insert Runtime Instrumentation hooks
+    uint8_t *generateRuntimeInstrumentationOnOffInstruction(TR::CodeGenerator *cg, uint8_t *cursor,
+        TR::InstOpCode::Mnemonic op, bool isPrivateLinkage = false);
+    uint32_t getRuntimeInstrumentationOnOffInstructionLength(TR::CodeGenerator *cg, bool isPrivateLinkage = false);
+};
 
-   Snippet(TR::CodeGenerator *cg, TR::Node *node, TR::LabelSymbol *label) :
-      J9::Snippet(cg, node, label)
-      {
-      }
-
-   // helper methods to insert Runtime Instrumentation hooks
-   uint8_t *generateRuntimeInstrumentationOnOffInstruction(TR::CodeGenerator *cg, uint8_t *cursor, TR::InstOpCode::Mnemonic op, bool isPrivateLinkage = false);
-   uint32_t getRuntimeInstrumentationOnOffInstructionLength(TR::CodeGenerator *cg, bool isPrivateLinkage = false);
-
-   };
-
-}
-
-}
+}} // namespace J9::Z
 
 #endif

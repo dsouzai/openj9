@@ -25,28 +25,23 @@
 
 #include "optimizer/OMRLocalCSE.hpp"
 
-namespace J9
-{
+namespace J9 {
 
 // Performs local common subexpression elimination within
 // a basic block.
 //
 
-class LocalCSE : public OMR::LocalCSE
-   {
-   public:
+class LocalCSE : public OMR::LocalCSE {
+public:
+    LocalCSE(TR::OptimizationManager *manager)
+        : OMR::LocalCSE(manager)
+    {}
 
-   LocalCSE(TR::OptimizationManager *manager) : OMR::LocalCSE(manager)
-      {}
+    virtual bool shouldTransformBlock(TR::Block *block);
+    virtual bool shouldCommonNode(TR::Node *parent, TR::Node *node);
+    virtual bool shouldCopyPropagateNode(TR::Node *parent, TR::Node *node, int32_t childNum, TR::Node *storeNode);
+};
 
-   virtual bool shouldTransformBlock(TR::Block *block);
-   virtual bool shouldCommonNode(TR::Node *parent, TR::Node *node);
-   virtual bool shouldCopyPropagateNode(TR::Node *parent,
-                                        TR::Node *node,
-                                        int32_t childNum,
-                                        TR::Node *storeNode);
-   };
-
-}
+} // namespace J9
 
 #endif

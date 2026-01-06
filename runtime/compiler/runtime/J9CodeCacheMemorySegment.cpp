@@ -47,19 +47,16 @@
 #include "runtime/ArtifactManager.hpp"
 #include "env/IO.hpp"
 
-
 // CodeCacheMemorySegment
 //
-J9::CodeCacheMemorySegment::CodeCacheMemorySegment(J9MemorySegment *segment) :
-   OMR::CodeCacheMemorySegmentConnector(segment->heapAlloc, segment->heapTop),
-   _segment(segment)
-   { }
+J9::CodeCacheMemorySegment::CodeCacheMemorySegment(J9MemorySegment *segment)
+    : OMR::CodeCacheMemorySegmentConnector(segment->heapAlloc, segment->heapTop)
+    , _segment(segment)
+{}
 
-
-void
-J9::CodeCacheMemorySegment::free(TR::CodeCacheManager *manager)
-   {
-   J9JavaVM *javaVM = manager->javaVM();
-   javaVM->internalVMFunctions->freeMemorySegment(javaVM, _segment, 1);
-   new (reinterpret_cast<TR::CodeCacheMemorySegment *>(this)) TR::CodeCacheMemorySegment();
-   }
+void J9::CodeCacheMemorySegment::free(TR::CodeCacheManager *manager)
+{
+    J9JavaVM *javaVM = manager->javaVM();
+    javaVM->internalVMFunctions->freeMemorySegment(javaVM, _segment, 1);
+    new (reinterpret_cast<TR::CodeCacheMemorySegment *>(this)) TR::CodeCacheMemorySegment();
+}

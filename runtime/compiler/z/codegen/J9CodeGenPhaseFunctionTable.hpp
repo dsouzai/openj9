@@ -29,6 +29,5 @@
 
 // The entries in this file must be kept in sync with z/codegen/J9CodeGenPhaseEnum.hpp
 
-TR::CodeGenPhase::performInMemoryLoadStoreMarkingPhase,
-TR::CodeGenPhase::performReduceSynchronizedFieldLoadPhase,
-TR::CodeGenPhase::performUncommonBCDCHKAddressNodePhase,
+TR::CodeGenPhase::performInMemoryLoadStoreMarkingPhase, TR::CodeGenPhase::performReduceSynchronizedFieldLoadPhase,
+    TR::CodeGenPhase::performUncommonBCDCHKAddressNodePhase,

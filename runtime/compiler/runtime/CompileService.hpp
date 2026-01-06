@@ -30,39 +30,39 @@
 struct J9JITConfig;
 struct J9VMThread;
 
-class VMAccessHolder
-   {
+class VMAccessHolder {
 public:
-   VMAccessHolder(J9VMThread *vm): _vm(vm)
-      {
-      acquireVMAccess(_vm);
-      }
+    VMAccessHolder(J9VMThread *vm)
+        : _vm(vm)
+    {
+        acquireVMAccess(_vm);
+    }
 
-   ~VMAccessHolder()
-      {
-      releaseVMAccess(_vm);
-      }
+    ~VMAccessHolder() { releaseVMAccess(_vm); }
 
 private:
-   J9VMThread *_vm;
-   };
+    J9VMThread *_vm;
+};
 
 /**
    @class J9CompileDispatcher
-   @brief Implementation of the compilation handler which gets invoked every time a connection request from the JITClient is accepted
+   @brief Implementation of the compilation handler which gets invoked every time a connection request from the
+   JITClient is accepted
 
-   This handler, 'compile(ServerStream *)', is executed by the listener thread when a new connection request has been received by JITServer
+   This handler, 'compile(ServerStream *)', is executed by the listener thread when a new connection request has been
+   received by JITServer
 */
 
-class J9CompileDispatcher : public BaseCompileDispatcher
-{
+class J9CompileDispatcher : public BaseCompileDispatcher {
 public:
-   J9CompileDispatcher(J9JITConfig *jitConfig) : _jitConfig(jitConfig) { }
+    J9CompileDispatcher(J9JITConfig *jitConfig)
+        : _jitConfig(jitConfig)
+    {}
 
-   void compile(JITServer::ServerStream *stream) override;
+    void compile(JITServer::ServerStream *stream) override;
 
 private:
-   J9JITConfig *_jitConfig;
+    J9JITConfig *_jitConfig;
 };
 
 #endif

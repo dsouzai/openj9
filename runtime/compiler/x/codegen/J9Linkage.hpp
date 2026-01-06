@@ -28,33 +28,32 @@
  */
 #ifndef J9_LINKAGE_CONNECTOR
 #define J9_LINKAGE_CONNECTOR
+
 namespace J9 {
-namespace X86 { class Linkage; }
-typedef J9::X86::Linkage LinkageConnector;
+namespace X86 {
+class Linkage;
 }
+
+typedef J9::X86::Linkage LinkageConnector;
+} // namespace J9
 #endif
 
 #include "codegen/OMRLinkage.hpp"
 
-namespace J9
-{
+namespace J9 { namespace X86 {
 
-namespace X86
-{
+class OMR_EXTENSIBLE Linkage : public OMR::LinkageConnector {
+public:
+    Linkage(TR::CodeGenerator *cg)
+        : OMR::LinkageConnector(cg)
+    {}
 
-class OMR_EXTENSIBLE Linkage : public OMR::LinkageConnector
-   {
-   public:
-   Linkage(TR::CodeGenerator *cg) : OMR::LinkageConnector(cg) {}
+    void alignOffset(uint32_t &stackIndex, int32_t localObjectAlignment);
 
-   void alignOffset(uint32_t &stackIndex, int32_t localObjectAlignment);
+    void alignLocalObjectWithCollectedFields(uint32_t &stackIndex);
+    void alignLocalObjectWithoutCollectedFields(uint32_t &stackIndex);
+};
 
-   void alignLocalObjectWithCollectedFields(uint32_t & stackIndex);
-   void alignLocalObjectWithoutCollectedFields(uint32_t & stackIndex);
-   };
-
-} // namespace X86
-
-} // namespace J9
+}} // namespace J9::X86
 
 #endif

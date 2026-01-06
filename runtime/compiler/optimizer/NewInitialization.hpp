@@ -30,13 +30,14 @@
 #include "optimizer/OptimizationManager.hpp"
 
 class TR_BitVector;
+
 namespace TR {
 class Node;
 class ResolvedMethodSymbol;
 class TreeTop;
-}
-template <class T> class TR_Array;
-template <class T> class TR_ScratchList;
+} // namespace TR
+template<class T> class TR_Array;
+template<class T> class TR_ScratchList;
 
 /// Attempts to skip zero initializations of objects where possible. Basically
 /// scans forward in the basic block from the point of the allocation and tries
@@ -50,114 +51,108 @@ template <class T> class TR_ScratchList;
 /// array allocations (e.g. char arrays that are used by String, often do not
 /// need zero initialization as they are filled in by arraycopy calls
 /// immediately), we can skip zero initializations completely.
-class TR_NewInitialization : public TR::Optimization
-   {
-   public:
-   TR_NewInitialization(TR::OptimizationManager *manager);
+class TR_NewInitialization : public TR::Optimization {
+public:
+    TR_NewInitialization(TR::OptimizationManager *manager);
 
-   protected:
+protected:
+    struct NodeEntry : public TR_Link<NodeEntry> {
+        TR::Node *node;
+    };
 
-   struct NodeEntry : public TR_Link<NodeEntry>
-      {
-      TR::Node   *node;
-      };
+    struct TreeTopEntry : public TR_Link<TreeTopEntry> {
+        TR::TreeTop *treeTop;
+    };
 
-   struct TreeTopEntry : public TR_Link<TreeTopEntry>
-      {
-      TR::TreeTop *treeTop;
-      };
+    struct Candidate : public TR_Link<Candidate> {
+        TR::TreeTop *treeTop;
+        TR::Node *node;
+        TR_BitVector *uninitializedWords;
+        TR_BitVector *initializedBytes;
+        TR_BitVector *uninitializedBytes;
 
-   struct Candidate : public TR_Link<Candidate>
-      {
-      TR::TreeTop               *treeTop;
-      TR::Node                  *node;
-      TR_BitVector             *uninitializedWords;
-      TR_BitVector             *initializedBytes;
-      TR_BitVector             *uninitializedBytes;
+        TR_LinkHead<NodeEntry> localStores;
+        TR_LinkHead<NodeEntry> localLoads;
+        TR_LinkHead<TreeTopEntry> inlinedCalls;
 
-      TR_LinkHead<NodeEntry>    localStores;
-      TR_LinkHead<NodeEntry>    localLoads;
-      TR_LinkHead<TreeTopEntry> inlinedCalls;
+        int32_t size;
+        int32_t startOffset;
+        int32_t numUninitializedWords;
+        int32_t numInitializedBytes;
+        int32_t numUninitializedBytes;
 
-      int32_t                   size;
-      int32_t                   startOffset;
-      int32_t                   numUninitializedWords;
-      int32_t                   numInitializedBytes;
-      int32_t                   numUninitializedBytes;
+        bool isArrayNew;
+        bool isInSniffedMethod;
+    };
 
-      bool                      isArrayNew;
-      bool                      isInSniffedMethod;
-      };
+    int32_t performAnalysis(bool doGlobalAnalysis);
+    bool doAnalysisOnce(int32_t iteration);
 
-   int32_t performAnalysis(bool doGlobalAnalysis);
-   bool    doAnalysisOnce(int32_t iteration);
+    // Methods for finding the allocation node candidates and for scanning the
+    // trees for explicit initializations
+    //
+    //
+    void findNewCandidates();
+    bool findNewCandidatesInBlock(TR::TreeTop *startTree, TR::TreeTop *endTree);
+    bool findAllocationNode(TR::TreeTop *treeTop, TR::Node *node);
+    bool sniffCall(TR::TreeTop *callTree);
+    TR::ResolvedMethodSymbol *findInlinableMethod(TR::TreeTop *callTree);
 
-   // Methods for finding the allocation node candidates and for scanning the
-   // trees for explicit initializations
-   //
-   //
-   void     findNewCandidates();
-   bool     findNewCandidatesInBlock(TR::TreeTop *startTree, TR::TreeTop *endTree);
-   bool     findAllocationNode(TR::TreeTop *treeTop, TR::Node *node);
-   bool     sniffCall(TR::TreeTop *callTree);
-   TR::ResolvedMethodSymbol *findInlinableMethod(TR::TreeTop *callTree);
+    TR::Node *resolveNode(TR::Node *node);
+    bool matchLocalLoad(TR::Node *node, Candidate *c);
+    Candidate *findBaseOfIndirection(TR::Node *directBase);
+    bool isNewObject(TR::Node *node, Candidate *c);
+    Candidate *findCandidateReference(TR::Node *node);
+    Candidate *findCandidateReferenceInSubTree(TR::Node *node, TR_ScratchList<TR::Node> *seenNodes);
+    bool visitNode(TR::Node *node);
+    void setAffectedCandidate(Candidate *c);
+    void escapeToUserCode(Candidate *c, TR::Node *cause);
+    void escapeToUserCodeAllCandidates(TR::Node *cause, bool onlyArrays = false);
+    void escapeToGC(Candidate *c, TR::Node *cause);
+    void escapeToGC(TR::Node *cause);
+    void escapeViaCall(TR::Node *callNode);
+    void escapeViaArrayCopyOrArraySet(TR::Node *arrayCopyNode);
+    void findUninitializedWords();
 
-   TR::Node *resolveNode(TR::Node *node);
-   bool     matchLocalLoad(TR::Node *node, Candidate *c);
-   Candidate *findBaseOfIndirection(TR::Node *directBase);
-   bool     isNewObject(TR::Node *node, Candidate *c);
-   Candidate *findCandidateReference(TR::Node *node);
-   Candidate *findCandidateReferenceInSubTree(TR::Node *node, TR_ScratchList<TR::Node> *seenNodes);
-   bool     visitNode(TR::Node *node);
-   void     setAffectedCandidate(Candidate *c);
-   void     escapeToUserCode(Candidate *c, TR::Node *cause);
-   void     escapeToUserCodeAllCandidates(TR::Node *cause, bool onlyArrays = false);
-   void     escapeToGC(Candidate *c, TR::Node *cause);
-   void     escapeToGC(TR::Node *cause);
-   void     escapeViaCall(TR::Node *callNode);
-   void     escapeViaArrayCopyOrArraySet(TR::Node *arrayCopyNode);
-   void     findUninitializedWords();
+    // Methods for actually changing the trees
+    //
+    bool changeNewCandidates();
+    void inlineCalls();
+    void modifyTrees(Candidate *candidate);
+    int32_t buildInitializationInfo(Candidate *c, TR_BitVector *wordsToBeInitialized, int32_t startWord);
 
-   // Methods for actually changing the trees
-   //
-   bool    changeNewCandidates();
-   void    inlineCalls();
-   void    modifyTrees(Candidate *candidate);
-   int32_t buildInitializationInfo(Candidate *c, TR_BitVector *wordsToBeInitialized, int32_t startWord);
+    virtual int32_t getValueNumber(TR::Node *n) = 0;
 
-   virtual int32_t getValueNumber(TR::Node *n) = 0;
+    TR::TreeTop *_outermostCallSite;
+    TR_Array<TR::Node *> *_parms;
+    Candidate *_firstActiveCandidate;
 
-   TR::TreeTop                   *_outermostCallSite;
-   TR_Array<TR::Node*>           *_parms;
-   Candidate                    *_firstActiveCandidate;
+    TR_LinkHead<TreeTopEntry> _inlinedCallSites;
+    TR_LinkHeadAndTail<Candidate> _candidates;
 
-   TR_LinkHead<TreeTopEntry>     _inlinedCallSites;
-   TR_LinkHeadAndTail<Candidate> _candidates;
+    int32_t _maxIterations;
+    int32_t _maxInlinedBytecodeSize;
+    int32_t _maxTotalInlinedBytecodeSize;
+    int32_t _totalInlinedBytecodeSize;
 
-   int32_t                       _maxIterations;
-   int32_t                       _maxInlinedBytecodeSize;
-   int32_t                       _maxTotalInlinedBytecodeSize;
-   int32_t                       _totalInlinedBytecodeSize;
+    bool _sniffConstructorsOnly;
+    bool _sniffCalls;
+    bool _removeZeroStores;
+    bool _invalidateUseDefInfo;
+};
 
-   bool                          _sniffConstructorsOnly;
-   bool                          _sniffCalls;
-   bool                          _removeZeroStores;
-   bool                          _invalidateUseDefInfo;
-   };
+class TR_LocalNewInitialization : public TR_NewInitialization {
+public:
+    TR_LocalNewInitialization(TR::OptimizationManager *manager);
 
-class TR_LocalNewInitialization : public TR_NewInitialization
-   {
-   public:
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_LocalNewInitialization(manager);
+    }
 
-   TR_LocalNewInitialization(TR::OptimizationManager *manager);
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_LocalNewInitialization(manager);
-      }
-
-   virtual int32_t perform();
-   virtual const char * optDetailString() const throw();
-   virtual int32_t getValueNumber(TR::Node *n);
-   };
+    virtual int32_t perform();
+    virtual const char *optDetailString() const throw();
+    virtual int32_t getValueNumber(TR::Node *n);
+};
 
 #endif

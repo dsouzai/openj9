@@ -33,60 +33,55 @@ class LabelSymbol;
 
 namespace TR {
 
-class S390ForceRecompilationDataSnippet : public TR::S390ConstantDataSnippet
-   {
-   // Label of Return Address in Main Line Code.
-   TR::LabelSymbol *_restartLabel;
+class S390ForceRecompilationDataSnippet : public TR::S390ConstantDataSnippet {
+    // Label of Return Address in Main Line Code.
+    TR::LabelSymbol *_restartLabel;
 
-   public:
+public:
+    S390ForceRecompilationDataSnippet(TR::CodeGenerator *, TR::Node *, TR::LabelSymbol *);
 
-   S390ForceRecompilationDataSnippet(TR::CodeGenerator *,
-                                     TR::Node *,
-                                     TR::LabelSymbol *);
+    virtual Kind getKind() { return IsForceRecompData; }
 
-   virtual Kind getKind() { return IsForceRecompData; }
+    TR::LabelSymbol *getRestartLabel() { return _restartLabel; }
 
-   TR::LabelSymbol *getRestartLabel()                  {return _restartLabel;}
-   TR::LabelSymbol *setRestartLabel(TR::LabelSymbol *l) {return _restartLabel = l;}
+    TR::LabelSymbol *setRestartLabel(TR::LabelSymbol *l) { return _restartLabel = l; }
 
-   virtual uint8_t *emitSnippetBody();
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-   };
+    virtual uint8_t *emitSnippetBody();
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
+};
 
+class S390ForceRecompilationSnippet : public TR::Snippet {
+    // Label of Return Address in Main Line Code.
+    TR::LabelSymbol *_restartLabel;
+    TR::S390ForceRecompilationDataSnippet *_dataSnippet;
 
-class S390ForceRecompilationSnippet : public TR::Snippet
-   {
-   // Label of Return Address in Main Line Code.
-   TR::LabelSymbol *_restartLabel;
-   TR::S390ForceRecompilationDataSnippet *_dataSnippet;
-   public:
+public:
+    S390ForceRecompilationSnippet(TR::CodeGenerator *cg, TR::Node *node, TR::LabelSymbol *restartlab,
+        TR::LabelSymbol *snippetlab)
+        : TR::Snippet(cg, node, snippetlab, false)
+        , _restartLabel(restartlab)
+    {
+        _dataSnippet = new (cg->trHeapMemory()) TR::S390ForceRecompilationDataSnippet(cg, node, restartlab);
+        cg->addDataConstantSnippet(_dataSnippet);
+    }
 
-   S390ForceRecompilationSnippet(TR::CodeGenerator        *cg,
-                                 TR::Node                 *node,
-                                 TR::LabelSymbol           *restartlab,
-                                 TR::LabelSymbol           *snippetlab)
-      : TR::Snippet(cg, node, snippetlab, false),
-        _restartLabel(restartlab)
-      {
-      _dataSnippet = new (cg->trHeapMemory()) TR::S390ForceRecompilationDataSnippet(cg,node,restartlab);
-      cg->addDataConstantSnippet(_dataSnippet);
-      }
+    virtual Kind getKind() { return IsForceRecomp; }
 
-   virtual Kind getKind() { return IsForceRecomp; }
+    TR::LabelSymbol *getRestartLabel() { return _restartLabel; }
 
-   TR::LabelSymbol *getRestartLabel()                  {return _restartLabel;}
-   TR::LabelSymbol *setRestartLabel(TR::LabelSymbol *l) {return _restartLabel = l;}
+    TR::LabelSymbol *setRestartLabel(TR::LabelSymbol *l) { return _restartLabel = l; }
 
-   TR::S390ForceRecompilationDataSnippet *getDataConstantSnippet() { return _dataSnippet; }
-   TR::S390ForceRecompilationDataSnippet *setDataConstantSnippet(TR::S390ForceRecompilationDataSnippet *snippet)
-      {
-      return _dataSnippet = snippet;
-      }
+    TR::S390ForceRecompilationDataSnippet *getDataConstantSnippet() { return _dataSnippet; }
 
-   virtual uint8_t *emitSnippetBody();
-   virtual uint32_t getLength(int32_t);
-   };
+    TR::S390ForceRecompilationDataSnippet *setDataConstantSnippet(TR::S390ForceRecompilationDataSnippet *snippet)
+    {
+        return _dataSnippet = snippet;
+    }
 
-}
+    virtual uint8_t *emitSnippetBody();
+    virtual uint32_t getLength(int32_t);
+};
+
+} // namespace TR
 
 #endif

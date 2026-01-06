@@ -23,17 +23,18 @@
 #include "ras/JavaILValidator.hpp"
 
 void TR::JavaILValidator::validateNode(Location &location)
-   {
-   if (location.currentNode()->getOpCodeValue() == TR::asynccheck)
-      validateAsynccheck(location);
-   }
+{
+    if (location.currentNode()->getOpCodeValue() == TR::asynccheck)
+        validateAsynccheck(location);
+}
 
 void TR::JavaILValidator::validateAsynccheck(Location &location)
-   {
-   for (LiveNodeWindow::Iterator lnwi(_liveNodes); lnwi.currentNode(); ++lnwi)
-      {
-      TR::Node *liveNode = lnwi.currentNode();
-      if (liveNode->isInternalPointer())
-         validityRule(location, liveNode->getPinningArrayPointer() != NULL, "Internal pointer node n%dn without pinning array pointer cannot live across asynccheck", liveNode->getGlobalIndex());
-      }
-   }
+{
+    for (LiveNodeWindow::Iterator lnwi(_liveNodes); lnwi.currentNode(); ++lnwi) {
+        TR::Node *liveNode = lnwi.currentNode();
+        if (liveNode->isInternalPointer())
+            validityRule(location, liveNode->getPinningArrayPointer() != NULL,
+                "Internal pointer node n%dn without pinning array pointer cannot live across asynccheck",
+                liveNode->getGlobalIndex());
+    }
+}

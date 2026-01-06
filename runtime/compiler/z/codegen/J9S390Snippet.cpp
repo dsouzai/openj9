@@ -43,399 +43,350 @@
 #include "z/codegen/S390Instruction.hpp"
 #include "z/codegen/S390Snippets.hpp"
 
-TR::S390HeapAllocSnippet::S390HeapAllocSnippet(
-   TR::CodeGenerator   *codeGen,
-   TR::Node            *node,
-   TR::LabelSymbol      *callLabel,
-   TR::SymbolReference *destination,
-   TR::LabelSymbol      *restartLabel)
-   : _restartLabel(restartLabel), _destination(destination), _isLongBranch(false), _length(0),
-      TR::Snippet(codeGen, node, callLabel, destination->canCauseGC())
-   {
-   if (destination->canCauseGC())
-      {
-      // Helper call, preserves all registers
-      //
-      gcMap().setGCRegisterMask(0x0000FFFF);
-      }
-   }
+TR::S390HeapAllocSnippet::S390HeapAllocSnippet(TR::CodeGenerator *codeGen, TR::Node *node, TR::LabelSymbol *callLabel,
+    TR::SymbolReference *destination, TR::LabelSymbol *restartLabel)
+    : _restartLabel(restartLabel)
+    , _destination(destination)
+    , _isLongBranch(false)
+    , _length(0)
+    , TR::Snippet(codeGen, node, callLabel, destination->canCauseGC())
+{
+    if (destination->canCauseGC()) {
+        // Helper call, preserves all registers
+        //
+        gcMap().setGCRegisterMask(0x0000FFFF);
+    }
+}
 
+uint8_t *TR::S390HeapAllocSnippet::emitSnippetBody()
+{
+    TR::CodeGenerator *codeGen = cg();
+    TR::Compilation *comp = codeGen->comp();
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(codeGen->fe());
+    uint8_t *buffer = codeGen->getBinaryBufferCursor();
+    int32_t distance;
+    int32_t jumpToCallDistance = -1;
+    intptr_t branchToCallLocation = -1;
 
-uint8_t *
-TR::S390HeapAllocSnippet::emitSnippetBody()
-   {
-   TR::CodeGenerator * codeGen = cg();
-   TR::Compilation *comp = codeGen->comp();
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(codeGen->fe());
-   uint8_t * buffer = codeGen->getBinaryBufferCursor();
-   int32_t distance;
-   int32_t jumpToCallDistance = -1;
-   intptr_t branchToCallLocation = -1;
+    TR::Machine *machine = codeGen->machine();
+    TR::RegisterDependencyConditions *deps = getRestartLabel()->getInstruction()->getDependencyConditions();
+    TR::RealRegister *resReg
+        = machine->getRealRegister(deps->getPostConditions()->getRegisterDependency(2)->getRealRegister());
+    uint32_t resRegEncoding = resReg->getRegisterNumber() - 1;
+    bool is64BitTarget = comp->target().is64Bit();
 
-   TR::Machine *machine = codeGen->machine();
-   TR::RegisterDependencyConditions *deps = getRestartLabel()->getInstruction()->getDependencyConditions();
-   TR::RealRegister * resReg = machine->getRealRegister(deps->getPostConditions()->getRegisterDependency(2)->getRealRegister());
-   uint32_t resRegEncoding = resReg->getRegisterNumber() - 1;
-   bool is64BitTarget = comp->target().is64Bit();
+    getSnippetLabel()->setCodeLocation(buffer);
 
-   getSnippetLabel()->setCodeLocation(buffer);
+    TR_ASSERT(jumpToCallDistance == -1 || jumpToCallDistance == (((intptr_t)buffer) - branchToCallLocation),
+        "Jump in Heap Alloc Misaligned.");
 
-   TR_ASSERT(jumpToCallDistance == -1 || jumpToCallDistance == (((intptr_t)buffer) - branchToCallLocation), "Jump in Heap Alloc Misaligned.");
+    // The code for the none-G5 32bit snippet looks like:
+    // BRASL  gr14, jitNewXXXX;
+    // LR/LGR     resReg, gr2;
+    // BRC[L] restartLabel;
 
-   // The code for the none-G5 32bit snippet looks like:
-   // BRASL  gr14, jitNewXXXX;
-   // LR/LGR     resReg, gr2;
-   // BRC[L] restartLabel;
+    *(uint16_t *)buffer = 0xc0e5;
+    buffer += 2;
 
-   *(uint16_t *) buffer = 0xc0e5;
-   buffer += 2;
-
-   intptr_t destAddr = (intptr_t) getDestination()->getSymbol()->castToMethodSymbol()->getMethodAddress();
+    intptr_t destAddr = (intptr_t)getDestination()->getSymbol()->castToMethodSymbol()->getMethodAddress();
 
 #if defined(TR_TARGET_64BIT)
 #if defined(J9ZOS390)
-   if (comp->getOption(TR_EnableRMODE64))
+    if (comp->getOption(TR_EnableRMODE64))
 #endif
-      {
-      if (cg()->directCallRequiresTrampoline(destAddr, reinterpret_cast<intptr_t>(buffer)))
-         {
-         uint32_t rEP = (uint32_t) cg()->getEntryPointRegister() - 1;
-         // Destination is beyond our reachable jump distance, we'll find the
-         // trampoline.
-         destAddr = TR::CodeCacheManager::instance()->findHelperTrampoline(getDestination()->getReferenceNumber(), (void *)buffer);
-         this->setUsedTrampoline(true);
+    {
+        if (cg()->directCallRequiresTrampoline(destAddr, reinterpret_cast<intptr_t>(buffer))) {
+            uint32_t rEP = (uint32_t)cg()->getEntryPointRegister() - 1;
+            // Destination is beyond our reachable jump distance, we'll find the
+            // trampoline.
+            destAddr = TR::CodeCacheManager::instance()->findHelperTrampoline(getDestination()->getReferenceNumber(),
+                (void *)buffer);
+            this->setUsedTrampoline(true);
 
-         // We clobber rEP if we take a trampoline.  Update our register map if necessary.
-         if (gcMap().getStackMap() != NULL)
-            {
-            gcMap().getStackMap()->maskRegisters(~(0x1 << (rEP)));
+            // We clobber rEP if we take a trampoline.  Update our register map if necessary.
+            if (gcMap().getStackMap() != NULL) {
+                gcMap().getStackMap()->maskRegisters(~(0x1 << (rEP)));
             }
-         }
-      }
+        }
+    }
 #endif
 
-   TR_ASSERT(CHECK_32BIT_TRAMPOLINE_RANGE(destAddr, buffer), "Helper Call is not reachable.");
-   this->setSnippetDestAddr(destAddr);
+    TR_ASSERT(CHECK_32BIT_TRAMPOLINE_RANGE(destAddr, buffer), "Helper Call is not reachable.");
+    this->setSnippetDestAddr(destAddr);
 
-   *(int32_t *) buffer = (int32_t)((destAddr - (intptr_t)(buffer - 2)) / 2);
-   if (comp->compileRelocatableCode() || comp->isOutOfProcessCompilation())
-      {
-      cg()->addExternalRelocation(
-         TR::ExternalRelocation::create(
-            buffer,
-            (uint8_t*) getDestination(),
-            TR_HelperAddress,
-            cg()),
-         __FILE__,
-         __LINE__,
-         getNode());
-      }
+    *(int32_t *)buffer = (int32_t)((destAddr - (intptr_t)(buffer - 2)) / 2);
+    if (comp->compileRelocatableCode() || comp->isOutOfProcessCompilation()) {
+        cg()->addExternalRelocation(
+            TR::ExternalRelocation::create(buffer, (uint8_t *)getDestination(), TR_HelperAddress, cg()), __FILE__,
+            __LINE__, getNode());
+    }
 
-   buffer += sizeof(int32_t);
+    buffer += sizeof(int32_t);
 
-   if (gcMap().getStackMap() != NULL)
-      {
-      gcMap().getStackMap()->resetRegistersBits(codeGen->registerBitMask(resReg->getRegisterNumber()));
-      }
+    if (gcMap().getStackMap() != NULL) {
+        gcMap().getStackMap()->resetRegistersBits(codeGen->registerBitMask(resReg->getRegisterNumber()));
+    }
 
-   gcMap().registerStackMap(buffer, cg());
+    gcMap().registerStackMap(buffer, cg());
 
-   if (is64BitTarget)
-      {
-      *(uint32_t *) buffer = 0xb9040002 | (resRegEncoding << 4);
-      buffer += 4;
-      }
-   else
-      {
-      *(uint16_t *) buffer = 0x1802 | (resRegEncoding << 4);
-      buffer += 2;
-      }
+    if (is64BitTarget) {
+        *(uint32_t *)buffer = 0xb9040002 | (resRegEncoding << 4);
+        buffer += 4;
+    } else {
+        *(uint16_t *)buffer = 0x1802 | (resRegEncoding << 4);
+        buffer += 2;
+    }
 
-   distance = (intptr_t) getRestartLabel()->getCodeLocation() - (intptr_t) buffer;
-   distance >>= 1;
-   if (!isLongBranch())
-      {
-      *(int32_t *) buffer = 0xa7f40000 | (distance & 0x0000ffff);
-      buffer += 4;
-      }
-   else
-      {
-      *(uint16_t *) buffer = 0xc0f4;
-      buffer += 2;
-      *(int32_t *) buffer = distance;
-      buffer += 4;
-      }
+    distance = (intptr_t)getRestartLabel()->getCodeLocation() - (intptr_t)buffer;
+    distance >>= 1;
+    if (!isLongBranch()) {
+        *(int32_t *)buffer = 0xa7f40000 | (distance & 0x0000ffff);
+        buffer += 4;
+    } else {
+        *(uint16_t *)buffer = 0xc0f4;
+        buffer += 2;
+        *(int32_t *)buffer = distance;
+        buffer += 4;
+    }
 
-   return buffer;
-   }
+    return buffer;
+}
 
-uint32_t
-TR::S390HeapAllocSnippet::getLength(int32_t  estimatedCodeStart)
-   {
-   TR::CodeGenerator * codeGen = cg();
-   TR::Compilation *comp = codeGen->comp();
-   int32_t distance;
-   uint32_t length = getMyLength();
+uint32_t TR::S390HeapAllocSnippet::getLength(int32_t estimatedCodeStart)
+{
+    TR::CodeGenerator *codeGen = cg();
+    TR::Compilation *comp = codeGen->comp();
+    int32_t distance;
+    uint32_t length = getMyLength();
 
-   if (length != 0)
-      {
-      return length;
-      }
+    if (length != 0) {
+        return length;
+    }
 
-   distance = estimatedCodeStart +
-        (comp->target().is64Bit() ? 10 : 8) -
-        getRestartLabel()->getEstimatedCodeLocation();
+    distance = estimatedCodeStart + (comp->target().is64Bit() ? 10 : 8) - getRestartLabel()->getEstimatedCodeLocation();
 
-   // to be conservative: we use the byte count as half-word count, accounting for length estimation deviation
-   if (distance<MIN_IMMEDIATE_VAL || distance>MAX_IMMEDIATE_VAL)
-      {
-      setIsLongBranch(true);
-      }
-   if (comp->target().is64Bit())
-      {
-      if (isLongBranch())
-         length = 16;
-      else
-         length = 14;
-      }
-   else
-      {
-      if (isLongBranch())
-         length = 14;
-      else
-         length = 12;
-      }
+    // to be conservative: we use the byte count as half-word count, accounting for length estimation deviation
+    if (distance < MIN_IMMEDIATE_VAL || distance > MAX_IMMEDIATE_VAL) {
+        setIsLongBranch(true);
+    }
+    if (comp->target().is64Bit()) {
+        if (isLongBranch())
+            length = 16;
+        else
+            length = 14;
+    } else {
+        if (isLongBranch())
+            length = 14;
+        else
+            length = 12;
+    }
 
-   setMyLength(length);
+    setMyLength(length);
 
-   return length;
-   }
+    return length;
+}
 
-void
-TR::S390HeapAllocSnippet::print(OMR::Logger *log, TR_Debug *debug)
-   {
-   TR::Compilation *comp = cg()->comp();
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(comp->fe());
-   uint8_t * buffer = getSnippetLabel()->getCodeLocation();
-   int32_t distance;
-   bool is64BitTarget = comp->target().is64Bit();
+void TR::S390HeapAllocSnippet::print(OMR::Logger *log, TR_Debug *debug)
+{
+    TR::Compilation *comp = cg()->comp();
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(comp->fe());
+    uint8_t *buffer = getSnippetLabel()->getCodeLocation();
+    int32_t distance;
+    bool is64BitTarget = comp->target().is64Bit();
 
-   TR::Machine *machine = cg()->machine();
-   TR::RegisterDependencyConditions *deps = getRestartLabel()->getInstruction()->getDependencyConditions();
-   TR::RealRegister * resReg = machine->getRealRegister(deps->getPostConditions()->getRegisterDependency(2)->getRealRegister());
+    TR::Machine *machine = cg()->machine();
+    TR::RegisterDependencyConditions *deps = getRestartLabel()->getInstruction()->getDependencyConditions();
+    TR::RealRegister *resReg
+        = machine->getRealRegister(deps->getPostConditions()->getRegisterDependency(2)->getRealRegister());
 
-   debug->printSnippetLabel(log, getSnippetLabel(), buffer, "HeapAlloc Snippet", debug->getName(getDestination()));
+    debug->printSnippetLabel(log, getSnippetLabel(), buffer, "HeapAlloc Snippet", debug->getName(getDestination()));
 
+    // The code for the snippet looks like:
+    // BRASL  gr14, jitNewXXXX;
+    // LR/LGR     resReg, gr2;
+    // BRC[L] restartLabel;
 
-   // The code for the snippet looks like:
-   // BRASL  gr14, jitNewXXXX;
-   // LR/LGR     resReg, gr2;
-   // BRC[L] restartLabel;
+    distance = (intptr_t)getDestination()->getSymbol()->castToMethodSymbol()->getMethodAddress() - (intptr_t)buffer;
 
-   distance = (intptr_t) getDestination()->getSymbol()->castToMethodSymbol()->getMethodAddress() - (intptr_t) buffer;
+    debug->printPrefix(log, NULL, buffer, 6);
+    log->printf("BRASL \tGPR14, 0x%8x", distance >> 1);
+    buffer += 6;
 
-   debug->printPrefix(log, NULL, buffer, 6);
-   log->printf("BRASL \tGPR14, 0x%8x", distance >> 1);
-   buffer += 6;
+    if (comp->target().is64Bit()) {
+        debug->printPrefix(log, NULL, buffer, 4);
+        log->printf("LGR \t%s,GPR2", debug->getName(resReg));
+        buffer += 4;
+    } else {
+        debug->printPrefix(log, NULL, buffer, 2);
+        log->printf("LR \t%s, GPR2", debug->getName(resReg));
+        buffer += 2;
+    }
 
-   if (comp->target().is64Bit())
-      {
-      debug->printPrefix(log, NULL, buffer, 4);
-      log->printf("LGR \t%s,GPR2", debug->getName(resReg));
-      buffer += 4;
-      }
-   else
-      {
-      debug->printPrefix(log, NULL, buffer, 2);
-      log->printf("LR \t%s, GPR2", debug->getName(resReg));
-      buffer += 2;
-      }
+    distance = (intptr_t)getRestartLabel()->getCodeLocation() - (intptr_t)buffer;
+    distance >>= 1;
+    if (!isLongBranch()) {
+        debug->printPrefix(log, NULL, buffer, 4);
+        log->prints("BRC \t");
+        debug->print(log, getRestartLabel());
+        buffer += 4;
+    } else {
+        debug->printPrefix(log, NULL, buffer, 6);
+        log->prints("BRCL \t");
+        debug->print(log, getRestartLabel());
+        buffer += 6;
+    }
+}
 
-   distance = (intptr_t) getRestartLabel()->getCodeLocation() - (intptr_t) buffer;
-   distance >>= 1;
-   if (!isLongBranch())
-      {
-      debug->printPrefix(log, NULL, buffer, 4);
-      log->prints("BRC \t");
-      debug->print(log, getRestartLabel());
-      buffer += 4;
-      }
-   else
-      {
-      debug->printPrefix(log, NULL, buffer, 6);
-      log->prints("BRCL \t");
-      debug->print(log, getRestartLabel());
-      buffer += 6;
-      }
-   }
-
-uint32_t
-TR::S390RestoreGPR7Snippet::getLength(int32_t estimatedSnippetStart)
-   {
-
-   if (cg()->comp()->target().is64Bit())
+uint32_t TR::S390RestoreGPR7Snippet::getLength(int32_t estimatedSnippetStart)
+{
+    if (cg()->comp()->target().is64Bit())
 #if defined(J9VM_JIT_FREE_SYSTEM_STACK_POINTER)
-      return 6*3 + 6 + 4;
+        return 6 * 3 + 6 + 4;
 #else
-      return 6*1 + 6 + 4;
+        return 6 * 1 + 6 + 4;
 #endif
-   else
+    else
 #if defined(J9VM_JIT_FREE_SYSTEM_STACK_POINTER)
-      return 4*3 + 6 + 4;
+        return 4 * 3 + 6 + 4;
 #else
-      return 4*1 + 6 + 4;
+        return 4 * 1 + 6 + 4;
 #endif
-   }
+}
 
-uint8_t *
-TR::S390RestoreGPR7Snippet::emitSnippetBody()
-   {
-   uint8_t * cursor = cg()->getBinaryBufferCursor();
-   uint8_t * startPointCursor = cg()->getBinaryBufferCursor();
-   getSnippetLabel()->setCodeLocation(cursor);
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg()->fe());
+uint8_t *TR::S390RestoreGPR7Snippet::emitSnippetBody()
+{
+    uint8_t *cursor = cg()->getBinaryBufferCursor();
+    uint8_t *startPointCursor = cg()->getBinaryBufferCursor();
+    getSnippetLabel()->setCodeLocation(cursor);
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg()->fe());
 
-   int32_t tempOffset =  fej9->thisThreadGetTempSlotOffset();
+    int32_t tempOffset = fej9->thisThreadGetTempSlotOffset();
 #if defined(J9VM_JIT_FREE_SYSTEM_STACK_POINTER)
-   int32_t returnOffset = fej9->thisThreadGetReturnValueOffset();
-   int32_t sspOffset = fej9->thisThreadGetSystemSPOffset();
-#endif
-
-
-   //E370DXXX0058
-   if (cg()->comp()->target().is64Bit())//generate LG
-      {
-#if defined(J9VM_JIT_FREE_SYSTEM_STACK_POINTER)
-      *(int32_t *) cursor = 0xE340D000|sspOffset;
-      cursor += sizeof(int32_t);
-      *(int16_t *) cursor = 0x0024;
-      cursor += sizeof(int16_t);
+    int32_t returnOffset = fej9->thisThreadGetReturnValueOffset();
+    int32_t sspOffset = fej9->thisThreadGetSystemSPOffset();
 #endif
 
-      //restore gpr7 from tempslot, 6bytes
-      *(int32_t *) cursor = 0xE370D000|tempOffset;
-      cursor += sizeof(int32_t);
-      *(int16_t *) cursor = 0x0004;
-      cursor += sizeof(int16_t);
+    // E370DXXX0058
+    if (cg()->comp()->target().is64Bit()) // generate LG
+    {
+#if defined(J9VM_JIT_FREE_SYSTEM_STACK_POINTER)
+        *(int32_t *)cursor = 0xE340D000 | sspOffset;
+        cursor += sizeof(int32_t);
+        *(int16_t *)cursor = 0x0024;
+        cursor += sizeof(int16_t);
+#endif
+
+        // restore gpr7 from tempslot, 6bytes
+        *(int32_t *)cursor = 0xE370D000 | tempOffset;
+        cursor += sizeof(int32_t);
+        *(int16_t *)cursor = 0x0004;
+        cursor += sizeof(int16_t);
 
 #if defined(J9VM_JIT_FREE_SYSTEM_STACK_POINTER)
-      //restore gpr4 from returnValue, 6 bytes
-      *(int32_t *) cursor = 0xE340D000|returnOffset;
-      cursor += sizeof(int32_t);
-      *(int16_t *) cursor = 0x0004;
-      cursor += sizeof(int16_t);
+        // restore gpr4 from returnValue, 6 bytes
+        *(int32_t *)cursor = 0xE340D000 | returnOffset;
+        cursor += sizeof(int32_t);
+        *(int16_t *)cursor = 0x0004;
+        cursor += sizeof(int16_t);
 #endif
-      }
-   else
-      { //generate L
+    } else { // generate L
 #if defined(J9VM_JIT_FREE_SYSTEM_STACK_POINTER)
-      TR_ASSERT(tempOffset < 4096 && returnOffset < 4096, "if > 4k then must use LY, not L.");
+        TR_ASSERT(tempOffset < 4096 && returnOffset < 4096, "if > 4k then must use LY, not L.");
 #else
-      TR_ASSERT(tempOffset < 4096, "if > 4k then must use LY, not L.");
+        TR_ASSERT(tempOffset < 4096, "if > 4k then must use LY, not L.");
 #endif
 
 #if defined(J9VM_JIT_FREE_SYSTEM_STACK_POINTER)
-      //store GPR4 onto vmThread->ssp
-      *(int32_t *) cursor = 0x5040D000|(sspOffset & 0x0FFF);
-      cursor += sizeof(int32_t);
+        // store GPR4 onto vmThread->ssp
+        *(int32_t *)cursor = 0x5040D000 | (sspOffset & 0x0FFF);
+        cursor += sizeof(int32_t);
 #endif
 
-      //gpr7, 4bytes
-      *(int32_t *) cursor = 0x5870D000|(tempOffset & 0x0FFF);
-      cursor += sizeof(int32_t);
+        // gpr7, 4bytes
+        *(int32_t *)cursor = 0x5870D000 | (tempOffset & 0x0FFF);
+        cursor += sizeof(int32_t);
 
 #if defined(J9VM_JIT_FREE_SYSTEM_STACK_POINTER)
-      //gpr4, 4bytes
-      *(int32_t *) cursor = 0x5840D000|(returnOffset & 0x0FFF);
-      cursor += sizeof(int32_t);
+        // gpr4, 4bytes
+        *(int32_t *)cursor = 0x5840D000 | (returnOffset & 0x0FFF);
+        cursor += sizeof(int32_t);
 #endif
-      }
+    }
 
+    cg()->addRelocation(new (cg()->trHeapMemory()) TR::LabelRelative32BitRelocation(cursor, getTargetLabel()));
+    // 6 bytes
+    // BRCL 0xf, <target>
+    *(int16_t *)cursor = 0xC0F4;
+    cursor += sizeof(int16_t);
 
-   cg()->addRelocation(new (cg()->trHeapMemory()) TR::LabelRelative32BitRelocation(cursor, getTargetLabel()));
-   // 6 bytes
-   // BRCL 0xf, <target>
-   *(int16_t *) cursor = 0xC0F4;
-   cursor += sizeof(int16_t);
-
-   // BRCL - Add Relocation the data constants to this LARL.
-   *(int32_t *) cursor = 0xDEADBEEF;
-   cursor += sizeof(int32_t);
+    // BRCL - Add Relocation the data constants to this LARL.
+    *(int32_t *)cursor = 0xDEADBEEF;
+    cursor += sizeof(int32_t);
 
 #if defined(J9VM_JIT_FREE_SYSTEM_STACK_POINTER)
     if (cg()->comp()->target().is64Bit())
-        TR_ASSERT(((U_8*)cursor) - startPointCursor == 24,
-                "for 64bit, DAA eyecatcher should be generated at offset 24 bytes");
+        TR_ASSERT(((U_8 *)cursor) - startPointCursor == 24,
+            "for 64bit, DAA eyecatcher should be generated at offset 24 bytes");
     else
-        TR_ASSERT(((U_8*)cursor) - startPointCursor == 18,
-                "for 31bit, DAA eyecatcher should be generated at offset 18 bytes");
+        TR_ASSERT(((U_8 *)cursor) - startPointCursor == 18,
+            "for 31bit, DAA eyecatcher should be generated at offset 18 bytes");
 #endif
 
-   *(int32_t *) cursor = 0xDAA0CA11;
-   cursor += sizeof(int32_t);
+    *(int32_t *)cursor = 0xDAA0CA11;
+    cursor += sizeof(int32_t);
 
-   return cursor;
-   }
+    return cursor;
+}
 
-void
-TR_Debug::print(OMR::Logger *log, TR::S390RestoreGPR7Snippet *snippet)
-   {
-   uint8_t * buffer = snippet->getSnippetLabel()->getCodeLocation();
-   printSnippetLabel(log, snippet->getSnippetLabel(), buffer, "Restore GPR 7 after signal handler");
+void TR_Debug::print(OMR::Logger *log, TR::S390RestoreGPR7Snippet *snippet)
+{
+    uint8_t *buffer = snippet->getSnippetLabel()->getCodeLocation();
+    printSnippetLabel(log, snippet->getSnippetLabel(), buffer, "Restore GPR 7 after signal handler");
 
 #ifdef J9VM_JIT_FREE_SYSTEM_STACK_POINTER
-   //save GPR4 to
-   if (_comp->target().is64Bit())
-      {
-      printPrefix(log, NULL, buffer, 6);
-      log->prints("STG   GPR7, SSP(GPR13)");
-      buffer += 6;
-      }
-   else
-      {
-      printPrefix(log, NULL, buffer, 4);
-      log->prints("ST    GPR7, SSP(GPR13)");
-      buffer += 4;
-      }
+    // save GPR4 to
+    if (_comp->target().is64Bit()) {
+        printPrefix(log, NULL, buffer, 6);
+        log->prints("STG   GPR7, SSP(GPR13)");
+        buffer += 6;
+    } else {
+        printPrefix(log, NULL, buffer, 4);
+        log->prints("ST    GPR7, SSP(GPR13)");
+        buffer += 4;
+    }
 #endif
 
-   //0x4a2af68a (???)       e370d0980058 LY      R7,152(,R13)
-   if (_comp->target().is64Bit())
-      {
-      printPrefix(log, NULL, buffer, 6);
-      log->prints("LG    GPR7, 152(GPR13)");
-      buffer += 6;
-      }
-   else
-      {
-      printPrefix(log, NULL, buffer, 4);
-      log->prints("L     GPR7, 144(GPR13)");
-      buffer += 4;
-      }
+    // 0x4a2af68a (???)       e370d0980058 LY      R7,152(,R13)
+    if (_comp->target().is64Bit()) {
+        printPrefix(log, NULL, buffer, 6);
+        log->prints("LG    GPR7, 152(GPR13)");
+        buffer += 6;
+    } else {
+        printPrefix(log, NULL, buffer, 4);
+        log->prints("L     GPR7, 144(GPR13)");
+        buffer += 4;
+    }
 
 #ifdef J9VM_JIT_FREE_SYSTEM_STACK_POINTER
-   //                                    L      R4,136(,R13)
-   if (_comp->target().is64Bit())
-      {
-      printPrefix(log, NULL, buffer, 6);
-      log->prints("LG    GPR4, 136(GPR13)");
-      buffer += 6;
-      }
-   else
-      {
-      printPrefix(log, NULL, buffer, 4);
-      log->prints("L     GPR4, 136(GPR13)");
-      buffer += 4;
-      }
+    //                                    L      R4,136(,R13)
+    if (_comp->target().is64Bit()) {
+        printPrefix(log, NULL, buffer, 6);
+        log->prints("LG    GPR4, 136(GPR13)");
+        buffer += 6;
+    } else {
+        printPrefix(log, NULL, buffer, 4);
+        log->prints("L     GPR4, 136(GPR13)");
+        buffer += 4;
+    }
 #endif
 
-   //0x4a2af690 (???)       c0f4fff1bb80 BRCL    15,*-1870080
-   printPrefix(log, NULL, buffer, 6);
-   log->printf("BRCL  0xF, targetLabel(%p)", snippet->getTargetLabel()->getCodeLocation());
-   buffer += 6;
+    // 0x4a2af690 (???)       c0f4fff1bb80 BRCL    15,*-1870080
+    printPrefix(log, NULL, buffer, 6);
+    log->printf("BRCL  0xF, targetLabel(%p)", snippet->getTargetLabel()->getCodeLocation());
+    buffer += 6;
 
-   printPrefix(log, NULL, buffer, 4);
-   log->prints("Eye Catcher = 0xDAA0CA11");
-   buffer += 4;
-   }
+    printPrefix(log, NULL, buffer, 4);
+    log->prints("Eye Catcher = 0xDAA0CA11");
+    buffer += 4;
+}
 

@@ -37,125 +37,129 @@ class TR_MHJ2IThunk;
 // TR_RelocationTarget defines how a platform target implements the individual steps of processing
 //    relocation records.
 // This is intended to be a base class that should not be itself instantiated
-class TR_RelocationTarget
-   {
-   public:
-      TR_ALLOC(TR_Memory::Relocation)
-      void * operator new(size_t, J9JITConfig *);
-      TR_RelocationTarget(TR_RelocationRuntime *reloRuntime)
-         {
-         _reloRuntime = reloRuntime;
-         }
+class TR_RelocationTarget {
+public:
+    TR_ALLOC(TR_Memory::Relocation)
+    void *operator new(size_t, J9JITConfig *);
 
-      TR_RelocationRuntime *reloRuntime()                                   { return _reloRuntime; }
-      TR_RelocationRuntimeLogger *reloLogger()                              { return _reloRuntime->reloLogger(); }
+    TR_RelocationTarget(TR_RelocationRuntime *reloRuntime) { _reloRuntime = reloRuntime; }
 
-      virtual void flushCache(uint8_t *codeStart, unsigned long size)       {} // default impl is empty
+    TR_RelocationRuntime *reloRuntime() { return _reloRuntime; }
 
-      virtual void preRelocationsAppliedEvent()                             {} // default impl is empty
+    TR_RelocationRuntimeLogger *reloLogger() { return _reloRuntime->reloLogger(); }
 
-      virtual bool isOrderedPairRelocation(TR_RelocationRecord *reloRecord, TR_RelocationTarget *reloTarget);
+    virtual void flushCache(uint8_t *codeStart, unsigned long size) {} // default impl is empty
 
-      virtual uintptr_t loadRelocationRecordValue(uintptr_t *address)     { return *address; }
-      virtual void storeRelocationRecordValue(uintptr_t value, uintptr_t *address) { *address = value; }
+    virtual void preRelocationsAppliedEvent() {} // default impl is empty
 
-      virtual uint8_t loadUnsigned8b(uint8_t *address)                      { return *address; }
-      virtual void storeUnsigned8b(uint8_t value, uint8_t *address)	    { *address = value; }
+    virtual bool isOrderedPairRelocation(TR_RelocationRecord *reloRecord, TR_RelocationTarget *reloTarget);
 
-      virtual int8_t loadSigned8b(uint8_t *address)                         { return *(int8_t *) address; }
-      virtual void storeSigned8b(int8_t value, uint8_t *address)            { *(int8_t *)address = value; }
+    virtual uintptr_t loadRelocationRecordValue(uintptr_t *address) { return *address; }
 
-      virtual uint16_t loadUnsigned16b(uint8_t *address)                    { return *(uint16_t *) address; }
-      virtual void storeUnsigned16b(uint16_t value, uint8_t *address)        { *(uint16_t *)address = value; }
+    virtual void storeRelocationRecordValue(uintptr_t value, uintptr_t *address) { *address = value; }
 
-      virtual int16_t loadSigned16b(uint8_t *address)                       { return *(int16_t *) address; }
-      virtual void storeSigned16b(int16_t value, uint8_t *address)          { *(int16_t *)address = value; }
+    virtual uint8_t loadUnsigned8b(uint8_t *address) { return *address; }
 
-      virtual uint32_t loadUnsigned32b(uint8_t *address)                    { return *(uint32_t *) address; }
-      virtual void storeUnsigned32b(uint32_t value, uint8_t *address)       { *(uint32_t *)address = value; }
+    virtual void storeUnsigned8b(uint8_t value, uint8_t *address) { *address = value; }
 
-      virtual int32_t loadSigned32b(uint8_t *address)                       { return *(int32_t *) address; }
-      virtual void storeSigned32b(int32_t value, uint8_t *address)          { *(int32_t *)address = value; }
+    virtual int8_t loadSigned8b(uint8_t *address) { return *(int8_t *)address; }
 
-      virtual uint8_t *loadPointer(uint8_t *address)                        { return *(uint8_t**) address; }
-      virtual void storePointer(uint8_t *value, uint8_t *address)           { *(uint8_t**)address = value; }
+    virtual void storeSigned8b(int8_t value, uint8_t *address) { *(int8_t *)address = value; }
 
-      virtual bool useTrampoline(uint8_t * helperAddress, uint8_t *baseLocation) { return false; }
+    virtual uint16_t loadUnsigned16b(uint8_t *address) { return *(uint16_t *)address; }
 
-      // The following functions should be overridden by subclasses for specific targets
-      virtual uint8_t *eipBaseForCallOffset(uint8_t *reloLocation);
+    virtual void storeUnsigned16b(uint16_t value, uint8_t *address) { *(uint16_t *)address = value; }
 
-      virtual uint8_t *loadCallTarget(uint8_t *reloLocation);
-      virtual void storeCallTarget(uintptr_t callTarget, uint8_t *reloLocation);
-      virtual void storeRelativeTarget(uintptr_t callTarget, uint8_t *reloLocation);
+    virtual int16_t loadSigned16b(uint8_t *address) { return *(int16_t *)address; }
 
-      virtual uint8_t *loadBranchOffset(uint8_t *reloLocation);
-      virtual void storeBranchOffset(uint8_t *branchOffset, uint8_t *reloLocation);
+    virtual void storeSigned16b(int16_t value, uint8_t *address) { *(int16_t *)address = value; }
 
-      virtual uint8_t *loadAddress(uint8_t *reloLocation);
-      virtual void storeAddress(uint8_t *address, uint8_t *reloLocation);
+    virtual uint32_t loadUnsigned32b(uint8_t *address) { return *(uint32_t *)address; }
 
-      virtual void storeAddressRAM(uint8_t *address, uint8_t *reloLocation)
-         {
-         storeAddress(address, reloLocation);
-         }
+    virtual void storeUnsigned32b(uint32_t value, uint8_t *address) { *(uint32_t *)address = value; }
 
-      virtual uint8_t *loadAddressSequence(uint8_t *reloLocation);
-      virtual void storeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber);
+    virtual int32_t loadSigned32b(uint8_t *address) { return *(int32_t *)address; }
 
+    virtual void storeSigned32b(int32_t value, uint8_t *address) { *(int32_t *)address = value; }
 
-      virtual void storeRelativeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber)
-         {
-         storeAddressSequence(address, reloLocation, seqNumber);
-         }
+    virtual uint8_t *loadPointer(uint8_t *address) { return *(uint8_t **)address; }
 
+    virtual void storePointer(uint8_t *value, uint8_t *address) { *(uint8_t **)address = value; }
 
-      virtual uint8_t *loadClassAddressForHeader(uint8_t *reloLocation);
-      virtual void storeClassAddressForHeader(uint8_t *address, uint8_t *reloLocation);
+    virtual bool useTrampoline(uint8_t *helperAddress, uint8_t *baseLocation) { return false; }
 
-      virtual uint32_t loadCPIndex(uint8_t *reloLocation);
-      virtual uintptr_t loadThunkCPIndex(uint8_t *reloLocation);
+    // The following functions should be overridden by subclasses for specific targets
+    virtual uint8_t *eipBaseForCallOffset(uint8_t *reloLocation);
 
+    virtual uint8_t *loadCallTarget(uint8_t *reloLocation);
+    virtual void storeCallTarget(uintptr_t callTarget, uint8_t *reloLocation);
+    virtual void storeRelativeTarget(uintptr_t callTarget, uint8_t *reloLocation);
 
-      virtual uint8_t *eipBaseForCallOffset(uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
+    virtual uint8_t *loadBranchOffset(uint8_t *reloLocation);
+    virtual void storeBranchOffset(uint8_t *branchOffset, uint8_t *reloLocation);
 
-      virtual uint8_t *loadCallTarget(uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
-      virtual void storeCallTarget(uint8_t *callTarget, uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
+    virtual uint8_t *loadAddress(uint8_t *reloLocation);
+    virtual void storeAddress(uint8_t *address, uint8_t *reloLocation);
 
-      virtual uint8_t *loadBranchOffset(uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
-      virtual void storeBranchOffset(uint8_t *branchOffset, uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
+    virtual void storeAddressRAM(uint8_t *address, uint8_t *reloLocation) { storeAddress(address, reloLocation); }
 
-      virtual uint8_t *loadAddress(uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
-      virtual void storeAddress(uint8_t *address, uint8_t *reloLocationHigh, uint8_t *reloLocationLow, uint32_t seqNumber);
+    virtual uint8_t *loadAddressSequence(uint8_t *reloLocation);
+    virtual void storeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber);
 
-      virtual uint8_t *loadClassAddressForHeader(uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
-      virtual void storeClassAddressForHeader(uint8_t *address, uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
+    virtual void storeRelativeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber)
+    {
+        storeAddressSequence(address, reloLocation, seqNumber);
+    }
 
-      virtual uint32_t loadCPIndex(uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
+    virtual uint8_t *loadClassAddressForHeader(uint8_t *reloLocation);
+    virtual void storeClassAddressForHeader(uint8_t *address, uint8_t *reloLocation);
 
-      virtual void performThunkRelocation(uint8_t *thunkAddress, uintptr_t vmHelper);
-      /**
-       * @brief Identifies the correct runtime helper based on thunk signature and relocates helper
-       * address. Needed for JITServer.
-       *
-       * @param thunk Pointer to a thunk to be relocated.
-       */
-      virtual void performInvokeExactJ2IThunkRelocation(TR_MHJ2IThunk *thunk);
+    virtual uint32_t loadCPIndex(uint8_t *reloLocation);
+    virtual uintptr_t loadThunkCPIndex(uint8_t *reloLocation);
 
-      virtual uint8_t *arrayCopyHelperAddress(J9JavaVM *javaVM);
+    virtual uint8_t *eipBaseForCallOffset(uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
 
-      virtual void patchNonVolatileFieldMemoryFence(J9ROMFieldShape* resolvedField, UDATA cpAddr, U_8 descriptorByte, U_8 *instructionAddress, U_8 *snippetStartAddress, J9JavaVM *javaVM);
+    virtual uint8_t *loadCallTarget(uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
+    virtual void storeCallTarget(uint8_t *callTarget, uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
 
-      /**
-       * @brief Adds a PIC guard that will invalidate a pointer when the class it is dependant on is unloaded.  Marks metadata as having class unload assumptions.
-       *
-       * @param classKey The class upon which the pointer to be updated is dependant.
-       * @param ptr The address to be updated.
-       */
-      void addPICtoPatchPtrOnClassUnload(TR_OpaqueClassBlock *classKey, void *ptr);
-   private:
-      virtual void platformAddPICtoPatchPtrOnClassUnload(TR_OpaqueClassBlock *classKey, void *ptr);
-      TR_RelocationRuntime *_reloRuntime;
-   };
+    virtual uint8_t *loadBranchOffset(uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
+    virtual void storeBranchOffset(uint8_t *branchOffset, uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
 
-#endif   // RELOCATION_TARGET_INCL
+    virtual uint8_t *loadAddress(uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
+    virtual void storeAddress(uint8_t *address, uint8_t *reloLocationHigh, uint8_t *reloLocationLow,
+        uint32_t seqNumber);
+
+    virtual uint8_t *loadClassAddressForHeader(uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
+    virtual void storeClassAddressForHeader(uint8_t *address, uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
+
+    virtual uint32_t loadCPIndex(uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
+
+    virtual void performThunkRelocation(uint8_t *thunkAddress, uintptr_t vmHelper);
+    /**
+     * @brief Identifies the correct runtime helper based on thunk signature and relocates helper
+     * address. Needed for JITServer.
+     *
+     * @param thunk Pointer to a thunk to be relocated.
+     */
+    virtual void performInvokeExactJ2IThunkRelocation(TR_MHJ2IThunk *thunk);
+
+    virtual uint8_t *arrayCopyHelperAddress(J9JavaVM *javaVM);
+
+    virtual void patchNonVolatileFieldMemoryFence(J9ROMFieldShape *resolvedField, UDATA cpAddr, U_8 descriptorByte,
+        U_8 *instructionAddress, U_8 *snippetStartAddress, J9JavaVM *javaVM);
+
+    /**
+     * @brief Adds a PIC guard that will invalidate a pointer when the class it is dependant on is unloaded.  Marks
+     * metadata as having class unload assumptions.
+     *
+     * @param classKey The class upon which the pointer to be updated is dependant.
+     * @param ptr The address to be updated.
+     */
+    void addPICtoPatchPtrOnClassUnload(TR_OpaqueClassBlock *classKey, void *ptr);
+
+private:
+    virtual void platformAddPICtoPatchPtrOnClassUnload(TR_OpaqueClassBlock *classKey, void *ptr);
+    TR_RelocationRuntime *_reloRuntime;
+};
+
+#endif // RELOCATION_TARGET_INCL

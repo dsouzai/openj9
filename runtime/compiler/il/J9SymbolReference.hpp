@@ -28,10 +28,11 @@
  */
 #ifndef J9_SYMBOLREFERENCE_CONNECTOR
 #define J9_SYMBOLREFERENCE_CONNECTOR
+
 namespace J9 {
 class SymbolReference;
 typedef J9::SymbolReference SymbolReferenceConnector;
-}
+} // namespace J9
 #endif
 
 #include "il/OMRSymbolReference.hpp"
@@ -43,94 +44,64 @@ typedef J9::SymbolReference SymbolReferenceConnector;
 #include "infra/Annotations.hpp"
 
 class mcount_t;
+
 namespace TR {
 class Symbol;
 }
 
-namespace J9
-{
+namespace J9 {
 
-class OMR_EXTENSIBLE SymbolReference : public OMR::SymbolReferenceConnector
-   {
-
+class OMR_EXTENSIBLE SymbolReference : public OMR::SymbolReferenceConnector {
 public:
+    SymbolReference(TR::SymbolReferenceTable *symRefTab)
+        : OMR::SymbolReferenceConnector(symRefTab)
+    {}
 
-   SymbolReference(TR::SymbolReferenceTable * symRefTab) :
-      OMR::SymbolReferenceConnector(symRefTab) {}
+    SymbolReference(TR::SymbolReferenceTable *symRefTab, TR::Symbol *symbol, intptr_t offset = 0)
+        : OMR::SymbolReferenceConnector(symRefTab, symbol, offset)
+    {}
 
-   SymbolReference(TR::SymbolReferenceTable * symRefTab,
-                   TR::Symbol * symbol,
-                   intptr_t offset = 0) :
-      OMR::SymbolReferenceConnector(symRefTab,
-                                    symbol,
-                                    offset) {}
+    SymbolReference(TR::SymbolReferenceTable *symRefTab, int32_t refNumber, TR::Symbol *ps, intptr_t offset = 0)
+        : OMR::SymbolReferenceConnector(symRefTab, refNumber, ps, offset)
+    {}
 
-   SymbolReference(TR::SymbolReferenceTable * symRefTab,
-                   int32_t refNumber,
-                   TR::Symbol *ps,
-                   intptr_t offset = 0) :
-      OMR::SymbolReferenceConnector(symRefTab,
-                                    refNumber,
-                                    ps,
-                                    offset) {}
+    SymbolReference(TR::SymbolReferenceTable *symRefTab, TR::SymbolReferenceTable::CommonNonhelperSymbol number,
+        TR::Symbol *ps, intptr_t offset = 0)
+        : OMR::SymbolReferenceConnector(symRefTab, number, ps, offset)
+    {}
 
-   SymbolReference(TR::SymbolReferenceTable *symRefTab,
-                   TR::SymbolReferenceTable::CommonNonhelperSymbol number,
-                   TR::Symbol *ps,
-                   intptr_t offset = 0) :
-      OMR::SymbolReferenceConnector(symRefTab,
-                                    number,
-                                    ps,
-                                    offset) {}
+    SymbolReference(TR::SymbolReferenceTable *symRefTab, TR::Symbol *sym, mcount_t owningMethodIndex, int32_t cpIndex,
+        int32_t unresolvedIndex = 0, TR::KnownObjectTable::Index knownObjectIndex = TR::KnownObjectTable::UNKNOWN);
 
-   SymbolReference(TR::SymbolReferenceTable *symRefTab,
-                   TR::Symbol *sym,
-                   mcount_t owningMethodIndex,
-                   int32_t cpIndex,
-                   int32_t unresolvedIndex = 0,
-                   TR::KnownObjectTable::Index knownObjectIndex = TR::KnownObjectTable::UNKNOWN);
+    SymbolReference(TR::SymbolReferenceTable *symRefTab, TR::SymbolReference &sr, intptr_t offset,
+        TR::KnownObjectTable::Index knownObjectIndex = TR::KnownObjectTable::UNKNOWN)
+        : OMR::SymbolReferenceConnector(symRefTab, sr, offset, knownObjectIndex)
+    {}
 
-   SymbolReference(TR::SymbolReferenceTable *symRefTab,
-                   TR::SymbolReference& sr,
-                   intptr_t offset,
-                   TR::KnownObjectTable::Index knownObjectIndex = TR::KnownObjectTable::UNKNOWN) :
-      OMR::SymbolReferenceConnector(symRefTab,
-                                    sr,
-                                    offset,
-                                    knownObjectIndex) {}
+    uint32_t getCPIndexForVM();
 
-   uint32_t getCPIndexForVM();
+    bool isClassArray(TR::Compilation *c);
+    bool isClassFinal(TR::Compilation *c);
+    bool isClassAbstract(TR::Compilation *c);
+    bool isClassInterface(TR::Compilation *c);
 
-   bool isClassArray(TR::Compilation * c);
-   bool isClassFinal(TR::Compilation * c);
-   bool isClassAbstract(TR::Compilation * c);
-   bool isClassInterface(TR::Compilation * c);
+    bool isNonArrayFinal(TR::Compilation *c);
+    int32_t classDepth(TR::Compilation *c);
 
-   bool isNonArrayFinal(TR::Compilation * c);
-   int32_t classDepth(TR::Compilation * c);
-
-   /**
-    * Return the signature of the symbol's type if applicable. Note, the
-    * signature's storage may have been created on the stack!
-    */
-   const char *getTypeSignature(int32_t & len, TR_AllocationKind = stackAlloc, bool *isFixed = NULL);
+    /**
+     * Return the signature of the symbol's type if applicable. Note, the
+     * signature's storage may have been created on the stack!
+     */
+    const char *getTypeSignature(int32_t &len, TR_AllocationKind = stackAlloc, bool *isFixed = NULL);
 
 protected:
+    SymbolReference(TR::SymbolReferenceTable *symRefTab, TR::Symbol *symbol, intptr_t offset, const char *name)
+        : OMR::SymbolReferenceConnector(symRefTab, symbol, offset, name)
+    {}
+};
 
-   SymbolReference(TR::SymbolReferenceTable * symRefTab,
-                   TR::Symbol *               symbol,
-                   intptr_t                  offset,
-                   const char *               name) :
-      OMR::SymbolReferenceConnector(symRefTab,
-                                    symbol,
-                                    offset,
-                                    name) {}
+char *prependNumParensToSig(const char *, int32_t &len, int32_t, TR_AllocationKind = stackAlloc);
 
-   };
-
-
-char * prependNumParensToSig(const char *, int32_t & len, int32_t,  TR_AllocationKind = stackAlloc);
-
-}
+} // namespace J9
 
 #endif

@@ -25,15 +25,13 @@
 
 #include "infra/J9MonitorTable.hpp"
 
-namespace TR
-{
-class OMR_EXTENSIBLE MonitorTable : public J9::MonitorTableConnector
-   {
-   public:
-
-   MonitorTable() :
-      J9::MonitorTableConnector() {}
-   };
-}
+namespace TR {
+class OMR_EXTENSIBLE MonitorTable : public J9::MonitorTableConnector {
+public:
+    MonitorTable()
+        : J9::MonitorTableConnector()
+    {}
+};
+} // namespace TR
 
 #endif

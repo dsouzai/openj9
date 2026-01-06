@@ -29,41 +29,38 @@
 
 #ifndef J9_CODEGEN_PHASE_CONNECTOR
 #define J9_CODEGEN_PHASE_CONNECTOR
+
 namespace J9 {
-   namespace Z { class CodeGenPhase; }
-   typedef J9::Z::CodeGenPhase CodeGenPhaseConnector;
+namespace Z {
+class CodeGenPhase;
 }
+
+typedef J9::Z::CodeGenPhase CodeGenPhaseConnector;
+} // namespace J9
 #else
 #error J9::Z::CodeGenPhase expected to be a primary connector, but a J9 connector is already defined
 #endif
 
 #include "compiler/codegen/J9CodeGenPhase.hpp"
 
-namespace J9
-{
+namespace J9 { namespace Z {
 
-namespace Z
-{
+class OMR_EXTENSIBLE CodeGenPhase : public J9::CodeGenPhase {
+protected:
+    CodeGenPhase(TR::CodeGenerator *cg)
+        : J9::CodeGenPhase(cg)
+    {}
 
-class OMR_EXTENSIBLE CodeGenPhase: public J9::CodeGenPhase
-   {
-   protected:
+public:
+    static void performInMemoryLoadStoreMarkingPhase(TR::CodeGenerator *cg, TR::CodeGenPhase *);
+    static void performReduceSynchronizedFieldLoadPhase(TR::CodeGenerator *cg, TR::CodeGenPhase *);
+    static void performUncommonBCDCHKAddressNodePhase(TR::CodeGenerator *cg, TR::CodeGenPhase *);
 
-   CodeGenPhase(TR::CodeGenerator *cg): J9::CodeGenPhase(cg) {}
-
-   public:
-   static void performInMemoryLoadStoreMarkingPhase(TR::CodeGenerator * cg, TR::CodeGenPhase *); 
-   static void performReduceSynchronizedFieldLoadPhase(TR::CodeGenerator* cg, TR::CodeGenPhase*);
-   static void performUncommonBCDCHKAddressNodePhase(TR::CodeGenerator * cg, TR::CodeGenPhase *);
-
-   // override base class implementation because new phases are being added
-   static int getNumPhases();
-   const char * getName();
-   static const char* getName(PhaseValue phase);
-   
-   };
-}
-
-}
+    // override base class implementation because new phases are being added
+    static int getNumPhases();
+    const char *getName();
+    static const char *getName(PhaseValue phase);
+};
+}} // namespace J9::Z
 
 #endif

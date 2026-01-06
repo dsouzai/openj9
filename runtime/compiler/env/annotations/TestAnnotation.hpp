@@ -28,12 +28,8 @@
 /* used for testing annotation */
 class TR_TestAnnotation : public TR_AnnotationBase {
 public:
-
-  bool hasAnnotation(TR::Symbol *sym);
-  TR_TestAnnotation(TR::Compilation *,TR::SymbolReference *symRef);
-
-  
-  };
-
+    bool hasAnnotation(TR::Symbol *sym);
+    TR_TestAnnotation(TR::Compilation *, TR::SymbolReference *symRef);
+};
 
 #endif

@@ -37,119 +37,119 @@
 // Allocate a machine-specific recompilation processor for this compilation
 //
 TR::Recompilation *TR_ARMRecompilation::allocate(TR::Compilation *comp)
-   {
-   if (comp->isRecompilationEnabled())
-      return new (comp->trHeapMemory()) TR_ARMRecompilation(comp);
-   else
-      return NULL;
-   }
+{
+    if (comp->isRecompilationEnabled())
+        return new (comp->trHeapMemory()) TR_ARMRecompilation(comp);
+    else
+        return NULL;
+}
 
-TR_ARMRecompilation::TR_ARMRecompilation(TR::Compilation * comp)
-   : TR::Recompilation(comp)
-   {
-   _countingSupported = true;
-   setupMethodInfo();
-   }
+TR_ARMRecompilation::TR_ARMRecompilation(TR::Compilation *comp)
+    : TR::Recompilation(comp)
+{
+    _countingSupported = true;
+    setupMethodInfo();
+}
 
 TR_PersistentMethodInfo *TR_ARMRecompilation::getExistingMethodInfo(TR_ResolvedMethod *method)
-   {
-   int8_t *startPC = (int8_t *)method->startAddressForInterpreterOfJittedMethod();
-   TR_PersistentMethodInfo *info = getJittedBodyInfoFromPC(startPC)->getMethodInfo();
-   return(info);
-   }
+{
+    int8_t *startPC = (int8_t *)method->startAddressForInterpreterOfJittedMethod();
+    TR_PersistentMethodInfo *info = getJittedBodyInfoFromPC(startPC)->getMethodInfo();
+    return (info);
+}
 
 TR::Instruction *TR_ARMRecompilation::generatePrePrologue()
-   {
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(_compilation->fe());
-   // If in Full Speed Debug, allow to go through
-   if (!couldBeCompiledAgain() && !_compilation->getOption(TR_FullSpeedDebug))
-      return(NULL);
+{
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(_compilation->fe());
+    // If in Full Speed Debug, allow to go through
+    if (!couldBeCompiledAgain() && !_compilation->getOption(TR_FullSpeedDebug))
+        return (NULL);
 
-   // gr12 may contain the vtable offset, and must be preserved here
-   // see PicBuilder.s and Recompilation.s
-   TR::Instruction *cursor=NULL;
-   TR::Machine *machine = cg()->machine();
-   TR::Register   *gr4 = machine->getRealRegister(TR::RealRegister::gr4);
-   TR::Register   *lr = machine->getRealRegister(TR::RealRegister::gr14); // link register
-   TR::Node       *firstNode = _compilation->getStartTree()->getNode();
-   TR::SymbolReference *recompileMethodSymRef = cg()->symRefTab()->findOrCreateRuntimeHelper(TR_ARMsamplingRecompileMethod);
-   TR_PersistentJittedBodyInfo *info = getJittedBodyInfo();
+    // gr12 may contain the vtable offset, and must be preserved here
+    // see PicBuilder.s and Recompilation.s
+    TR::Instruction *cursor = NULL;
+    TR::Machine *machine = cg()->machine();
+    TR::Register *gr4 = machine->getRealRegister(TR::RealRegister::gr4);
+    TR::Register *lr = machine->getRealRegister(TR::RealRegister::gr14); // link register
+    TR::Node *firstNode = _compilation->getStartTree()->getNode();
+    TR::SymbolReference *recompileMethodSymRef
+        = cg()->symRefTab()->findOrCreateRuntimeHelper(TR_ARMsamplingRecompileMethod);
+    TR_PersistentJittedBodyInfo *info = getJittedBodyInfo();
 
+    // force creation of switch to interpreter pre prologue if in Full Speed Debug
+    if (cg()->mustGenerateSwitchToInterpreterPrePrologue()) {
+        cursor = cg()->generateSwitchToInterpreterPrePrologue(cursor, firstNode);
+    }
 
-   // force creation of switch to interpreter pre prologue if in Full Speed Debug
-   if (cg()->mustGenerateSwitchToInterpreterPrePrologue())
-      {
-      cursor = cg()->generateSwitchToInterpreterPrePrologue(cursor, firstNode);
-      }
+    if (couldBeCompiledAgain()) {
+        // gr4 must contain the saved LR; see Recompilation.s
+        if (useSampling()) {
+            cursor = new (cg()->trHeapMemory())
+                TR::ARMTrg1Src1Instruction(cursor, TR::InstOpCode::mov, firstNode, gr4, lr, cg());
+            cursor = generateImmSymInstruction(cg(), TR::InstOpCode::bl, firstNode,
+                (uintptr_t)recompileMethodSymRef->getMethodAddress(),
+                new (cg()->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, 0, cg()->trMemory()),
+                recompileMethodSymRef, NULL, cursor);
+        }
+        cursor = new (cg()->trHeapMemory())
+            TR::ARMImmInstruction(cursor, TR::InstOpCode::dd, firstNode, (int32_t)(intptr_t)info, cg());
+        cursor->setNeedsAOTRelocation();
+        ((TR::ARMImmInstruction *)cursor)->setReloKind(TR_BodyInfoAddress);
 
-   if (couldBeCompiledAgain())
-      {
-      // gr4 must contain the saved LR; see Recompilation.s
-      if(useSampling())
-         {
-         cursor = new (cg()->trHeapMemory()) TR::ARMTrg1Src1Instruction(cursor, TR::InstOpCode::mov, firstNode, gr4, lr, cg());
-         cursor = generateImmSymInstruction(cg(), TR::InstOpCode::bl, firstNode, (uintptr_t)recompileMethodSymRef->getMethodAddress(), new (cg()->trHeapMemory()) TR::RegisterDependencyConditions((uint8_t)0, 0, cg()->trMemory()), recompileMethodSymRef, NULL, cursor);
-         }
-      cursor = new (cg()->trHeapMemory()) TR::ARMImmInstruction(cursor, TR::InstOpCode::dd, firstNode, (int32_t)(intptr_t)info, cg());
-      cursor->setNeedsAOTRelocation();
-      ((TR::ARMImmInstruction *)cursor)->setReloKind(TR_BodyInfoAddress);
-
-      cursor = generateImmInstruction(cg(), TR::InstOpCode::dd, firstNode, 0, cursor);
-      }
-   return(cursor);
-   }
+        cursor = generateImmInstruction(cg(), TR::InstOpCode::dd, firstNode, 0, cursor);
+    }
+    return (cursor);
+}
 
 TR::Instruction *TR_ARMRecompilation::generatePrologue(TR::Instruction *cursor)
-   {
-   if (couldBeCompiledAgain())
-      {
-      // gr12 may contain the vtable offset, and must be preserved here
-      // see PicBuilder.s and Recompilation.s
-      TR::Machine *machine = cg()->machine();
-      TR::Register   *gr4 = machine->getRealRegister(TR::RealRegister::gr4);
-      TR::Register   *gr5 = machine->getRealRegister(TR::RealRegister::gr5);
-      TR::Register   *lr = machine->getRealRegister(TR::RealRegister::gr14); // link register
-      TR::Node       *firstNode = _compilation->getStartTree()->getNode();
-      intptr_t        addr = (intptr_t)getCounterAddress();
-      TR::LabelSymbol *snippetLabel = TR::LabelSymbol::create(cg()->trHeapMemory(), cg());
-      intParts localVal(addr);
+{
+    if (couldBeCompiledAgain()) {
+        // gr12 may contain the vtable offset, and must be preserved here
+        // see PicBuilder.s and Recompilation.s
+        TR::Machine *machine = cg()->machine();
+        TR::Register *gr4 = machine->getRealRegister(TR::RealRegister::gr4);
+        TR::Register *gr5 = machine->getRealRegister(TR::RealRegister::gr5);
+        TR::Register *lr = machine->getRealRegister(TR::RealRegister::gr14); // link register
+        TR::Node *firstNode = _compilation->getStartTree()->getNode();
+        intptr_t addr = (intptr_t)getCounterAddress();
+        TR::LabelSymbol *snippetLabel = TR::LabelSymbol::create(cg()->trHeapMemory(), cg());
+        intParts localVal(addr);
 
-      TR_ARMOperand2 *op2_3 = new (cg()->trHeapMemory()) TR_ARMOperand2(localVal.getByte3(), 24);
-      TR_ARMOperand2 *op2_2 = new (cg()->trHeapMemory()) TR_ARMOperand2(localVal.getByte2(), 16);
-      TR_ARMOperand2 *op2_1 = new (cg()->trHeapMemory()) TR_ARMOperand2(localVal.getByte1(), 8);
-      TR_ARMOperand2 *op2_0 = new (cg()->trHeapMemory()) TR_ARMOperand2(localVal.getByte0(), 0);
-      cursor = generateTrg1Src1Instruction(cg(), TR::InstOpCode::mov, firstNode, gr5, op2_3, cursor);
-      cursor = generateTrg1Src2Instruction(cg(), TR::InstOpCode::add, firstNode, gr5, gr5, op2_2, cursor);
-      cursor = generateTrg1Src2Instruction(cg(), TR::InstOpCode::add, firstNode, gr5, gr5, op2_1, cursor);
-      cursor = generateTrg1Src2Instruction(cg(), TR::InstOpCode::add, firstNode, gr5, gr5, op2_0, cursor);
+        TR_ARMOperand2 *op2_3 = new (cg()->trHeapMemory()) TR_ARMOperand2(localVal.getByte3(), 24);
+        TR_ARMOperand2 *op2_2 = new (cg()->trHeapMemory()) TR_ARMOperand2(localVal.getByte2(), 16);
+        TR_ARMOperand2 *op2_1 = new (cg()->trHeapMemory()) TR_ARMOperand2(localVal.getByte1(), 8);
+        TR_ARMOperand2 *op2_0 = new (cg()->trHeapMemory()) TR_ARMOperand2(localVal.getByte0(), 0);
+        cursor = generateTrg1Src1Instruction(cg(), TR::InstOpCode::mov, firstNode, gr5, op2_3, cursor);
+        cursor = generateTrg1Src2Instruction(cg(), TR::InstOpCode::add, firstNode, gr5, gr5, op2_2, cursor);
+        cursor = generateTrg1Src2Instruction(cg(), TR::InstOpCode::add, firstNode, gr5, gr5, op2_1, cursor);
+        cursor = generateTrg1Src2Instruction(cg(), TR::InstOpCode::add, firstNode, gr5, gr5, op2_0, cursor);
 
-      cursor = generateTrg1MemInstruction(cg(), TR::InstOpCode::ldr, firstNode, gr4, new (cg()->trHeapMemory()) TR::MemoryReference(gr5, 0, cg()), cursor);
+        cursor = generateTrg1MemInstruction(cg(), TR::InstOpCode::ldr, firstNode, gr4,
+            new (cg()->trHeapMemory()) TR::MemoryReference(gr5, 0, cg()), cursor);
 
-      if (!isProfilingCompilation())
-         {
-         cursor = generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::sub_r, firstNode, gr4, gr4, 1, 0, cursor);
-         cursor = generateMemSrc1Instruction(cg(), TR::InstOpCode::str, firstNode,
-                                new (cg()->trHeapMemory()) TR::MemoryReference(gr5, (int32_t)0, cg()), gr4, cursor);
-         }
-      else
-         {
-         // This only applies to JitProfiling, as JProfiling uses sampling
-         TR_ASSERT(_compilation->getProfilingMode() == JitProfiling, "JProfiling should use sampling to trigger recompilation");
+        if (!isProfilingCompilation()) {
+            cursor = generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::sub_r, firstNode, gr4, gr4, 1, 0, cursor);
+            cursor = generateMemSrc1Instruction(cg(), TR::InstOpCode::str, firstNode,
+                new (cg()->trHeapMemory()) TR::MemoryReference(gr5, (int32_t)0, cg()), gr4, cursor);
+        } else {
+            // This only applies to JitProfiling, as JProfiling uses sampling
+            TR_ASSERT(_compilation->getProfilingMode() == JitProfiling,
+                "JProfiling should use sampling to trigger recompilation");
 
-         cursor = generateSrc1ImmInstruction(cg(), TR::InstOpCode::cmp, firstNode, gr4, 0, 0, cursor);
-         // this is just padding for consistent code length
-         cursor = generateTrg1Src2Instruction(cg(), TR::InstOpCode::orr, firstNode, gr5, gr5, gr5, cursor);
-         }
+            cursor = generateSrc1ImmInstruction(cg(), TR::InstOpCode::cmp, firstNode, gr4, 0, 0, cursor);
+            // this is just padding for consistent code length
+            cursor = generateTrg1Src2Instruction(cg(), TR::InstOpCode::orr, firstNode, gr5, gr5, gr5, cursor);
+        }
 
-      // gr4 must contain the saved LR; see Recompilation.s
-      cursor = generateTrg1Src1Instruction(cg(), TR::InstOpCode::mov, firstNode, gr4, lr, cursor);
-      // the instruction below is replaced after successful recompilation
-      cursor = generateTrg1Src2Instruction(cg(), TR::InstOpCode::orr, firstNode, gr5, gr5, gr5, cursor);
-      cursor = generateConditionalBranchInstruction(cg(), firstNode, ARMConditionCodeLT, snippetLabel, cursor);
+        // gr4 must contain the saved LR; see Recompilation.s
+        cursor = generateTrg1Src1Instruction(cg(), TR::InstOpCode::mov, firstNode, gr4, lr, cursor);
+        // the instruction below is replaced after successful recompilation
+        cursor = generateTrg1Src2Instruction(cg(), TR::InstOpCode::orr, firstNode, gr5, gr5, gr5, cursor);
+        cursor = generateConditionalBranchInstruction(cg(), firstNode, ARMConditionCodeLT, snippetLabel, cursor);
 
-      TR::Snippet     *snippet = new (cg()->trHeapMemory()) TR::ARMRecompilationSnippet(snippetLabel, cursor, cg());
-      cg()->addSnippet(snippet);
-      }
-   return(cursor);
-   }
+        TR::Snippet *snippet = new (cg()->trHeapMemory()) TR::ARMRecompilationSnippet(snippetLabel, cursor, cg());
+        cg()->addSnippet(snippet);
+    }
+    return (cursor);
+}
 

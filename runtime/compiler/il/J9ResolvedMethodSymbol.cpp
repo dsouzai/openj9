@@ -25,123 +25,114 @@
 #include "il/ResolvedMethodSymbol.hpp"
 #include "compile/Compilation.hpp"
 
+J9::ResolvedMethodSymbol::ResolvedMethodSymbol(TR_ResolvedMethod *method, TR::Compilation *comp)
+    : OMR::ResolvedMethodSymbolConnector(method, comp)
+{
+    if (comp->target().cpu.isPower()) {
+        if ((comp->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_HW_ROUND_FIRST)
+                && ((method->getRecognizedMethod() == TR::java_lang_Math_floor)
+                    || (method->getRecognizedMethod() == TR::java_lang_StrictMath_floor)
+                    || (method->getRecognizedMethod() == TR::java_lang_Math_ceil)
+                    || (method->getRecognizedMethod() == TR::java_lang_StrictMath_ceil)))
+            || (comp->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_HW_COPY_SIGN_FIRST)
+                && ((method->getRecognizedMethod() == TR::java_lang_Math_copySign_F)
+                    || (method->getRecognizedMethod() == TR::java_lang_Math_copySign_D)))) {
+            self()->setCanReplaceWithHWInstr(true);
+        }
+    }
 
-J9::ResolvedMethodSymbol::ResolvedMethodSymbol(TR_ResolvedMethod *method, TR::Compilation *comp) :
-   OMR::ResolvedMethodSymbolConnector(method, comp)
-   {
-   if (comp->target().cpu.isPower())
-      {
-      if ((comp->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_HW_ROUND_FIRST) &&
-           ((method->getRecognizedMethod() == TR::java_lang_Math_floor) ||
-            (method->getRecognizedMethod() == TR::java_lang_StrictMath_floor) ||
-            (method->getRecognizedMethod() == TR::java_lang_Math_ceil) ||
-            (method->getRecognizedMethod() == TR::java_lang_StrictMath_ceil))) ||
-          (comp->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_HW_COPY_SIGN_FIRST) &&
-           ((method->getRecognizedMethod() == TR::java_lang_Math_copySign_F) ||
-            (method->getRecognizedMethod() == TR::java_lang_Math_copySign_D))))
-         {
-         self()->setCanReplaceWithHWInstr(true);
-         }
-      }
-
-   if (method->isJNINative())
-      {
-      self()->setJNI();
+    if (method->isJNINative()) {
+        self()->setJNI();
 #if defined(TR_TARGET_POWER)
-      switch(method->getRecognizedMethod())
-         {
-         case TR::java_lang_Math_acos:
-         case TR::java_lang_Math_asin:
-         case TR::java_lang_Math_atan:
-         case TR::java_lang_Math_atan2:
-         case TR::java_lang_Math_cbrt:
-         case TR::java_lang_Math_ceil:
-         case TR::java_lang_Math_copySign_F:
-         case TR::java_lang_Math_copySign_D:
-         case TR::java_lang_Math_cos:
-         case TR::java_lang_Math_cosh:
-         case TR::java_lang_Math_exp:
-         case TR::java_lang_Math_expm1:
-         case TR::java_lang_Math_floor:
-         case TR::java_lang_Math_hypot:
-         case TR::java_lang_Math_IEEEremainder:
-         case TR::java_lang_Math_log:
-         case TR::java_lang_Math_log10:
-         case TR::java_lang_Math_log1p:
-         case TR::java_lang_Math_max_F:
-         case TR::java_lang_Math_max_D:
-         case TR::java_lang_Math_min_F:
-         case TR::java_lang_Math_min_D:
-         case TR::java_lang_Math_nextAfter_F:
-         case TR::java_lang_Math_nextAfter_D:
-         case TR::java_lang_Math_pow:
-         case TR::java_lang_Math_rint:
-         case TR::java_lang_Math_round_F:
-         case TR::java_lang_Math_round_D:
-         case TR::java_lang_Math_scalb_F:
-         case TR::java_lang_Math_scalb_D:
-         case TR::java_lang_Math_sin:
-         case TR::java_lang_Math_sinh:
-         case TR::java_lang_Math_sqrt:
-         case TR::java_lang_Math_tan:
-         case TR::java_lang_Math_tanh:
-         case TR::java_lang_StrictMath_acos:
-         case TR::java_lang_StrictMath_asin:
-         case TR::java_lang_StrictMath_atan:
-         case TR::java_lang_StrictMath_atan2:
-         case TR::java_lang_StrictMath_cbrt:
-         case TR::java_lang_StrictMath_ceil:
-         case TR::java_lang_StrictMath_copySign_F:
-         case TR::java_lang_StrictMath_copySign_D:
-         case TR::java_lang_StrictMath_cos:
-         case TR::java_lang_StrictMath_cosh:
-         case TR::java_lang_StrictMath_exp:
-         case TR::java_lang_StrictMath_expm1:
-         case TR::java_lang_StrictMath_floor:
-         case TR::java_lang_StrictMath_hypot:
-         case TR::java_lang_StrictMath_IEEEremainder:
-         case TR::java_lang_StrictMath_log:
-         case TR::java_lang_StrictMath_log10:
-         case TR::java_lang_StrictMath_log1p:
-         case TR::java_lang_StrictMath_max_F:
-         case TR::java_lang_StrictMath_max_D:
-         case TR::java_lang_StrictMath_min_F:
-         case TR::java_lang_StrictMath_min_D:
-         case TR::java_lang_StrictMath_nextAfter_F:
-         case TR::java_lang_StrictMath_nextAfter_D:
-         case TR::java_lang_StrictMath_pow:
-         case TR::java_lang_StrictMath_rint:
-         case TR::java_lang_StrictMath_round_F:
-         case TR::java_lang_StrictMath_round_D:
-         case TR::java_lang_StrictMath_scalb_F:
-         case TR::java_lang_StrictMath_scalb_D:
-         case TR::java_lang_StrictMath_sin:
-         case TR::java_lang_StrictMath_sinh:
-         case TR::java_lang_StrictMath_sqrt:
-         case TR::java_lang_StrictMath_tan:
-         case TR::java_lang_StrictMath_tanh:
-            setCanDirectNativeCall(true);
-            break;
-         default:
-            break;
-         }
+        switch (method->getRecognizedMethod()) {
+            case TR::java_lang_Math_acos:
+            case TR::java_lang_Math_asin:
+            case TR::java_lang_Math_atan:
+            case TR::java_lang_Math_atan2:
+            case TR::java_lang_Math_cbrt:
+            case TR::java_lang_Math_ceil:
+            case TR::java_lang_Math_copySign_F:
+            case TR::java_lang_Math_copySign_D:
+            case TR::java_lang_Math_cos:
+            case TR::java_lang_Math_cosh:
+            case TR::java_lang_Math_exp:
+            case TR::java_lang_Math_expm1:
+            case TR::java_lang_Math_floor:
+            case TR::java_lang_Math_hypot:
+            case TR::java_lang_Math_IEEEremainder:
+            case TR::java_lang_Math_log:
+            case TR::java_lang_Math_log10:
+            case TR::java_lang_Math_log1p:
+            case TR::java_lang_Math_max_F:
+            case TR::java_lang_Math_max_D:
+            case TR::java_lang_Math_min_F:
+            case TR::java_lang_Math_min_D:
+            case TR::java_lang_Math_nextAfter_F:
+            case TR::java_lang_Math_nextAfter_D:
+            case TR::java_lang_Math_pow:
+            case TR::java_lang_Math_rint:
+            case TR::java_lang_Math_round_F:
+            case TR::java_lang_Math_round_D:
+            case TR::java_lang_Math_scalb_F:
+            case TR::java_lang_Math_scalb_D:
+            case TR::java_lang_Math_sin:
+            case TR::java_lang_Math_sinh:
+            case TR::java_lang_Math_sqrt:
+            case TR::java_lang_Math_tan:
+            case TR::java_lang_Math_tanh:
+            case TR::java_lang_StrictMath_acos:
+            case TR::java_lang_StrictMath_asin:
+            case TR::java_lang_StrictMath_atan:
+            case TR::java_lang_StrictMath_atan2:
+            case TR::java_lang_StrictMath_cbrt:
+            case TR::java_lang_StrictMath_ceil:
+            case TR::java_lang_StrictMath_copySign_F:
+            case TR::java_lang_StrictMath_copySign_D:
+            case TR::java_lang_StrictMath_cos:
+            case TR::java_lang_StrictMath_cosh:
+            case TR::java_lang_StrictMath_exp:
+            case TR::java_lang_StrictMath_expm1:
+            case TR::java_lang_StrictMath_floor:
+            case TR::java_lang_StrictMath_hypot:
+            case TR::java_lang_StrictMath_IEEEremainder:
+            case TR::java_lang_StrictMath_log:
+            case TR::java_lang_StrictMath_log10:
+            case TR::java_lang_StrictMath_log1p:
+            case TR::java_lang_StrictMath_max_F:
+            case TR::java_lang_StrictMath_max_D:
+            case TR::java_lang_StrictMath_min_F:
+            case TR::java_lang_StrictMath_min_D:
+            case TR::java_lang_StrictMath_nextAfter_F:
+            case TR::java_lang_StrictMath_nextAfter_D:
+            case TR::java_lang_StrictMath_pow:
+            case TR::java_lang_StrictMath_rint:
+            case TR::java_lang_StrictMath_round_F:
+            case TR::java_lang_StrictMath_round_D:
+            case TR::java_lang_StrictMath_scalb_F:
+            case TR::java_lang_StrictMath_scalb_D:
+            case TR::java_lang_StrictMath_sin:
+            case TR::java_lang_StrictMath_sinh:
+            case TR::java_lang_StrictMath_sqrt:
+            case TR::java_lang_StrictMath_tan:
+            case TR::java_lang_StrictMath_tanh:
+                setCanDirectNativeCall(true);
+                break;
+            default:
+                break;
+        }
 #endif // TR_TARGET_POWER
-      }
+    }
+}
 
-   }
-
-TR::KnownObjectTable::Index
-J9::ResolvedMethodSymbol::getKnownObjectIndexForParm(int32_t ordinal)
-   {
-   TR::KnownObjectTable::Index index = TR::KnownObjectTable::UNKNOWN;
-   if (ordinal == 0)
-      {
-      if (self()->getResolvedMethod()->convertToMethod()->isArchetypeSpecimen())
-         {
-         TR::KnownObjectTable *knot = self()->comp()->getOrCreateKnownObjectTable();
-         if (knot)
-            index = knot->getExistingIndexAt(self()->getResolvedMethod()->getMethodHandleLocation());
-         }
-      }
-   return index;
-   }
+TR::KnownObjectTable::Index J9::ResolvedMethodSymbol::getKnownObjectIndexForParm(int32_t ordinal)
+{
+    TR::KnownObjectTable::Index index = TR::KnownObjectTable::UNKNOWN;
+    if (ordinal == 0) {
+        if (self()->getResolvedMethod()->convertToMethod()->isArchetypeSpecimen()) {
+            TR::KnownObjectTable *knot = self()->comp()->getOrCreateKnownObjectTable();
+            if (knot)
+                index = knot->getExistingIndexAt(self()->getResolvedMethod()->getMethodHandleLocation());
+        }
+    }
+    return index;
+}

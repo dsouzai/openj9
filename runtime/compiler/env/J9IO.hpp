@@ -28,35 +28,32 @@
  */
 #ifndef J9_IO_CONNECTOR
 #define J9_IO_CONNECTOR
+
 namespace J9 {
-   class IO;
-   typedef J9::IO IOConnector;
-}
+class IO;
+typedef J9::IO IOConnector;
+} // namespace J9
 #endif
 
 #include <stdint.h>
 #include "infra/Annotations.hpp"
 #include "env/OMRIO.hpp"
 
+namespace J9 {
 
-namespace J9
-{
+class OMR_EXTENSIBLE IO : public OMR::IOConnector {
+public:
+    static TR::FILE *fopen(char *fileName, const char *attrs, bool encrypt);
+    static TR::FILE *fopen(char *fileName, const char *attrs);
+    static void fclose(TR::FILE *fileId);
+    static void fseek(TR::FILE *fileId, intptr_t offset, int32_t whence);
+    static long ftell(TR::FILE *fileID);
+    static void fflush(TR::FILE *fileId);
 
-class OMR_EXTENSIBLE IO : public OMR::IOConnector
-   {
-   public:
+    static int32_t fprintf(TR::FILE *fileId, const char *format, ...);
+    static int32_t vfprintf(TR::FILE *fileId, const char *format, va_list args);
+};
 
-   static TR::FILE *fopen(char *fileName, const char *attrs, bool encrypt);
-   static TR::FILE *fopen(char *fileName, const char *attrs);
-   static void fclose(TR::FILE *fileId);
-   static void fseek(TR::FILE *fileId, intptr_t offset, int32_t whence);
-   static long ftell(TR::FILE *fileID);
-   static void fflush(TR::FILE *fileId);
-
-   static int32_t fprintf(TR::FILE *fileId, const char * format, ...);
-   static int32_t vfprintf(TR::FILE *fileId, const char *format, va_list args);
-   };
-
-}
+} // namespace J9
 
 #endif

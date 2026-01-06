@@ -28,120 +28,140 @@ class CodeGenerator;
 class RegisterDependencyConditions;
 class ResolvedMethodSymbol;
 class Snippet;
-}
+} // namespace TR
 
-namespace J9
-{
+namespace J9 { namespace Z {
 
-namespace Z
-{
-
-class CHelperLinkage : public TR::Linkage
-   {
-   uint32_t _preservedRegisterMapForGC;
-   TR::RealRegister::RegNum _methodMetaDataRegister;
-   TR::RealRegister::RegNum _returnAddressRegister;
-   bool getIsFastPathOnly(TR::Node * callNode);
-	// Following Regs are needed only in the case of zOS.
+class CHelperLinkage : public TR::Linkage {
+    uint32_t _preservedRegisterMapForGC;
+    TR::RealRegister::RegNum _methodMetaDataRegister;
+    TR::RealRegister::RegNum _returnAddressRegister;
+    bool getIsFastPathOnly(TR::Node *callNode);
+    // Following Regs are needed only in the case of zOS.
 #if defined(J9ZOS390)
-	TR::RealRegister::RegNum _DSAPointerRegister;
+    TR::RealRegister::RegNum _DSAPointerRegister;
 #if defined(TR_HOST_32BIT)
-	TR::RealRegister::RegNum _CAAPointerRegister;
+    TR::RealRegister::RegNum _CAAPointerRegister;
 #endif
 #endif
 public:
+    CHelperLinkage(TR::CodeGenerator *cg, TR_LinkageConventions elc = TR_Helper);
 
-   CHelperLinkage(TR::CodeGenerator * cg, TR_LinkageConventions elc=TR_Helper);
+    virtual void createPrologue(TR::Instruction *cursor) { TR_UNIMPLEMENTED(); }
 
-   virtual void createPrologue(TR::Instruction * cursor) { TR_UNIMPLEMENTED(); }
-   virtual void createEpilogue(TR::Instruction * cursor) { TR_UNIMPLEMENTED(); }
+    virtual void createEpilogue(TR::Instruction *cursor) { TR_UNIMPLEMENTED(); }
 
-   virtual void setParameterLinkageRegisterIndex(TR::ResolvedMethodSymbol * method)
-      {
-      TR_ASSERT_FATAL(false, "CHelperLinkage should only be used for call-outs");
-      }
+    virtual void setParameterLinkageRegisterIndex(TR::ResolvedMethodSymbol *method)
+    {
+        TR_ASSERT_FATAL(false, "CHelperLinkage should only be used for call-outs");
+    }
 
-   virtual void setParameterLinkageRegisterIndex(TR::ResolvedMethodSymbol *method, List<TR::ParameterSymbol>&parmList)
-      {
-      TR_ASSERT_FATAL(false, "CHelperLinkage should only be used for call-outs");
-      }
+    virtual void setParameterLinkageRegisterIndex(TR::ResolvedMethodSymbol *method, List<TR::ParameterSymbol> &parmList)
+    {
+        TR_ASSERT_FATAL(false, "CHelperLinkage should only be used for call-outs");
+    }
 
-   virtual void mapStack(TR::ResolvedMethodSymbol *symbol) { TR_UNIMPLEMENTED(); }
-   virtual void mapSingleAutomatic(TR::AutomaticSymbol *p, uint32_t &stackIndex) { TR_UNIMPLEMENTED(); }
-   virtual bool hasToBeOnStack(TR::ParameterSymbol * parm) { TR_UNIMPLEMENTED(); return false; }
-   virtual void initS390RealRegisterLinkage() { TR_UNIMPLEMENTED(); }
-   virtual TR::RealRegister::RegNum setMethodMetaDataRegister(TR::RealRegister::RegNum r) { return _methodMetaDataRegister = r; }
-   virtual TR::RealRegister::RegNum getMethodMetaDataRegister() { return _methodMetaDataRegister; }
-   virtual TR::RealRegister::RegNum setReturnAddressRegister(TR::RealRegister::RegNum r) { return _returnAddressRegister = r; }
-   virtual TR::RealRegister::RegNum getReturnAddressRegister() { return _returnAddressRegister; }
+    virtual void mapStack(TR::ResolvedMethodSymbol *symbol) { TR_UNIMPLEMENTED(); }
+
+    virtual void mapSingleAutomatic(TR::AutomaticSymbol *p, uint32_t &stackIndex) { TR_UNIMPLEMENTED(); }
+
+    virtual bool hasToBeOnStack(TR::ParameterSymbol *parm)
+    {
+        TR_UNIMPLEMENTED();
+        return false;
+    }
+
+    virtual void initS390RealRegisterLinkage() { TR_UNIMPLEMENTED(); }
+
+    virtual TR::RealRegister::RegNum setMethodMetaDataRegister(TR::RealRegister::RegNum r)
+    {
+        return _methodMetaDataRegister = r;
+    }
+
+    virtual TR::RealRegister::RegNum getMethodMetaDataRegister() { return _methodMetaDataRegister; }
+
+    virtual TR::RealRegister::RegNum setReturnAddressRegister(TR::RealRegister::RegNum r)
+    {
+        return _returnAddressRegister = r;
+    }
+
+    virtual TR::RealRegister::RegNum getReturnAddressRegister() { return _returnAddressRegister; }
 #if defined(J9ZOS390)
-	virtual TR::RealRegister::RegNum setDSAPointerRegister(TR::RealRegister::RegNum r) { return _DSAPointerRegister = r; }
-	virtual TR::RealRegister::RegNum getDSAPointerRegister() { return _DSAPointerRegister; }
+    virtual TR::RealRegister::RegNum setDSAPointerRegister(TR::RealRegister::RegNum r)
+    {
+        return _DSAPointerRegister = r;
+    }
+
+    virtual TR::RealRegister::RegNum getDSAPointerRegister() { return _DSAPointerRegister; }
 #if defined(TR_HOST_32BIT)
-	virtual TR::RealRegister::RegNum setCAAPointerRegister(TR::RealRegister::RegNum r) { return _CAAPointerRegister = r; }
-	virtual TR::RealRegister::RegNum getCAAPointerRegister() { return _CAAPointerRegister; }
+    virtual TR::RealRegister::RegNum setCAAPointerRegister(TR::RealRegister::RegNum r)
+    {
+        return _CAAPointerRegister = r;
+    }
+
+    virtual TR::RealRegister::RegNum getCAAPointerRegister() { return _CAAPointerRegister; }
 #endif
 #endif
-   /** \brief
-    *       Setter for private member _preservedRegisterMapForGC
-    *
-    *  \param m
-    *       An 32-bit unsigned mapping for GC marking all preserved registers
-    *
-    *  \return
-    *      Returns _preservedRegisterMapForGC after setting it to m
-    */
-   virtual uint32_t setPreservedRegisterMapForGC(uint32_t m) {return _preservedRegisterMapForGC = m; }
-   /** \brief
-    *       Getter for private member _preservedRegisterMapForGC
-    *
-    *  \return
-    *      Returns private member _preservedRegisterMapForGC
-    */
-   virtual uint32_t getPreservedRegisterMapForGC() {return _preservedRegisterMapForGC; }
+    /** \brief
+     *       Setter for private member _preservedRegisterMapForGC
+     *
+     *  \param m
+     *       An 32-bit unsigned mapping for GC marking all preserved registers
+     *
+     *  \return
+     *      Returns _preservedRegisterMapForGC after setting it to m
+     */
+    virtual uint32_t setPreservedRegisterMapForGC(uint32_t m) { return _preservedRegisterMapForGC = m; }
 
-   virtual TR::Register * buildIndirectDispatch(TR::Node * callNode)
-      {
-      TR_ASSERT(false, "Indirect dispatch is currently not supported");
-      return NULL;
-      }
+    /** \brief
+     *       Getter for private member _preservedRegisterMapForGC
+     *
+     *  \return
+     *      Returns private member _preservedRegisterMapForGC
+     */
+    virtual uint32_t getPreservedRegisterMapForGC() { return _preservedRegisterMapForGC; }
 
-   /** \brief
-    *       Builds the direct dispatch sequence for given node using C Helper linkage
-    *
-    *  \param callNode
-    *       TR::Node* for which helper dispatch sequence will be generated
-    *
-    *  \return
-    *      Returns TR::Register* which contains return value from helper call
-    */
-   virtual TR::Register * buildDirectDispatch(TR::Node * callNode)
-      {
-      return buildDirectDispatch(callNode, static_cast<TR::RegisterDependencyConditions**>(NULL));
-      }
+    virtual TR::Register *buildIndirectDispatch(TR::Node *callNode)
+    {
+        TR_ASSERT(false, "Indirect dispatch is currently not supported");
+        return NULL;
+    }
 
-   /** \brief
-    *       Overloaded function that builds the direct dispatch sequence for given node using C Helper linkage
-    *       with additional returnReg parameter from consumer
-    *
-    *  \param callNode
-    *       TR::Node* for which helper dispatch sequence will be generated
-    *
-    *  \param returnReg
-    *       TR::Register* allocated by consumer of this API. Dispatch sequence will use this register to store return value from helper
-    *       instead from allocating new register.
-    *
-    *  \return
-    *      Returns TR::Register* which contains return value from helper call
-    */
-   TR::Register* buildDirectDispatch(TR::Node *callNode, TR::Register *returnReg)
-      {
-      return buildDirectDispatch(callNode, NULL, returnReg);
-      }
+    /** \brief
+     *       Builds the direct dispatch sequence for given node using C Helper linkage
+     *
+     *  \param callNode
+     *       TR::Node* for which helper dispatch sequence will be generated
+     *
+     *  \return
+     *      Returns TR::Register* which contains return value from helper call
+     */
+    virtual TR::Register *buildDirectDispatch(TR::Node *callNode)
+    {
+        return buildDirectDispatch(callNode, static_cast<TR::RegisterDependencyConditions **>(NULL));
+    }
 
-   TR::Register *buildDirectDispatch(TR::Node *callNode, TR::RegisterDependencyConditions** deps, TR::Register *returnReg=NULL);
-   };
+    /** \brief
+     *       Overloaded function that builds the direct dispatch sequence for given node using C Helper linkage
+     *       with additional returnReg parameter from consumer
+     *
+     *  \param callNode
+     *       TR::Node* for which helper dispatch sequence will be generated
+     *
+     *  \param returnReg
+     *       TR::Register* allocated by consumer of this API. Dispatch sequence will use this register to store return
+     * value from helper instead from allocating new register.
+     *
+     *  \return
+     *      Returns TR::Register* which contains return value from helper call
+     */
+    TR::Register *buildDirectDispatch(TR::Node *callNode, TR::Register *returnReg)
+    {
+        return buildDirectDispatch(callNode, NULL, returnReg);
+    }
 
-}
+    TR::Register *buildDirectDispatch(TR::Node *callNode, TR::RegisterDependencyConditions **deps,
+        TR::Register *returnReg = NULL);
+};
 
-}
+}} // namespace J9::Z

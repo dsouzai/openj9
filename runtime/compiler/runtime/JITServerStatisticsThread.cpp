@@ -28,186 +28,181 @@
 #include "control/JITServerCompilationThread.hpp"
 
 JITServerStatisticsThread::JITServerStatisticsThread()
-   : _statisticsThread(NULL), _statisticsThreadMonitor(NULL), _statisticsOSThread(NULL),
-   _statisticsThreadAttachAttempted(false), _statisticsThreadExitFlag(false), _statisticsFrequency(TR::Options::getStatisticsFrequency())
-   {
-   }
+    : _statisticsThread(NULL)
+    , _statisticsThreadMonitor(NULL)
+    , _statisticsOSThread(NULL)
+    , _statisticsThreadAttachAttempted(false)
+    , _statisticsThreadExitFlag(false)
+    , _statisticsFrequency(TR::Options::getStatisticsFrequency())
+{}
 
-JITServerStatisticsThread * JITServerStatisticsThread::allocate()
-   {
-   JITServerStatisticsThread * statsThreadObj = new (PERSISTENT_NEW) JITServerStatisticsThread();
-   return statsThreadObj;
-   }
+JITServerStatisticsThread *JITServerStatisticsThread::allocate()
+{
+    JITServerStatisticsThread *statsThreadObj = new (PERSISTENT_NEW) JITServerStatisticsThread();
+    return statsThreadObj;
+}
 
 // Routine executed by the statistics thread
-static int32_t J9THREAD_PROC statisticsThreadProc(void * entryarg)
-   {
-   J9JITConfig * jitConfig = (J9JITConfig *) entryarg;
-   J9JavaVM * vm = jitConfig->javaVM;
+static int32_t J9THREAD_PROC statisticsThreadProc(void *entryarg)
+{
+    J9JITConfig *jitConfig = (J9JITConfig *)entryarg;
+    J9JavaVM *vm = jitConfig->javaVM;
 
-   JITServerStatisticsThread *statsThreadObj = ((TR_JitPrivateConfig*)(jitConfig->privateConfig))->statisticsThreadObject;
-   UDATA samplingPeriod    = std::max(static_cast<UDATA>(TR::Options::_minSamplingPeriod), jitConfig->samplingFrequency);
+    JITServerStatisticsThread *statsThreadObj
+        = ((TR_JitPrivateConfig *)(jitConfig->privateConfig))->statisticsThreadObject;
+    UDATA samplingPeriod = std::max(static_cast<UDATA>(TR::Options::_minSamplingPeriod), jitConfig->samplingFrequency);
 
-   J9VMThread *statThread = NULL;
-   // Attach this thread to the VM
-   int rc = vm->internalVMFunctions->internalAttachCurrentThread(vm, &statThread, NULL,
-                                  J9_PRIVATE_FLAGS_DAEMON_THREAD | J9_PRIVATE_FLAGS_NO_OBJECT |
-                                  J9_PRIVATE_FLAGS_SYSTEM_THREAD | J9_PRIVATE_FLAGS_ATTACHED_THREAD,
-                                  statsThreadObj->getStatisticsOSThread());
+    J9VMThread *statThread = NULL;
+    // Attach this thread to the VM
+    int rc = vm->internalVMFunctions->internalAttachCurrentThread(vm, &statThread, NULL,
+        J9_PRIVATE_FLAGS_DAEMON_THREAD | J9_PRIVATE_FLAGS_NO_OBJECT | J9_PRIVATE_FLAGS_SYSTEM_THREAD
+            | J9_PRIVATE_FLAGS_ATTACHED_THREAD,
+        statsThreadObj->getStatisticsOSThread());
 
-   // Inform main thread that attach operation finished (either successfully or not)
-   statsThreadObj->getStatisticsThreadMonitor()->enter();
-   statsThreadObj->setAttachAttempted(true);
-   if (rc == JNI_OK)
-      statsThreadObj->setStatisticsThread(statThread);
-   statsThreadObj->getStatisticsThreadMonitor()->notifyAll();
-   statsThreadObj->getStatisticsThreadMonitor()->exit();
+    // Inform main thread that attach operation finished (either successfully or not)
+    statsThreadObj->getStatisticsThreadMonitor()->enter();
+    statsThreadObj->setAttachAttempted(true);
+    if (rc == JNI_OK)
+        statsThreadObj->setStatisticsThread(statThread);
+    statsThreadObj->getStatisticsThreadMonitor()->notifyAll();
+    statsThreadObj->getStatisticsThreadMonitor()->exit();
 
-   if (rc != JNI_OK)
-      {
-      return JNI_ERR; // attaching the JITServer Statistics thread failed
-      }
+    if (rc != JNI_OK) {
+        return JNI_ERR; // attaching the JITServer Statistics thread failed
+    }
 
-   j9thread_set_name(j9thread_self(), "JITServer Statistics Thread");
+    j9thread_set_name(j9thread_self(), "JITServer Statistics Thread");
 
-   TR::CompilationInfo *compInfo = TR::CompilationInfo::get(jitConfig);
-   TR::PersistentInfo *persistentInfo = compInfo->getPersistentInfo();
-   PORT_ACCESS_FROM_JAVAVM(vm);
-   OMRPORT_ACCESS_FROM_J9PORT(PORTLIB);
-   uint64_t crtTime = j9time_current_time_millis();
-   uint64_t lastStatsTime = crtTime;
-   uint64_t lastPurgeTime = crtTime;
-   uint64_t lastCpuUpdate = crtTime;
-   char timestamp[32];
+    TR::CompilationInfo *compInfo = TR::CompilationInfo::get(jitConfig);
+    TR::PersistentInfo *persistentInfo = compInfo->getPersistentInfo();
+    PORT_ACCESS_FROM_JAVAVM(vm);
+    OMRPORT_ACCESS_FROM_J9PORT(PORTLIB);
+    uint64_t crtTime = j9time_current_time_millis();
+    uint64_t lastStatsTime = crtTime;
+    uint64_t lastPurgeTime = crtTime;
+    uint64_t lastCpuUpdate = crtTime;
+    char timestamp[32];
 
-   persistentInfo->setStartTime(crtTime);
-   persistentInfo->setElapsedTime(0);
-   while (!statsThreadObj->getStatisticsThreadExitFlag())
-      {
-      while (!statsThreadObj->getStatisticsThreadExitFlag() && j9thread_sleep_interruptable(samplingPeriod, 0) == 0)
-         {
-         // Read current time but prevent situations where clock goes backwards
-         // Maybe we should use a monotonic clock
-         uint64_t t = j9time_current_time_millis();
-         if (t > crtTime)
-            crtTime = t;
-         persistentInfo->setElapsedTime(crtTime - persistentInfo->getStartTime());
+    persistentInfo->setStartTime(crtTime);
+    persistentInfo->setElapsedTime(0);
+    while (!statsThreadObj->getStatisticsThreadExitFlag()) {
+        while (!statsThreadObj->getStatisticsThreadExitFlag() && j9thread_sleep_interruptable(samplingPeriod, 0) == 0) {
+            // Read current time but prevent situations where clock goes backwards
+            // Maybe we should use a monotonic clock
+            uint64_t t = j9time_current_time_millis();
+            if (t > crtTime)
+                crtTime = t;
+            persistentInfo->setElapsedTime(crtTime - persistentInfo->getStartTime());
 
-         // Look for stale sessions from clients that were inactive for a long time and purge them
-         if (crtTime - lastPurgeTime >= TR::Options::_timeBetweenPurges)
-            {
-            lastPurgeTime = crtTime;
-            OMR::CriticalSection compilationMonitorLock(compInfo->getCompilationMonitor());
-            compInfo->getClientSessionHT()->purgeOldDataIfNeeded();
+            // Look for stale sessions from clients that were inactive for a long time and purge them
+            if (crtTime - lastPurgeTime >= TR::Options::_timeBetweenPurges) {
+                lastPurgeTime = crtTime;
+                OMR::CriticalSection compilationMonitorLock(compInfo->getCompilationMonitor());
+                compInfo->getClientSessionHT()->purgeOldDataIfNeeded();
             }
 
-         // Print operational statistics to vlog if enabled
-         CpuUtilization *cpuUtil = compInfo->getCpuUtil();
-         if ((statsThreadObj->getStatisticsFrequency() != 0) && (crtTime - lastStatsTime > statsThreadObj->getStatisticsFrequency()))
-            {
-            int32_t cpuUsage = 0, avgCpuUsage = 0, vmCpuUsage = 0;
-            if (cpuUtil->isFunctional())
-               {
-               lastCpuUpdate = crtTime;
-               cpuUtil->updateCpuUtil(jitConfig);
-               cpuUsage = cpuUtil->getCpuUsage();
-               avgCpuUsage = cpuUtil->getAvgCpuUsage();
-               vmCpuUsage = cpuUtil->getVmCpuUsage();
-               }
-            omrstr_ftime_ex(timestamp, sizeof(timestamp), "%b %d %H:%M:%S %Y", crtTime, OMRSTR_FTIME_FLAG_LOCAL);
+            // Print operational statistics to vlog if enabled
+            CpuUtilization *cpuUtil = compInfo->getCpuUtil();
+            if ((statsThreadObj->getStatisticsFrequency() != 0)
+                && (crtTime - lastStatsTime > statsThreadObj->getStatisticsFrequency())) {
+                int32_t cpuUsage = 0, avgCpuUsage = 0, vmCpuUsage = 0;
+                if (cpuUtil->isFunctional()) {
+                    lastCpuUpdate = crtTime;
+                    cpuUtil->updateCpuUtil(jitConfig);
+                    cpuUsage = cpuUtil->getCpuUsage();
+                    avgCpuUsage = cpuUtil->getAvgCpuUsage();
+                    vmCpuUsage = cpuUtil->getVmCpuUsage();
+                }
+                omrstr_ftime_ex(timestamp, sizeof(timestamp), "%b %d %H:%M:%S %Y", crtTime, OMRSTR_FTIME_FLAG_LOCAL);
 
-            TR_VerboseLog::CriticalSection vlogLock;
-            TR_VerboseLog::writeLine(TR_Vlog_JITServer, "CurrentTime: %s", timestamp);
-            TR_VerboseLog::writeLine(TR_Vlog_JITServer, "Compilation Queue Size: %d", compInfo->getMethodQueueSize());
-            TR_VerboseLog::writeLine(TR_Vlog_JITServer, "Number of clients : %u", compInfo->getClientSessionHT()->size());
-            TR_VerboseLog::writeLine(TR_Vlog_JITServer, "Total compilation threads : %d", compInfo->getNumUsableCompilationThreads());
-            TR_VerboseLog::writeLine(TR_Vlog_JITServer, "Active compilation threads : %d",compInfo->getNumCompThreadsActive());
-            if (TR::CompilationInfoPerThreadRemote::getNumClearedCaches() > 0)
-               TR_VerboseLog::writeLine(TR_Vlog_JITServer, "Number of times the clientSession caches are cleared: %d", TR::CompilationInfoPerThreadRemote::getNumClearedCaches());
-            bool incompleteInfo;
-            TR_VerboseLog::writeLine(TR_Vlog_JITServer, "Physical memory available: %llu MB", compInfo->computeAndCacheFreePhysicalMemory(incompleteInfo) >> 20);
-            if (cpuUtil->isFunctional())
-               {
-               TR_VerboseLog::writeLine(TR_Vlog_JITServer, "CpuLoad %d%% (AvgUsage %d%%) JvmCpu %d%%", cpuUsage, avgCpuUsage, vmCpuUsage);
-               }
-            lastStatsTime = crtTime;
+                TR_VerboseLog::CriticalSection vlogLock;
+                TR_VerboseLog::writeLine(TR_Vlog_JITServer, "CurrentTime: %s", timestamp);
+                TR_VerboseLog::writeLine(TR_Vlog_JITServer, "Compilation Queue Size: %d",
+                    compInfo->getMethodQueueSize());
+                TR_VerboseLog::writeLine(TR_Vlog_JITServer, "Number of clients : %u",
+                    compInfo->getClientSessionHT()->size());
+                TR_VerboseLog::writeLine(TR_Vlog_JITServer, "Total compilation threads : %d",
+                    compInfo->getNumUsableCompilationThreads());
+                TR_VerboseLog::writeLine(TR_Vlog_JITServer, "Active compilation threads : %d",
+                    compInfo->getNumCompThreadsActive());
+                if (TR::CompilationInfoPerThreadRemote::getNumClearedCaches() > 0)
+                    TR_VerboseLog::writeLine(TR_Vlog_JITServer,
+                        "Number of times the clientSession caches are cleared: %d",
+                        TR::CompilationInfoPerThreadRemote::getNumClearedCaches());
+                bool incompleteInfo;
+                TR_VerboseLog::writeLine(TR_Vlog_JITServer, "Physical memory available: %llu MB",
+                    compInfo->computeAndCacheFreePhysicalMemory(incompleteInfo) >> 20);
+                if (cpuUtil->isFunctional()) {
+                    TR_VerboseLog::writeLine(TR_Vlog_JITServer, "CpuLoad %d%% (AvgUsage %d%%) JvmCpu %d%%", cpuUsage,
+                        avgCpuUsage, vmCpuUsage);
+                }
+                lastStatsTime = crtTime;
             }
 
-         if (cpuUtil->isFunctional() && TR::Options::isAnyVerboseOptionSet() && ((crtTime - lastCpuUpdate) >= 500))
-            {
-            lastCpuUpdate = crtTime;
-            cpuUtil->updateCpuUtil(jitConfig);
+            if (cpuUtil->isFunctional() && TR::Options::isAnyVerboseOptionSet() && ((crtTime - lastCpuUpdate) >= 500)) {
+                lastCpuUpdate = crtTime;
+                cpuUtil->updateCpuUtil(jitConfig);
             }
-         }
-      // This thread has been interrupted or StatisticsThreadExitFlag flag was set
-      }
+        }
+        // This thread has been interrupted or StatisticsThreadExitFlag flag was set
+    }
 
-   if (TR::Options::getVerboseOption(TR_VerboseJITServer))
-      TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Detaching JITServer statistics thread");
+    if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+        TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Detaching JITServer statistics thread");
 
-   // Will reach here only if the _statisticsThreadExitFlag is set from the stopStatisticsThread().
-   vm->internalVMFunctions->DetachCurrentThread((JavaVM *) vm);
-   statsThreadObj->getStatisticsThreadMonitor()->enter();
-   statsThreadObj->setStatisticsThread(NULL);
-   statsThreadObj->getStatisticsThreadMonitor()->notifyAll();
-   j9thread_exit((J9ThreadMonitor*)statsThreadObj->getStatisticsThreadMonitor()->getVMMonitor());
+    // Will reach here only if the _statisticsThreadExitFlag is set from the stopStatisticsThread().
+    vm->internalVMFunctions->DetachCurrentThread((JavaVM *)vm);
+    statsThreadObj->getStatisticsThreadMonitor()->enter();
+    statsThreadObj->setStatisticsThread(NULL);
+    statsThreadObj->getStatisticsThreadMonitor()->notifyAll();
+    j9thread_exit((J9ThreadMonitor *)statsThreadObj->getStatisticsThreadMonitor()->getVMMonitor());
 
-   return 0;
-   }
+    return 0;
+}
 
-void
-JITServerStatisticsThread::startStatisticsThread(J9JavaVM *javaVM)
-   {
-   PORT_ACCESS_FROM_JAVAVM(javaVM);
+void JITServerStatisticsThread::startStatisticsThread(J9JavaVM *javaVM)
+{
+    PORT_ACCESS_FROM_JAVAVM(javaVM);
 
-   _statisticsThreadMonitor = TR::Monitor::create("JITServer-StatisticsThreadMonitor");
-   if (_statisticsThreadMonitor)
-      {
-      const UDATA defaultOSStackSize = javaVM->defaultOSStackSize; //256KB stack size
-      if (javaVM->internalVMFunctions->createThreadWithCategory(&_statisticsOSThread,
-                                                               defaultOSStackSize,
-                                                               J9THREAD_PRIORITY_NORMAL,
-                                                               0,
-                                                               &statisticsThreadProc,
-                                                               javaVM->jitConfig,
-                                                               J9THREAD_CATEGORY_SYSTEM_JIT_THREAD))
-         {
-         // cannot create the statistics thread
-         TR::Monitor::destroy(_statisticsThreadMonitor);
-         _statisticsThreadMonitor = NULL;
-         }
-      else // must wait here until the thread gets created; otherwise an early shutdown
-         { // does not know whether or not to destroy the thread
-         _statisticsThreadMonitor->enter();
-         while (!getAttachAttempted())
-            _statisticsThreadMonitor->wait();
-         _statisticsThreadMonitor->exit();
-         if (!getStatisticsThread())
-            {
+    _statisticsThreadMonitor = TR::Monitor::create("JITServer-StatisticsThreadMonitor");
+    if (_statisticsThreadMonitor) {
+        const UDATA defaultOSStackSize = javaVM->defaultOSStackSize; // 256KB stack size
+        if (javaVM->internalVMFunctions->createThreadWithCategory(&_statisticsOSThread, defaultOSStackSize,
+                J9THREAD_PRIORITY_NORMAL, 0, &statisticsThreadProc, javaVM->jitConfig,
+                J9THREAD_CATEGORY_SYSTEM_JIT_THREAD)) {
+            // cannot create the statistics thread
             TR::Monitor::destroy(_statisticsThreadMonitor);
             _statisticsThreadMonitor = NULL;
+        } else // must wait here until the thread gets created; otherwise an early shutdown
+        { // does not know whether or not to destroy the thread
+            _statisticsThreadMonitor->enter();
+            while (!getAttachAttempted())
+                _statisticsThreadMonitor->wait();
+            _statisticsThreadMonitor->exit();
+            if (!getStatisticsThread()) {
+                TR::Monitor::destroy(_statisticsThreadMonitor);
+                _statisticsThreadMonitor = NULL;
             }
-         }
-      }
-   }
+        }
+    }
+}
 
-void
-JITServerStatisticsThread::stopStatisticsThread(J9JITConfig * jitConfig)
-   {
-   if (_statisticsThread) // Thread should be attached by now
-      {
-      getStatisticsThreadMonitor()->enter();
-      setStatisticsThreadExitFlag();
-      j9thread_interrupt(_statisticsOSThread);
+void JITServerStatisticsThread::stopStatisticsThread(J9JITConfig *jitConfig)
+{
+    if (_statisticsThread) // Thread should be attached by now
+    {
+        getStatisticsThreadMonitor()->enter();
+        setStatisticsThreadExitFlag();
+        j9thread_interrupt(_statisticsOSThread);
 
-      // wait till the thread exits
-      while(_statisticsThread)
-         getStatisticsThreadMonitor()->wait();
+        // wait till the thread exits
+        while (_statisticsThread)
+            getStatisticsThreadMonitor()->wait();
 
-      getStatisticsThreadMonitor()->exit();
+        getStatisticsThreadMonitor()->exit();
 
-      //Monitor is no longer needed
-      TR::Monitor::destroy(_statisticsThreadMonitor);
-      _statisticsThreadMonitor = NULL;
-      }
-   }
+        // Monitor is no longer needed
+        TR::Monitor::destroy(_statisticsThreadMonitor);
+        _statisticsThreadMonitor = NULL;
+    }
+}

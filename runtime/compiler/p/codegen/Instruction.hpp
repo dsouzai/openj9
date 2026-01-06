@@ -25,33 +25,26 @@
 
 #include "codegen/J9Instruction.hpp"
 
-namespace TR
-{
+namespace TR {
 class Instruction;
 
-class OMR_EXTENSIBLE Instruction : public J9::InstructionConnector
-   {
-   public:
+class OMR_EXTENSIBLE Instruction : public J9::InstructionConnector {
+public:
+    // TODO: need to fix the TR::InstOpCode initialization
+    Instruction(TR::InstOpCode::Mnemonic op, TR::Node *n, TR::Instruction *precedingInstruction, TR::CodeGenerator *cg)
+        : J9::InstructionConnector(cg, precedingInstruction, op, n)
+    {}
 
-   // TODO: need to fix the TR::InstOpCode initialization
-   Instruction(TR::InstOpCode::Mnemonic op, TR::Node * n, TR::Instruction *precedingInstruction, TR::CodeGenerator *cg):
-      J9::InstructionConnector(cg, precedingInstruction, op, n)
-      {
-      }
+    Instruction(TR::InstOpCode::Mnemonic op, TR::Node *n, TR::CodeGenerator *cg)
+        : J9::InstructionConnector(cg, op, n)
+    {}
+};
 
-   Instruction(TR::InstOpCode::Mnemonic op, TR::Node * n, TR::CodeGenerator *cg):
-      J9::InstructionConnector(cg, op, n)
-      {
-      }
-
-   };
-
-}
+} // namespace TR
 
 #include "codegen/J9Instruction_inlines.hpp"
 
-
-//TODO: these downcasts everywhere need to be removed
-inline uint32_t        * toPPCCursor(uint8_t *i) { return (uint32_t *)i; }
+// TODO: these downcasts everywhere need to be removed
+inline uint32_t *toPPCCursor(uint8_t *i) { return (uint32_t *)i; }
 
 #endif

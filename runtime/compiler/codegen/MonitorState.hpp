@@ -33,49 +33,52 @@ namespace TR {
 class Block;
 class CFGNode;
 class SymbolReference;
-}
+} // namespace TR
 
-namespace J9
-{
+namespace J9 {
 
-enum MonitorInBlock
-   {
-   NoMonitor = 0,
-   MonitorEnter,
-   MonitorExit
-   };
+enum MonitorInBlock {
+    NoMonitor = 0,
+    MonitorEnter,
+    MonitorExit
+};
 
-
-class SetMonitorStateOnBlockEntry
-   {
+class SetMonitorStateOnBlockEntry {
 public:
-   typedef TR::typed_allocator<std::pair<int32_t const, TR_Stack<TR::SymbolReference *>*>, TR::Region&> LiveMonitorStacksAllocator;
-   typedef std::less<int32_t> LiveMonitorStacksComparator;
-   typedef std::map<int32_t, TR_Stack<TR::SymbolReference *>*, LiveMonitorStacksComparator, LiveMonitorStacksAllocator> LiveMonitorStacks;
+    typedef TR::typed_allocator<std::pair<int32_t const, TR_Stack<TR::SymbolReference *> *>, TR::Region &>
+        LiveMonitorStacksAllocator;
+    typedef std::less<int32_t> LiveMonitorStacksComparator;
+    typedef std::map<int32_t, TR_Stack<TR::SymbolReference *> *, LiveMonitorStacksComparator,
+        LiveMonitorStacksAllocator>
+        LiveMonitorStacks;
 
-   SetMonitorStateOnBlockEntry(TR::Compilation * c, LiveMonitorStacks *liveMonitorStacks)
-      : _blocksToVisit(c->trMemory(), 8, false, stackAlloc)
-      {
-      _comp = c;
-      _visitCount = c->incVisitCount();
-      _liveMonitorStacks = liveMonitorStacks;
-      }
+    SetMonitorStateOnBlockEntry(TR::Compilation *c, LiveMonitorStacks *liveMonitorStacks)
+        : _blocksToVisit(c->trMemory(), 8, false, stackAlloc)
+    {
+        _comp = c;
+        _visitCount = c->incVisitCount();
+        _liveMonitorStacks = liveMonitorStacks;
+    }
 
-   void set(bool& lmmdFailed, bool traceIt = false);
+    void set(bool &lmmdFailed, bool traceIt = false);
 
 private:
-   int32_t addSuccessors(TR::CFGNode * cfgNode, TR_Stack<TR::SymbolReference *> *, bool traceIt, bool dontPropagateMonitor = false, MonitorInBlock monitorType = NoMonitor, int32_t callerIndex = -1, bool walkOnlyExceptionSuccs = false);
-   bool isMonitorStateConsistentForBlock(TR::Block *block, TR_Stack<TR::SymbolReference *> *newMonitorStack, bool popMonitor);
+    int32_t addSuccessors(TR::CFGNode *cfgNode, TR_Stack<TR::SymbolReference *> *, bool traceIt,
+        bool dontPropagateMonitor = false, MonitorInBlock monitorType = NoMonitor, int32_t callerIndex = -1,
+        bool walkOnlyExceptionSuccs = false);
+    bool isMonitorStateConsistentForBlock(TR::Block *block, TR_Stack<TR::SymbolReference *> *newMonitorStack,
+        bool popMonitor);
 
-   TR_Memory *trMemory() { return comp()->trMemory(); }
-   TR_HeapMemory trHeapMemory() { return trMemory(); }
+    TR_Memory *trMemory() { return comp()->trMemory(); }
 
-   TR::Compilation *comp() { return _comp; }
+    TR_HeapMemory trHeapMemory() { return trMemory(); }
 
-   TR::Compilation *_comp;
-   vcount_t _visitCount;
-   TR_Stack<TR::Block *> _blocksToVisit;
-   LiveMonitorStacks *_liveMonitorStacks;
-   };
+    TR::Compilation *comp() { return _comp; }
 
-}
+    TR::Compilation *_comp;
+    vcount_t _visitCount;
+    TR_Stack<TR::Block *> _blocksToVisit;
+    LiveMonitorStacks *_liveMonitorStacks;
+};
+
+} // namespace J9

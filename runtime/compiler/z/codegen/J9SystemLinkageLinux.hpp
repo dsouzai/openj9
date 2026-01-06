@@ -35,42 +35,37 @@ class Linkage;
 class Register;
 class RegisterDependencyConditions;
 class SystemLinkage;
-}
+} // namespace TR
 
-namespace J9
-{
+namespace J9 { namespace Z {
 
-namespace Z
-{
-
-class zLinuxSystemLinkage : public TR::S390zLinuxSystemLinkage
-   {
+class zLinuxSystemLinkage : public TR::S390zLinuxSystemLinkage {
 public:
-   zLinuxSystemLinkage(TR::CodeGenerator * codeGen);
+    zLinuxSystemLinkage(TR::CodeGenerator *codeGen);
 
-   virtual void generateInstructionsForCall(TR::Node * callNode, TR::RegisterDependencyConditions * deps, intptr_t targetAddress,
-		   TR::Register * methodAddressReg, TR::Register * javaLitOffsetReg, TR::LabelSymbol * returnFromJNICallLabel,
-		   TR::Snippet* callDataSnippet, bool isJNIGCPoint);
+    virtual void generateInstructionsForCall(TR::Node *callNode, TR::RegisterDependencyConditions *deps,
+        intptr_t targetAddress, TR::Register *methodAddressReg, TR::Register *javaLitOffsetReg,
+        TR::LabelSymbol *returnFromJNICallLabel, TR::Snippet *callDataSnippet, bool isJNIGCPoint);
 
-   virtual void setupRegisterDepForLinkage(TR::Node *, TR_DispatchType, TR::RegisterDependencyConditions * &,
-         int64_t &, TR::SystemLinkage *, TR::Node * &, bool &, TR::Register **, TR::Register *&);
+    virtual void setupRegisterDepForLinkage(TR::Node *, TR_DispatchType, TR::RegisterDependencyConditions *&, int64_t &,
+        TR::SystemLinkage *, TR::Node *&, bool &, TR::Register **, TR::Register *&);
 
-   virtual void setupBuildArgForLinkage(TR::Node *, TR_DispatchType, TR::RegisterDependencyConditions *, bool, bool,
-         int64_t &, TR::Node *, bool, TR::SystemLinkage *);
+    virtual void setupBuildArgForLinkage(TR::Node *, TR_DispatchType, TR::RegisterDependencyConditions *, bool, bool,
+        int64_t &, TR::Node *, bool, TR::SystemLinkage *);
 
-   virtual void performCallNativeFunctionForLinkage(TR::Node *, TR_DispatchType, TR::Register *&, TR::SystemLinkage *,
-         TR::RegisterDependencyConditions *&, TR::Register *, TR::Register *, bool);
+    virtual void performCallNativeFunctionForLinkage(TR::Node *, TR_DispatchType, TR::Register *&, TR::SystemLinkage *,
+        TR::RegisterDependencyConditions *&, TR::Register *, TR::Register *, bool);
 
-   virtual void doNotKillSpecialRegsForBuildArgs (TR::Linkage *linkage, bool isFastJNI, int64_t &killMask);
-   virtual void addSpecialRegDepsForBuildArgs(TR::Node * callNode, TR::RegisterDependencyConditions * dependencies, int32_t& from, int32_t step);
-   virtual int64_t addFECustomizedReturnRegDependency(int64_t killMask, TR::Linkage* linkage, TR::DataType resType, TR::RegisterDependencyConditions * dependencies);
-   virtual int32_t storeExtraEnvRegForBuildArgs(TR::Node * callNode, TR::Linkage* linkage, TR::RegisterDependencyConditions * dependencies,
-         bool isFastJNI, int32_t stackOffset, int8_t gprSize, uint32_t &numIntegerArgs);
+    virtual void doNotKillSpecialRegsForBuildArgs(TR::Linkage *linkage, bool isFastJNI, int64_t &killMask);
+    virtual void addSpecialRegDepsForBuildArgs(TR::Node *callNode, TR::RegisterDependencyConditions *dependencies,
+        int32_t &from, int32_t step);
+    virtual int64_t addFECustomizedReturnRegDependency(int64_t killMask, TR::Linkage *linkage, TR::DataType resType,
+        TR::RegisterDependencyConditions *dependencies);
+    virtual int32_t storeExtraEnvRegForBuildArgs(TR::Node *callNode, TR::Linkage *linkage,
+        TR::RegisterDependencyConditions *dependencies, bool isFastJNI, int32_t stackOffset, int8_t gprSize,
+        uint32_t &numIntegerArgs);
+};
 
-   };
-
-}
-
-}
+}} // namespace J9::Z
 
 #endif

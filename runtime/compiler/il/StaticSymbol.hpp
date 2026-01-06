@@ -30,32 +30,29 @@
 /**
  * A symbol with an address
  */
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE StaticSymbol : public J9::StaticSymbolConnector
-   {
-
+class OMR_EXTENSIBLE StaticSymbol : public J9::StaticSymbolConnector {
 protected:
+    StaticSymbol(TR::DataType d)
+        : J9::StaticSymbolConnector(d)
+    {}
 
-   StaticSymbol(TR::DataType d) :
-      J9::StaticSymbolConnector(d) { }
+    StaticSymbol(TR::DataType d, void *address)
+        : J9::StaticSymbolConnector(d, address)
+    {}
 
-   StaticSymbol(TR::DataType d, void * address) :
-      J9::StaticSymbolConnector(d,address) { }
-
-   StaticSymbol(TR::DataType d, uint32_t s) :
-      J9::StaticSymbolConnector(d, s) { }
+    StaticSymbol(TR::DataType d, uint32_t s)
+        : J9::StaticSymbolConnector(d, s)
+    {}
 
 private:
+    // When adding another class to the hierarchy, add it as a friend here
+    friend class J9::StaticSymbol;
+    friend class OMR::StaticSymbol;
+};
 
-   // When adding another class to the hierarchy, add it as a friend here
-   friend class J9::StaticSymbol;
-   friend class OMR::StaticSymbol;
-
-   };
-
-}
+} // namespace TR
 
 /**
  * To isolate the addition of the _inlines.hpp file from OMR, where the OMR

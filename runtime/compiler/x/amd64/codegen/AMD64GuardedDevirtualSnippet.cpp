@@ -31,41 +31,41 @@
 #include "il/MethodSymbol.hpp"
 #include "il/Symbol.hpp"
 
-uint8_t *TR::AMD64GuardedDevirtualSnippet::loadArgumentsIfNecessary(TR::Node *callNode, uint8_t *cursor, bool calculateSizeOnly, int32_t *sizeOfFlushArea)
-   {
-   if (!_realMethodSymbolReference)
-      return cursor;
+uint8_t *TR::AMD64GuardedDevirtualSnippet::loadArgumentsIfNecessary(TR::Node *callNode, uint8_t *cursor,
+    bool calculateSizeOnly, int32_t *sizeOfFlushArea)
+{
+    if (!_realMethodSymbolReference)
+        return cursor;
 
-   TR::MethodSymbol    *methodSymbol = _realMethodSymbolReference->getSymbol()->castToMethodSymbol();
-   if (isLoadArgumentsNecessary(methodSymbol))
-      {
-      // Devirtualized VMInternalNatives have their args evaluated to the
-      // stack, so we must load them into regs before the vft dispatch
-      TR::Linkage *linkage = cg()->getLinkage(methodSymbol->getLinkageConvention());
-      cursor = linkage->loadArguments(callNode, cursor, calculateSizeOnly, sizeOfFlushArea, false);
-      }
-   return cursor;
-   }
+    TR::MethodSymbol *methodSymbol = _realMethodSymbolReference->getSymbol()->castToMethodSymbol();
+    if (isLoadArgumentsNecessary(methodSymbol)) {
+        // Devirtualized VMInternalNatives have their args evaluated to the
+        // stack, so we must load them into regs before the vft dispatch
+        TR::Linkage *linkage = cg()->getLinkage(methodSymbol->getLinkageConvention());
+        cursor = linkage->loadArguments(callNode, cursor, calculateSizeOnly, sizeOfFlushArea, false);
+    }
+    return cursor;
+}
 
 uint8_t *TR::AMD64GuardedDevirtualSnippet::emitSnippetBody()
-   {
-   uint8_t *buffer = cg()->getBinaryBufferCursor();
-   uint8_t *cursor = loadArgumentsIfNecessary(getNode(), buffer, false, NULL);
-   cg()->setBinaryBufferCursor(cursor);
-   cursor = TR::X86GuardedDevirtualSnippet::emitSnippetBody();
-   getSnippetLabel()->setCodeLocation(buffer);
-   cg()->setBinaryBufferCursor(buffer);
-   return cursor;
-   }
+{
+    uint8_t *buffer = cg()->getBinaryBufferCursor();
+    uint8_t *cursor = loadArgumentsIfNecessary(getNode(), buffer, false, NULL);
+    cg()->setBinaryBufferCursor(cursor);
+    cursor = TR::X86GuardedDevirtualSnippet::emitSnippetBody();
+    getSnippetLabel()->setCodeLocation(buffer);
+    cg()->setBinaryBufferCursor(buffer);
+    return cursor;
+}
 
 uint32_t TR::AMD64GuardedDevirtualSnippet::getLength(int32_t estimatedSnippetStart)
-   {
-   int32_t sizeOfFlushArea = 0;
-   loadArgumentsIfNecessary(getNode(), (uint8_t*)0 + estimatedSnippetStart, true, &sizeOfFlushArea);
-   return sizeOfFlushArea + TR::X86GuardedDevirtualSnippet::getLength(estimatedSnippetStart + sizeOfFlushArea);
-   }
+{
+    int32_t sizeOfFlushArea = 0;
+    loadArgumentsIfNecessary(getNode(), (uint8_t *)0 + estimatedSnippetStart, true, &sizeOfFlushArea);
+    return sizeOfFlushArea + TR::X86GuardedDevirtualSnippet::getLength(estimatedSnippetStart + sizeOfFlushArea);
+}
 
 bool TR::AMD64GuardedDevirtualSnippet::isLoadArgumentsNecessary(TR::MethodSymbol *methodSymbol)
-   {
-   return (methodSymbol && methodSymbol->isVMInternalNative());
-   }
+{
+    return (methodSymbol && methodSymbol->isVMInternalNative());
+}

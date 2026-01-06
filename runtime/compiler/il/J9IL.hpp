@@ -28,10 +28,11 @@
  */
 #ifndef J9_IL_CONNECTOR
 #define J9_IL_CONNECTOR
+
 namespace J9 {
 class IL;
 typedef J9::IL ILConnector;
-}
+} // namespace J9
 #endif
 
 #include "il/OMRIL.hpp"
@@ -40,49 +41,44 @@ typedef J9::IL ILConnector;
 #include "il/DataTypes.hpp"
 #include "il/ILOpCodes.hpp"
 
-namespace J9
-{
+namespace J9 {
 
-class OMR_EXTENSIBLE IL : public OMR::ILConnector
-   {
+class OMR_EXTENSIBLE IL : public OMR::ILConnector {
+public:
+    static TR::ILOpCodes opCodesForConst[];
+    static TR::ILOpCodes opCodesForDirectLoad[];
+    static TR::ILOpCodes opCodesForDirectStore[];
+    static TR::ILOpCodes opCodesForIndirectLoad[];
+    static TR::ILOpCodes opCodesForIndirectStore[];
+    static TR::ILOpCodes opCodesForIndirectArrayLoad[];
+    static TR::ILOpCodes opCodesForIndirectArrayStore[];
+    static TR::ILOpCodes opCodesForRegisterLoad[];
+    static TR::ILOpCodes opCodesForRegisterStore[];
+    static TR::ILOpCodes opCodesForCompareEquals[];
+    static TR::ILOpCodes opCodesForCompareNotEquals[];
 
-   public:
+    TR::ILOpCodes opCodeForCorrespondingIndirectLoad(TR::ILOpCodes loadOpCode);
+    TR::ILOpCodes opCodeForCorrespondingIndirectStore(TR::ILOpCodes storeOpCode);
+    TR::ILOpCodes opCodeForCorrespondingDirectLoad(TR::ILOpCodes loadOpCode);
+    TR::ILOpCodes opCodeForCorrespondingDirectStore(TR::ILOpCodes storeOpCode);
 
-   static TR::ILOpCodes opCodesForConst[];
-   static TR::ILOpCodes opCodesForDirectLoad[];
-   static TR::ILOpCodes opCodesForDirectStore[];
-   static TR::ILOpCodes opCodesForIndirectLoad[];
-   static TR::ILOpCodes opCodesForIndirectStore[];
-   static TR::ILOpCodes opCodesForIndirectArrayLoad[];
-   static TR::ILOpCodes opCodesForIndirectArrayStore[];
-   static TR::ILOpCodes opCodesForRegisterLoad[];
-   static TR::ILOpCodes opCodesForRegisterStore[];
-   static TR::ILOpCodes opCodesForCompareEquals[];
-   static TR::ILOpCodes opCodesForCompareNotEquals[];
+    TR::ILOpCodes opCodeForConst(TR::DataType dt);
+    TR::ILOpCodes opCodeForDirectLoad(TR::DataType dt);
+    TR::ILOpCodes opCodeForDirectReadBarrier(TR::DataType dt);
+    TR::ILOpCodes opCodeForDirectStore(TR::DataType dt);
+    TR::ILOpCodes opCodeForDirectWriteBarrier(TR::DataType dt);
+    TR::ILOpCodes opCodeForIndirectLoad(TR::DataType dt);
+    TR::ILOpCodes opCodeForIndirectReadBarrier(TR::DataType dt);
+    TR::ILOpCodes opCodeForIndirectStore(TR::DataType dt);
+    TR::ILOpCodes opCodeForIndirectWriteBarrier(TR::DataType dt);
+    TR::ILOpCodes opCodeForIndirectArrayLoad(TR::DataType dt);
+    TR::ILOpCodes opCodeForIndirectArrayStore(TR::DataType dt);
+    TR::ILOpCodes opCodeForRegisterLoad(TR::DataType dt);
+    TR::ILOpCodes opCodeForRegisterStore(TR::DataType dt);
+    TR::ILOpCodes opCodeForCompareEquals(TR::DataType dt);
+    TR::ILOpCodes opCodeForCompareNotEquals(TR::DataType dt);
+};
 
-   TR::ILOpCodes opCodeForCorrespondingIndirectLoad(TR::ILOpCodes loadOpCode);
-   TR::ILOpCodes opCodeForCorrespondingIndirectStore(TR::ILOpCodes storeOpCode);
-   TR::ILOpCodes opCodeForCorrespondingDirectLoad(TR::ILOpCodes loadOpCode);
-   TR::ILOpCodes opCodeForCorrespondingDirectStore(TR::ILOpCodes storeOpCode);
-
-   TR::ILOpCodes opCodeForConst(TR::DataType dt);
-   TR::ILOpCodes opCodeForDirectLoad(TR::DataType dt);
-   TR::ILOpCodes opCodeForDirectReadBarrier(TR::DataType dt);
-   TR::ILOpCodes opCodeForDirectStore(TR::DataType dt);
-   TR::ILOpCodes opCodeForDirectWriteBarrier(TR::DataType dt);
-   TR::ILOpCodes opCodeForIndirectLoad(TR::DataType dt);
-   TR::ILOpCodes opCodeForIndirectReadBarrier(TR::DataType dt);
-   TR::ILOpCodes opCodeForIndirectStore(TR::DataType dt);
-   TR::ILOpCodes opCodeForIndirectWriteBarrier(TR::DataType dt);
-   TR::ILOpCodes opCodeForIndirectArrayLoad(TR::DataType dt);
-   TR::ILOpCodes opCodeForIndirectArrayStore(TR::DataType dt);
-   TR::ILOpCodes opCodeForRegisterLoad(TR::DataType dt);
-   TR::ILOpCodes opCodeForRegisterStore(TR::DataType dt);
-   TR::ILOpCodes opCodeForCompareEquals(TR::DataType dt);
-   TR::ILOpCodes opCodeForCompareNotEquals(TR::DataType dt);
-
-   };
-
-}
+} // namespace J9
 
 #endif

@@ -29,17 +29,15 @@ namespace TR {
 class OptimizationManager;
 }
 
-namespace TR
-{
+namespace TR {
 
-class Simplifier : public J9::Simplifier
-   {
-   public:
+class Simplifier : public J9::Simplifier {
+public:
+    Simplifier(TR::OptimizationManager *manager)
+        : J9::Simplifier(manager)
+    {}
+};
 
-   Simplifier(TR::OptimizationManager *manager) :
-      J9::Simplifier(manager) {}
-   };
-
-}
+} // namespace TR
 
 #endif

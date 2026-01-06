@@ -41,463 +41,374 @@
 
 bool J9::Recompilation::_countingSupported = false;
 
+J9::Recompilation::Recompilation(TR::Compilation *comp)
+    : OMR::RecompilationConnector(comp)
+    , _firstCompile(comp->getCurrentMethod()->isInterpreted())
+    , _useSampling(TR::Options::getSamplingFrequency() != 0 && !comp->getOption(TR_MimicInterpreterFrameShape))
+    , _doNotCompileAgain(comp->getOption(TR_NoRecompile) || !comp->allowRecompilation())
+    , _methodInfo(0)
+    , _bodyInfo(0)
+    , _nextLevel(warm)
+    , _nextCounter(0)
+{
+    _timer.initialize(0, comp->trMemory());
+}
 
+void J9::Recompilation::setupMethodInfo()
+{
+    // FIXME: this code should move into the constructor
+    // the problem is - if someone gets the bodyinfo/method info before
+    // this method is done - there will be a bug.
 
-J9::Recompilation::Recompilation(TR::Compilation *comp) :
-      OMR::RecompilationConnector(comp),
-      _firstCompile(comp->getCurrentMethod()->isInterpreted()),
-      _useSampling(TR::Options::getSamplingFrequency() != 0 && !comp->getOption(TR_MimicInterpreterFrameShape)),
-      _doNotCompileAgain(comp->getOption(TR_NoRecompile) || !comp->allowRecompilation()),
-      _methodInfo(0),
-      _bodyInfo(0),
-      _nextLevel(warm),
-      _nextCounter(0)
-   {
-   _timer.initialize(0, comp->trMemory());
-   }
-
-
-void
-J9::Recompilation::setupMethodInfo()
-   {
-   // FIXME: this code should move into the constructor
-   // the problem is - if someone gets the bodyinfo/method info before
-   // this method is done - there will be a bug.
-
-   // NOTE: by the end of this method we must have determined whether or
-   // not this method is going to be recompiled using sampling or counting.
-   //
-   TR_OptimizationPlan * optimizationPlan =  _compilation->getOptimizationPlan();
+    // NOTE: by the end of this method we must have determined whether or
+    // not this method is going to be recompiled using sampling or counting.
+    //
+    TR_OptimizationPlan *optimizationPlan = _compilation->getOptimizationPlan();
 
 #if defined(J9VM_OPT_JITSERVER)
-   // NOTE: cannot use _compilation->isOutOfProcessCompilation here, because this
-   // method is called from within OMR::Compilation() constructor, before
-   // _isOutOfProcessCompilation is set
-   if (comp()->getPersistentInfo()->getRemoteCompilationMode() == JITServer::SERVER)
-      {
-      auto compInfoPT = static_cast<TR::CompilationInfoPerThreadRemote *>(TR::compInfoPT);
-      _methodInfo = compInfoPT->getRecompilationMethodInfo();
-      if (!_methodInfo)
-         {
-         _compilation->failCompilation<std::bad_alloc>("Unable to allocate method info");
-         }
-      }
-   else if (_firstCompile)
+    // NOTE: cannot use _compilation->isOutOfProcessCompilation here, because this
+    // method is called from within OMR::Compilation() constructor, before
+    // _isOutOfProcessCompilation is set
+    if (comp()->getPersistentInfo()->getRemoteCompilationMode() == JITServer::SERVER) {
+        auto compInfoPT = static_cast<TR::CompilationInfoPerThreadRemote *>(TR::compInfoPT);
+        _methodInfo = compInfoPT->getRecompilationMethodInfo();
+        if (!_methodInfo) {
+            _compilation->failCompilation<std::bad_alloc>("Unable to allocate method info");
+        }
+    } else if (_firstCompile)
 #else
-   if (_firstCompile)
+    if (_firstCompile)
 #endif /* defined(J9VM_OPT_JITSERVER) */
-      {
-      // Create the persistent method information
-      // If the previous compiled version of the method is AOTed, then we need to create a new persistent method information
-      //
-      _methodInfo = new (PERSISTENT_NEW) TR_PersistentMethodInfo(_compilation);
+    {
+        // Create the persistent method information
+        // If the previous compiled version of the method is AOTed, then we need to create a new persistent method
+        // information
+        //
+        _methodInfo = new (PERSISTENT_NEW) TR_PersistentMethodInfo(_compilation);
 
-      if (!_methodInfo)
-         {
-         _compilation->failCompilation<std::bad_alloc>("Unable to allocate method info");
-         }
+        if (!_methodInfo) {
+            _compilation->failCompilation<std::bad_alloc>("Unable to allocate method info");
+        }
 
-      // During compilation methodInfo->nextOptLevel is the current optlevel
-      // ie. we pretend that the previous (nonexistent) compile has set this up
-      // for us.  Mark this as a non-profiling compile.  Only sampleMethod
-      // even enables profiling.
-      //
-      // During bootstrapping of TR::Options, _compilation->getMethodHotness
-      // will be setup properly from the count strings
-      //
-      _methodInfo->setNextCompileLevel(optimizationPlan->getOptLevel(),
-                                       (optimizationPlan->insertInstrumentation() != 0));
-      _methodInfo->setWasNeverInterpreted(!comp()->fej9()->methodMayHaveBeenInterpreted(comp()));
-      }
-   else // this is a recompilation
-      {
-      // There already is a persistent method info for this method which already
-      // has a compilation level set in it (by virtue of a previous compilation)
-      //
-      _methodInfo = getExistingMethodInfo(_compilation->getCurrentMethod());
+        // During compilation methodInfo->nextOptLevel is the current optlevel
+        // ie. we pretend that the previous (nonexistent) compile has set this up
+        // for us.  Mark this as a non-profiling compile.  Only sampleMethod
+        // even enables profiling.
+        //
+        // During bootstrapping of TR::Options, _compilation->getMethodHotness
+        // will be setup properly from the count strings
+        //
+        _methodInfo->setNextCompileLevel(optimizationPlan->getOptLevel(),
+            (optimizationPlan->insertInstrumentation() != 0));
+        _methodInfo->setWasNeverInterpreted(!comp()->fej9()->methodMayHaveBeenInterpreted(comp()));
+    } else // this is a recompilation
+    {
+        // There already is a persistent method info for this method which already
+        // has a compilation level set in it (by virtue of a previous compilation)
+        //
+        _methodInfo = getExistingMethodInfo(_compilation->getCurrentMethod());
 #if defined(J9VM_OPT_JITSERVER)
-      if (comp()->getPersistentInfo()->getRemoteCompilationMode() == JITServer::CLIENT)
-         {
-         TR_ASSERT_FATAL(_methodInfo->profilingDisabled(), "Profiling is not supported in JITServer");
-         }
+        if (comp()->getPersistentInfo()->getRemoteCompilationMode() == JITServer::CLIENT) {
+            TR_ASSERT_FATAL(_methodInfo->profilingDisabled(), "Profiling is not supported in JITServer");
+        }
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
-      if (!comp()->fej9()->canRecompileMethodWithMatchingPersistentMethodInfo(comp()) &&
-          !comp()->isGPUCompilation())
-         {
-         // TODO: Why does this assume sometimes fail in HCR mode?
-         TR_ASSERT(_compilation->getMethodHotness() == _methodInfo->getNextCompileLevel(),
-                   "discrepancy in the method compile level %d %d  while compiling %s",
-                   _compilation->getMethodHotness(),
-                   _methodInfo->getNextCompileLevel(),
-                   _compilation->signature());
-         }
-      }
+        if (!comp()->fej9()->canRecompileMethodWithMatchingPersistentMethodInfo(comp())
+            && !comp()->isGPUCompilation()) {
+            // TODO: Why does this assume sometimes fail in HCR mode?
+            TR_ASSERT(_compilation->getMethodHotness() == _methodInfo->getNextCompileLevel(),
+                "discrepancy in the method compile level %d %d  while compiling %s", _compilation->getMethodHotness(),
+                _methodInfo->getNextCompileLevel(), _compilation->signature());
+        }
+    }
 
-   // TR_Controller is being used and has provided a compilation plan.  Use it to setup the compilation
-   //
-   _bodyInfo = TR_PersistentJittedBodyInfo::allocate(
-         _methodInfo,
-         _compilation->getMethodHotness(),
-         (optimizationPlan->insertInstrumentation() != 0),
-         _compilation);
+    // TR_Controller is being used and has provided a compilation plan.  Use it to setup the compilation
+    //
+    _bodyInfo = TR_PersistentJittedBodyInfo::allocate(_methodInfo, _compilation->getMethodHotness(),
+        (optimizationPlan->insertInstrumentation() != 0), _compilation);
 
-   if (!_bodyInfo)
-      {
-      _compilation->failCompilation<std::bad_alloc>("Unable to allocate body info");
-      }
+    if (!_bodyInfo) {
+        _compilation->failCompilation<std::bad_alloc>("Unable to allocate body info");
+    }
 
-   if (!optimizationPlan->getUseSampling())
-      {
-      _bodyInfo->setDisableSampling(true);
-      }
+    if (!optimizationPlan->getUseSampling()) {
+        _bodyInfo->setDisableSampling(true);
+    }
 
-   if (_compilation->getOption(TR_EnableFastHotRecompilation) ||
-       _compilation->getOption(TR_EnableFastScorchingRecompilation))
-      {
-      // The body must be able to receive samples and recompilation should be enabled
-      //
-      if (!_bodyInfo->getDisableSampling() && !_doNotCompileAgain)
-         {
-         if (_compilation->getOption(TR_EnableFastHotRecompilation) && _bodyInfo->getHotness() < hot)
-            {
-            _bodyInfo->setFastHotRecompilation(true);
+    if (_compilation->getOption(TR_EnableFastHotRecompilation)
+        || _compilation->getOption(TR_EnableFastScorchingRecompilation)) {
+        // The body must be able to receive samples and recompilation should be enabled
+        //
+        if (!_bodyInfo->getDisableSampling() && !_doNotCompileAgain) {
+            if (_compilation->getOption(TR_EnableFastHotRecompilation) && _bodyInfo->getHotness() < hot) {
+                _bodyInfo->setFastHotRecompilation(true);
             }
 
-         if (_compilation->getOption(TR_EnableFastScorchingRecompilation) && _bodyInfo->getHotness() < scorching)
-            {
-            _bodyInfo->setFastScorchingRecompilation(true);
+            if (_compilation->getOption(TR_EnableFastScorchingRecompilation) && _bodyInfo->getHotness() < scorching) {
+                _bodyInfo->setFastScorchingRecompilation(true);
             }
-         }
-      }
-   }
+        }
+    }
+}
 
+int32_t J9::Recompilation::getProfilingFrequency()
+{
+    return self()->findOrCreateProfileInfo()->getProfilingFrequency();
+}
 
-int32_t
-J9::Recompilation::getProfilingFrequency()
-   {
-   return self()->findOrCreateProfileInfo()->getProfilingFrequency();
-   }
-
-
-int32_t
-J9::Recompilation::getProfilingCount()
-   {
-   return self()->findOrCreateProfileInfo()->getProfilingCount();
-   }
+int32_t J9::Recompilation::getProfilingCount() { return self()->findOrCreateProfileInfo()->getProfilingCount(); }
 
 /**
  * Find or create profiling information for the current jitted
  * body. If creating information, this will update the recent
  * profile information on the current method info.
  */
-TR_PersistentProfileInfo *
-J9::Recompilation::findOrCreateProfileInfo()
-   {
-   // Determine whether this bodyInfo already has profiling information
-   TR_PersistentProfileInfo *profileInfo = _bodyInfo->getProfileInfo();
-   if (!profileInfo)
-      {
-      // Create a new profiling info
-      profileInfo = new (PERSISTENT_NEW) TR_PersistentProfileInfo(DEFAULT_PROFILING_FREQUENCY, DEFAULT_PROFILING_COUNT);
-      _methodInfo->setRecentProfileInfo(profileInfo);
-      _bodyInfo->setProfileInfo(profileInfo);
+TR_PersistentProfileInfo *J9::Recompilation::findOrCreateProfileInfo()
+{
+    // Determine whether this bodyInfo already has profiling information
+    TR_PersistentProfileInfo *profileInfo = _bodyInfo->getProfileInfo();
+    if (!profileInfo) {
+        // Create a new profiling info
+        profileInfo
+            = new (PERSISTENT_NEW) TR_PersistentProfileInfo(DEFAULT_PROFILING_FREQUENCY, DEFAULT_PROFILING_COUNT);
+        _methodInfo->setRecentProfileInfo(profileInfo);
+        _bodyInfo->setProfileInfo(profileInfo);
 
-      // If running with the profiling thread, add to its list
-      if (!TR::Options::getCmdLineOptions()->getOption(TR_DisableJProfilerThread))
-         {
-         TR::CompilationInfo::get(NULL)->getJProfilerThread()->addProfileInfo(profileInfo);
-         }
-      }
-   return profileInfo;
-   }
+        // If running with the profiling thread, add to its list
+        if (!TR::Options::getCmdLineOptions()->getOption(TR_DisableJProfilerThread)) {
+            TR::CompilationInfo::get(NULL)->getJProfilerThread()->addProfileInfo(profileInfo);
+        }
+    }
+    return profileInfo;
+}
 
-TR_PersistentProfileInfo *
-J9::Recompilation::getProfileInfo()
-   {
-   return _bodyInfo->getProfileInfo();
-   }
+TR_PersistentProfileInfo *J9::Recompilation::getProfileInfo() { return _bodyInfo->getProfileInfo(); }
 
-void
-J9::Recompilation::startOfCompilation()
-   {
-   if (!_firstCompile && _compilation->getOption(TR_FailRecompile))
-      {
-      _compilation->failCompilation<TR::CompilationException>("failRecompile");
-      }
+void J9::Recompilation::startOfCompilation()
+{
+    if (!_firstCompile && _compilation->getOption(TR_FailRecompile)) {
+        _compilation->failCompilation<TR::CompilationException>("failRecompile");
+    }
 
-   if (!_compilation->fej9()->isAOT_DEPRECATED_DO_NOT_USE())
-      {
-      _timer.startTiming(_compilation);
-      }
-   }
+    if (!_compilation->fej9()->isAOT_DEPRECATED_DO_NOT_USE()) {
+        _timer.startTiming(_compilation);
+    }
+}
 
+void J9::Recompilation::beforeOptimization()
+{
+    // If the method is to be compiled with profiling info, force it to use
+    // counting and not sampling. Also make sure there is a persistent
+    // profile info block.
+    //
+    if (self()->isProfilingCompilation()) // this asks the bodyInfo
+    {
+        // JProfiling should not use either sampling or counting mechanism to trip recompilation.
+        // Even though _useSampling is set to true here, at the end of compilation we disable sampling
+        // causing us to rely only on the in-body recompilation test that relies on block frequency counter
+        // to trip recompilation making sure we have enough profiling data to use in recompilation.
+        _useSampling = _compilation->getProfilingMode() != JitProfiling;
+        self()->findOrCreateProfileInfo()->setProfilingCount(DEFAULT_PROFILING_COUNT);
+        self()->findOrCreateProfileInfo()->setProfilingFrequency(DEFAULT_PROFILING_FREQUENCY);
+    }
 
-void
-J9::Recompilation::beforeOptimization()
-   {
-   // If the method is to be compiled with profiling info, force it to use
-   // counting and not sampling. Also make sure there is a persistent
-   // profile info block.
-   //
-   if (self()->isProfilingCompilation()) // this asks the bodyInfo
-      {
-      // JProfiling should not use either sampling or counting mechanism to trip recompilation.
-      // Even though _useSampling is set to true here, at the end of compilation we disable sampling
-      // causing us to rely only on the in-body recompilation test that relies on block frequency counter
-      // to trip recompilation making sure we have enough profiling data to use in recompilation.
-      _useSampling = _compilation->getProfilingMode() != JitProfiling;
-      self()->findOrCreateProfileInfo()->setProfilingCount     (DEFAULT_PROFILING_COUNT);
-      self()->findOrCreateProfileInfo()->setProfilingFrequency (DEFAULT_PROFILING_FREQUENCY);
-      }
-
-   // Create profilers
-   //
-   if (self()->couldBeCompiledAgain())
-      {
-      if (_compilation->getProfilingMode() == JProfiling)
-         self()->createProfilers();
-      else if (!self()->useSampling())
-         {
-         if (_compilation->getMethodHotness() == cold)
-            {
-            _profilers.add(new (_compilation->trHeapMemory()) TR_LocalRecompilationCounters(_compilation, self()));
-            }
-         else if (self()->isProfilingCompilation())
-            {
+    // Create profilers
+    //
+    if (self()->couldBeCompiledAgain()) {
+        if (_compilation->getProfilingMode() == JProfiling)
             self()->createProfilers();
+        else if (!self()->useSampling()) {
+            if (_compilation->getMethodHotness() == cold) {
+                _profilers.add(new (_compilation->trHeapMemory()) TR_LocalRecompilationCounters(_compilation, self()));
+            } else if (self()->isProfilingCompilation()) {
+                self()->createProfilers();
+            } else if (!_compilation->getOption(TR_FullSpeedDebug)) {
+                _profilers.add(new (_compilation->trHeapMemory()) TR_GlobalRecompilationCounters(_compilation, self()));
             }
-         else if (!_compilation->getOption(TR_FullSpeedDebug))
-            {
-            _profilers.add(new (_compilation->trHeapMemory()) TR_GlobalRecompilationCounters(_compilation, self()));
+        } else {
+            if (!debug("disableCatchBlockProfiler") && _compilation->getOption(TR_EnableOldEDO)) {
+                _profilers.add(new (_compilation->trHeapMemory()) TR_CatchBlockProfiler(_compilation, self(), true));
             }
-         }
-      else
-         {
-         if (!debug("disableCatchBlockProfiler") && _compilation->getOption(TR_EnableOldEDO))
-            {
-            _profilers.add(new (_compilation->trHeapMemory()) TR_CatchBlockProfiler(_compilation, self(), true));
-            }
-         }
-      }
-   }
+        }
+    }
+}
 
+void J9::Recompilation::beforeCodeGen()
+{
+    // Set up the opt level and counter for the next compilation. This will
+    // also decide if there is going to be a next compilation.
+    TR::CompilationController::getCompilationStrategy()->beforeCodeGen(_compilation->getOptimizationPlan(), self());
+}
 
-void
-J9::Recompilation::beforeCodeGen()
-   {
-   // Set up the opt level and counter for the next compilation. This will
-   // also decide if there is going to be a next compilation.
-   TR::CompilationController::getCompilationStrategy()->beforeCodeGen(_compilation->getOptimizationPlan(), self());
-   }
+void J9::Recompilation::endOfCompilation()
+{
+    // Perform any platform-dependant tasks if needed
+    //
+    self()->postCompilation();
 
+    // We will free the optimizationPlan at the end of compilation,
+    // do we need to clear the corresponding field in
+    //
+    TR::CompilationController::getCompilationStrategy()->postCompilation(_compilation->getOptimizationPlan(), self());
 
-void
-J9::Recompilation::endOfCompilation()
-   {
-   // Perform any platform-dependant tasks if needed
-   //
-   self()->postCompilation();
+    if (self()->couldBeCompiledAgain()) {
+        _bodyInfo->setCounter(_nextCounter);
 
-   // We will free the optimizationPlan at the end of compilation,
-   // do we need to clear the corresponding field in
-   //
-   TR::CompilationController::getCompilationStrategy()->postCompilation(_compilation->getOptimizationPlan(), self());
+        // set the start counter to the current timestamp
+        //
+        _bodyInfo->setStartCount(globalSampleCount);
+        _bodyInfo->setOldStartCountDelta(TR::Options::_sampleThreshold);
+        _bodyInfo->setHotStartCountDelta(0);
+        _bodyInfo->setSampleIntervalCount(0);
 
-   if (self()->couldBeCompiledAgain())
-      {
-      _bodyInfo->setCounter(_nextCounter);
+        // if the only possible next compilation of this method is
+        // unnatural, _nextLevel will not be set, recompile at the
+        // current level
+        //
+        if (!self()->shouldBeCompiledAgain()) {
+            _nextLevel = _compilation->getMethodHotness();
+        }
 
-      // set the start counter to the current timestamp
-      //
-      _bodyInfo->setStartCount(globalSampleCount);
-      _bodyInfo->setOldStartCountDelta(TR::Options::_sampleThreshold);
-      _bodyInfo->setHotStartCountDelta(0);
-      _bodyInfo->setSampleIntervalCount(0);
+        _methodInfo->setNextCompileLevel(_nextLevel, false); // profiling can only be triggered from sampleMethod
 
-      // if the only possible next compilation of this method is
-      // unnatural, _nextLevel will not be set, recompile at the
-      // current level
-      //
-      if (!self()->shouldBeCompiledAgain())
-         {
-         _nextLevel = _compilation->getMethodHotness();
-         }
+        _bodyInfo->setHasLoops(_compilation->mayHaveLoops());
+        _bodyInfo->setUsesPreexistence(_compilation->usesPreexistence());
 
-      _methodInfo->setNextCompileLevel(_nextLevel, false); // profiling can only be triggered from sampleMethod
+        // if the only future compilation can be a forced one (preexistence)
+        // do not sample this method.  If this is a counting based compilation
+        // disable sampling as well
+        //
+        if (!self()->shouldBeCompiledAgain() || !_useSampling || _compilation->getProfilingMode() == JProfiling) {
+            _bodyInfo->setDisableSampling(true);
+        }
+    }
 
-      _bodyInfo->setHasLoops        (_compilation->mayHaveLoops());
-      _bodyInfo->setUsesPreexistence(_compilation->usesPreexistence());
-
-      // if the only future compilation can be a forced one (preexistence)
-      // do not sample this method.  If this is a counting based compilation
-      // disable sampling as well
-      //
-      if (!self()->shouldBeCompiledAgain() || !_useSampling || _compilation->getProfilingMode() == JProfiling)
-         {
-         _bodyInfo->setDisableSampling(true);
-         }
-      }
-
-   // If we disallow recompilation then disable sampling
-   if (!_compilation->allowRecompilation())
-      _bodyInfo->setDisableSampling(true);
-   }
-
+    // If we disallow recompilation then disable sampling
+    if (!_compilation->allowRecompilation())
+        _bodyInfo->setDisableSampling(true);
+}
 
 /**
-  *   @brief
-  *      Switches the current compilation to a profiling mode in which profiling group optimizations will
-  *      run and potentially insert profiling trees into the compiled body.
-  *
-  *   @param f
-  *      The profiling frequency for the persistent profiling info to use.
-  *   @param c
-  *      The profiling count for the persistent profiling info to use.
-  *
-  *   @return
-  *      True if the compilation was successfully switched to a profiling compilation; false otherwise.
-  */
-bool
-J9::Recompilation::switchToProfiling(uint32_t f, uint32_t c)
-   {
-   if (_compilation->fej9()->isAOT_DEPRECATED_DO_NOT_USE())
-      {
-      return false;
-      }
+ *   @brief
+ *      Switches the current compilation to a profiling mode in which profiling group optimizations will
+ *      run and potentially insert profiling trees into the compiled body.
+ *
+ *   @param f
+ *      The profiling frequency for the persistent profiling info to use.
+ *   @param c
+ *      The profiling count for the persistent profiling info to use.
+ *
+ *   @return
+ *      True if the compilation was successfully switched to a profiling compilation; false otherwise.
+ */
+bool J9::Recompilation::switchToProfiling(uint32_t f, uint32_t c)
+{
+    if (_compilation->fej9()->isAOT_DEPRECATED_DO_NOT_USE()) {
+        return false;
+    }
 
-   if (!_methodInfo)
-      {
-      return false;
-      }
+    if (!_methodInfo) {
+        return false;
+    }
 
-   if (_methodInfo->profilingDisabled())
-      {
-      return false;
-      }
+    if (_methodInfo->profilingDisabled()) {
+        return false;
+    }
 
-   if (!self()->countingSupported())
-      {
-      return false;
-      }
+    if (!self()->countingSupported()) {
+        return false;
+    }
 
-   if (self()->isProfilingCompilation())
-      {
-      return true;
-      }
+    if (self()->isProfilingCompilation()) {
+        return true;
+    }
 
-   if (!TR::CompilationController::getCompilationStrategy()->enableSwitchToProfiling())
-      {
-      return false;
-      }
+    if (!TR::CompilationController::getCompilationStrategy()->enableSwitchToProfiling()) {
+        return false;
+    }
 
-   if (comp()->getOptimizationPlan()->getDoNotSwitchToProfiling())
-      {
-      return false;
-      }
+    if (comp()->getOptimizationPlan()->getDoNotSwitchToProfiling()) {
+        return false;
+    }
 
-   if (_compilation->isOptServer() && !_compilation->getOption(TR_AggressiveSwitchingToProfiling))
-      {
-      return false;
-      }
+    if (_compilation->isOptServer() && !_compilation->getOption(TR_AggressiveSwitchingToProfiling)) {
+        return false;
+    }
 
-   if (!_bodyInfo->getIsProfilingBody())
-      {
-      if (!performTransformation(comp(), "\nSwitching the compile to do profiling (isProfilingCompile=1)\n"))
-          return false;
-      }
+    if (!_bodyInfo->getIsProfilingBody()) {
+        if (!performTransformation(comp(), "\nSwitching the compile to do profiling (isProfilingCompile=1)\n"))
+            return false;
+    }
 
-   _bodyInfo->setIsProfilingBody(true);
+    _bodyInfo->setIsProfilingBody(true);
 
-   // If profiling will use JProfiling instrumentation and this is post JProfilingBlock opt pass, trigger restart
-   if (_compilation->getProfilingMode() == JProfiling && _compilation->getSkippedJProfilingBlock())
-      {
-      TR::DebugCounter::incStaticDebugCounter(_compilation, TR::DebugCounter::debugCounterName(_compilation,
-         "jprofiling.restartCompile/(%s)", _compilation->signature()));
-      if (TR::Options::getVerboseOption(TR_VerboseProfiling))
-         TR_VerboseLog::writeLineLocked(TR_Vlog_PROFILING, "Restarting compilation due to late switch to profiling");
-      comp()->failCompilation<J9::EnforceProfiling>("Enforcing profiling compilation");
-      }
+    // If profiling will use JProfiling instrumentation and this is post JProfilingBlock opt pass, trigger restart
+    if (_compilation->getProfilingMode() == JProfiling && _compilation->getSkippedJProfilingBlock()) {
+        TR::DebugCounter::incStaticDebugCounter(_compilation,
+            TR::DebugCounter::debugCounterName(_compilation, "jprofiling.restartCompile/(%s)",
+                _compilation->signature()));
+        if (TR::Options::getVerboseOption(TR_VerboseProfiling))
+            TR_VerboseLog::writeLineLocked(TR_Vlog_PROFILING, "Restarting compilation due to late switch to profiling");
+        comp()->failCompilation<J9::EnforceProfiling>("Enforcing profiling compilation");
+    }
 
-   _useSampling = _compilation->getProfilingMode() != JitProfiling;
-   self()->findOrCreateProfileInfo()->setProfilingFrequency(f);
-   self()->findOrCreateProfileInfo()->setProfilingCount(c);
-   self()->createProfilers();
-   return true;
-   }
+    _useSampling = _compilation->getProfilingMode() != JitProfiling;
+    self()->findOrCreateProfileInfo()->setProfilingFrequency(f);
+    self()->findOrCreateProfileInfo()->setProfilingCount(c);
+    self()->createProfilers();
+    return true;
+}
 
+bool J9::Recompilation::switchToProfiling()
+{
+    return self()->switchToProfiling(DEFAULT_PROFILING_FREQUENCY, DEFAULT_PROFILING_COUNT);
+}
 
-bool
-J9::Recompilation::switchToProfiling()
-   {
-   return self()->switchToProfiling(DEFAULT_PROFILING_FREQUENCY, DEFAULT_PROFILING_COUNT);
-   }
+void J9::Recompilation::switchAwayFromProfiling()
+{
+    _bodyInfo->setIsProfilingBody(false);
+    _useSampling = true;
+}
 
+void J9::Recompilation::createProfilers()
+{
+    if (!self()->getValueProfiler())
+        _profilers.add(new (_compilation->trHeapMemory()) TR_ValueProfiler(_compilation, self(),
+            _compilation->getProfilingMode() == JProfiling ? HashTableProfiler : LinkedListProfiler));
 
-void
-J9::Recompilation::switchAwayFromProfiling()
-   {
-   _bodyInfo->setIsProfilingBody(false);
-   _useSampling = true;
-   }
+    if (!self()->getBlockFrequencyProfiler() && _compilation->getProfilingMode() != JProfiling)
+        _profilers.add(new (_compilation->trHeapMemory()) TR_BlockFrequencyProfiler(_compilation, self()));
+}
 
+bool J9::Recompilation::couldBeCompiledAgain()
+{
+    TR_ResolvedMethod *bondMethod = NULL;
+    return self()->shouldBeCompiledAgain() || _compilation->usesPreexistence() || _compilation->getOption(TR_EnableHCR)
+        || _compilation->retainedMethods()->bondMethods().next(&bondMethod);
+}
 
-void
-J9::Recompilation::createProfilers()
-   {
-   if (!self()->getValueProfiler())
-      _profilers.add(new (_compilation->trHeapMemory()) TR_ValueProfiler(_compilation, self(),
-         _compilation->getProfilingMode() == JProfiling ? HashTableProfiler : LinkedListProfiler ));
+bool J9::Recompilation::shouldBeCompiledAgain() { return TR::Options::canJITCompile() && !_doNotCompileAgain; }
 
-   if (!self()->getBlockFrequencyProfiler() && _compilation->getProfilingMode() != JProfiling)
-      _profilers.add(new (_compilation->trHeapMemory()) TR_BlockFrequencyProfiler(_compilation, self()));
-   }
+void J9::Recompilation::preventRecompilation()
+{
+    _nextCounter = 0;
+    _doNotCompileAgain = true;
 
+    for (TR_RecompilationProfiler *rp = getFirstProfiler(); rp; rp = rp->getNext()) {
+        if (rp->getHasModifiedTrees()) {
+            rp->removeTrees();
+            rp->setHasModifiedTrees(false);
+        }
+    }
+}
 
-bool
-J9::Recompilation::couldBeCompiledAgain()
-   {
-   TR_ResolvedMethod *bondMethod = NULL;
-   return
-      self()->shouldBeCompiledAgain() ||
-      _compilation->usesPreexistence() ||
-      _compilation->getOption(TR_EnableHCR) ||
-      _compilation->retainedMethods()->bondMethods().next(&bondMethod);
-   }
-
-
-bool
-J9::Recompilation::shouldBeCompiledAgain()
-   {
-   return TR::Options::canJITCompile() && !_doNotCompileAgain;
-   }
-
-
-void
-J9::Recompilation::preventRecompilation()
-   {
-   _nextCounter = 0;
-   _doNotCompileAgain = true;
-
-   for (TR_RecompilationProfiler * rp = getFirstProfiler(); rp; rp = rp->getNext())
-      {
-      if (rp->getHasModifiedTrees())
-         {
-         rp->removeTrees();
-         rp->setHasModifiedTrees(false);
-         }
-      }
-   }
-
-
-TR_PersistentMethodInfo *
-J9::Recompilation::getExistingMethodInfo(TR_ResolvedMethod *method)
-   {
-   // Default (null) implementation
-   //
-   TR_ASSERT(0, "This method needs to be implemented");
-   return 0;
-   }
+TR_PersistentMethodInfo *J9::Recompilation::getExistingMethodInfo(TR_ResolvedMethod *method)
+{
+    // Default (null) implementation
+    //
+    TR_ASSERT(0, "This method needs to be implemented");
+    return 0;
+}
 
 /**
  * This method can extract a value profiler from the current list of
@@ -505,18 +416,16 @@ J9::Recompilation::getExistingMethodInfo(TR_ResolvedMethod *method)
  *
  * \return The first TR_ValueProfiler in the current list of profilers, NULL if there are none.
  */
-TR_ValueProfiler *
-J9::Recompilation::getValueProfiler()
-   {
-   for (TR_RecompilationProfiler * rp = getFirstProfiler(); rp; rp = rp->getNext())
-      {
-      TR_ValueProfiler *vp = rp->asValueProfiler();
-      if (vp)
-         return vp;
-      }
+TR_ValueProfiler *J9::Recompilation::getValueProfiler()
+{
+    for (TR_RecompilationProfiler *rp = getFirstProfiler(); rp; rp = rp->getNext()) {
+        TR_ValueProfiler *vp = rp->asValueProfiler();
+        if (vp)
+            return vp;
+    }
 
-   return NULL;
-   }
+    return NULL;
+}
 
 /**
  * This method can extract a block profiler from the current list of
@@ -524,18 +433,16 @@ J9::Recompilation::getValueProfiler()
  *
  * \return The first TR_BlockFrequencyProfiler in the current list of profilers, NULL if there are none.
  */
-TR_BlockFrequencyProfiler *
-J9::Recompilation::getBlockFrequencyProfiler()
-   {
-   for (TR_RecompilationProfiler * rp = getFirstProfiler(); rp; rp = rp->getNext())
-      {
-      TR_BlockFrequencyProfiler *vp = rp->asBlockFrequencyProfiler();
-      if (vp)
-         return vp;
-      }
+TR_BlockFrequencyProfiler *J9::Recompilation::getBlockFrequencyProfiler()
+{
+    for (TR_RecompilationProfiler *rp = getFirstProfiler(); rp; rp = rp->getNext()) {
+        TR_BlockFrequencyProfiler *vp = rp->asBlockFrequencyProfiler();
+        if (vp)
+            return vp;
+    }
 
-   return NULL;
-   }
+    return NULL;
+}
 
 /**
  * This method can remove a specified recompilation profiler from the
@@ -543,143 +450,120 @@ J9::Recompilation::getBlockFrequencyProfiler()
  *
  * \param rp The recompilation profiler to remove.
  */
-void
-J9::Recompilation::removeProfiler(TR_RecompilationProfiler *rp)
-   {
-   _profilers.remove(rp);
-   }
+void J9::Recompilation::removeProfiler(TR_RecompilationProfiler *rp) { _profilers.remove(rp); }
 
-TR_Hotness
-J9::Recompilation::getNextCompileLevel(void *oldStartPC)
-   {
-   TR_PersistentMethodInfo *methodInfo = TR::Recompilation::getMethodInfoFromPC(oldStartPC);
-   return methodInfo->getNextCompileLevel();
-   }
+TR_Hotness J9::Recompilation::getNextCompileLevel(void *oldStartPC)
+{
+    TR_PersistentMethodInfo *methodInfo = TR::Recompilation::getMethodInfoFromPC(oldStartPC);
+    return methodInfo->getNextCompileLevel();
+}
 
-
-TR::SymbolReference *
-J9::Recompilation::getCounterSymRef()
-   {
-   return _compilation->getSymRefTab()->findOrCreateRecompilationCounterSymbolRef(_bodyInfo->getCounterAddress());
-   }
-
+TR::SymbolReference *J9::Recompilation::getCounterSymRef()
+{
+    return _compilation->getSymRefTab()->findOrCreateRecompilationCounterSymbolRef(_bodyInfo->getCounterAddress());
+}
 
 /////////////////////////
 // DEBUG
 //////////////////////////
 
-void
-J9::Recompilation::shutdown()
-   {
-   static bool TR_RecompilationStats = feGetEnv("TR_RecompilationStats")?1:0;
-   if (TR_RecompilationStats)
-      {
-      TR_VerboseLog::writeLine(TR_Vlog_INFO,"Methods recompiled via count = %d", limitMethodsCompiled);
-      TR_VerboseLog::writeLine(TR_Vlog_INFO,"Methods recompiled via hot threshold = %d", hotThresholdMethodsCompiled);
-      TR_VerboseLog::writeLine(TR_Vlog_INFO,"Methods recompiled via scorching threshold = %d", scorchingThresholdMethodsCompiled);
-      }
-   }
+void J9::Recompilation::shutdown()
+{
+    static bool TR_RecompilationStats = feGetEnv("TR_RecompilationStats") ? 1 : 0;
+    if (TR_RecompilationStats) {
+        TR_VerboseLog::writeLine(TR_Vlog_INFO, "Methods recompiled via count = %d", limitMethodsCompiled);
+        TR_VerboseLog::writeLine(TR_Vlog_INFO, "Methods recompiled via hot threshold = %d",
+            hotThresholdMethodsCompiled);
+        TR_VerboseLog::writeLine(TR_Vlog_INFO, "Methods recompiled via scorching threshold = %d",
+            scorchingThresholdMethodsCompiled);
+    }
+}
 
+TR_PersistentMethodInfo::TR_PersistentMethodInfo(TR::Compilation *comp)
+    : _methodInfo((TR_OpaqueMethodBlock *)comp->getCurrentMethod()->resolvedMethodAddress())
+    , _flags(0)
+    , _nextHotness(unknownHotness)
+    , _recentProfileInfo(0)
+    , _bestProfileInfo(0)
+    , _optimizationPlan(0)
+    , _catchBlockCounter(0)
+    , _numberOfPreexistenceInvalidations(0)
+    , _numberOfInlinedMethodRedefinition(0)
+    , _numPrexAssumptions(0)
+{
+    if (comp->getOption(TR_EnableHCR) && !comp->fej9()->isAOT_DEPRECATED_DO_NOT_USE()) {
+        // If the method gets replaced, we'll want _methodInfo to get updated
+        //
+        comp->cg()->jitAddPicToPatchOnClassRedefinition((void *)_methodInfo, (void *)&_methodInfo, false);
+    }
 
+    if (comp->getOption(TR_DisableProfiling) || comp->fej9()->isAOT_DEPRECATED_DO_NOT_USE()) {
+        setDisableProfiling();
+    }
 
+    uint64_t tempTimeStamp = comp->getPersistentInfo()->getElapsedTime();
+    if (tempTimeStamp < (uint64_t)0x0FFFF)
+        _timeStamp = (uint16_t)tempTimeStamp;
+    else
+        _timeStamp = (uint16_t)0xFFFF;
+}
 
-TR_PersistentMethodInfo::TR_PersistentMethodInfo(TR::Compilation *comp) :
-   _methodInfo((TR_OpaqueMethodBlock *)comp->getCurrentMethod()->resolvedMethodAddress()),
-   _flags(0),
-   _nextHotness(unknownHotness),
-   _recentProfileInfo(0),
-   _bestProfileInfo(0),
-   _optimizationPlan(0),
-   _catchBlockCounter(0),
-   _numberOfPreexistenceInvalidations(0),
-   _numberOfInlinedMethodRedefinition(0),
-   _numPrexAssumptions(0)
-   {
-   if (comp->getOption(TR_EnableHCR) && !comp->fej9()->isAOT_DEPRECATED_DO_NOT_USE())
-      {
-      // If the method gets replaced, we'll want _methodInfo to get updated
-      //
-      comp->cg()->jitAddPicToPatchOnClassRedefinition((void*)_methodInfo, (void*)&_methodInfo, false);
-      }
+TR_PersistentMethodInfo::TR_PersistentMethodInfo(TR_OpaqueMethodBlock *methodInfo)
+    : _methodInfo(methodInfo)
+    , _flags(0)
+    , _nextHotness(unknownHotness)
+    , _recentProfileInfo(0)
+    , _bestProfileInfo(0)
+    , _optimizationPlan(0)
+    , _catchBlockCounter(0)
+    , _numberOfPreexistenceInvalidations(0)
+    , _numberOfInlinedMethodRedefinition(0)
+    , _numPrexAssumptions(0)
+{}
 
-   if (comp->getOption(TR_DisableProfiling) || comp->fej9()->isAOT_DEPRECATED_DO_NOT_USE())
-      {
-      setDisableProfiling();
-      }
+TR_PersistentMethodInfo *TR_PersistentMethodInfo::get(TR::Compilation *comp)
+{
+    TR::Recompilation *recomp = comp->getRecompilationInfo();
+    return recomp ? recomp->getMethodInfo() : 0;
+}
 
-   uint64_t tempTimeStamp = comp->getPersistentInfo()->getElapsedTime();
-   if (tempTimeStamp < (uint64_t)0x0FFFF)
-      _timeStamp = (uint16_t)tempTimeStamp;
-   else
-      _timeStamp = (uint16_t)0xFFFF;
-   }
+TR_PersistentMethodInfo *TR_PersistentMethodInfo::get(TR_ResolvedMethod *feMethod)
+{
+    if (feMethod->isInterpreted() || feMethod->isJITInternalNative())
+        return 0;
 
-TR_PersistentMethodInfo::TR_PersistentMethodInfo(TR_OpaqueMethodBlock *methodInfo) :
-   _methodInfo(methodInfo),
-   _flags(0),
-   _nextHotness(unknownHotness),
-   _recentProfileInfo(0),
-   _bestProfileInfo(0),
-   _optimizationPlan(0),
-   _catchBlockCounter(0),
-   _numberOfPreexistenceInvalidations(0),
-   _numberOfInlinedMethodRedefinition(0),
-   _numPrexAssumptions(0)
-   {
-   }
+    TR_PersistentJittedBodyInfo *bodyInfo = ((TR_ResolvedJ9Method *)feMethod)->getExistingJittedBodyInfo();
+    return bodyInfo ? bodyInfo->getMethodInfo() : 0;
+}
 
-TR_PersistentMethodInfo *
-TR_PersistentMethodInfo::get(TR::Compilation *comp)
-   {
-   TR::Recompilation * recomp = comp->getRecompilationInfo();
-   return recomp ? recomp->getMethodInfo() : 0;
-   }
+TR_PersistentJittedBodyInfo::TR_PersistentJittedBodyInfo(TR_PersistentMethodInfo *methodInfo, TR_Hotness hotness,
+    bool profile, TR::Compilation *comp)
+    : _methodInfo(methodInfo)
+    , _counter(INT_MAX)
+    , _mapTable(comp == 0 || comp->getOption(TR_DoNotUseFastStackwalk) ? 0 : (void *)-1)
+    , _hotness(hotness)
+    , _flags(0)
+    , _sampleIntervalCount(0)
+    , _startCount(0)
+    , _aggressiveRecompilationChances((uint8_t)TR::Options::_aggressiveRecompilationChances)
+    , _startPCAfterPreviousCompile(0)
+    , _longRunningInterpreted(false)
+    , _numScorchingIntervals(0)
+    , _profileInfo(0)
+    , _hwpInstructionStartCount(0)
+    , _hwpInstructionCount(0)
+    , _hwpInducedRecompilation(false)
+    , _hwpReducedWarmCompileRequested(false)
+    , _hwpReducedWarmCompileInQueue(false)
+{
+    setIsProfilingBody(profile);
+}
 
-TR_PersistentMethodInfo *
-TR_PersistentMethodInfo::get(TR_ResolvedMethod * feMethod)
-   {
-   if (feMethod->isInterpreted() || feMethod->isJITInternalNative())
-      return 0;
-
-   TR_PersistentJittedBodyInfo *bodyInfo = ((TR_ResolvedJ9Method*) feMethod)->getExistingJittedBodyInfo();
-   return bodyInfo ? bodyInfo->getMethodInfo() : 0;
-   }
-
-TR_PersistentJittedBodyInfo::TR_PersistentJittedBodyInfo(
-      TR_PersistentMethodInfo *methodInfo,
-      TR_Hotness hotness,
-      bool profile,
-      TR::Compilation *comp) :
-   _methodInfo(methodInfo),
-   _counter(INT_MAX),
-   _mapTable(comp == 0 || comp->getOption(TR_DoNotUseFastStackwalk) ? 0 : (void *)-1),
-   _hotness(hotness),
-   _flags(0),
-   _sampleIntervalCount(0),
-   _startCount(0),
-   _aggressiveRecompilationChances((uint8_t)TR::Options::_aggressiveRecompilationChances),
-   _startPCAfterPreviousCompile(0),
-   _longRunningInterpreted(false),
-   _numScorchingIntervals(0),
-   _profileInfo(0)
-   ,_hwpInstructionStartCount(0),
-    _hwpInstructionCount(0),
-    _hwpInducedRecompilation(false),
-    _hwpReducedWarmCompileRequested(false),
-    _hwpReducedWarmCompileInQueue(false)
-   {
-   setIsProfilingBody(profile);
-   }
-
-TR_PersistentJittedBodyInfo *
-TR_PersistentJittedBodyInfo::allocate(
-      TR_PersistentMethodInfo *methodInfo,
-      TR_Hotness hotness,
-      bool profile,
-      TR::Compilation *comp)
-   {
-   return new (PERSISTENT_NEW) TR_PersistentJittedBodyInfo(methodInfo, hotness, profile, comp);
-   }
+TR_PersistentJittedBodyInfo *TR_PersistentJittedBodyInfo::allocate(TR_PersistentMethodInfo *methodInfo,
+    TR_Hotness hotness, bool profile, TR::Compilation *comp)
+{
+    return new (PERSISTENT_NEW) TR_PersistentJittedBodyInfo(methodInfo, hotness, profile, comp);
+}
 
 /**
  * Increment reference count for shared profile info.
@@ -695,30 +579,28 @@ TR_PersistentJittedBodyInfo::allocate(
  *
  * \param ptr Pointer shared across several threads.
  */
-TR_PersistentProfileInfo *
-TR_PersistentMethodInfo::getForSharedInfo(TR_PersistentProfileInfo** ptr)
-   {
-   uintptr_t locked;
-   uintptr_t unlocked;
+TR_PersistentProfileInfo *TR_PersistentMethodInfo::getForSharedInfo(TR_PersistentProfileInfo **ptr)
+{
+    uintptr_t locked;
+    uintptr_t unlocked;
 
-   // Lock the ptr
-   do {
-      locked = ((uintptr_t) *ptr) | (1ULL);
-      unlocked = ((uintptr_t) *ptr) & ~(1ULL);
-      if (unlocked == 0)
-         return NULL;
-      }
-   while (unlocked != VM_AtomicSupport::lockCompareExchange((uintptr_t*)ptr, unlocked, locked));
+    // Lock the ptr
+    do {
+        locked = ((uintptr_t)*ptr) | (1ULL);
+        unlocked = ((uintptr_t)*ptr) & ~(1ULL);
+        if (unlocked == 0)
+            return NULL;
+    } while (unlocked != VM_AtomicSupport::lockCompareExchange((uintptr_t *)ptr, unlocked, locked));
 
-   // Inc ref count
-   TR_PersistentProfileInfo::incRefCount((TR_PersistentProfileInfo*)unlocked);
+    // Inc ref count
+    TR_PersistentProfileInfo::incRefCount((TR_PersistentProfileInfo *)unlocked);
 
-   // Unlock the ptr
-   // Assumes no updates to the ptr whilst locked
-   VM_AtomicSupport::set((uintptr_t*)ptr, unlocked);
+    // Unlock the ptr
+    // Assumes no updates to the ptr whilst locked
+    VM_AtomicSupport::set((uintptr_t *)ptr, unlocked);
 
-   return *ptr;
-   }
+    return *ptr;
+}
 
 /**
  * Update a shared pointer to reference a new persistent profile info.
@@ -729,54 +611,53 @@ TR_PersistentMethodInfo::getForSharedInfo(TR_PersistentProfileInfo** ptr)
  * \param ptr Pointer shared across several threads.
  * \param newInfo New persistent profile info to use. Should have a non-zero reference count in caller.
  */
-void
-TR_PersistentMethodInfo::setForSharedInfo(TR_PersistentProfileInfo** ptr, TR_PersistentProfileInfo *newInfo)
-   {
-   uintptr_t oldPtr;
+void TR_PersistentMethodInfo::setForSharedInfo(TR_PersistentProfileInfo **ptr, TR_PersistentProfileInfo *newInfo)
+{
+    uintptr_t oldPtr;
 
-   // Before it can be accessed, inc ref count on new info
-   if (newInfo)
-      TR_PersistentProfileInfo::incRefCount(newInfo);
+    // Before it can be accessed, inc ref count on new info
+    if (newInfo)
+        TR_PersistentProfileInfo::incRefCount(newInfo);
 
-   // Update ptr as if it was unlocked
-   // Doesn't matter what the old info was, as long as it was unlocked
-   do {
-      oldPtr = ((uintptr_t) *ptr) & ~(1ULL);
-      }
-   while (oldPtr != VM_AtomicSupport::lockCompareExchange((uintptr_t*)ptr, oldPtr, (uintptr_t)newInfo));
+    // Update ptr as if it was unlocked
+    // Doesn't matter what the old info was, as long as it was unlocked
+    do {
+        oldPtr = ((uintptr_t)*ptr) & ~(1ULL);
+    } while (oldPtr != VM_AtomicSupport::lockCompareExchange((uintptr_t *)ptr, oldPtr, (uintptr_t)newInfo));
 
-   // Now that it can no longer be accessed, dec ref count on old info
-   if (oldPtr)
-      TR_PersistentProfileInfo::decRefCount((TR_PersistentProfileInfo*)oldPtr);
-   }
+    // Now that it can no longer be accessed, dec ref count on old info
+    if (oldPtr)
+        TR_PersistentProfileInfo::decRefCount((TR_PersistentProfileInfo *)oldPtr);
+}
 
 #if defined(J9VM_OPT_JITSERVER)
-TR_PersistentJittedBodyInfo *
-J9::Recompilation::persistentJittedBodyInfoFromString(const std::string &bodyInfoStr, const std::string &methodInfoStr, TR_Memory *trMemory)
-   {
-   if (bodyInfoStr.empty())
-      return NULL;
-   TR_ASSERT_FATAL(!methodInfoStr.empty(), "If we have a persistentBodyInfo we must have a persistentMethodInfo too");
-   auto bodyInfo = (TR_PersistentJittedBodyInfo*) trMemory->allocateHeapMemory(sizeof(TR_PersistentJittedBodyInfo), TR_MemoryBase::Recompilation);
-   auto methodInfo = (TR_PersistentMethodInfo*) trMemory->allocateHeapMemory(sizeof(TR_PersistentMethodInfo), TR_MemoryBase::Recompilation);
+TR_PersistentJittedBodyInfo *J9::Recompilation::persistentJittedBodyInfoFromString(const std::string &bodyInfoStr,
+    const std::string &methodInfoStr, TR_Memory *trMemory)
+{
+    if (bodyInfoStr.empty())
+        return NULL;
+    TR_ASSERT_FATAL(!methodInfoStr.empty(), "If we have a persistentBodyInfo we must have a persistentMethodInfo too");
+    auto bodyInfo = (TR_PersistentJittedBodyInfo *)trMemory->allocateHeapMemory(sizeof(TR_PersistentJittedBodyInfo),
+        TR_MemoryBase::Recompilation);
+    auto methodInfo = (TR_PersistentMethodInfo *)trMemory->allocateHeapMemory(sizeof(TR_PersistentMethodInfo),
+        TR_MemoryBase::Recompilation);
 
-   memcpy(bodyInfo, &bodyInfoStr[0], sizeof(TR_PersistentJittedBodyInfo));
-   memcpy(methodInfo, &methodInfoStr[0], sizeof(TR_PersistentMethodInfo));
+    memcpy(bodyInfo, &bodyInfoStr[0], sizeof(TR_PersistentJittedBodyInfo));
+    memcpy(methodInfo, &methodInfoStr[0], sizeof(TR_PersistentMethodInfo));
 
-   bodyInfo->setMethodInfo(methodInfo);
-   bodyInfo->setProfileInfo(NULL);
-   bodyInfo->setMapTable(NULL);
-   resetPersistentProfileInfo(methodInfo);
-   return bodyInfo;
-   }
+    bodyInfo->setMethodInfo(methodInfo);
+    bodyInfo->setProfileInfo(NULL);
+    bodyInfo->setMapTable(NULL);
+    resetPersistentProfileInfo(methodInfo);
+    return bodyInfo;
+}
 
-void
-J9::Recompilation::resetPersistentProfileInfo(TR_PersistentMethodInfo *methodInfo)
-   {
-   methodInfo->setOptimizationPlan(NULL);
-   // Cannot use setter because it calls the destructor on the old profile data,
-   // which is a client pointer
-   methodInfo->_recentProfileInfo = NULL;
-   methodInfo->_bestProfileInfo = NULL;
-   }
+void J9::Recompilation::resetPersistentProfileInfo(TR_PersistentMethodInfo *methodInfo)
+{
+    methodInfo->setOptimizationPlan(NULL);
+    // Cannot use setter because it calls the destructor on the old profile data,
+    // which is a client pointer
+    methodInfo->_recentProfileInfo = NULL;
+    methodInfo->_bestProfileInfo = NULL;
+}
 #endif /* defined(J9VM_OPT_JITSERVER) */

@@ -28,10 +28,11 @@
  */
 #ifndef J9_STATICSYMBOL_CONNECTOR
 #define J9_STATICSYMBOL_CONNECTOR
+
 namespace J9 {
 class StaticSymbol;
 typedef J9::StaticSymbol StaticSymbolConnector;
-}
+} // namespace J9
 #endif
 
 #include <stdint.h>
@@ -43,119 +44,111 @@ namespace TR {
 class StaticSymbol;
 }
 
-namespace J9
-{
+namespace J9 {
 
 /**
  * A symbol with an address
  */
-class OMR_EXTENSIBLE StaticSymbol : public OMR::StaticSymbolConnector
-   {
-
+class OMR_EXTENSIBLE StaticSymbol : public OMR::StaticSymbolConnector {
 protected:
+    StaticSymbol(TR::DataType d)
+        : OMR::StaticSymbolConnector(d)
+    {}
 
-   StaticSymbol(TR::DataType d) :
-      OMR::StaticSymbolConnector(d) { }
+    StaticSymbol(TR::DataType d, void *address)
+        : OMR::StaticSymbolConnector(d, address)
+    {}
 
-   StaticSymbol(TR::DataType d, void * address) :
-      OMR::StaticSymbolConnector(d, address) { }
+    StaticSymbol(TR::DataType d, uint32_t s)
+        : OMR::StaticSymbolConnector(d, s)
+    {}
 
-   StaticSymbol(TR::DataType d, uint32_t s) :
-      OMR::StaticSymbolConnector(d, s) { }
-
-   /* ------- TR_CallSiteTableEntrySymbol --------- */
+    /* ------- TR_CallSiteTableEntrySymbol --------- */
 public:
-
-   void makeCallSiteTableEntry(int32_t callSiteIndex);
-   int32_t getCallSiteIndex();
+    void makeCallSiteTableEntry(int32_t callSiteIndex);
+    int32_t getCallSiteIndex();
 
 private:
+    int32_t _callSiteIndex;
 
-   int32_t _callSiteIndex;
-
-   /* ------- TR_ConstantDynamicSymbol --------- */
+    /* ------- TR_ConstantDynamicSymbol --------- */
 public:
+    /** \brief
+     *     Populate the class signature fields and primitive flag of this constant dynamic symbol.
+     *
+     *  \param classSignature
+     *     The class signature string of the constant dynamic. For primitive this is the signature of the corresponding
+     * autobox class.
+     *
+     *  \param classSignatureLength
+     *     The length of the class signature string of the constant dynamic.
+     *
+     *  \param isPrimitive
+     *     Determines whether the constant dynamic is primitive type.
+     *
+     *  \return
+     *     Fields of this static symbol are populated.
+     */
+    void makeConstantDynamic(char *classSignature, int32_t classSignatureLength, bool isPrimitive);
 
-   /** \brief
-    *     Populate the class signature fields and primitive flag of this constant dynamic symbol.
-    *
-    *  \param classSignature
-    *     The class signature string of the constant dynamic. For primitive this is the signature of the corresponding autobox class.
-    *
-    *  \param classSignatureLength
-    *     The length of the class signature string of the constant dynamic.
-    *
-    *  \param isPrimitive
-    *     Determines whether the constant dynamic is primitive type.
-    *
-    *  \return
-    *     Fields of this static symbol are populated.
-    */
-   void makeConstantDynamic(char * classSignature, int32_t classSignatureLength, bool isPrimitive);
+    /** \brief
+     *     Retrieves the class signature string for this constant dynamic static symbol.
+     *
+     *  \param classSignatureLength
+     *     The length of the class signature string of the constant dynamic. Modified in place.
+     *
+     *  \return
+     *     The class signature string for this constant dynamic static symbol.
+     */
+    char *getConstantDynamicClassSignature(int32_t &classSignatureLength);
 
-   /** \brief
-    *     Retrieves the class signature string for this constant dynamic static symbol.
-    *
-    *  \param classSignatureLength
-    *     The length of the class signature string of the constant dynamic. Modified in place.
-    *
-    *  \return
-    *     The class signature string for this constant dynamic static symbol.
-    */
-   char * getConstantDynamicClassSignature(int32_t & classSignatureLength);
-
-   /** \brief
-    *     Retrieves whether the underlying constant dynamic is of primitive type.
-    *
-    *  \return
-    *     <c>true</c> if the underlying constant dynamic is primitive; <c>false</c> otherwise.
-    */
-   bool isConstantDynamicPrimitive();
+    /** \brief
+     *     Retrieves whether the underlying constant dynamic is of primitive type.
+     *
+     *  \return
+     *     <c>true</c> if the underlying constant dynamic is primitive; <c>false</c> otherwise.
+     */
+    bool isConstantDynamicPrimitive();
 
 private:
+    char *_classSignature;
+    int32_t _classSignatureLength;
+    bool _isPrimitive;
 
-   char * _classSignature;
-   int32_t _classSignatureLength;
-   bool _isPrimitive;
-
-   /* ------ TR_RecognizedStaticSymbol ---------- */
+    /* ------ TR_RecognizedStaticSymbol ---------- */
 public:
+    template<typename AllocatorType>
+    static TR::StaticSymbol *createRecognized(AllocatorType m, TR::DataType d, TR::Symbol::RecognizedField f);
 
-   template <typename AllocatorType>
-   static TR::StaticSymbol * createRecognized(AllocatorType m, TR::DataType d, TR::Symbol::RecognizedField f);
-
-   /**
-    * If this symbol has a valid recognized field, return it. Otherwise, return
-    * TR::Symbol::UnknownField
-    */
-   TR::Symbol::RecognizedField getRecognizedField();
+    /**
+     * If this symbol has a valid recognized field, return it. Otherwise, return
+     * TR::Symbol::UnknownField
+     */
+    TR::Symbol::RecognizedField getRecognizedField();
 
 private:
+    void makeRecognized(TR::Symbol::RecognizedField f)
+    {
+        _recognizedField = f;
+        _flags.set(RecognizedStatic);
+    }
 
-   void makeRecognized(TR::Symbol::RecognizedField f)
-      {
-      _recognizedField = f;
-      _flags.set(RecognizedStatic);
-      }
+    TR::Symbol::RecognizedField _recognizedField;
 
-   TR::Symbol::RecognizedField _recognizedField;
-
-   /* ------- TR_MethodTypeTableEntrySymbol ------ */
+    /* ------- TR_MethodTypeTableEntrySymbol ------ */
 public:
-   template <typename AllocatorType>
-   static TR::StaticSymbol * createMethodTypeTableEntry(AllocatorType m, int32_t methodTypeIndex);
+    template<typename AllocatorType>
+    static TR::StaticSymbol *createMethodTypeTableEntry(AllocatorType m, int32_t methodTypeIndex);
 
-   int32_t getMethodTypeIndex();
+    int32_t getMethodTypeIndex();
 
 private:
-   void makeMethodTypeTableEntry(int32_t methodTypeIndex);
+    void makeMethodTypeTableEntry(int32_t methodTypeIndex);
 
+    int32_t _methodTypeIndex;
+};
 
-   int32_t _methodTypeIndex;
-
-   };
-
-}
+} // namespace J9
 
 #endif
 

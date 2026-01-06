@@ -47,190 +47,159 @@ namespace TR {
 class Block;
 class MethodSymbol;
 class Register;
-}
+} // namespace TR
 
-TR::X86GuardedDevirtualSnippet::X86GuardedDevirtualSnippet(TR::CodeGenerator * cg,
-                                                               TR::Node          * node,
-                                                               TR::LabelSymbol *restartlab,
-                                                               TR::LabelSymbol *snippetlab,
-                                                               int32_t         vftoffset,
-                                                               TR::Block       *currentBlock,
-                                                               TR::Register    *classRegister)
-   : TR::X86RestartSnippet(cg, node, restartlab, snippetlab, true),
-     _vtableOffset(vftoffset),
-     _currentBlock(currentBlock),
-     _classObjectRegister(classRegister)
-   {
-   }
+TR::X86GuardedDevirtualSnippet::X86GuardedDevirtualSnippet(TR::CodeGenerator *cg, TR::Node *node,
+    TR::LabelSymbol *restartlab, TR::LabelSymbol *snippetlab, int32_t vftoffset, TR::Block *currentBlock,
+    TR::Register *classRegister)
+    : TR::X86RestartSnippet(cg, node, restartlab, snippetlab, true)
+    , _vtableOffset(vftoffset)
+    , _currentBlock(currentBlock)
+    , _classObjectRegister(classRegister)
+{}
 
-
-TR::X86GuardedDevirtualSnippet  *TR::X86GuardedDevirtualSnippet::getGuardedDevirtualSnippet()
-   {
-   return this;
-   }
+TR::X86GuardedDevirtualSnippet *TR::X86GuardedDevirtualSnippet::getGuardedDevirtualSnippet() { return this; }
 
 uint8_t *TR::X86GuardedDevirtualSnippet::emitSnippetBody()
-   {
-   uint8_t *buffer = cg()->getBinaryBufferCursor();
-   getSnippetLabel()->setCodeLocation(buffer);
-   TR::Compilation *comp = cg()->comp();
+{
+    uint8_t *buffer = cg()->getBinaryBufferCursor();
+    getSnippetLabel()->setCodeLocation(buffer);
+    TR::Compilation *comp = cg()->comp();
 
-   if (_classObjectRegister == NULL)
-      {
-      if (comp->target().is64Bit() && !TR::Compiler->om.generateCompressedObjectHeaders())
-         *buffer++ = 0x48; // Rex prefix for 64-bit mov
+    if (_classObjectRegister == NULL) {
+        if (comp->target().is64Bit() && !TR::Compiler->om.generateCompressedObjectHeaders())
+            *buffer++ = 0x48; // Rex prefix for 64-bit mov
 
-      *(uint16_t *)buffer = 0x788b; // prepare for mov edi, [eax + class_offset]
-      buffer += 2;
+        *(uint16_t *)buffer = 0x788b; // prepare for mov edi, [eax + class_offset]
+        buffer += 2;
 
-      *(uint8_t *)buffer = (uint8_t) TR::Compiler->om.offsetOfObjectVftField(); // mov edi, [eax + class_offset]
-      buffer += 1;
+        *(uint8_t *)buffer = (uint8_t)TR::Compiler->om.offsetOfObjectVftField(); // mov edi, [eax + class_offset]
+        buffer += 1;
 
-      uintptr_t vftMask = TR::Compiler->om.maskOfObjectVftField();
-      if (~vftMask != 0)
-         {
-         if (comp->target().is64Bit() && !TR::Compiler->om.generateCompressedObjectHeaders())
-            *buffer++ = 0x48; // Rex prefix
+        uintptr_t vftMask = TR::Compiler->om.maskOfObjectVftField();
+        if (~vftMask != 0) {
+            if (comp->target().is64Bit() && !TR::Compiler->om.generateCompressedObjectHeaders())
+                *buffer++ = 0x48; // Rex prefix
 
-         // and edi, vftMask
-         //
-         *(uint16_t *)buffer = 0xe781;
-         buffer += 2;
-         *(uint32_t *)buffer = vftMask;
-         buffer += 4;
-         }
+            // and edi, vftMask
+            //
+            *(uint16_t *)buffer = 0xe781;
+            buffer += 2;
+            *(uint32_t *)buffer = vftMask;
+            buffer += 4;
+        }
 
-      // two opcode bytes for call [edi + Imm] instruction
-      *(uint16_t *)buffer = 0x97ff;
-      buffer += 2;
-      }
-   else
-      {
-      if (comp->target().is64Bit())
-         {
-         uint8_t rex = toRealRegister(_classObjectRegister)->rexBits(TR::RealRegister::REX_B, false);
-         if (rex)
-            *buffer++ = rex;
-         }
+        // two opcode bytes for call [edi + Imm] instruction
+        *(uint16_t *)buffer = 0x97ff;
+        buffer += 2;
+    } else {
+        if (comp->target().is64Bit()) {
+            uint8_t rex = toRealRegister(_classObjectRegister)->rexBits(TR::RealRegister::REX_B, false);
+            if (rex)
+                *buffer++ = rex;
+        }
 
-      // two opcode bytes for call [reg + Imm] instruction, fix the low 3 bits (later)
-      // depending on what register the class object is in.  For now, leave it zero
-      *(uint16_t *)buffer = 0x90ff;
-      buffer++;
+        // two opcode bytes for call [reg + Imm] instruction, fix the low 3 bits (later)
+        // depending on what register the class object is in.  For now, leave it zero
+        *(uint16_t *)buffer = 0x90ff;
+        buffer++;
 
-      // use SIB-byte encoding if necessary
-      if (toRealRegister(_classObjectRegister)->needsSIB())
-         {
-         *buffer++ |= IA32SIBPresent;
-         *buffer    = IA32SIBNoIndex;
-         }
+        // use SIB-byte encoding if necessary
+        if (toRealRegister(_classObjectRegister)->needsSIB()) {
+            *buffer++ |= IA32SIBPresent;
+            *buffer = IA32SIBNoIndex;
+        }
 
-      // now must get the class register and add its encoding to the low order 3 bits
-      // of the second opcode byte (0x90);
-      TR::RealRegister *classObjectRegister = toRealRegister(_classObjectRegister);
-      classObjectRegister->setRMRegisterFieldInModRM(buffer++);
-      }
+        // now must get the class register and add its encoding to the low order 3 bits
+        // of the second opcode byte (0x90);
+        TR::RealRegister *classObjectRegister = toRealRegister(_classObjectRegister);
+        classObjectRegister->setRMRegisterFieldInModRM(buffer++);
+    }
 
+    // set the immediate offset field to be the vtable index
+    *(int32_t *)buffer = _vtableOffset; // call [reg + vtable offset]
+    buffer += 4;
 
-   // set the immediate offset field to be the vtable index
-   *(int32_t *)buffer = _vtableOffset;       // call [reg + vtable offset]
-   buffer += 4;
+    gcMap().registerStackMap(buffer, cg());
 
-   gcMap().registerStackMap(buffer, cg());
+    return genRestartJump(buffer);
+}
 
-   return genRestartJump(buffer);
-   }
-
-
-void
-TR_Debug::print(OMR::Logger *log, TR::X86GuardedDevirtualSnippet *snippet)
-   {
-   uint8_t *bufferPos = snippet->getSnippetLabel()->getCodeLocation();
-   printSnippetLabel(log, snippet->getSnippetLabel(), bufferPos, getName(snippet), "out of line full virtual call sequence");
+void TR_Debug::print(OMR::Logger *log, TR::X86GuardedDevirtualSnippet *snippet)
+{
+    uint8_t *bufferPos = snippet->getSnippetLabel()->getCodeLocation();
+    printSnippetLabel(log, snippet->getSnippetLabel(), bufferPos, getName(snippet),
+        "out of line full virtual call sequence");
 
 #if defined(TR_TARGET_64BIT)
-   TR::Node *callNode = snippet->getNode();
-   TR::SymbolReference *methodSymRef = snippet->getRealMethodSymbolReference();
+    TR::Node *callNode = snippet->getNode();
+    TR::SymbolReference *methodSymRef = snippet->getRealMethodSymbolReference();
 
-   if (!methodSymRef)
-      methodSymRef = callNode->getSymbolReference();
+    if (!methodSymRef)
+        methodSymRef = callNode->getSymbolReference();
 
-   TR::MethodSymbol *methodSymbol = methodSymRef->getSymbol()->castToMethodSymbol();
+    TR::MethodSymbol *methodSymbol = methodSymRef->getSymbol()->castToMethodSymbol();
 
-   // Show effect of loadArgumentsIfNecessary on devirtualized VMInternalNatives.
-   if (snippet->isLoadArgumentsNecessary(methodSymbol))
-      bufferPos = printArgumentFlush(log, callNode, false, bufferPos);
+    // Show effect of loadArgumentsIfNecessary on devirtualized VMInternalNatives.
+    if (snippet->isLoadArgumentsNecessary(methodSymbol))
+        bufferPos = printArgumentFlush(log, callNode, false, bufferPos);
 #endif
 
-   if (!snippet->getClassObjectRegister())
-      {
-      int movSize = (_comp->target().is64Bit())? 3 : 2;
-      char regLetter = (_comp->target().is64Bit())? 'r' : 'e';
+    if (!snippet->getClassObjectRegister()) {
+        int movSize = (_comp->target().is64Bit()) ? 3 : 2;
+        char regLetter = (_comp->target().is64Bit()) ? 'r' : 'e';
 
-      printPrefix(log, NULL, bufferPos, movSize);
-      log->printf("mov \t%cdi, [%cax]\t\t%s Load Class Object",
-                    regLetter, regLetter,
-                    commentString());
-      bufferPos += movSize;
+        printPrefix(log, NULL, bufferPos, movSize);
+        log->printf("mov \t%cdi, [%cax]\t\t%s Load Class Object", regLetter, regLetter, commentString());
+        bufferPos += movSize;
 
-      printPrefix(log, NULL, bufferPos, 6);
-      log->printf("call\t[%cdi %d]\t\t%s call through vtable slot %d", regLetter, snippet->getVTableOffset(),
-                               commentString(), -snippet->getVTableOffset() >> 2);
-      bufferPos += 6;
-      }
-   else
-      {
-      TR::RealRegister *classObjectRegister = toRealRegister(snippet->getClassObjectRegister());
+        printPrefix(log, NULL, bufferPos, 6);
+        log->printf("call\t[%cdi %d]\t\t%s call through vtable slot %d", regLetter, snippet->getVTableOffset(),
+            commentString(), -snippet->getVTableOffset() >> 2);
+        bufferPos += 6;
+    } else {
+        TR::RealRegister *classObjectRegister = toRealRegister(snippet->getClassObjectRegister());
 #if defined(TR_TARGET_64BIT)
-      int callSize = 6;
-      if (toRealRegister(classObjectRegister)->rexBits(TR::RealRegister::REX_B, false))
-         callSize++;
-      if (toRealRegister(classObjectRegister)->needsSIB())
-         callSize++;
-      TR_RegisterSizes regSize = TR_DoubleWordReg;
+        int callSize = 6;
+        if (toRealRegister(classObjectRegister)->rexBits(TR::RealRegister::REX_B, false))
+            callSize++;
+        if (toRealRegister(classObjectRegister)->needsSIB())
+            callSize++;
+        TR_RegisterSizes regSize = TR_DoubleWordReg;
 #else
-      int callSize = 6;
-      TR_RegisterSizes regSize = TR_WordReg;
+        int callSize = 6;
+        TR_RegisterSizes regSize = TR_WordReg;
 #endif
 
-      printPrefix(log, NULL, bufferPos, callSize);
-      log->printf(
-              "call\t[%s %d]\t\t%s call through vtable slot %d",
-              getName(classObjectRegister, regSize),
-              snippet->getVTableOffset(),
-              commentString(),
-              -snippet->getVTableOffset() >> 2);
-      bufferPos += callSize;
-      }
+        printPrefix(log, NULL, bufferPos, callSize);
+        log->printf("call\t[%s %d]\t\t%s call through vtable slot %d", getName(classObjectRegister, regSize),
+            snippet->getVTableOffset(), commentString(), -snippet->getVTableOffset() >> 2);
+        bufferPos += callSize;
+    }
 
-   printRestartJump(log, snippet, bufferPos);
-   }
-
+    printRestartJump(log, snippet, bufferPos);
+}
 
 uint32_t TR::X86GuardedDevirtualSnippet::getLength(int32_t estimatedSnippetStart)
-   {
-   TR::Compilation *comp = cg()->comp();
-   uint32_t fixedLength;
-   if (_classObjectRegister)
-      {
-      fixedLength = 6 + (toRealRegister(_classObjectRegister)->needsSIB()? 1 : 0);
-      if (comp->target().is64Bit())
-         {
-         uint8_t rex = toRealRegister(_classObjectRegister)->rexBits(TR::RealRegister::REX_B, false);
-         if (rex)
-            fixedLength++;
-         }
-      }
-   else
-      {
-      int32_t delta = 0;
-      delta = 1;
-      uintptr_t vftMask = TR::Compiler->om.maskOfObjectVftField();
-      if (~vftMask != 0)
-         delta += 6 + (comp->target().is64Bit()? 1 /* Rex */ : 0);
+{
+    TR::Compilation *comp = cg()->comp();
+    uint32_t fixedLength;
+    if (_classObjectRegister) {
+        fixedLength = 6 + (toRealRegister(_classObjectRegister)->needsSIB() ? 1 : 0);
+        if (comp->target().is64Bit()) {
+            uint8_t rex = toRealRegister(_classObjectRegister)->rexBits(TR::RealRegister::REX_B, false);
+            if (rex)
+                fixedLength++;
+        }
+    } else {
+        int32_t delta = 0;
+        delta = 1;
+        uintptr_t vftMask = TR::Compiler->om.maskOfObjectVftField();
+        if (~vftMask != 0)
+            delta += 6 + (comp->target().is64Bit() ? 1 /* Rex */ : 0);
 
-      fixedLength = 8 + delta + (comp->target().is64Bit()? 1 /* Rex */ : 0);
-      }
+        fixedLength = 8 + delta + (comp->target().is64Bit() ? 1 /* Rex */ : 0);
+    }
 
-   return fixedLength + estimateRestartJumpLength(estimatedSnippetStart + fixedLength);
-   }
+    return fixedLength + estimateRestartJumpLength(estimatedSnippetStart + fixedLength);
+}

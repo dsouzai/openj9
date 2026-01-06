@@ -30,22 +30,23 @@
 #include "env/FrontEnd.hpp"
 #include "env/IO.hpp"
 
-namespace OMR { class Logger; }
+namespace OMR {
+class Logger;
+}
 
-class TR_VMField
-   {
+class TR_VMField {
 public:
-   TR_ALLOC(TR_Memory::VMField)
-   TR_VMField( TR::Compilation * comp, J9Class *aClazz, J9ROMFieldShape *fieldShape, TR_AllocationKind allocKind);
-   int isReference();
-   void              print(OMR::Logger *log, TR_FrontEnd *fe);
+    TR_ALLOC(TR_Memory::VMField)
+    TR_VMField(TR::Compilation *comp, J9Class *aClazz, J9ROMFieldShape *fieldShape, TR_AllocationKind allocKind);
+    int isReference();
+    void print(OMR::Logger *log, TR_FrontEnd *fe);
 
-   char *            name;
-   char *            signature;
-   J9ROMFieldShape * shape;
-   U_32              modifiers;
-   IDATA             offset;
-   J9Class *         ramClass;
-   };
+    char *name;
+    char *signature;
+    J9ROMFieldShape *shape;
+    U_32 modifiers;
+    IDATA offset;
+    J9Class *ramClass;
+};
 #endif
 

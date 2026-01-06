@@ -36,101 +36,100 @@
 #include "infra/Flags.hpp"
 #include "optimizer/Optimizations.hpp"
 
-
 namespace TR {
 class Optimizer;
 }
 struct OptimizationStrategy;
 
-J9::OptimizationManager::OptimizationManager(TR::Optimizer *o, OptimizationFactory factory, OMR::Optimizations optNum, const OptimizationStrategy *groupOfOpts)
-      : OMR::OptimizationManager(o, factory, optNum, groupOfOpts)
-   {
-   // set flags if necessary
-   switch (self()->id())
-      {
-      case OMR::dynamicLiteralPool:
-         _flags.set(doesNotRequireAliasSets);
-         break;
-      case OMR::redundantMonitorElimination:
-         _flags.set(requiresStructure | requiresLocalsValueNumbering);
-         break;
-      case OMR::escapeAnalysis:
-         _flags.set(requiresStructure | checkStructure | dumpStructure |
-                    requiresLocalsUseDefInfo | requiresLocalsValueNumbering | cannotOmitTrivialDefs);
-         break;
-      case OMR::globalLiveVariablesForGC:
-         _flags.set(requiresStructure);
-         break;
-      case OMR::recompilationModifier:
-         if (self()->comp()->getMethodHotness() > cold)
-            self()->setRequiresStructure(true);
-         break;
-      case OMR::dataAccessAccelerator:
-         _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
-         break;
-      case OMR::stringBuilderTransformer:
-         _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
-         break;
-      case OMR::stringPeepholes:
-         _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
-         break;
-      case OMR::switchAnalyzer:
-         _flags.set(checkTheCFG);
-         break;
-      case OMR::idiomRecognition:
-         _flags.set(requiresStructure | checkStructure | dumpStructure |
-                    requiresLocalsUseDefInfo | requiresLocalsValueNumbering);
-         if (self()->comp()->getMethodHotness() >= warm)
-            _flags.set(requiresLocalsUseDefInfo | doesNotRequireLoadsAsDefs);
-         break;
-      case OMR::loopAliasRefiner:
-         _flags.set(requiresStructure | checkStructure | dumpStructure);
-         self()->setDoesNotRequireAliasSets(false);
-         break;
-      case OMR::allocationSinking:
-         _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
-         break;
-      case OMR::varHandleTransformer:
-         _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
-         break;
-      case OMR::methodHandleTransformer:
-         _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
-         break;
-      case OMR::unsafeFastPath:
-         _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
-         break;
-      case OMR::recognizedCallTransformer:
-         _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
-         break;
-      case OMR::samplingJProfiling:
-         _flags.set(requiresStructure | checkStructure | dumpStructure);
-         break;
-      case OMR::SPMDKernelParallelization:
-         _flags.set(requiresLocalsUseDefInfo | doesNotRequireLoadsAsDefs | requiresLocalsValueNumbering);
-         break;
-      case OMR::osrGuardInsertion:
-         _flags.set(doNotSetFrequencies);
-         break;
-      case OMR::osrGuardRemoval:
-         _flags.set(requiresStructure);
-         break;
-      case OMR::osrExceptionEdgeRemoval:
-         _flags.set(doesNotRequireAliasSets);
-         break;
-      case OMR::jProfilingBlock:
-         _flags.set(doesNotRequireAliasSets);
-         break;
-      case OMR::jProfilingRecompLoopTest:
-         _flags.set(requiresStructure);
-         break;
-      case OMR::handleRecompilationOps:
-         _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
-         break;
-      case OMR::vectorAPIExpansion:
-         _flags.set(verifyTrees);
-         break;
-      default:
-         // do nothing
-         break;
-      }
-   }
+J9::OptimizationManager::OptimizationManager(TR::Optimizer *o, OptimizationFactory factory, OMR::Optimizations optNum,
+    const OptimizationStrategy *groupOfOpts)
+    : OMR::OptimizationManager(o, factory, optNum, groupOfOpts)
+{
+    // set flags if necessary
+    switch (self()->id()) {
+        case OMR::dynamicLiteralPool:
+            _flags.set(doesNotRequireAliasSets);
+            break;
+        case OMR::redundantMonitorElimination:
+            _flags.set(requiresStructure | requiresLocalsValueNumbering);
+            break;
+        case OMR::escapeAnalysis:
+            _flags.set(requiresStructure | checkStructure | dumpStructure | requiresLocalsUseDefInfo
+                | requiresLocalsValueNumbering | cannotOmitTrivialDefs);
+            break;
+        case OMR::globalLiveVariablesForGC:
+            _flags.set(requiresStructure);
+            break;
+        case OMR::recompilationModifier:
+            if (self()->comp()->getMethodHotness() > cold)
+                self()->setRequiresStructure(true);
+            break;
+        case OMR::dataAccessAccelerator:
+            _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
+            break;
+        case OMR::stringBuilderTransformer:
+            _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
+            break;
+        case OMR::stringPeepholes:
+            _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
+            break;
+        case OMR::switchAnalyzer:
+            _flags.set(checkTheCFG);
+            break;
+        case OMR::idiomRecognition:
+            _flags.set(requiresStructure | checkStructure | dumpStructure | requiresLocalsUseDefInfo
+                | requiresLocalsValueNumbering);
+            if (self()->comp()->getMethodHotness() >= warm)
+                _flags.set(requiresLocalsUseDefInfo | doesNotRequireLoadsAsDefs);
+            break;
+        case OMR::loopAliasRefiner:
+            _flags.set(requiresStructure | checkStructure | dumpStructure);
+            self()->setDoesNotRequireAliasSets(false);
+            break;
+        case OMR::allocationSinking:
+            _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
+            break;
+        case OMR::varHandleTransformer:
+            _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
+            break;
+        case OMR::methodHandleTransformer:
+            _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
+            break;
+        case OMR::unsafeFastPath:
+            _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
+            break;
+        case OMR::recognizedCallTransformer:
+            _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
+            break;
+        case OMR::samplingJProfiling:
+            _flags.set(requiresStructure | checkStructure | dumpStructure);
+            break;
+        case OMR::SPMDKernelParallelization:
+            _flags.set(requiresLocalsUseDefInfo | doesNotRequireLoadsAsDefs | requiresLocalsValueNumbering);
+            break;
+        case OMR::osrGuardInsertion:
+            _flags.set(doNotSetFrequencies);
+            break;
+        case OMR::osrGuardRemoval:
+            _flags.set(requiresStructure);
+            break;
+        case OMR::osrExceptionEdgeRemoval:
+            _flags.set(doesNotRequireAliasSets);
+            break;
+        case OMR::jProfilingBlock:
+            _flags.set(doesNotRequireAliasSets);
+            break;
+        case OMR::jProfilingRecompLoopTest:
+            _flags.set(requiresStructure);
+            break;
+        case OMR::handleRecompilationOps:
+            _flags.set(doesNotRequireAliasSets | supportsIlGenOptLevel);
+            break;
+        case OMR::vectorAPIExpansion:
+            _flags.set(verifyTrees);
+            break;
+        default:
+            // do nothing
+            break;
+    }
+}

@@ -28,106 +28,46 @@
 #include "jilconsts.h"
 #include "j9protos.h"
 
-float
-J9::ArithEnv::floatAddFloat(float a, float b)
-   {
-   return helperCFloatPlusFloat(a, b);
-   }
+float J9::ArithEnv::floatAddFloat(float a, float b) { return helperCFloatPlusFloat(a, b); }
 
-float
-J9::ArithEnv::floatSubtractFloat(float a, float b)
-   {
-   return helperCFloatMinusFloat(a, b);
-   }
+float J9::ArithEnv::floatSubtractFloat(float a, float b) { return helperCFloatMinusFloat(a, b); }
 
-float
-J9::ArithEnv::floatMultiplyFloat(float a, float b)
-   {
-   return helperCFloatMultiplyFloat(a, b);
-   }
+float J9::ArithEnv::floatMultiplyFloat(float a, float b) { return helperCFloatMultiplyFloat(a, b); }
 
-float
-J9::ArithEnv::floatDivideFloat(float a, float b)
-   {
-   return helperCFloatDivideFloat(a, b);
-   }
-float
-J9::ArithEnv::floatRemainderFloat(float a, float b)
-   {
-   return helperCFloatRemainderFloat(a, b);
-   }
+float J9::ArithEnv::floatDivideFloat(float a, float b) { return helperCFloatDivideFloat(a, b); }
 
-float
-J9::ArithEnv::floatNegate(float a)
-   {
-   float c;
-   helperNegateFloat(&a, &c);
-   return c;
-   }
+float J9::ArithEnv::floatRemainderFloat(float a, float b) { return helperCFloatRemainderFloat(a, b); }
 
-double
-J9::ArithEnv::doubleAddDouble(double a, double b)
-   {
-   return helperCDoublePlusDouble(a, b);
-   }
+float J9::ArithEnv::floatNegate(float a)
+{
+    float c;
+    helperNegateFloat(&a, &c);
+    return c;
+}
 
-double
-J9::ArithEnv::doubleSubtractDouble(double a, double b)
-   {
-   return helperCDoubleMinusDouble(a, b);
-   }
+double J9::ArithEnv::doubleAddDouble(double a, double b) { return helperCDoublePlusDouble(a, b); }
 
-double
-J9::ArithEnv::doubleMultiplyDouble(double a, double b)
-   {
-   return helperCDoubleMultiplyDouble(a, b);
-   }
+double J9::ArithEnv::doubleSubtractDouble(double a, double b) { return helperCDoubleMinusDouble(a, b); }
 
-double
-J9::ArithEnv::doubleDivideDouble(double a, double b)
-   {
-   return helperCDoubleDivideDouble(a, b);
-   }
-double
-J9::ArithEnv::doubleRemainderDouble(double a, double b)
-   {
-   return helperCDoubleRemainderDouble(a, b);
-   }
+double J9::ArithEnv::doubleMultiplyDouble(double a, double b) { return helperCDoubleMultiplyDouble(a, b); }
 
-double
-J9::ArithEnv::doubleNegate(double a)
-   {
-   double c;
-   helperNegateDouble(&a, &c);
-   return c;
-   }
+double J9::ArithEnv::doubleDivideDouble(double a, double b) { return helperCDoubleDivideDouble(a, b); }
 
-double
-J9::ArithEnv::floatToDouble(float a)
-   {
-   return helperCConvertFloatToDouble(a);
-   }
+double J9::ArithEnv::doubleRemainderDouble(double a, double b) { return helperCDoubleRemainderDouble(a, b); }
 
-float
-J9::ArithEnv::doubleToFloat(double a)
-   {
-   return helperCConvertDoubleToFloat(a);
-   }
+double J9::ArithEnv::doubleNegate(double a)
+{
+    double c;
+    helperNegateDouble(&a, &c);
+    return c;
+}
 
-int64_t
-J9::ArithEnv::longRemainderLong(int64_t a, int64_t b)
-   {
-   return helperCLongRemainderLong(a, b);
-   }
+double J9::ArithEnv::floatToDouble(float a) { return helperCConvertFloatToDouble(a); }
 
-int64_t
-J9::ArithEnv::longDivideLong(int64_t a, int64_t b)
-   {
-   return helperCLongDivideLong(a, b);
-   }
+float J9::ArithEnv::doubleToFloat(double a) { return helperCConvertDoubleToFloat(a); }
 
-int64_t
-J9::ArithEnv::longMultiplyLong(int64_t a, int64_t b)
-   {
-   return helperCLongMultiplyLong(a, b);
-   }
+int64_t J9::ArithEnv::longRemainderLong(int64_t a, int64_t b) { return helperCLongRemainderLong(a, b); }
+
+int64_t J9::ArithEnv::longDivideLong(int64_t a, int64_t b) { return helperCLongDivideLong(a, b); }
+
+int64_t J9::ArithEnv::longMultiplyLong(int64_t a, int64_t b) { return helperCLongMultiplyLong(a, b); }

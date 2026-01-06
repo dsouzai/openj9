@@ -33,17 +33,16 @@ class Optimizer;
 }
 struct OptimizationStrategy;
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE OptimizationManager : public J9::OptimizationManagerConnector
-   {
-   public:
+class OMR_EXTENSIBLE OptimizationManager : public J9::OptimizationManagerConnector {
+public:
+    OptimizationManager(TR::Optimizer *o, OptimizationFactory factory, OMR::Optimizations optNum,
+        const OptimizationStrategy *groupOfOpts = NULL)
+        : J9::OptimizationManagerConnector(o, factory, optNum, groupOfOpts)
+    {}
+};
 
-   OptimizationManager(TR::Optimizer *o, OptimizationFactory factory, OMR::Optimizations optNum, const OptimizationStrategy *groupOfOpts = NULL) :
-      J9::OptimizationManagerConnector(o, factory, optNum, groupOfOpts) {}
-   };
-
-}
+} // namespace TR
 
 #endif

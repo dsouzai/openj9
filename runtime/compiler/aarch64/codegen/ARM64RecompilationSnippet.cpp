@@ -26,52 +26,52 @@
 #include "codegen/CodeGenerator.hpp"
 
 uint8_t *TR::ARM64RecompilationSnippet::emitSnippetBody()
-   {
-   uint8_t *buffer = cg()->getBinaryBufferCursor();
-   TR::SymbolReference  *countingRecompMethodSymRef = cg()->symRefTab()->findOrCreateRuntimeHelper(TR_ARM64countingRecompileMethod);
+{
+    uint8_t *buffer = cg()->getBinaryBufferCursor();
+    TR::SymbolReference *countingRecompMethodSymRef
+        = cg()->symRefTab()->findOrCreateRuntimeHelper(TR_ARM64countingRecompileMethod);
 
-   getSnippetLabel()->setCodeLocation(buffer);
+    getSnippetLabel()->setCodeLocation(buffer);
 
-   // bl symref
-   *(int32_t *)buffer = cg()->encodeHelperBranchAndLink(countingRecompMethodSymRef, buffer, getNode());
-   buffer += ARM64_INSTRUCTION_LENGTH;
+    // bl symref
+    *(int32_t *)buffer = cg()->encodeHelperBranchAndLink(countingRecompMethodSymRef, buffer, getNode());
+    buffer += ARM64_INSTRUCTION_LENGTH;
 
-   // bodyinfo
-   *(intptr_t *)buffer = (intptr_t)cg()->comp()->getRecompilationInfo()->getJittedBodyInfo();
-   buffer += sizeof(intptr_t);
+    // bodyinfo
+    *(intptr_t *)buffer = (intptr_t)cg()->comp()->getRecompilationInfo()->getJittedBodyInfo();
+    buffer += sizeof(intptr_t);
 
-   // startPC
-   *(intptr_t *)buffer = (intptr_t)cg()->getCodeStart();
-   buffer += sizeof(intptr_t);
+    // startPC
+    *(intptr_t *)buffer = (intptr_t)cg()->getCodeStart();
+    buffer += sizeof(intptr_t);
 
-   return buffer;
-   }
+    return buffer;
+}
 
 uint32_t TR::ARM64RecompilationSnippet::getLength(int32_t estimatedSnippetStart)
-   {
-   return ARM64_INSTRUCTION_LENGTH + sizeof(intptr_t) + sizeof(intptr_t);
-   }
+{
+    return ARM64_INSTRUCTION_LENGTH + sizeof(intptr_t) + sizeof(intptr_t);
+}
 
-void
-TR_Debug::print(OMR::Logger *log, TR::ARM64RecompilationSnippet *snippet)
-   {
-   uint8_t *cursor = snippet->getSnippetLabel()->getCodeLocation();
+void TR_Debug::print(OMR::Logger *log, TR::ARM64RecompilationSnippet *snippet)
+{
+    uint8_t *cursor = snippet->getSnippetLabel()->getCodeLocation();
 
-   printSnippetLabel(log, snippet->getSnippetLabel(), cursor, getName(snippet));
+    printSnippetLabel(log, snippet->getSnippetLabel(), cursor, getName(snippet));
 
-   int32_t distance;
-   distance = *((int32_t *)cursor) & 0x03ffffff; // imm26
-   distance = (distance << 6) >> 4; // sign extend and add two 0 bits
+    int32_t distance;
+    distance = *((int32_t *)cursor) & 0x03ffffff; // imm26
+    distance = (distance << 6) >> 4; // sign extend and add two 0 bits
 
-   printPrefix(log, NULL, cursor, ARM64_INSTRUCTION_LENGTH);
-   log->printf("bl \t" POINTER_PRINTF_FORMAT "\t\t; %s",
-             (intptr_t)cursor + distance, getRuntimeHelperName(TR_ARM64countingRecompileMethod));
-   cursor += ARM64_INSTRUCTION_LENGTH;
+    printPrefix(log, NULL, cursor, ARM64_INSTRUCTION_LENGTH);
+    log->printf("bl \t" POINTER_PRINTF_FORMAT "\t\t; %s", (intptr_t)cursor + distance,
+        getRuntimeHelperName(TR_ARM64countingRecompileMethod));
+    cursor += ARM64_INSTRUCTION_LENGTH;
 
-   printPrefix(log, NULL, cursor, sizeof(intptr_t));
-   log->printf(".dword \t" POINTER_PRINTF_FORMAT "\t\t; BodyInfo", *(intptr_t *)cursor);
-   cursor += sizeof(intptr_t);
+    printPrefix(log, NULL, cursor, sizeof(intptr_t));
+    log->printf(".dword \t" POINTER_PRINTF_FORMAT "\t\t; BodyInfo", *(intptr_t *)cursor);
+    cursor += sizeof(intptr_t);
 
-   printPrefix(log, NULL, cursor, sizeof(intptr_t));
-   log->printf(".dword \t" POINTER_PRINTF_FORMAT "\t\t; startPC", *(intptr_t *)cursor);
-   }
+    printPrefix(log, NULL, cursor, sizeof(intptr_t));
+    log->printf(".dword \t" POINTER_PRINTF_FORMAT "\t\t; startPC", *(intptr_t *)cursor);
+}

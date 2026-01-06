@@ -26,17 +26,15 @@
 #include "env/J9VMMethodEnv.hpp"
 #include "infra/Annotations.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE VMMethodEnv : public J9::VMMethodEnvConnector
-   {
+class OMR_EXTENSIBLE VMMethodEnv : public J9::VMMethodEnvConnector {
 public:
+    VMMethodEnv()
+        : J9::VMMethodEnvConnector()
+    {}
+};
 
-   VMMethodEnv() : J9::VMMethodEnvConnector() {}
-
-   };
-
-}
+} // namespace TR
 
 #endif

@@ -23,38 +23,24 @@
 #include "env/J9SegmentProvider.hpp"
 #include "j9.h"
 
-J9::J9SegmentProvider::J9SegmentProvider()
-   {
-   }
+J9::J9SegmentProvider::J9SegmentProvider() {}
 
-J9::J9SegmentProvider::J9SegmentProvider(const J9::J9SegmentProvider &other)
-   {
-   }
+J9::J9SegmentProvider::J9SegmentProvider(const J9::J9SegmentProvider &other) {}
 
-J9::J9SegmentProvider::~J9SegmentProvider() throw()
-   {
-   }
+J9::J9SegmentProvider::~J9SegmentProvider() throw() {}
 
-void *
-operator new(size_t size, J9MemorySegment &segment) throw()
-   {
-   size = (size + 15) & ~static_cast<size_t>(15);
-   if (segment.heapAlloc + size > segment.heapTop) return NULL;
-   void *alloc = segment.heapAlloc;
-   segment.heapAlloc += size;
-   return alloc;
-   }
+void *operator new(size_t size, J9MemorySegment &segment) throw()
+{
+    size = (size + 15) & ~static_cast<size_t>(15);
+    if (segment.heapAlloc + size > segment.heapTop)
+        return NULL;
+    void *alloc = segment.heapAlloc;
+    segment.heapAlloc += size;
+    return alloc;
+}
 
-void *operator new[](size_t size, J9MemorySegment &segment) throw()
-   {
-   return operator new(size, segment);
-   }
+void *operator new[](size_t size, J9MemorySegment &segment) throw() { return operator new(size, segment); }
 
-void operator delete(void *, J9MemorySegment &) throw()
-   {
-   }
+void operator delete(void *, J9MemorySegment &) throw() {}
 
-void operator delete[](void *ptr, J9MemorySegment &segment) throw()
-   {
-   operator delete(ptr, segment);
-   }
+void operator delete[](void *ptr, J9MemorySegment &segment) throw() { operator delete(ptr, segment); }

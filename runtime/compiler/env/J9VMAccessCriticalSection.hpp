@@ -28,10 +28,11 @@
  */
 #ifndef J9_VMACCESSCRITICALSECTION_CONNECTOR
 #define J9_VMACCESSCRITICALSECTION_CONNECTOR
+
 namespace J9 {
 class VMAccessCriticalSection;
 typedef J9::VMAccessCriticalSection VMAccessCriticalSectionConnector;
-}
+} // namespace J9
 #endif
 
 #include "env/OMRVMAccessCriticalSection.hpp"
@@ -45,101 +46,81 @@ namespace TR {
 class Compilation;
 }
 
-namespace J9
-{
+namespace J9 {
 
-class OMR_EXTENSIBLE VMAccessCriticalSection : public OMR::VMAccessCriticalSectionConnector
-   {
+class OMR_EXTENSIBLE VMAccessCriticalSection : public OMR::VMAccessCriticalSectionConnector {
 public:
+    VMAccessCriticalSection(TR_J9VMBase *fej9, VMAccessAcquireProtocol protocol, TR::Compilation *comp)
+        : OMR::VMAccessCriticalSectionConnector(protocol, comp)
+        , _fej9(fej9)
+    {
+        _initializedBySubClass = true;
+        switch (protocol) {
+            case acquireVMAccessIfNeeded:
+                _acquiredVMAccess = TR::Compiler->vm.acquireVMAccessIfNeeded(fej9);
+                _hasVMAccess = true;
+                break;
 
-   VMAccessCriticalSection(
-         TR_J9VMBase *fej9,
-         VMAccessAcquireProtocol protocol,
-         TR::Compilation *comp) :
-      OMR::VMAccessCriticalSectionConnector(protocol, comp),
-         _fej9(fej9)
-      {
-      _initializedBySubClass = true;
-      switch (protocol)
-         {
-         case acquireVMAccessIfNeeded:
-            _acquiredVMAccess = TR::Compiler->vm.acquireVMAccessIfNeeded(fej9);
-            _hasVMAccess = true;
-            break;
+            case tryToAcquireVMAccess:
+                _hasVMAccess = TR::Compiler->vm.tryToAcquireAccess(comp, &_acquiredVMAccess);
+                break;
+        }
+    }
 
-         case tryToAcquireVMAccess:
-            _hasVMAccess = TR::Compiler->vm.tryToAcquireAccess(comp, &_acquiredVMAccess);
-            break;
-         }
-      }
+    VMAccessCriticalSection(TR::Compilation *comp, VMAccessAcquireProtocol protocol)
+        : OMR::VMAccessCriticalSectionConnector(protocol, comp)
+        , _fej9(NULL)
+    {
+        _initializedBySubClass = true;
+        switch (protocol) {
+            case acquireVMAccessIfNeeded:
+                _acquiredVMAccess = TR::Compiler->vm.acquireVMAccessIfNeeded(comp->fej9());
+                _hasVMAccess = true;
+                break;
 
+            case tryToAcquireVMAccess:
+                _hasVMAccess = TR::Compiler->vm.tryToAcquireAccess(comp, &_acquiredVMAccess);
+                break;
+        }
+    }
 
-   VMAccessCriticalSection(
-         TR::Compilation *comp,
-         VMAccessAcquireProtocol protocol) :
-      OMR::VMAccessCriticalSectionConnector(protocol, comp),
-         _fej9(NULL)
-      {
-      _initializedBySubClass = true;
-      switch (protocol)
-         {
-         case acquireVMAccessIfNeeded:
-            _acquiredVMAccess = TR::Compiler->vm.acquireVMAccessIfNeeded(comp->fej9());
-            _hasVMAccess = true;
-            break;
+    ~VMAccessCriticalSection()
+    {
+        if (!_vmAccessReleased) {
+            if (_comp) {
+                switch (_protocol) {
+                    case acquireVMAccessIfNeeded:
+                        TR::Compiler->vm.releaseVMAccessIfNeeded(_comp, _acquiredVMAccess);
+                        break;
 
-         case tryToAcquireVMAccess:
-            _hasVMAccess = TR::Compiler->vm.tryToAcquireAccess(comp, &_acquiredVMAccess);
-            break;
-         }
-      }
+                    case tryToAcquireVMAccess:
+                        if (_hasVMAccess && _acquiredVMAccess) {
+                            TR::Compiler->vm.releaseAccess(_comp);
+                        }
+                        break;
+                }
+            } else if (_fej9) {
+                switch (_protocol) {
+                    case acquireVMAccessIfNeeded:
+                        TR::Compiler->vm.releaseVMAccessIfNeeded(_fej9, _acquiredVMAccess);
+                        break;
 
-   ~VMAccessCriticalSection()
-      {
-      if (!_vmAccessReleased)
-         {
-         if (_comp)
-            {
-            switch (_protocol)
-               {
-               case acquireVMAccessIfNeeded:
-                  TR::Compiler->vm.releaseVMAccessIfNeeded(_comp, _acquiredVMAccess);
-                  break;
-
-               case tryToAcquireVMAccess:
-                  if (_hasVMAccess && _acquiredVMAccess)
-                     {
-                     TR::Compiler->vm.releaseAccess(_comp);
-                     }
-                  break;
-               }
-            }
-         else if (_fej9)
-            {
-            switch (_protocol)
-               {
-               case acquireVMAccessIfNeeded:
-                  TR::Compiler->vm.releaseVMAccessIfNeeded(_fej9, _acquiredVMAccess);
-                  break;
-
-               case tryToAcquireVMAccess:
-                  if (_hasVMAccess && _acquiredVMAccess)
-                     {
-                     TR::Compiler->vm.releaseAccess(_fej9);
-                     }
-                  break;
-               }
+                    case tryToAcquireVMAccess:
+                        if (_hasVMAccess && _acquiredVMAccess) {
+                            TR::Compiler->vm.releaseAccess(_fej9);
+                        }
+                        break;
+                }
             }
 
-         _vmAccessReleased = true;
-         }
-      }
+            _vmAccessReleased = true;
+        }
+    }
 
 protected:
+    TR_J9VMBase *_fej9;
+};
 
-   TR_J9VMBase *_fej9;
-   };
-
-}
+} // namespace J9
 
 #endif

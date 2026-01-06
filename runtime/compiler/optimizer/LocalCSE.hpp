@@ -25,17 +25,15 @@
 
 #include "optimizer/J9LocalCSE.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class LocalCSE : public J9::LocalCSE
-   {
-   public:
+class LocalCSE : public J9::LocalCSE {
+public:
+    LocalCSE(TR::OptimizationManager *manager)
+        : J9::LocalCSE(manager)
+    {}
+};
 
-   LocalCSE(TR::OptimizationManager *manager) :
-      J9::LocalCSE(manager) {}
-   };
-
-}
+} // namespace TR
 
 #endif

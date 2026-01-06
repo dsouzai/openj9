@@ -32,38 +32,60 @@ namespace TR {
 class CodeGenerator;
 }
 
-#define INCOMPLETELINKAGE  "This class is only used to generate call-out sequence but no call-in sequence, so it is not used as a complete linkage."
+#define INCOMPLETELINKAGE                                                                                             \
+    "This class is only used to generate call-out sequence but no call-in sequence, so it is not used as a complete " \
+    "linkage."
 
 namespace TR {
 
-class AMD64J9SystemLinkage: public virtual TR::AMD64SystemLinkage
-   {
+class AMD64J9SystemLinkage : public virtual TR::AMD64SystemLinkage {
 protected:
-   AMD64J9SystemLinkage(TR::CodeGenerator *cg) : TR::AMD64SystemLinkage(cg) {}
+    AMD64J9SystemLinkage(TR::CodeGenerator *cg)
+        : TR::AMD64SystemLinkage(cg)
+    {}
 
-   virtual TR::Register *buildDirectDispatch(TR::Node *callNode, bool spillFPRegs);
-   virtual TR::Register *buildVolatileAndReturnDependencies(TR::Node *callNode, TR::RegisterDependencyConditions *deps);
-   };
+    virtual TR::Register *buildDirectDispatch(TR::Node *callNode, bool spillFPRegs);
+    virtual TR::Register *buildVolatileAndReturnDependencies(TR::Node *callNode,
+        TR::RegisterDependencyConditions *deps);
+};
 
-class AMD64J9Win64FastCallLinkage: public TR::AMD64J9SystemLinkage,  protected TR::AMD64Win64FastCallLinkage
-   {
+class AMD64J9Win64FastCallLinkage
+    : public TR::AMD64J9SystemLinkage
+    , protected TR::AMD64Win64FastCallLinkage {
 public:
-   AMD64J9Win64FastCallLinkage(TR::CodeGenerator *cg);
-protected:
-   TR::Register *buildDirectDispatch(TR::Node *callNode, bool spillFPRegs) {return TR::AMD64J9SystemLinkage::buildDirectDispatch(callNode, spillFPRegs);}
-   TR::Register *buildVolatileAndReturnDependencies(TR::Node *callNode, TR::RegisterDependencyConditions *deps) {return TR::AMD64J9SystemLinkage::buildVolatileAndReturnDependencies(callNode, deps);}
-   };
+    AMD64J9Win64FastCallLinkage(TR::CodeGenerator *cg);
 
-class AMD64J9ABILinkage : public TR::AMD64J9SystemLinkage, protected TR::AMD64ABILinkage
-   {
+protected:
+    TR::Register *buildDirectDispatch(TR::Node *callNode, bool spillFPRegs)
+    {
+        return TR::AMD64J9SystemLinkage::buildDirectDispatch(callNode, spillFPRegs);
+    }
+
+    TR::Register *buildVolatileAndReturnDependencies(TR::Node *callNode, TR::RegisterDependencyConditions *deps)
+    {
+        return TR::AMD64J9SystemLinkage::buildVolatileAndReturnDependencies(callNode, deps);
+    }
+};
+
+class AMD64J9ABILinkage
+    : public TR::AMD64J9SystemLinkage
+    , protected TR::AMD64ABILinkage {
 public:
-   AMD64J9ABILinkage(TR::CodeGenerator *cg);
-protected:
-   TR::Register *buildDirectDispatch(TR::Node *callNode, bool spillFPRegs) {return TR::AMD64J9SystemLinkage::buildDirectDispatch(callNode, spillFPRegs);}
-   TR::Register *buildVolatileAndReturnDependencies(TR::Node *callNode, TR::RegisterDependencyConditions *deps) {return TR::AMD64J9SystemLinkage::buildVolatileAndReturnDependencies(callNode, deps);}
-   };
+    AMD64J9ABILinkage(TR::CodeGenerator *cg);
 
-}
+protected:
+    TR::Register *buildDirectDispatch(TR::Node *callNode, bool spillFPRegs)
+    {
+        return TR::AMD64J9SystemLinkage::buildDirectDispatch(callNode, spillFPRegs);
+    }
+
+    TR::Register *buildVolatileAndReturnDependencies(TR::Node *callNode, TR::RegisterDependencyConditions *deps)
+    {
+        return TR::AMD64J9SystemLinkage::buildVolatileAndReturnDependencies(callNode, deps);
+    }
+};
+
+} // namespace TR
 
 #endif
 

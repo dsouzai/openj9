@@ -25,37 +25,18 @@
  * Only enum values defined in CodeGenPhaseEnum.hpp are allowed.
  */
 
-
-
-    ReserveCodeCachePhase,
-    FixUpProfiledInterfaceGuardTest,
-
+ReserveCodeCachePhase, FixUpProfiledInterfaceGuardTest,
 
     InliningReportPhase,
 
-    PopulateOSRBufferPhase,
-    MoveUpArrayLengthStoresPhase,
-    InsertEpilogueYieldPointsPhase,
-    CleanUpFlagsPhase,
-    LowerTreesPhase,
-    InsertDebugCountersPhase,
-    CompressedReferenceRematerializationPhase,
-    AllocateLinkageRegisters,
+    PopulateOSRBufferPhase, MoveUpArrayLengthStoresPhase, InsertEpilogueYieldPointsPhase, CleanUpFlagsPhase,
+    LowerTreesPhase, InsertDebugCountersPhase, CompressedReferenceRematerializationPhase, AllocateLinkageRegisters,
 
     IdentifyUnneededByteConvsPhase,
 
-    FindAndFixCommonedReferencesPhase,
-    UncommonCallConstNodesPhase,
-    SetupForInstructionSelectionPhase,
-    RemoveUnusedLocalsPhase,
-    InstructionSelectionPhase,
-    CreateStackAtlasPhase,
+    FindAndFixCommonedReferencesPhase, UncommonCallConstNodesPhase, SetupForInstructionSelectionPhase,
+    RemoveUnusedLocalsPhase, InstructionSelectionPhase, CreateStackAtlasPhase,
 
-    RegisterAssigningPhase,
-    MapStackPhase,
-    PeepholePhase,
-    ExpandInstructionsPhase,
-    BinaryEncodingPhase,
-    EmitSnippetsPhase,
-    ProcessRelocationsPhase
+    RegisterAssigningPhase, MapStackPhase, PeepholePhase, ExpandInstructionsPhase, BinaryEncodingPhase,
+    EmitSnippetsPhase, ProcessRelocationsPhase
 

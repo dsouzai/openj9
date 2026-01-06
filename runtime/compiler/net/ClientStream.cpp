@@ -29,7 +29,7 @@
 #include <sys/un.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <netinet/tcp.h>	/* for TCP_NODELAY option */
+#include <netinet/tcp.h> /* for TCP_NODELAY option */
 #include <fcntl.h>
 #include <arpa/inet.h>
 #include <stdio.h>
@@ -37,260 +37,241 @@
 #include <unistd.h> /// gethostname, read, write
 #include <openssl/err.h>
 
-namespace JITServer
-{
+namespace JITServer {
 int ClientStream::_numConnectionsOpened = 0;
 int ClientStream::_numConnectionsClosed = 0;
 
 // used for checking server compatibility
 int ClientStream::_incompatibilityCount = 0;
 uint64_t ClientStream::_incompatibleStartTime = 0;
-const uint64_t ClientStream::RETRY_COMPATIBILITY_INTERVAL_MS = 10000; //ms
-const int ClientStream::INCOMPATIBILITY_COUNT_LIMIT = 1; // This needs to be smaller than the recompilation retry count (3)
+const uint64_t ClientStream::RETRY_COMPATIBILITY_INTERVAL_MS = 10000; // ms
+const int ClientStream::INCOMPATIBILITY_COUNT_LIMIT
+    = 1; // This needs to be smaller than the recompilation retry count (3)
 
 // Create SSL context, load certs and keys. Only needs to be done once.
 // This is called during startup from rossa.cpp
 int ClientStream::static_init(TR::CompilationInfo *compInfo)
-   {
-   if (!CommunicationStream::useSSL())
-      return 0;
+{
+    if (!CommunicationStream::useSSL())
+        return 0;
 
-   TR_ASSERT_FATAL(_sslCtx == NULL, "SSL context already initialized");
+    TR_ASSERT_FATAL(_sslCtx == NULL, "SSL context already initialized");
 
-   CommunicationStream::initSSL();
+    CommunicationStream::initSSL();
 
-   SSL_CTX *ctx = (*OSSL_CTX_new)((*OSSLv23_client_method)());
-   if (!ctx)
-      {
-      perror("can't create SSL context");
-      (*OERR_print_errors_fp)(stderr);
-      return -1;
-      }
+    SSL_CTX *ctx = (*OSSL_CTX_new)((*OSSLv23_client_method)());
+    if (!ctx) {
+        perror("can't create SSL context");
+        (*OERR_print_errors_fp)(stderr);
+        return -1;
+    }
 
-   if ((*OSSL_CTX_set_ecdh_auto)(ctx, 1) != 1)
-      {
-      perror("failed to configure SSL ecdh");
-      (*OERR_print_errors_fp)(stderr);
-      return -1;
-      }
+    if ((*OSSL_CTX_set_ecdh_auto)(ctx, 1) != 1) {
+        perror("failed to configure SSL ecdh");
+        (*OERR_print_errors_fp)(stderr);
+        return -1;
+    }
 
-   auto &sslKeys = compInfo->getJITServerSslKeys();
-   auto &sslCerts = compInfo->getJITServerSslCerts();
-   auto &sslRootCerts = compInfo->getJITServerSslRootCerts();
+    auto &sslKeys = compInfo->getJITServerSslKeys();
+    auto &sslCerts = compInfo->getJITServerSslCerts();
+    auto &sslRootCerts = compInfo->getJITServerSslRootCerts();
 
-   // We could also set up keys and certs here, if it's necessary to use TLS client keys
-   // it's not needed for a basic setup.
-   TR_ASSERT_FATAL(sslKeys.size() == 0 && sslCerts.size() == 0, "client keypairs are not yet supported, use a root cert chain instead");
+    // We could also set up keys and certs here, if it's necessary to use TLS client keys
+    // it's not needed for a basic setup.
+    TR_ASSERT_FATAL(sslKeys.size() == 0 && sslCerts.size() == 0,
+        "client keypairs are not yet supported, use a root cert chain instead");
 
-   // Parse and set certificate chain
-   BIO *certMem = (*OBIO_new_mem_buf)(&sslRootCerts[0], sslRootCerts.size());
-   if (!certMem)
-      {
-      perror("cannot create memory buffer for cert (OOM?)");
-      (*OERR_print_errors_fp)(stderr);
-      return -1;
-      }
-   STACK_OF(X509_INFO) *certificates = (*OPEM_X509_INFO_read_bio)(certMem, NULL, NULL, NULL);
-   if (!certificates)
-      {
-      perror("cannot parse cert");
-      (*OERR_print_errors_fp)(stderr);
-      return -1;
-      }
-   X509_STORE *certStore = (*OSSL_CTX_get_cert_store)(ctx);
-   if (!certStore)
-      {
-      perror("cannot get cert store");
-      (*OERR_print_errors_fp)(stderr);
-      return -1;
-      }
+    // Parse and set certificate chain
+    BIO *certMem = (*OBIO_new_mem_buf)(&sslRootCerts[0], sslRootCerts.size());
+    if (!certMem) {
+        perror("cannot create memory buffer for cert (OOM?)");
+        (*OERR_print_errors_fp)(stderr);
+        return -1;
+    }
+    STACK_OF(X509_INFO) *certificates = (*OPEM_X509_INFO_read_bio)(certMem, NULL, NULL, NULL);
+    if (!certificates) {
+        perror("cannot parse cert");
+        (*OERR_print_errors_fp)(stderr);
+        return -1;
+    }
+    X509_STORE *certStore = (*OSSL_CTX_get_cert_store)(ctx);
+    if (!certStore) {
+        perror("cannot get cert store");
+        (*OERR_print_errors_fp)(stderr);
+        return -1;
+    }
 
-   // add all certificates in the chain to the cert store
-   for (size_t i = 0; i < (*Osk_X509_INFO_num)(certificates); i++)
-      {
-      X509_INFO *certInfo = (*Osk_X509_INFO_value)(certificates, i);
-      if (certInfo->x509)
-         (*OX509_STORE_add_cert)(certStore, certInfo->x509);
-      if (certInfo->crl)
-         (*OX509_STORE_add_crl)(certStore, certInfo->crl);
-      }
-   (*Osk_X509_INFO_pop_free)(certificates, (*OX509_INFO_free));
+    // add all certificates in the chain to the cert store
+    for (size_t i = 0; i < (*Osk_X509_INFO_num)(certificates); i++) {
+        X509_INFO *certInfo = (*Osk_X509_INFO_value)(certificates, i);
+        if (certInfo->x509)
+            (*OX509_STORE_add_cert)(certStore, certInfo->x509);
+        if (certInfo->crl)
+            (*OX509_STORE_add_crl)(certStore, certInfo->crl);
+    }
+    (*Osk_X509_INFO_pop_free)(certificates, (*OX509_INFO_free));
 
-   // verify server identity using standard method
-   (*OSSL_CTX_set_verify)(ctx, SSL_VERIFY_PEER, NULL);
+    // verify server identity using standard method
+    (*OSSL_CTX_set_verify)(ctx, SSL_VERIFY_PEER, NULL);
 
-   _sslCtx = ctx;
+    _sslCtx = ctx;
 
-   if (TR::Options::getVerboseOption(TR_VerboseJITServer))
-      TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Successfully initialized SSL context (%s)", (*OOpenSSL_version)(0));
-   return 0;
-   }
+    if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+        TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Successfully initialized SSL context (%s)",
+            (*OOpenSSL_version)(0));
+    return 0;
+}
 
 void ClientStream::freeSSLContext()
-   {
-   if (_sslCtx)
-      {
-      (*OSSL_CTX_free)(_sslCtx);
-      _sslCtx = NULL;
-      }
-   }
+{
+    if (_sslCtx) {
+        (*OSSL_CTX_free)(_sslCtx);
+        _sslCtx = NULL;
+    }
+}
 
 SSL_CTX *ClientStream::_sslCtx = NULL;
 
-static int
-openConnection(const std::string &address, uint32_t port, uint32_t timeoutMs)
-   {
-   // TODO consider support for IPv6
-   struct addrinfo hints;
-   memset(&hints, 0, sizeof(hints));
-   hints.ai_family = AF_INET;    // Allow IPv4 only; could use AF_UNSPEC to allow IPv6 too
-   hints.ai_socktype = SOCK_STREAM;
-   hints.ai_flags = 0;
-   hints.ai_protocol = 0; // Any protocol
+static int openConnection(const std::string &address, uint32_t port, uint32_t timeoutMs)
+{
+    // TODO consider support for IPv6
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET; // Allow IPv4 only; could use AF_UNSPEC to allow IPv6 too
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = 0;
+    hints.ai_protocol = 0; // Any protocol
 
-   char portName[12];
-   int r = snprintf(portName, 12, "%d", port);
-   if (r < 0 || r > 11)
-      throw StreamFailure("snprintf failed");
+    char portName[12];
+    int r = snprintf(portName, 12, "%d", port);
+    if (r < 0 || r > 11)
+        throw StreamFailure("snprintf failed");
 
-   struct addrinfo *addrList = NULL;
-   int res = getaddrinfo(address.c_str(), portName, &hints, &addrList);
-   if (res != 0)
-      throw StreamFailure("Cannot resolve server name: " + std::string(gai_strerror(res)));
+    struct addrinfo *addrList = NULL;
+    int res = getaddrinfo(address.c_str(), portName, &hints, &addrList);
+    if (res != 0)
+        throw StreamFailure("Cannot resolve server name: " + std::string(gai_strerror(res)));
 
-   struct addrinfo *pAddr;
-   int sockfd = -1;
-   for (pAddr = addrList; pAddr; pAddr = pAddr->ai_next)
-      {
-      sockfd = socket(pAddr->ai_family, pAddr->ai_socktype, pAddr->ai_protocol);
-      if (sockfd >= 0)
-         break; // Use the first address for which a socket could be created
-      // Try next address
-      }
-   if (sockfd < 0)
-      {
-      int err = errno;
-      freeaddrinfo(addrList);
-      throw StreamFailure("Cannot create socket: " + std::string(strerror(err)));
-      }
+    struct addrinfo *pAddr;
+    int sockfd = -1;
+    for (pAddr = addrList; pAddr; pAddr = pAddr->ai_next) {
+        sockfd = socket(pAddr->ai_family, pAddr->ai_socktype, pAddr->ai_protocol);
+        if (sockfd >= 0)
+            break; // Use the first address for which a socket could be created
+        // Try next address
+    }
+    if (sockfd < 0) {
+        int err = errno;
+        freeaddrinfo(addrList);
+        throw StreamFailure("Cannot create socket: " + std::string(strerror(err)));
+    }
 
-   int flag = 1;
-   if (setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, &flag, sizeof(flag)) < 0)
-      {
-      int err = errno;
-      freeaddrinfo(addrList);
-      close(sockfd);
-      throw StreamFailure("Cannot set option SO_KEEPALIVE on socket: " + std::string(strerror(err)));
-      }
+    int flag = 1;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, &flag, sizeof(flag)) < 0) {
+        int err = errno;
+        freeaddrinfo(addrList);
+        close(sockfd);
+        throw StreamFailure("Cannot set option SO_KEEPALIVE on socket: " + std::string(strerror(err)));
+    }
 
-   struct linger lingerVal = { 1, 2 }; // linger 2 seconds
-   if (setsockopt(sockfd, SOL_SOCKET, SO_LINGER, &lingerVal, sizeof(lingerVal)) < 0)
-      {
-      int err = errno;
-      freeaddrinfo(addrList);
-      close(sockfd);
-      throw StreamFailure("Cannot set option SO_LINGER on socket: " + std::string(strerror(err)));
-      }
+    struct linger lingerVal = { 1, 2 }; // linger 2 seconds
+    if (setsockopt(sockfd, SOL_SOCKET, SO_LINGER, &lingerVal, sizeof(lingerVal)) < 0) {
+        int err = errno;
+        freeaddrinfo(addrList);
+        close(sockfd);
+        throw StreamFailure("Cannot set option SO_LINGER on socket: " + std::string(strerror(err)));
+    }
 
-   struct timeval timeout = { timeoutMs / 1000 , (timeoutMs % 1000) * 1000 };
-   if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
-      {
-      int err = errno;
-      freeaddrinfo(addrList);
-      close(sockfd);
-      throw StreamFailure("Cannot set option SO_RCVTIMEO on socket: " + std::string(strerror(err)));
-      }
-   if (setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0)
-      {
-      int err = errno;
-      freeaddrinfo(addrList);
-      close(sockfd);
-      throw StreamFailure("Cannot set option SO_SNDTIMEO on socket: " + std::string(strerror(err)));
-      }
+    struct timeval timeout = { timeoutMs / 1000, (timeoutMs % 1000) * 1000 };
+    if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+        int err = errno;
+        freeaddrinfo(addrList);
+        close(sockfd);
+        throw StreamFailure("Cannot set option SO_RCVTIMEO on socket: " + std::string(strerror(err)));
+    }
+    if (setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0) {
+        int err = errno;
+        freeaddrinfo(addrList);
+        close(sockfd);
+        throw StreamFailure("Cannot set option SO_SNDTIMEO on socket: " + std::string(strerror(err)));
+    }
 
-   if (setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag)) < 0)
-      {
-      int err = errno;
-      freeaddrinfo(addrList);
-      close(sockfd);
-      throw StreamFailure("Cannot set option TCP_NODELAY on socket: " + std::string(strerror(err)));
-      }
+    if (setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag)) < 0) {
+        int err = errno;
+        freeaddrinfo(addrList);
+        close(sockfd);
+        throw StreamFailure("Cannot set option TCP_NODELAY on socket: " + std::string(strerror(err)));
+    }
 
-   if (connect(sockfd, pAddr->ai_addr, pAddr->ai_addrlen) < 0)
-      {
-      int err = errno;
-      freeaddrinfo(addrList);
-      close(sockfd);
-      throw StreamFailure("Connect failed: " + std::string(strerror(err)));
-      }
+    if (connect(sockfd, pAddr->ai_addr, pAddr->ai_addrlen) < 0) {
+        int err = errno;
+        freeaddrinfo(addrList);
+        close(sockfd);
+        throw StreamFailure("Connect failed: " + std::string(strerror(err)));
+    }
 
-   freeaddrinfo(addrList);
-   return sockfd;
-   }
+    freeaddrinfo(addrList);
+    return sockfd;
+}
 
-static BIO *
-openSSLConnection(SSL_CTX *ctx, int connfd)
-   {
-   if (!ctx)
-      return NULL;
+static BIO *openSSLConnection(SSL_CTX *ctx, int connfd)
+{
+    if (!ctx)
+        return NULL;
 
-   BIO *bio = (*OBIO_new_ssl)(ctx, true);
-   if (!bio)
-      {
-      (*OERR_print_errors_fp)(stderr);
-      throw JITServer::StreamFailure("Failed to make new BIO");
-      }
+    BIO *bio = (*OBIO_new_ssl)(ctx, true);
+    if (!bio) {
+        (*OERR_print_errors_fp)(stderr);
+        throw JITServer::StreamFailure("Failed to make new BIO");
+    }
 
-   SSL *ssl = NULL;
-   if ((*OBIO_ctrl)(bio, BIO_C_GET_SSL, false, (char *)&ssl) != 1) // BIO_get_ssl(bio, &ssl)
-      {
-      (*OERR_print_errors_fp)(stderr);
-      (*OBIO_free_all)(bio);
-      throw JITServer::StreamFailure("Failed to get BIO SSL");
-      }
+    SSL *ssl = NULL;
+    if ((*OBIO_ctrl)(bio, BIO_C_GET_SSL, false, (char *)&ssl) != 1) // BIO_get_ssl(bio, &ssl)
+    {
+        (*OERR_print_errors_fp)(stderr);
+        (*OBIO_free_all)(bio);
+        throw JITServer::StreamFailure("Failed to get BIO SSL");
+    }
 
-   if ((*OSSL_set_fd)(ssl, connfd) != 1)
-      {
-      (*OERR_print_errors_fp)(stderr);
-      (*OBIO_free_all)(bio);
-      throw JITServer::StreamFailure("Cannot set file descriptor for SSL");
-      }
+    if ((*OSSL_set_fd)(ssl, connfd) != 1) {
+        (*OERR_print_errors_fp)(stderr);
+        (*OBIO_free_all)(bio);
+        throw JITServer::StreamFailure("Cannot set file descriptor for SSL");
+    }
 
-   if ((*OSSL_connect)(ssl) != 1)
-      {
-      (*OERR_print_errors_fp)(stderr);
-      (*OBIO_free_all)(bio);
-      throw JITServer::StreamFailure("Failed to SSL_connect");
-      }
+    if ((*OSSL_connect)(ssl) != 1) {
+        (*OERR_print_errors_fp)(stderr);
+        (*OBIO_free_all)(bio);
+        throw JITServer::StreamFailure("Failed to SSL_connect");
+    }
 
-   X509 *cert = (*OSSL_get_peer_certificate)(ssl);
-   if (!cert)
-      {
-      (*OERR_print_errors_fp)(stderr);
-      (*OBIO_free_all)(bio);
-      throw JITServer::StreamFailure("Server certificate unspecified");
-      }
-   (*OX509_free)(cert);
+    X509 *cert = (*OSSL_get_peer_certificate)(ssl);
+    if (!cert) {
+        (*OERR_print_errors_fp)(stderr);
+        (*OBIO_free_all)(bio);
+        throw JITServer::StreamFailure("Server certificate unspecified");
+    }
+    (*OX509_free)(cert);
 
-   if (X509_V_OK != (*OSSL_get_verify_result)(ssl))
-      {
-      (*OERR_print_errors_fp)(stderr);
-      (*OBIO_free_all)(bio);
-      throw JITServer::StreamFailure("Server certificate verification failed");
-      }
+    if (X509_V_OK != (*OSSL_get_verify_result)(ssl)) {
+        (*OERR_print_errors_fp)(stderr);
+        (*OBIO_free_all)(bio);
+        throw JITServer::StreamFailure("Server certificate verification failed");
+    }
 
-   if (TR::Options::getVerboseOption(TR_VerboseJITServer))
-      TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "SSL connection on socket 0x%x, Version: %s, Cipher: %s",
-                                     connfd, (*OSSL_get_version)(ssl), (*OSSL_get_cipher)(ssl));
-   return bio;
-   }
+    if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+        TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "SSL connection on socket 0x%x, Version: %s, Cipher: %s",
+            connfd, (*OSSL_get_version)(ssl), (*OSSL_get_cipher)(ssl));
+    return bio;
+}
 
 ClientStream::ClientStream(TR::PersistentInfo *info)
-   : CommunicationStream(), _versionCheckStatus(NOT_DONE)
-   {
-   int connfd = openConnection(info->getJITServerAddress(), info->getJITServerPort(), info->getSocketTimeout());
-   BIO *ssl = openSSLConnection(_sslCtx, connfd);
-   initStream(connfd, ssl);
-   _numConnectionsOpened++;
-   }
-};
+    : CommunicationStream()
+    , _versionCheckStatus(NOT_DONE)
+{
+    int connfd = openConnection(info->getJITServerAddress(), info->getJITServerPort(), info->getSocketTimeout());
+    BIO *ssl = openSSLConnection(_sslCtx, connfd);
+    initStream(connfd, ssl);
+    _numConnectionsOpened++;
+}
+}; // namespace JITServer

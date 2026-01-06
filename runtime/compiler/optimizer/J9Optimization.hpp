@@ -28,27 +28,24 @@
  */
 #ifndef J9_OPTIMIZATION_CONNECTOR
 #define J9_OPTIMIZATION_CONNECTOR
+
 namespace J9 {
-class   Optimization;
+class Optimization;
 typedef J9::Optimization OptimizationConnector;
-}
+} // namespace J9
 #endif
 
 #include "optimizer/OMROptimization.hpp"
 
-namespace J9 
-{
+namespace J9 {
 
-class OMR_EXTENSIBLE Optimization : public OMR::OptimizationConnector 
-   { 
-   public:
+class OMR_EXTENSIBLE Optimization : public OMR::OptimizationConnector {
+public:
+    Optimization(TR::OptimizationManager *manager)
+        : OMR::OptimizationConnector(manager)
+    {}
+};
 
-   Optimization(TR::OptimizationManager *manager)
-      : OMR::OptimizationConnector(manager)
-      {}
-   }; 
-
-}
-
+} // namespace J9
 
 #endif

@@ -37,41 +37,39 @@ extern void arm64CodeSync(uint8_t *, uint32_t);
 #define B_COND_INSTR_MASK 0xFF00001F
 
 static int32_t encodeDistanceInBranchInstruction(TR::InstOpCode::Mnemonic op, intptr_t distance)
-   {
-   TR_ASSERT(op == TR::InstOpCode::b || op == TR::InstOpCode::bl, "Unexpected InstOpCode");
-   TR_ASSERT_FATAL(distance <= TR::Compiler->target.cpu.maxUnconditionalBranchImmediateForwardOffset() &&
-                   distance >= TR::Compiler->target.cpu.maxUnconditionalBranchImmediateBackwardOffset(),
-                   "Target address is out of range");
-   return TR::InstOpCode::getOpCodeBinaryEncoding(op) | ((distance >> 2) & 0x3ffffff); /* imm26 */
-   }
+{
+    TR_ASSERT(op == TR::InstOpCode::b || op == TR::InstOpCode::bl, "Unexpected InstOpCode");
+    TR_ASSERT_FATAL(distance <= TR::Compiler->target.cpu.maxUnconditionalBranchImmediateForwardOffset()
+            && distance >= TR::Compiler->target.cpu.maxUnconditionalBranchImmediateBackwardOffset(),
+        "Target address is out of range");
+    return TR::InstOpCode::getOpCodeBinaryEncoding(op) | ((distance >> 2) & 0x3ffffff); /* imm26 */
+}
 
 // Called at runtime to get the body info from the start PC
 //
 TR_PersistentJittedBodyInfo *J9::Recompilation::getJittedBodyInfoFromPC(void *startPC)
-   {
-   J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
-   int32_t jitEntryOffset = getJitEntryOffset(linkageInfo);
-   int32_t *jitEntry = (int32_t *)((int8_t *)startPC + jitEntryOffset);
-   TR_PersistentJittedBodyInfo *info = NULL;
+{
+    J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
+    int32_t jitEntryOffset = getJitEntryOffset(linkageInfo);
+    int32_t *jitEntry = (int32_t *)((int8_t *)startPC + jitEntryOffset);
+    TR_PersistentJittedBodyInfo *info = NULL;
 
-   if (linkageInfo->isSamplingMethodBody())
-      {
-      info = *(TR_PersistentJittedBodyInfo **)((int8_t *)startPC + OFFSET_SAMPLING_METHODINFO_FROM_STARTPC);
-      }
-   else if (linkageInfo->isCountingMethodBody())
-      {
-      TR_UNIMPLEMENTED();
-      }
-   return info;
-   }
+    if (linkageInfo->isSamplingMethodBody()) {
+        info = *(TR_PersistentJittedBodyInfo **)((int8_t *)startPC + OFFSET_SAMPLING_METHODINFO_FROM_STARTPC);
+    } else if (linkageInfo->isCountingMethodBody()) {
+        TR_UNIMPLEMENTED();
+    }
+    return info;
+}
 
 bool J9::Recompilation::isAlreadyPreparedForRecompile(void *startPC)
-   {
-   int32_t jitEntryOffset = getJitEntryOffset(J9::PrivateLinkage::LinkageInfo::get(startPC));
-   int32_t *jitEntry = (int32_t *)((int8_t *)startPC + jitEntryOffset);
+{
+    int32_t jitEntryOffset = getJitEntryOffset(J9::PrivateLinkage::LinkageInfo::get(startPC));
+    int32_t *jitEntry = (int32_t *)((int8_t *)startPC + jitEntryOffset);
 
-   return ((*jitEntry & B_INSTR_MASK) == TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::b));  // is jit entry instruction a branch?
-   }
+    return ((*jitEntry & B_INSTR_MASK)
+        == TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::b)); // is jit entry instruction a branch?
+}
 
 // Changes the method in a way to make the current body unreachable, and to a) trigger a recompilation
 // or b) to redirect any future threads entering to jump to a freshly compiled body
@@ -83,219 +81,205 @@ bool J9::Recompilation::isAlreadyPreparedForRecompile(void *startPC)
 // o when prex assumptions fail and a sync recompilation is required
 //
 void J9::Recompilation::fixUpMethodCode(void *startPC)
-   {
-   J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
-   if (linkageInfo->isCountingMethodBody())
-      {
-      TR_UNIMPLEMENTED();
-      }
-   else
-      {
-      // Preprologue
-      // -24: mov	x8, lr  <= Branch back to this instruction
-      // -20: bl	_samplingRecompileMethod
-      // -16: .dword	jittedBodyInfo
-      //  -8: .word	space for preserving original jitEntry instruction
-      //  -4: .word	magic word
-      //   0: ldr	x0, [J9SP]  startPC (entry from interpreter)
-      //  ...
-      //   n: str	x0, [J9SP]  jitEntry (= startPC + jitEntryOffset) <= Patch this instruction
+{
+    J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
+    if (linkageInfo->isCountingMethodBody()) {
+        TR_UNIMPLEMENTED();
+    } else {
+        // Preprologue
+        // -24: mov	x8, lr  <= Branch back to this instruction
+        // -20: bl	_samplingRecompileMethod
+        // -16: .dword	jittedBodyInfo
+        //  -8: .word	space for preserving original jitEntry instruction
+        //  -4: .word	magic word
+        //   0: ldr	x0, [J9SP]  startPC (entry from interpreter)
+        //  ...
+        //   n: str	x0, [J9SP]  jitEntry (= startPC + jitEntryOffset) <= Patch this instruction
 
-      int32_t jitEntryOffset = getJitEntryOffset(linkageInfo);
-      int32_t *jitEntry = (int32_t *)((uint8_t *)startPC + jitEntryOffset);
-      int32_t distance = OFFSET_SAMPLING_PREPROLOGUE_FROM_STARTPC - jitEntryOffset;
-      int32_t newInstr = encodeDistanceInBranchInstruction(TR::InstOpCode::b, distance);
-      int32_t preserved = *jitEntry;
+        int32_t jitEntryOffset = getJitEntryOffset(linkageInfo);
+        int32_t *jitEntry = (int32_t *)((uint8_t *)startPC + jitEntryOffset);
+        int32_t distance = OFFSET_SAMPLING_PREPROLOGUE_FROM_STARTPC - jitEntryOffset;
+        int32_t newInstr = encodeDistanceInBranchInstruction(TR::InstOpCode::b, distance);
+        int32_t preserved = *jitEntry;
 
-      if (DEBUG_ARM64_RECOMP)
-         {
-         printf("fixUpMethodCode for sampling, newInstr encoding is 0x%x from jitEntry %p and encoding is 0x%x\n",
-                newInstr, jitEntry, *jitEntry); fflush(stdout);
-         }
+        if (DEBUG_ARM64_RECOMP) {
+            printf("fixUpMethodCode for sampling, newInstr encoding is 0x%x from jitEntry %p and encoding is 0x%x\n",
+                newInstr, jitEntry, *jitEntry);
+            fflush(stdout);
+        }
 
-      omrthread_jit_write_protect_disable();
-      // Other thread might try to do the same thing at the same time.
-      while ((preserved & B_INSTR_MASK) != TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::b))
-         {
+        omrthread_jit_write_protect_disable();
+        // Other thread might try to do the same thing at the same time.
+        while ((preserved & B_INSTR_MASK) != TR::InstOpCode::getOpCodeBinaryEncoding(TR::InstOpCode::b)) {
 #if defined(__GNUC__)
-         if (__sync_bool_compare_and_swap(jitEntry, preserved, newInstr)) // GCC built-in function
+            if (__sync_bool_compare_and_swap(jitEntry, preserved, newInstr)) // GCC built-in function
             {
-            arm64CodeSync((uint8_t *)jitEntry, 4);
-            *((int32_t *)((int8_t *)startPC + OFFSET_SAMPLING_PRESERVED_FROM_STARTPC)) = preserved;
-            if (DEBUG_ARM64_RECOMP)
-               {
-               printf("\tCmpAndSwap passes: jitEntry address = %p oldInstr = 0x%x, newInstr = 0x%x\n",
-                      jitEntry, preserved, newInstr); fflush(stdout);
-               }
-            }
-         else
-            {
-            if (DEBUG_ARM64_RECOMP)
-               {
-               printf("\tCmpAndSwap fails: jitEntry address = %p oldInstr = 0x%x, newInstr = 0x%x\n",
-                      jitEntry, preserved, newInstr); fflush(stdout);
-               }
+                arm64CodeSync((uint8_t *)jitEntry, 4);
+                *((int32_t *)((int8_t *)startPC + OFFSET_SAMPLING_PRESERVED_FROM_STARTPC)) = preserved;
+                if (DEBUG_ARM64_RECOMP) {
+                    printf("\tCmpAndSwap passes: jitEntry address = %p oldInstr = 0x%x, newInstr = 0x%x\n", jitEntry,
+                        preserved, newInstr);
+                    fflush(stdout);
+                }
+            } else {
+                if (DEBUG_ARM64_RECOMP) {
+                    printf("\tCmpAndSwap fails: jitEntry address = %p oldInstr = 0x%x, newInstr = 0x%x\n", jitEntry,
+                        preserved, newInstr);
+                    fflush(stdout);
+                }
             }
 #else
 #error Not supported yet
 #endif
-         preserved = *jitEntry;
-         }
-      omrthread_jit_write_protect_enable();
-      }
-   }
+            preserved = *jitEntry;
+        }
+        omrthread_jit_write_protect_enable();
+    }
+}
 
 void J9::Recompilation::methodHasBeenRecompiled(void *oldStartPC, void *newStartPC, TR_FrontEnd *fe)
-   {
-   J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(oldStartPC);
-   int32_t bytesToSaveAtStart = 0;
-   int32_t *patchAddr, newInstr;
-   intptr_t helperAddress;
+{
+    J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(oldStartPC);
+    int32_t bytesToSaveAtStart = 0;
+    int32_t *patchAddr, newInstr;
+    intptr_t helperAddress;
 
-   if (DEBUG_ARM64_RECOMP)
-      {
-      printf("\nmethodHasBeenRecompiled: oldStartPC (%p) -> newStartPC (%p)\n", oldStartPC, newStartPC); fflush(stdout);
-      }
+    if (DEBUG_ARM64_RECOMP) {
+        printf("\nmethodHasBeenRecompiled: oldStartPC (%p) -> newStartPC (%p)\n", oldStartPC, newStartPC);
+        fflush(stdout);
+    }
 
-   if (linkageInfo->isCountingMethodBody())
-      {
-      TR_UNIMPLEMENTED();
-      }
-   else
-      {
-      // Turn the call to samplingMethodRecompile into a call to samplingPatchCallSite
+    if (linkageInfo->isCountingMethodBody()) {
+        TR_UNIMPLEMENTED();
+    } else {
+        // Turn the call to samplingMethodRecompile into a call to samplingPatchCallSite
 
-      patchAddr = (int32_t *)((uint8_t *)oldStartPC + OFFSET_SAMPLING_BRANCH_FROM_STARTPC);
+        patchAddr = (int32_t *)((uint8_t *)oldStartPC + OFFSET_SAMPLING_BRANCH_FROM_STARTPC);
 
-      helperAddress = (intptr_t)runtimeHelperValue(TR_ARM64samplingPatchCallSite);
-      if (!TR::Compiler->target.cpu.isTargetWithinUnconditionalBranchImmediateRange(helperAddress, (intptr_t)patchAddr)
-          || TR::Options::getCmdLineOptions()->getOption(TR_StressTrampolines))
-         {
-         helperAddress = TR::CodeCacheManager::instance()->findHelperTrampoline(TR_ARM64samplingPatchCallSite, (void *)patchAddr);
-         }
-      newInstr = encodeDistanceInBranchInstruction(TR::InstOpCode::bl, helperAddress - (intptr_t)patchAddr);
-      if (DEBUG_ARM64_RECOMP)
-         {
-         printf("\tsampling recomp, change instruction location (%p) of sampling branch to branch encoding 0x%x (to TR_ARM64samplingPatchCallSite)\n",
-                  patchAddr, newInstr); fflush(stdout);
-         }
-      omrthread_jit_write_protect_disable();
-      *patchAddr = newInstr;
-      arm64CodeSync((uint8_t *)patchAddr, ARM64_INSTRUCTION_LENGTH);
-      omrthread_jit_write_protect_enable();
+        helperAddress = (intptr_t)runtimeHelperValue(TR_ARM64samplingPatchCallSite);
+        if (!TR::Compiler->target.cpu.isTargetWithinUnconditionalBranchImmediateRange(helperAddress,
+                (intptr_t)patchAddr)
+            || TR::Options::getCmdLineOptions()->getOption(TR_StressTrampolines)) {
+            helperAddress = TR::CodeCacheManager::instance()->findHelperTrampoline(TR_ARM64samplingPatchCallSite,
+                (void *)patchAddr);
+        }
+        newInstr = encodeDistanceInBranchInstruction(TR::InstOpCode::bl, helperAddress - (intptr_t)patchAddr);
+        if (DEBUG_ARM64_RECOMP) {
+            printf("\tsampling recomp, change instruction location (%p) of sampling branch to branch encoding 0x%x (to "
+                   "TR_ARM64samplingPatchCallSite)\n",
+                patchAddr, newInstr);
+            fflush(stdout);
+        }
+        omrthread_jit_write_protect_disable();
+        *patchAddr = newInstr;
+        arm64CodeSync((uint8_t *)patchAddr, ARM64_INSTRUCTION_LENGTH);
+        omrthread_jit_write_protect_enable();
 
-      fixUpMethodCode(oldStartPC);
+        fixUpMethodCode(oldStartPC);
 
-      bytesToSaveAtStart = getJitEntryOffset(linkageInfo) + ARM64_INSTRUCTION_LENGTH;
-      }
+        bytesToSaveAtStart = getJitEntryOffset(linkageInfo) + ARM64_INSTRUCTION_LENGTH;
+    }
 
-   bool codeMemoryWasAlreadyReleased = linkageInfo->hasBeenRecompiled(); // HCR - can recompile the same body twice
-   omrthread_jit_write_protect_disable();
-   linkageInfo->setHasBeenRecompiled();
-   omrthread_jit_write_protect_enable();
+    bool codeMemoryWasAlreadyReleased = linkageInfo->hasBeenRecompiled(); // HCR - can recompile the same body twice
+    omrthread_jit_write_protect_disable();
+    linkageInfo->setHasBeenRecompiled();
+    omrthread_jit_write_protect_enable();
 
-   if (linkageInfo->isSamplingMethodBody() && !codeMemoryWasAlreadyReleased)
-      {
-      if (DEBUG_ARM64_RECOMP)
-         {
-         printf("\tsampling recomp, releasing code memory oldStartPC = %p, bytesToSaveAtStart = 0x%x\n", oldStartPC, bytesToSaveAtStart); fflush(stdout);
-         }
-      TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
-      fej9->releaseCodeMemory(oldStartPC, bytesToSaveAtStart);
-      }
-   }
+    if (linkageInfo->isSamplingMethodBody() && !codeMemoryWasAlreadyReleased) {
+        if (DEBUG_ARM64_RECOMP) {
+            printf("\tsampling recomp, releasing code memory oldStartPC = %p, bytesToSaveAtStart = 0x%x\n", oldStartPC,
+                bytesToSaveAtStart);
+            fflush(stdout);
+        }
+        TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
+        fej9->releaseCodeMemory(oldStartPC, bytesToSaveAtStart);
+    }
+}
 
 void J9::Recompilation::methodCannotBeRecompiled(void *oldStartPC, TR_FrontEnd *fe)
-   {
-   J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(oldStartPC);
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
-   int32_t *patchAddr, newInstr;
-   intptr_t distance;
-   TR_ASSERT( linkageInfo->isSamplingMethodBody() && !linkageInfo->isCountingMethodBody() ||
-          !linkageInfo->isSamplingMethodBody() && linkageInfo->isCountingMethodBody(),
-          "Jitted body must be either sampling or counting");
-   TR_PersistentJittedBodyInfo *bodyInfo = getJittedBodyInfoFromPC(oldStartPC);
-   TR_PersistentMethodInfo *methodInfo = bodyInfo->getMethodInfo();
+{
+    J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(oldStartPC);
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
+    int32_t *patchAddr, newInstr;
+    intptr_t distance;
+    TR_ASSERT(linkageInfo->isSamplingMethodBody() && !linkageInfo->isCountingMethodBody()
+            || !linkageInfo->isSamplingMethodBody() && linkageInfo->isCountingMethodBody(),
+        "Jitted body must be either sampling or counting");
+    TR_PersistentJittedBodyInfo *bodyInfo = getJittedBodyInfoFromPC(oldStartPC);
+    TR_PersistentMethodInfo *methodInfo = bodyInfo->getMethodInfo();
 
-   if ((linkageInfo->isSamplingMethodBody() && !fej9->isAsyncCompilation()) // failed recomps in sync mode
-       || bodyInfo->getIsInvalidated())
-      {
-      // Patch the first instruction regardless of counting or sampling
-      patchAddr = (int32_t *)((uint8_t *)oldStartPC + getJitEntryOffset(linkageInfo));
-      distance = OFFSET_REVERT_INTP_FIXED_PORTION - 2*getJitEntryOffset(linkageInfo);
-      if (linkageInfo->isCountingMethodBody())
-         TR_UNIMPLEMENTED();
-      else
-         distance += OFFSET_SAMPLING_PREPROLOGUE_FROM_STARTPC;
+    if ((linkageInfo->isSamplingMethodBody() && !fej9->isAsyncCompilation()) // failed recomps in sync mode
+        || bodyInfo->getIsInvalidated()) {
+        // Patch the first instruction regardless of counting or sampling
+        patchAddr = (int32_t *)((uint8_t *)oldStartPC + getJitEntryOffset(linkageInfo));
+        distance = OFFSET_REVERT_INTP_FIXED_PORTION - 2 * getJitEntryOffset(linkageInfo);
+        if (linkageInfo->isCountingMethodBody())
+            TR_UNIMPLEMENTED();
+        else
+            distance += OFFSET_SAMPLING_PREPROLOGUE_FROM_STARTPC;
 
-      if (DEBUG_ARM64_RECOMP)
-         {
-         uintptr_t target = (uintptr_t)patchAddr + distance;
-         printf("oldStartPC %p, patchAddr %p, target %lx\n", oldStartPC, patchAddr, target); fflush(stdout);
-         }
+        if (DEBUG_ARM64_RECOMP) {
+            uintptr_t target = (uintptr_t)patchAddr + distance;
+            printf("oldStartPC %p, patchAddr %p, target %lx\n", oldStartPC, patchAddr, target);
+            fflush(stdout);
+        }
 
-      omrthread_jit_write_protect_disable();
-      *patchAddr = encodeDistanceInBranchInstruction(TR::InstOpCode::b, distance);
-      arm64CodeSync((uint8_t *)patchAddr, ARM64_INSTRUCTION_LENGTH);
-      omrthread_jit_write_protect_enable();
+        omrthread_jit_write_protect_disable();
+        *patchAddr = encodeDistanceInBranchInstruction(TR::InstOpCode::b, distance);
+        arm64CodeSync((uint8_t *)patchAddr, ARM64_INSTRUCTION_LENGTH);
+        omrthread_jit_write_protect_enable();
 
-      if (!methodInfo->hasBeenReplaced()) // HCR: VM presumably already has the method in its proper state
-         fej9->revertToInterpreted(methodInfo->getMethodInfo());
-      }
-   else if (linkageInfo->isCountingMethodBody())
-      {
-      TR_UNIMPLEMENTED();
-      }
-   else
-      {
-      // For async compilation, the old method is not fixed up anyway
-      if (!fej9->isAsyncCompilation())
-         {
-         // Restore the original instructions
-         // Calculate entry point
-         int32_t *startByte = (int32_t *)((uint8_t *)oldStartPC + getJitEntryOffset(linkageInfo));
-         if (DEBUG_ARM64_RECOMP)
-            {
-            printf("MethodCannotBeRecompiled sampling recomp sync compilation restoring preserved jitEntry of 0x%x at location %p\n",
-                   *((int32_t *)((uint8_t *)oldStartPC + OFFSET_SAMPLING_PRESERVED_FROM_STARTPC)), startByte); fflush(stdout);
+        if (!methodInfo->hasBeenReplaced()) // HCR: VM presumably already has the method in its proper state
+            fej9->revertToInterpreted(methodInfo->getMethodInfo());
+    } else if (linkageInfo->isCountingMethodBody()) {
+        TR_UNIMPLEMENTED();
+    } else {
+        // For async compilation, the old method is not fixed up anyway
+        if (!fej9->isAsyncCompilation()) {
+            // Restore the original instructions
+            // Calculate entry point
+            int32_t *startByte = (int32_t *)((uint8_t *)oldStartPC + getJitEntryOffset(linkageInfo));
+            if (DEBUG_ARM64_RECOMP) {
+                printf("MethodCannotBeRecompiled sampling recomp sync compilation restoring preserved jitEntry of 0x%x "
+                       "at location %p\n",
+                    *((int32_t *)((uint8_t *)oldStartPC + OFFSET_SAMPLING_PRESERVED_FROM_STARTPC)), startByte);
+                fflush(stdout);
             }
-         omrthread_jit_write_protect_disable();
-         *startByte = *((int32_t *)((uint8_t *)oldStartPC + OFFSET_SAMPLING_PRESERVED_FROM_STARTPC));
-         arm64CodeSync((uint8_t *)startByte, 4);
-         omrthread_jit_write_protect_enable();
-         }
-      }
+            omrthread_jit_write_protect_disable();
+            *startByte = *((int32_t *)((uint8_t *)oldStartPC + OFFSET_SAMPLING_PRESERVED_FROM_STARTPC));
+            arm64CodeSync((uint8_t *)startByte, 4);
+            omrthread_jit_write_protect_enable();
+        }
+    }
 
-   omrthread_jit_write_protect_disable();
-   linkageInfo->setHasFailedRecompilation();
-   omrthread_jit_write_protect_enable();
-   }
+    omrthread_jit_write_protect_disable();
+    linkageInfo->setHasFailedRecompilation();
+    omrthread_jit_write_protect_enable();
+}
 
 // in Trampoline.cpp
-extern bool arm64CodePatching(void *method, void *callSite, void *currentPC, void *currentTramp, void *newPC, void *extra);
+extern bool arm64CodePatching(void *method, void *callSite, void *currentPC, void *currentTramp, void *newPC,
+    void *extra);
 
 extern "C" {
 void arm64IndirectCallPatching_unwrapper(void **argsPtr, void **resPtr)
-   {
-   arm64CodePatching(argsPtr[0], argsPtr[1], NULL, NULL, argsPtr[2], argsPtr[3]);
-   }
+{
+    arm64CodePatching(argsPtr[0], argsPtr[1], NULL, NULL, argsPtr[2], argsPtr[3]);
+}
 }
 
 #if defined(TR_HOST_ARM64)
 void fixupMethodInfoAddressInCodeCache(void *startPC, void *bodyInfo)
-   {
-   J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
-   int32_t jitEntryOffset = getJitEntryOffset(linkageInfo);
-   int32_t *jitEntry = (int32_t *)((int8_t *)startPC + jitEntryOffset);
+{
+    J9::PrivateLinkage::LinkageInfo *linkageInfo = J9::PrivateLinkage::LinkageInfo::get(startPC);
+    int32_t jitEntryOffset = getJitEntryOffset(linkageInfo);
+    int32_t *jitEntry = (int32_t *)((int8_t *)startPC + jitEntryOffset);
 
-   if (linkageInfo->isSamplingMethodBody())
-      {
-      *(void **)((int8_t *)startPC + OFFSET_SAMPLING_METHODINFO_FROM_STARTPC) = bodyInfo;
-      }
-   else if (linkageInfo->isCountingMethodBody())
-      {
-      TR_UNIMPLEMENTED();
-      }
-   return;
-   }
+    if (linkageInfo->isSamplingMethodBody()) {
+        *(void **)((int8_t *)startPC + OFFSET_SAMPLING_METHODINFO_FROM_STARTPC) = bodyInfo;
+    } else if (linkageInfo->isCountingMethodBody()) {
+        TR_UNIMPLEMENTED();
+    }
+    return;
+}
 #endif

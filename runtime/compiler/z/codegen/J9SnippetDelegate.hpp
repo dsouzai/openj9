@@ -28,10 +28,14 @@
  */
 #ifndef J9_SNIPPETDELEGATE_CONNECTOR
 #define J9_SNIPPETDELEGATE_CONNECTOR
+
 namespace J9 {
-namespace Z { class SnippetDelegate; }
-typedef J9::Z::SnippetDelegate SnippetDelegateConnector;
+namespace Z {
+class SnippetDelegate;
 }
+
+typedef J9::Z::SnippetDelegate SnippetDelegateConnector;
+} // namespace J9
 #else
 #error J9::Z::SnippetDelegate expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -39,22 +43,13 @@ typedef J9::Z::SnippetDelegate SnippetDelegateConnector;
 #include "compiler/codegen/J9SnippetDelegate.hpp"
 #include "infra/Annotations.hpp"
 
-namespace J9
-{
+namespace J9 { namespace Z {
 
-namespace Z
-{
-
-class OMR_EXTENSIBLE SnippetDelegate : public J9::SnippetDelegate
-   {
+class OMR_EXTENSIBLE SnippetDelegate : public J9::SnippetDelegate {
 protected:
+    SnippetDelegate() {}
+};
 
-   SnippetDelegate() {}
-
-   };
-
-}
-
-}
+}} // namespace J9::Z
 
 #endif

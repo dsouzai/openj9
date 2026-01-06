@@ -25,18 +25,15 @@
 
 #include "env/J9ObjectModel.hpp"
 
+namespace TR {
 
-namespace TR
-{
+class ObjectModel : public J9::ObjectModelConnector {
+public:
+    ObjectModel()
+        : J9::ObjectModelConnector()
+    {}
+};
 
-class ObjectModel : public J9::ObjectModelConnector
-   {
-   public:
-
-   ObjectModel() : J9::ObjectModelConnector() {}
-
-   };
-
-}
+} // namespace TR
 
 #endif

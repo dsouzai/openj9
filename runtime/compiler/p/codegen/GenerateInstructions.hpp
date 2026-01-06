@@ -22,10 +22,5 @@
 
 #include "codegen/GenerateOMRInstructions.hpp"
 
-TR::Instruction *generateVirtualGuardNOPInstruction(
-                   TR::CodeGenerator      *cg,
-                   TR::Node                            *n,
-                   TR_VirtualGuardSite         *site,
-                   TR::RegisterDependencyConditions *cond,
-                   TR::LabelSymbol                      *sym,
-                   TR::Instruction                     *preced = 0);
+TR::Instruction *generateVirtualGuardNOPInstruction(TR::CodeGenerator *cg, TR::Node *n, TR_VirtualGuardSite *site,
+    TR::RegisterDependencyConditions *cond, TR::LabelSymbol *sym, TR::Instruction *preced = 0);

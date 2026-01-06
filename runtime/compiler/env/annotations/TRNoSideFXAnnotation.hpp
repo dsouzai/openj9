@@ -27,11 +27,8 @@
 
 class TR_NoSideFXAnnotation : public TR_AnnotationBase {
 public:
-
-  //bool hasAnnotation(TR::Symbol *sym);
-TR_NoSideFXAnnotation(TR::Compilation *,TR::SymbolReference *);
-
+    // bool hasAnnotation(TR::Symbol *sym);
+    TR_NoSideFXAnnotation(TR::Compilation *, TR::SymbolReference *);
 };
-
 
 #endif

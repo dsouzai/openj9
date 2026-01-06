@@ -25,43 +25,20 @@
  * Only enum values defined in CodeGenPhaseEnum.hpp are allowed.
  */
 
-
-
-    ReserveCodeCachePhase,
-    FixUpProfiledInterfaceGuardTest,
-
+ReserveCodeCachePhase, FixUpProfiledInterfaceGuardTest,
 
     InliningReportPhase,
 
-    InMemoryLoadStoreMarkingPhase,
-    PopulateOSRBufferPhase,
-    MoveUpArrayLengthStoresPhase,
-    InsertEpilogueYieldPointsPhase,
-    CleanUpFlagsPhase,
-    SetBranchOnCountFlagPhase,
-    LowerTreesPhase,
-    InsertDebugCountersPhase,
-    CompressedReferenceRematerializationPhase,
-    AllocateLinkageRegisters,
+    InMemoryLoadStoreMarkingPhase, PopulateOSRBufferPhase, MoveUpArrayLengthStoresPhase, InsertEpilogueYieldPointsPhase,
+    CleanUpFlagsPhase, SetBranchOnCountFlagPhase, LowerTreesPhase, InsertDebugCountersPhase,
+    CompressedReferenceRematerializationPhase, AllocateLinkageRegisters,
 
     markLoadAsZeroOrSignExtension,
 
-    FindAndFixCommonedReferencesPhase,
-    UncommonCallConstNodesPhase,
-    SetupForInstructionSelectionPhase,
-    RemoveUnusedLocalsPhase,
-    ReduceSynchronizedFieldLoadPhase,
-    UncommonBCDCHKAddressNodePhase,
-    InstructionSelectionPhase,
-    CreateStackAtlasPhase,
+    FindAndFixCommonedReferencesPhase, UncommonCallConstNodesPhase, SetupForInstructionSelectionPhase,
+    RemoveUnusedLocalsPhase, ReduceSynchronizedFieldLoadPhase, UncommonBCDCHKAddressNodePhase,
+    InstructionSelectionPhase, CreateStackAtlasPhase,
 
-    PeepholePhase,
-    RegisterAssigningPhase,
-    MapStackPhase,
-    PeepholePhase,
-    ExpandInstructionsPhase,
-    BinaryEncodingPhase,
-    EmitSnippetsPhase,
-    ProcessRelocationsPhase
-
+    PeepholePhase, RegisterAssigningPhase, MapStackPhase, PeepholePhase, ExpandInstructionsPhase, BinaryEncodingPhase,
+    EmitSnippetsPhase, ProcessRelocationsPhase
 

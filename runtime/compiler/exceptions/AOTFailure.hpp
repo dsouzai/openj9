@@ -35,113 +35,101 @@ namespace J9 {
  *
  * Thrown when a method that has an invoke handle is AOT Compiled.
  */
-class AOTHasInvokeHandle : public virtual TR::RecoverableILGenException
-   {
-   virtual const char* what() const throw() { return "AOT Has Invoke Handle"; }
-   };
+class AOTHasInvokeHandle : public virtual TR::RecoverableILGenException {
+    virtual const char *what() const throw() { return "AOT Has Invoke Handle"; }
+};
 
 /**
  * AOT Has Invoke VarHandle exception type.
  *
  * Thrown when a method that has an invoke varhandle is AOT Compiled.
  */
-class AOTHasInvokeVarHandle : public virtual TR::RecoverableILGenException
-   {
-   virtual const char* what() const throw() { return "AOT Has Invoke VarHandle"; }
-   };
+class AOTHasInvokeVarHandle : public virtual TR::RecoverableILGenException {
+    virtual const char *what() const throw() { return "AOT Has Invoke VarHandle"; }
+};
 
 /**
  * AOT Has Invoke Special in Interface exception type.
  *
  * Thrown when a method that has an invoke special in an interface is AOT Compiled.
  */
-class AOTHasInvokeSpecialInInterface : public virtual TR::RecoverableILGenException
-   {
-   virtual const char* what() const throw() { return "AOT Has Invoke Special in Interface"; }
-   };
+class AOTHasInvokeSpecialInInterface : public virtual TR::RecoverableILGenException {
+    virtual const char *what() const throw() { return "AOT Has Invoke Special in Interface"; }
+};
 
 /**
  * AOT Has Constant Dynamic exception type.
  *
  * Thrown when a method that has a constant dynamic is AOT Compiled.
  */
-class AOTHasConstantDynamic : public virtual TR::RecoverableILGenException
-   {
-   virtual const char* what() const throw() { return "AOT Has Constant Dynamic"; }
-   };
+class AOTHasConstantDynamic : public virtual TR::RecoverableILGenException {
+    virtual const char *what() const throw() { return "AOT Has Constant Dynamic"; }
+};
 
 /**
  * AOT Has Method Handle Constant exception type.
  *
  * Thrown when a method that has a method handle constant is AOT Compiled.
  */
-class AOTHasMethodHandleConstant : public virtual TR::RecoverableILGenException
-   {
-   virtual const char* what() const throw() { return "AOT Has Method Handle Constant"; }
-   };
+class AOTHasMethodHandleConstant : public virtual TR::RecoverableILGenException {
+    virtual const char *what() const throw() { return "AOT Has Method Handle Constant"; }
+};
 
 /**
  * AOT Has Method Type Constant exception type.
  *
  * Thrown when a method that has a method type constant is AOT Compiled.
  */
-class AOTHasMethodTypeConstant : public virtual TR::RecoverableILGenException
-   {
-   virtual const char* what() const throw() { return "AOT Has Method Type Constant"; }
-   };
+class AOTHasMethodTypeConstant : public virtual TR::RecoverableILGenException {
+    virtual const char *what() const throw() { return "AOT Has Method Type Constant"; }
+};
 
 /**
  * AOT Has patched CP constant exception type.
  *
  * Thrown when a method that has a constant object in CP entry patched to a different type is AOT Compiled.
  */
-class AOTHasPatchedCPConstant: public virtual TR::RecoverableILGenException
-   {
-   virtual const char* what() const throw() { return "AOT Has Patched CP Constant"; }
-   };
+class AOTHasPatchedCPConstant : public virtual TR::RecoverableILGenException {
+    virtual const char *what() const throw() { return "AOT Has Patched CP Constant"; }
+};
 
 /**
  * AOT Relocation Failure exception type.
  *
  * Thrown when an AOT compilation fails in the relocation phase.
  */
-class AOTRelocationFailed : public virtual RuntimeFailure
-   {
-   virtual const char* what() const throw() { return "AOT Relocation Failed"; }
-   };
+class AOTRelocationFailed : public virtual RuntimeFailure {
+    virtual const char *what() const throw() { return "AOT Relocation Failed"; }
+};
 
 /**
  * AOT Symbol Validation Failure exception type.
  *
  * Thrown when an AOT validation record that should succeed fails.
  */
-class AOTSymbolValidationManagerFailure : public virtual TR::CompilationException
-   {
-   virtual const char* what() const throw() { return "AOT Symbol Validation Manager Failure"; }
-   };
+class AOTSymbolValidationManagerFailure : public virtual TR::CompilationException {
+    virtual const char *what() const throw() { return "AOT Symbol Validation Manager Failure"; }
+};
 
 /**
  * Thrown when certain code path doesn't fully support AOT.
  */
-class AOTNoSupportForAOTFailure : public virtual TR::CompilationException
-   {
-   virtual const char* what() const throw() { return "This code doesn't support AOT"; }
-   };
+class AOTNoSupportForAOTFailure : public virtual TR::CompilationException {
+    virtual const char *what() const throw() { return "This code doesn't support AOT"; }
+};
 
 /**
  * AOT Relocation Record Generation Failure exception type.
  *
  * Thrown when an AOT compilation fails in relocation record generation phase.
  */
-class AOTRelocationRecordGenerationFailure: public virtual TR::CompilationException
-   {
-   virtual const char* what() const throw() { return "AOT Relocation Record Generation Failed"; }
-   };
+class AOTRelocationRecordGenerationFailure : public virtual TR::CompilationException {
+    virtual const char *what() const throw() { return "AOT Relocation Record Generation Failed"; }
+};
 
-class AOTThunkPersistenceFailure: public virtual TR::CompilationException
-   {
-   virtual const char* what() const throw() { return "Thunk persistence to SCC failed"; }
-   };
+class AOTThunkPersistenceFailure : public virtual TR::CompilationException {
+    virtual const char *what() const throw() { return "Thunk persistence to SCC failed"; }
+};
 
 #if defined(J9VM_OPT_JITSERVER)
 /**
@@ -149,21 +137,19 @@ class AOTThunkPersistenceFailure: public virtual TR::CompilationException
  *
  * Thrown when the client JVM fails to deserialize an AOT method received from the JITServer AOT cache.
  */
-class AOTCacheDeserializationFailure : public virtual RuntimeFailure
-   {
-   virtual const char *what() const throw() { return "AOT cache deserialization failure"; }
-   };
+class AOTCacheDeserializationFailure : public virtual RuntimeFailure {
+    virtual const char *what() const throw() { return "AOT cache deserialization failure"; }
+};
 
 /**
  * JITServer AOT Deserializer Reset exception type.
  *
  * Thrown when a concurrent JITServer AOT deserializer reset has been detected.
  */
-class AOTDeserializerReset : public virtual RuntimeFailure
-   {
-   virtual const char *what() const throw() { return "AOT deserializer reset"; }
-   };
+class AOTDeserializerReset : public virtual RuntimeFailure {
+    virtual const char *what() const throw() { return "AOT deserializer reset"; }
+};
 #endif /* defined(J9VM_OPT_JITSERVER) */
-}
+} // namespace J9
 
 #endif // AOT_FAILURE_HPP

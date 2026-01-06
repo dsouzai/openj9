@@ -28,18 +28,16 @@
 namespace TR {
 class Recompilation;
 class Compilation;
-}
+} // namespace TR
 
-namespace TR
-{
+namespace TR {
 
-class Recompilation : public J9::RecompilationConnector
-   {
+class Recompilation : public J9::RecompilationConnector {
 public:
-
-   Recompilation(TR::Compilation *comp) : J9::RecompilationConnector(comp) {}
-
-   };
-}
+    Recompilation(TR::Compilation *comp)
+        : J9::RecompilationConnector(comp)
+    {}
+};
+} // namespace TR
 
 #endif

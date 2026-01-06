@@ -24,17 +24,13 @@
 #include "runtime/JITServerProfileCache.hpp"
 #include "runtime/JITServerSharedROMClassCache.hpp"
 
-ProfiledMethodEntry::BytecodeProfile::BytecodeProfile() :
-   _numSamples(0),
-   _data(decltype(_data)::allocator_type(TR::Compiler->persistentGlobalAllocator())),
-   _stable(false)
-   {
-   }
+ProfiledMethodEntry::BytecodeProfile::BytecodeProfile()
+    : _numSamples(0)
+    , _data(decltype(_data)::allocator_type(TR::Compiler->persistentGlobalAllocator()))
+    , _stable(false)
+{}
 
-ProfiledMethodEntry::BytecodeProfile::~BytecodeProfile()
-   {
-   clear();
-   }
+ProfiledMethodEntry::BytecodeProfile::~BytecodeProfile() { clear(); }
 
 /**
  * @brief Return a summary of the bytecode profiling data for this method.
@@ -44,29 +40,25 @@ ProfiledMethodEntry::BytecodeProfile::~BytecodeProfile()
  *        This information will be used to estimate the quality of the profiling data.
  * @return BytecodeProfileSummary
  */
-BytecodeProfileSummary
-ProfiledMethodEntry::BytecodeProfile::getSummary() const
-   {
-   return BytecodeProfileSummary(getNumSamples(), numProfiledBytecodes(), _stable);
-   }
-
+BytecodeProfileSummary ProfiledMethodEntry::BytecodeProfile::getSummary() const
+{
+    return BytecodeProfileSummary(getNumSamples(), numProfiledBytecodes(), _stable);
+}
 
 /**
  * @brief Discard the profiling data for this method
  */
-void
-ProfiledMethodEntry::BytecodeProfile::clear()
-   {
-   for (auto entry : _data)
-      {
-      // delete entry
-      entry->~TR_IPBytecodeHashTableEntry();
-      TR::Compiler->persistentGlobalMemory()->freePersistentMemory(entry);
-      }
-   _data.clear();
-   _numSamples = 0;
-   _stable = false;
-   }
+void ProfiledMethodEntry::BytecodeProfile::clear()
+{
+    for (auto entry : _data) {
+        // delete entry
+        entry->~TR_IPBytecodeHashTableEntry();
+        TR::Compiler->persistentGlobalMemory()->freePersistentMemory(entry);
+    }
+    _data.clear();
+    _numSamples = 0;
+    _stable = false;
+}
 
 /**
  * @brief Add bytecode profiling data to the shared profile repository for a method
@@ -75,57 +67,58 @@ ProfiledMethodEntry::BytecodeProfile::clear()
  * @param numSamples Total number of profiling samples for this method
  * @param isStable 'true' if the profiling data quality is not expected to grow in the future
  */
-void
-ProfiledMethodEntry::BytecodeProfile::addBytecodeData(const Vector<TR_IPBytecodeHashTableEntry *> &entries, uint64_t numSamples, bool isStable)
-   {
-   _data.reserve(entries.size());
-   // entries passed in use stack memory; we need to allocate clones with global persistent memory
-   for (const auto &entry : entries)
-      {
-      TR_IPBytecodeHashTableEntry *newEntry = entry->clone(TR::Compiler->persistentGlobalMemory(), TR_Memory::JITServerProfileCache);
-      _data.push_back(newEntry);
-      }
-   _numSamples = numSamples;
-   _stable = isStable;
-   }
+void ProfiledMethodEntry::BytecodeProfile::addBytecodeData(const Vector<TR_IPBytecodeHashTableEntry *> &entries,
+    uint64_t numSamples, bool isStable)
+{
+    _data.reserve(entries.size());
+    // entries passed in use stack memory; we need to allocate clones with global persistent memory
+    for (const auto &entry : entries) {
+        TR_IPBytecodeHashTableEntry *newEntry
+            = entry->clone(TR::Compiler->persistentGlobalMemory(), TR_Memory::JITServerProfileCache);
+        _data.push_back(newEntry);
+    }
+    _numSamples = numSamples;
+    _stable = isStable;
+}
 
-ProfiledMethodEntry::ProfiledMethodEntry(const AOTCacheMethodRecord *methodRecord, const J9ROMMethod *romMethod, J9ROMClass *romClass) :
-   _methodRecord(methodRecord), _romMethod(romMethod), _romClass(romClass),
-   _bytecodeProfile(NULL), _faninProfile()
-   {
-   // Increase the reference count to prevent deletion of this romClass from the shared repository
-   TR::CompilationInfo::get()->getJITServerSharedROMClassCache()->acquire(_romClass);
-   }
+ProfiledMethodEntry::ProfiledMethodEntry(const AOTCacheMethodRecord *methodRecord, const J9ROMMethod *romMethod,
+    J9ROMClass *romClass)
+    : _methodRecord(methodRecord)
+    , _romMethod(romMethod)
+    , _romClass(romClass)
+    , _bytecodeProfile(NULL)
+    , _faninProfile()
+{
+    // Increase the reference count to prevent deletion of this romClass from the shared repository
+    TR::CompilationInfo::get()->getJITServerSharedROMClassCache()->acquire(_romClass);
+}
 
 ProfiledMethodEntry::~ProfiledMethodEntry()
-   {
-   // Decrement the reference count to allow deletion of this romClass from the shared repository
-   TR::CompilationInfo::get()->getJITServerSharedROMClassCache()->release(_romClass);
+{
+    // Decrement the reference count to allow deletion of this romClass from the shared repository
+    TR::CompilationInfo::get()->getJITServerSharedROMClassCache()->release(_romClass);
 
-   deleteBytecodeData();
-   // Note: fanin profile is embedded and does not have to be deleted explicitely
-   }
+    deleteBytecodeData();
+    // Note: fanin profile is embedded and does not have to be deleted explicitely
+}
 
-BytecodeProfileSummary
-ProfiledMethodEntry::getBytecodeProfileSummary() const
-   {
-   return _bytecodeProfile ? _bytecodeProfile->getSummary() : BytecodeProfileSummary();
-   }
+BytecodeProfileSummary ProfiledMethodEntry::getBytecodeProfileSummary() const
+{
+    return _bytecodeProfile ? _bytecodeProfile->getSummary() : BytecodeProfileSummary();
+}
 
 /**
  * @brief Delete all bytecode profiling data for this method
  * @note JITServerSharedProfileCache monitor must be held.
  */
-void
-ProfiledMethodEntry::deleteBytecodeData()
-   {
-   if (_bytecodeProfile)
-      {
-      _bytecodeProfile->~BytecodeProfile();
-      TR::Compiler->persistentGlobalMemory()->freePersistentMemory(_bytecodeProfile);
-      _bytecodeProfile = NULL;
-      }
-   }
+void ProfiledMethodEntry::deleteBytecodeData()
+{
+    if (_bytecodeProfile) {
+        _bytecodeProfile->~BytecodeProfile();
+        TR::Compiler->persistentGlobalMemory()->freePersistentMemory(_bytecodeProfile);
+        _bytecodeProfile = NULL;
+    }
+}
 
 /**
  * @brief Add bytecode profiling data to the shared profile repository for a method.
@@ -136,32 +129,31 @@ ProfiledMethodEntry::deleteBytecodeData()
  * @return 'true' if profiling added was added successfully
  * @note JITServerSharedProfileCache monitor must be held held.
  */
-bool
-ProfiledMethodEntry::addBytecodeData(const Vector<TR_IPBytecodeHashTableEntry *> &entries, uint64_t numSamples, bool isStable)
-   {
-   // Existing data will be deleted. However, there is a possibility of an allocation failure for
-   // the new data and therefore only partial new data will be stored (or none at all). To cope with
-   // this situation we allocate new data in a shadow vector and only if everything went all we
-   // replace the existing data with the shadow vector.
-   bool success = false;
-   try
-      {
-      // Create new profile in a temporary
-      BytecodeProfile *newBytecodeProfile = new (TR::Compiler->persistentGlobalAllocator()) BytecodeProfile();
-      newBytecodeProfile->addBytecodeData(entries, numSamples, isStable);
-      // Delete old profile
-      deleteBytecodeData();
-      // Attach the new profile
-      _bytecodeProfile = newBytecodeProfile;
-      success = true;
-      }
-   catch (const std::bad_alloc &allocationFailure)
-      {
-      if (TR::Options::getVerboseOption(TR_VerboseJITServerSharedProfile))
-         TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "WARNING: Allocation failure while adding profile data to shared repository: %s", allocationFailure.what());
-      }
-   return success;
-   }
+bool ProfiledMethodEntry::addBytecodeData(const Vector<TR_IPBytecodeHashTableEntry *> &entries, uint64_t numSamples,
+    bool isStable)
+{
+    // Existing data will be deleted. However, there is a possibility of an allocation failure for
+    // the new data and therefore only partial new data will be stored (or none at all). To cope with
+    // this situation we allocate new data in a shadow vector and only if everything went all we
+    // replace the existing data with the shadow vector.
+    bool success = false;
+    try {
+        // Create new profile in a temporary
+        BytecodeProfile *newBytecodeProfile = new (TR::Compiler->persistentGlobalAllocator()) BytecodeProfile();
+        newBytecodeProfile->addBytecodeData(entries, numSamples, isStable);
+        // Delete old profile
+        deleteBytecodeData();
+        // Attach the new profile
+        _bytecodeProfile = newBytecodeProfile;
+        success = true;
+    } catch (const std::bad_alloc &allocationFailure) {
+        if (TR::Options::getVerboseOption(TR_VerboseJITServerSharedProfile))
+            TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
+                "WARNING: Allocation failure while adding profile data to shared repository: %s",
+                allocationFailure.what());
+    }
+    return success;
+}
 
 /**
  * @brief Copy out the shared profiling data for this method into a vector of pointers
@@ -176,61 +168,55 @@ ProfiledMethodEntry::addBytecodeData(const Vector<TR_IPBytecodeHashTableEntry *>
  *                  Note that these entries are also present in `newEntries`
  * @note JITServerSharedProfileCache monitor must be held.
  */
-void
-ProfiledMethodEntry::cloneBytecodeData(TR_Memory &trMemory, bool stable,
-                                       Vector<TR_IPBytecodeHashTableEntry *> &newEntries,
-                                       Vector<TR_IPBCDataCallGraph *> &cgEntries) const
-   {
-   TR_ASSERT_FATAL(_bytecodeProfile, "We must have _bytecodeProfile if the caller decided to take profiled information from the shared repository");
+void ProfiledMethodEntry::cloneBytecodeData(TR_Memory &trMemory, bool stable,
+    Vector<TR_IPBytecodeHashTableEntry *> &newEntries, Vector<TR_IPBCDataCallGraph *> &cgEntries) const
+{
+    TR_ASSERT_FATAL(_bytecodeProfile,
+        "We must have _bytecodeProfile if the caller decided to take profiled information from the shared repository");
 
-   size_t numProfileEntries = _bytecodeProfile->getData().size();
+    size_t numProfileEntries = _bytecodeProfile->getData().size();
 
-   newEntries.reserve(numProfileEntries);
-   cgEntries.reserve(numProfileEntries);
+    newEntries.reserve(numProfileEntries);
+    cgEntries.reserve(numProfileEntries);
 
-   for (const auto& entry : _bytecodeProfile->getData())
-      {
-      // Clone the entries using the appropriate memory type
-      TR_IPBytecodeHashTableEntry *newEntry = NULL;
-      if (stable)
-         {
-         // Use persistent memory specific to this client
-         newEntry = entry->clone(trMemory.trPersistentMemory());
-         }
-      else // Non-stable data; use heap memory associated with this compilation
-         {
-         newEntry = entry->clone(trMemory.heapMemoryRegion());
-         }
-      newEntries.push_back(newEntry);
-      // Remember the callGraph entries so that we can adjust the slots
-      TR_IPBCDataCallGraph *cgEntry = newEntry->asIPBCDataCallGraph();
-      if (cgEntry)
-         cgEntries.push_back(cgEntry);
-      } // end for
-   }
+    for (const auto &entry : _bytecodeProfile->getData()) {
+        // Clone the entries using the appropriate memory type
+        TR_IPBytecodeHashTableEntry *newEntry = NULL;
+        if (stable) {
+            // Use persistent memory specific to this client
+            newEntry = entry->clone(trMemory.trPersistentMemory());
+        } else // Non-stable data; use heap memory associated with this compilation
+        {
+            newEntry = entry->clone(trMemory.heapMemoryRegion());
+        }
+        newEntries.push_back(newEntry);
+        // Remember the callGraph entries so that we can adjust the slots
+        TR_IPBCDataCallGraph *cgEntry = newEntry->asIPBCDataCallGraph();
+        if (cgEntry)
+            cgEntries.push_back(cgEntry);
+    } // end for
+}
 
 /**
  * @brief Constructor for JITServerSharedProfileCache
  * @todo Consider using a dedicated persistent allocator rather than the global one
  */
-JITServerSharedProfileCache::JITServerSharedProfileCache(JITServerAOTCache *aotCache, J9JavaVM *javaVM) :
-   _aotCache(aotCache),
-   _methodProfileMap(decltype(_methodProfileMap)::allocator_type(TR::Compiler->persistentGlobalAllocator())),
-   _monitor(TR::Monitor::create("JIT-SharedProfileCacheMonitor")),
-   _numStores(0), _numOverwrites(0)
-   //,_rawAllocator(javaVM), _segmentAllocator(MEMORY_TYPE_JIT_SCRATCH_SPACE | MEMORY_TYPE_VIRTUAL, *javaVM),
-   //TODO: configurable scratch memory limit
-   //_segmentProvider(64 * 1024, 16 * 1024 * 1024, 16 * 1024 * 1024, _segmentAllocator, _rawAllocator),
-   //_region(_segmentProvider, _rawAllocator), _trMemory(*TR::Compiler->persistentGlobalMemory(), _region)
-   {
-   if (!_monitor)
-      throw std::bad_alloc();
-   }
+JITServerSharedProfileCache::JITServerSharedProfileCache(JITServerAOTCache *aotCache, J9JavaVM *javaVM)
+    : _aotCache(aotCache)
+    , _methodProfileMap(decltype(_methodProfileMap)::allocator_type(TR::Compiler->persistentGlobalAllocator()))
+    , _monitor(TR::Monitor::create("JIT-SharedProfileCacheMonitor"))
+    , _numStores(0)
+    , _numOverwrites(0)
+//,_rawAllocator(javaVM), _segmentAllocator(MEMORY_TYPE_JIT_SCRATCH_SPACE | MEMORY_TYPE_VIRTUAL, *javaVM),
+// TODO: configurable scratch memory limit
+//_segmentProvider(64 * 1024, 16 * 1024 * 1024, 16 * 1024 * 1024, _segmentAllocator, _rawAllocator),
+//_region(_segmentProvider, _rawAllocator), _trMemory(*TR::Compiler->persistentGlobalMemory(), _region)
+{
+    if (!_monitor)
+        throw std::bad_alloc();
+}
 
-JITServerSharedProfileCache::~JITServerSharedProfileCache()
-   {
-   TR::Monitor::destroy(_monitor);
-   }
+JITServerSharedProfileCache::~JITServerSharedProfileCache() { TR::Monitor::destroy(_monitor); }
 
 /**
  * @brief Find the profiling info specific to the method of interest and return a pointer to it
@@ -238,17 +224,16 @@ JITServerSharedProfileCache::~JITServerSharedProfileCache()
  * @param methodRecord: the method for which we are looking for profiling data
  * @return Pointer to the shared profiling data for the method of interest
  */
-ProfiledMethodEntry *
-JITServerSharedProfileCache::getProfileForMethod(const AOTCacheMethodRecord *methodRecord)
-   {
-   TR_ASSERT(_monitor->owned_by_self(), "Must hold monitor");
+ProfiledMethodEntry *JITServerSharedProfileCache::getProfileForMethod(const AOTCacheMethodRecord *methodRecord)
+{
+    TR_ASSERT(_monitor->owned_by_self(), "Must hold monitor");
 
-   auto it = _methodProfileMap.find(methodRecord);
-   if (it != _methodProfileMap.end())
-     return &it->second;
+    auto it = _methodProfileMap.find(methodRecord);
+    if (it != _methodProfileMap.end())
+        return &it->second;
 
-   return NULL;
-   }
+    return NULL;
+}
 
 /**
  * @brief Adds bytecode profiling data to the shared profile repository
@@ -263,53 +248,47 @@ JITServerSharedProfileCache::getProfileForMethod(const AOTCacheMethodRecord *met
  * @param isStable 'true' if the profiling data quality is not expected to grow in the future
  * @return 'true' if the profiling data was successfully added to the shared repository, 'false' otherwise
  */
-bool
-JITServerSharedProfileCache::addBytecodeData(const Vector<TR_IPBytecodeHashTableEntry *> &entries,
-                                             const AOTCacheMethodRecord *methodRecord,
-                                             const J9ROMMethod *romMethod,
-                                             J9ROMClass *romClass,
-                                             uint64_t numSamples,
-                                             bool isStable)
-   {
-   TR_ASSERT_FATAL(methodRecord, "methodRecord must exist");
-   OMR::CriticalSection cs(monitor());
-   auto it = _methodProfileMap.find(methodRecord);
-   if (it == _methodProfileMap.end())
-      {
-      // At the moment there is no data for the method in question. Create an empty map.
-      it = _methodProfileMap.emplace_hint(it, std::piecewise_construct, std::forward_as_tuple(methodRecord),
-                                              std::forward_as_tuple(methodRecord, romMethod, romClass));
-      }
-   else // Some data already exists and could be overwritten
-      {
-      ProfiledMethodEntry::BytecodeProfile *storedProfile = it->second.getBytecodeProfile();
-      // Two threads may want to store the same data one after another (I have seen this happening).
-      // Prevent unnecesary work if the quality of the new data is the same or lower.
-      if (storedProfile)
-         {
-         BytecodeProfileSummary clientProfileSummary(numSamples, entries.size(), isStable);
-         BytecodeProfileSummary sharedProfileSummary = storedProfile->getSummary();
-         int sharedProfileQuality = compareBytecodeProfiles(sharedProfileSummary, clientProfileSummary);
-         if (sharedProfileQuality >= 0) // EXisting data is at least as good as the new data
+bool JITServerSharedProfileCache::addBytecodeData(const Vector<TR_IPBytecodeHashTableEntry *> &entries,
+    const AOTCacheMethodRecord *methodRecord, const J9ROMMethod *romMethod, J9ROMClass *romClass, uint64_t numSamples,
+    bool isStable)
+{
+    TR_ASSERT_FATAL(methodRecord, "methodRecord must exist");
+    OMR::CriticalSection cs(monitor());
+    auto it = _methodProfileMap.find(methodRecord);
+    if (it == _methodProfileMap.end()) {
+        // At the moment there is no data for the method in question. Create an empty map.
+        it = _methodProfileMap.emplace_hint(it, std::piecewise_construct, std::forward_as_tuple(methodRecord),
+            std::forward_as_tuple(methodRecord, romMethod, romClass));
+    } else // Some data already exists and could be overwritten
+    {
+        ProfiledMethodEntry::BytecodeProfile *storedProfile = it->second.getBytecodeProfile();
+        // Two threads may want to store the same data one after another (I have seen this happening).
+        // Prevent unnecesary work if the quality of the new data is the same or lower.
+        if (storedProfile) {
+            BytecodeProfileSummary clientProfileSummary(numSamples, entries.size(), isStable);
+            BytecodeProfileSummary sharedProfileSummary = storedProfile->getSummary();
+            int sharedProfileQuality = compareBytecodeProfiles(sharedProfileSummary, clientProfileSummary);
+            if (sharedProfileQuality >= 0) // EXisting data is at least as good as the new data
             {
-            if (TR::Options::getVerboseOption(TR_VerboseJITServerSharedProfile))
-               TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
-                  "WARNING: Avoiding overwriting existing shared bytecode profile data."
-                  "New profiled bytecodes=%zu old profile bytecodes=%zu; newSamples=%" OMR_PRIu64 " oldSamples=%" OMR_PRIu64,
-                  entries.size(), storedProfile->numProfiledBytecodes(), numSamples, storedProfile->getNumSamples());
-            return false;
-            }
-         else // Existing data will be overwitten
+                if (TR::Options::getVerboseOption(TR_VerboseJITServerSharedProfile))
+                    TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
+                        "WARNING: Avoiding overwriting existing shared bytecode profile data."
+                        "New profiled bytecodes=%zu old profile bytecodes=%zu; newSamples=%" OMR_PRIu64
+                        " oldSamples=%" OMR_PRIu64,
+                        entries.size(), storedProfile->numProfiledBytecodes(), numSamples,
+                        storedProfile->getNumSamples());
+                return false;
+            } else // Existing data will be overwitten
             {
-            _numOverwrites++;
+                _numOverwrites++;
             }
-         }
-      }
-   _numStores++; // failed or not
-   ProfiledMethodEntry &profiledMethodEntry = it->second;
-   return profiledMethodEntry.addBytecodeData(entries, numSamples, isStable);
-   // TODO: We may also fail due to reaching limit for AOT cache space
-   }
+        }
+    }
+    _numStores++; // failed or not
+    ProfiledMethodEntry &profiledMethodEntry = it->second;
+    return profiledMethodEntry.addBytecodeData(entries, numSamples, isStable);
+    // TODO: We may also fail due to reaching limit for AOT cache space
+}
 
 /**
  * @brief Store fanin profile data to the shared profile repository
@@ -321,55 +300,48 @@ JITServerSharedProfileCache::addBytecodeData(const Vector<TR_IPBytecodeHashTable
  * @return 'true' if the profiling data was successfully added to the shared repository, 'false' otherwise
  * @note Acquires the shared profile monitor
  */
-bool
-JITServerSharedProfileCache::addFaninData(const TR_ContiguousIPMethodHashTableEntry *serialEntry,
-                                          const AOTCacheMethodRecord *methodRecord,
-                                          const J9ROMMethod *romMethod,
-                                          J9ROMClass *romClass)
-   {
-   OMR::CriticalSection cs(monitor());
-   auto it = _methodProfileMap.find(methodRecord);
-   if (it == _methodProfileMap.end())
-      {
-      // At the moment there is no data for the method in question. Create an empty map.
-      // TODO: check the limit on the amount of memory for JITServer AOT cache
-      try
-         {
-         it = _methodProfileMap.emplace_hint(it, std::piecewise_construct, std::forward_as_tuple(methodRecord),
-                                                 std::forward_as_tuple(methodRecord, romMethod, romClass));
-         }
-      catch (const std::bad_alloc &)
-         {
-         return false;
-         }
-      }
-   else // Some data already exists and could be overwritten
-      {
-      const ProfiledMethodEntry::FaninProfile &storedProfile = it->second.getFaninProfileRef();
-      // Two threads may want to store the same data one after another.
-      // Prevent unnecesary work if the quality of the new data is the same or lower.
-      FaninProfileSummary clientProfileSummary(serialEntry->_totalSamples);
-      FaninProfileSummary sharedProfileSummary = storedProfile.getSummary();
-      int sharedProfileQuality = compareFaninProfiles(sharedProfileSummary, clientProfileSummary);
-      if (sharedProfileQuality >= 0) // EXisting data is at least as good as the new data
-         {
-         if (TR::Options::getVerboseOption(TR_VerboseJITServerSharedProfile))
-            TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
-               "WARNING: Avoiding overwriting existing shared fanin profile data."
-               "newSamples=%" OMR_PRIu64 " oldSamples=%" OMR_PRIu64, serialEntry->_totalSamples, storedProfile.getNumSamples());
-         return false; // Refuse the add
-         }
-      else // Existing data will be overwitten
-         {
-         _numOverwrites++; // TODO: should we have a different stat for fanin?
-         }
-      }
-   _numStores++; // failed or not
-   ProfiledMethodEntry &profiledMethodEntry = it->second;
-   profiledMethodEntry.addFanInData(serialEntry->_totalSamples, serialEntry->_otherBucket.getWeight(), serialEntry->_callerCount);
-   return true;
-   // TODO: We may also fail due to reaching limit for AOT cache space
-   }
+bool JITServerSharedProfileCache::addFaninData(const TR_ContiguousIPMethodHashTableEntry *serialEntry,
+    const AOTCacheMethodRecord *methodRecord, const J9ROMMethod *romMethod, J9ROMClass *romClass)
+{
+    OMR::CriticalSection cs(monitor());
+    auto it = _methodProfileMap.find(methodRecord);
+    if (it == _methodProfileMap.end()) {
+        // At the moment there is no data for the method in question. Create an empty map.
+        // TODO: check the limit on the amount of memory for JITServer AOT cache
+        try {
+            it = _methodProfileMap.emplace_hint(it, std::piecewise_construct, std::forward_as_tuple(methodRecord),
+                std::forward_as_tuple(methodRecord, romMethod, romClass));
+        } catch (const std::bad_alloc &) {
+            return false;
+        }
+    } else // Some data already exists and could be overwritten
+    {
+        const ProfiledMethodEntry::FaninProfile &storedProfile = it->second.getFaninProfileRef();
+        // Two threads may want to store the same data one after another.
+        // Prevent unnecesary work if the quality of the new data is the same or lower.
+        FaninProfileSummary clientProfileSummary(serialEntry->_totalSamples);
+        FaninProfileSummary sharedProfileSummary = storedProfile.getSummary();
+        int sharedProfileQuality = compareFaninProfiles(sharedProfileSummary, clientProfileSummary);
+        if (sharedProfileQuality >= 0) // EXisting data is at least as good as the new data
+        {
+            if (TR::Options::getVerboseOption(TR_VerboseJITServerSharedProfile))
+                TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
+                    "WARNING: Avoiding overwriting existing shared fanin profile data."
+                    "newSamples=%" OMR_PRIu64 " oldSamples=%" OMR_PRIu64,
+                    serialEntry->_totalSamples, storedProfile.getNumSamples());
+            return false; // Refuse the add
+        } else // Existing data will be overwitten
+        {
+            _numOverwrites++; // TODO: should we have a different stat for fanin?
+        }
+    }
+    _numStores++; // failed or not
+    ProfiledMethodEntry &profiledMethodEntry = it->second;
+    profiledMethodEntry.addFanInData(serialEntry->_totalSamples, serialEntry->_otherBucket.getWeight(),
+        serialEntry->_callerCount);
+    return true;
+    // TODO: We may also fail due to reaching limit for AOT cache space
+}
 
 /**
  * @brief Use "heap" memory to clone-out the fanin data for the method of interest.
@@ -378,33 +350,30 @@ JITServerSharedProfileCache::addFaninData(const TR_ContiguousIPMethodHashTableEn
  * @param trMemory  Pointer to TR_Memory object used for "heap" allocations.
  * @return TR_FaninSummaryInfo*
  */
-TR_FaninSummaryInfo *
-JITServerSharedProfileCache::getFaninData(const AOTCacheMethodRecord *methodRecord, TR_Memory *trMemory)
-   {
-   TR_FaninSummaryInfo *entry = NULL;
-   OMR::CriticalSection cs(monitor());
-   auto it = _methodProfileMap.find(methodRecord);
-   if (it != _methodProfileMap.end())
-      {
-      const ProfiledMethodEntry::FaninProfile &storedProfile = it->second.getFaninProfileRef();
-      entry = (TR_FaninSummaryInfo *)trMemory->allocateHeapMemory(sizeof(TR_FaninSummaryInfo));
-      if (entry)
-         {
-         entry->_totalSamples = storedProfile.getNumSamples();
-         entry->_samplesOther = storedProfile.getNumSamplesOtherBucket();
-         entry->_numCallers  = storedProfile.getNumCallers();
-         }
-      }
-   return entry;
-   }
+TR_FaninSummaryInfo *JITServerSharedProfileCache::getFaninData(const AOTCacheMethodRecord *methodRecord,
+    TR_Memory *trMemory)
+{
+    TR_FaninSummaryInfo *entry = NULL;
+    OMR::CriticalSection cs(monitor());
+    auto it = _methodProfileMap.find(methodRecord);
+    if (it != _methodProfileMap.end()) {
+        const ProfiledMethodEntry::FaninProfile &storedProfile = it->second.getFaninProfileRef();
+        entry = (TR_FaninSummaryInfo *)trMemory->allocateHeapMemory(sizeof(TR_FaninSummaryInfo));
+        if (entry) {
+            entry->_totalSamples = storedProfile.getNumSamples();
+            entry->_samplesOther = storedProfile.getNumSamplesOtherBucket();
+            entry->_numCallers = storedProfile.getNumCallers();
+        }
+    }
+    return entry;
+}
 
-void
-JITServerSharedProfileCache::printStats(FILE *f) const
-   {
-   fprintf(f, "Stats about JITServer shared profile cache:\n");
-   fprintf(f, "\tNum store operations: %zu\n", _numStores);
-   fprintf(f, "\tNum overwrite operations: %zu\n", _numOverwrites);
-   }
+void JITServerSharedProfileCache::printStats(FILE *f) const
+{
+    fprintf(f, "Stats about JITServer shared profile cache:\n");
+    fprintf(f, "\tNum store operations: %zu\n", _numStores);
+    fprintf(f, "\tNum overwrite operations: %zu\n", _numOverwrites);
+}
 
 /**
  * @brief Compare two bytecode profiles based on heuristics.
@@ -412,68 +381,58 @@ JITServerSharedProfileCache::printStats(FILE *f) const
  *         If the second profile has better "quality" than the first profile, return -1.
  *         If the "quality" of the two sources is comparable, return 0.
  */
-int
-JITServerSharedProfileCache::compareBytecodeProfiles(const BytecodeProfileSummary &profile1, const BytecodeProfileSummary &profile2)
-   {
-   // If one source has something and the other one has nothing, it's an easy choice
-   if (profile1._numSamples == 0)
-      {
-      if (profile2._numSamples > 0)
-         return -1;
-      else
-         return 0;
-      }
-   else
-      {
-      if (profile2._numSamples == 0)
-         return 1;
-      }
-
-
-   if (profile1._numSamples > profile2._numSamples + 10 && profile1._numSamples * 15 > profile2._numSamples * 16) // 6.7% more samples
-      {
-      if (profile1._numProfiledBytecodes >= profile2._numProfiledBytecodes)
-         {
-         // More samples and more or the same number of profiled bytecode
-         return 1;
-         }
-      else
-         {
-         // More samples, but less profiled bytecodes. Profile1 can be considered better
-         // only if it has substantially more samples.
-         if (profile1._numSamples * 3 > profile2._numSamples * 4) // 33% more samples
-            return 1;
-         else
-            return 0; // 6.7% - 33% more samples, but lower number of profiled bytecodes
-         }
-      }
-   else if (profile2._numSamples > profile1._numSamples + 10 && profile2._numSamples * 15 > profile1._numSamples * 16) // 6.7% more samples
-      {
-      if (profile2._numProfiledBytecodes >= profile1._numProfiledBytecodes)
-         {
-         // More samples and more or the same number of profiled bytecode
-         return -1;
-         }
-      else
-         {
-         // More samples, but less profiled bytecodes. Profile2 can be considered better
-         // only if it has substantially more samples.
-         if (profile2._numSamples * 3 > profile1._numSamples * 4) // 33% more samples
+int JITServerSharedProfileCache::compareBytecodeProfiles(const BytecodeProfileSummary &profile1,
+    const BytecodeProfileSummary &profile2)
+{
+    // If one source has something and the other one has nothing, it's an easy choice
+    if (profile1._numSamples == 0) {
+        if (profile2._numSamples > 0)
             return -1;
-         else
-            return 0; // 6.7% - 33% more samples, but lower number of profiled bytecodes
-         }
-      }
-   else // About the same number of samples. Let's look at bytecodes profiled
-      {
-      if (profile1._numProfiledBytecodes == profile2._numProfiledBytecodes)
-         return 0;
-      else if (profile1._numProfiledBytecodes > profile2._numProfiledBytecodes)
-         return 1;
-      else
-         return -1;
-      }
-   }
+        else
+            return 0;
+    } else {
+        if (profile2._numSamples == 0)
+            return 1;
+    }
+
+    if (profile1._numSamples > profile2._numSamples + 10
+        && profile1._numSamples * 15 > profile2._numSamples * 16) // 6.7% more samples
+    {
+        if (profile1._numProfiledBytecodes >= profile2._numProfiledBytecodes) {
+            // More samples and more or the same number of profiled bytecode
+            return 1;
+        } else {
+            // More samples, but less profiled bytecodes. Profile1 can be considered better
+            // only if it has substantially more samples.
+            if (profile1._numSamples * 3 > profile2._numSamples * 4) // 33% more samples
+                return 1;
+            else
+                return 0; // 6.7% - 33% more samples, but lower number of profiled bytecodes
+        }
+    } else if (profile2._numSamples > profile1._numSamples + 10
+        && profile2._numSamples * 15 > profile1._numSamples * 16) // 6.7% more samples
+    {
+        if (profile2._numProfiledBytecodes >= profile1._numProfiledBytecodes) {
+            // More samples and more or the same number of profiled bytecode
+            return -1;
+        } else {
+            // More samples, but less profiled bytecodes. Profile2 can be considered better
+            // only if it has substantially more samples.
+            if (profile2._numSamples * 3 > profile1._numSamples * 4) // 33% more samples
+                return -1;
+            else
+                return 0; // 6.7% - 33% more samples, but lower number of profiled bytecodes
+        }
+    } else // About the same number of samples. Let's look at bytecodes profiled
+    {
+        if (profile1._numProfiledBytecodes == profile2._numProfiledBytecodes)
+            return 0;
+        else if (profile1._numProfiledBytecodes > profile2._numProfiledBytecodes)
+            return 1;
+        else
+            return -1;
+    }
+}
 
 /**
  * @brief Compare two fanin profiles based on heuristics.
@@ -481,20 +440,15 @@ JITServerSharedProfileCache::compareBytecodeProfiles(const BytecodeProfileSummar
  *         If the second profile has better "quality" than the first profile, return -1.
  *         If the "quality" of the two sources is comparable, return 0.
  */
-int
-JITServerSharedProfileCache::compareFaninProfiles(const FaninProfileSummary &profile1, const FaninProfileSummary &profile2)
-   {
-   static const uint64_t LOW_QUALITY_THRESHOLD = 10;
-   if (profile1._numSamples > profile2._numSamples + LOW_QUALITY_THRESHOLD)
-      {
-      return 1;
-      }
-   else if (profile2._numSamples > profile1._numSamples + LOW_QUALITY_THRESHOLD)
-      {
-      return -1;
-      }
-   else
-      {
-      return 0;
-      }
-   }
+int JITServerSharedProfileCache::compareFaninProfiles(const FaninProfileSummary &profile1,
+    const FaninProfileSummary &profile2)
+{
+    static const uint64_t LOW_QUALITY_THRESHOLD = 10;
+    if (profile1._numSamples > profile2._numSamples + LOW_QUALITY_THRESHOLD) {
+        return 1;
+    } else if (profile2._numSamples > profile1._numSamples + LOW_QUALITY_THRESHOLD) {
+        return -1;
+    } else {
+        return 0;
+    }
+}

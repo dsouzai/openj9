@@ -34,27 +34,18 @@
 
 J9JITConfig *jitConfig;
 
-
-TR_PersistentMemory * initializePersistentMemory(J9JITConfig * jitConfig)
-   {
-   TR_PersistentMemory * persistentMemory = (TR_PersistentMemory *)jitConfig->scratchSegment;
-   if (!persistentMemory)
-      {
-      TR::RawAllocator rawAllocator(jitConfig->javaVM);
-      try
-         {
-         persistentMemory = new (rawAllocator) TR_PersistentMemory(
-            jitConfig,
-            TR::Compiler->persistentAllocator()
-            );
-         ::trPersistentMemory = persistentMemory;
-         jitConfig->scratchSegment = pointer_cast<J9MemorySegment *>(persistentMemory);
-         }
-      catch (const std::exception &e)
-         {
-         }
-      }
-   return persistentMemory;
-   }
-
+TR_PersistentMemory *initializePersistentMemory(J9JITConfig *jitConfig)
+{
+    TR_PersistentMemory *persistentMemory = (TR_PersistentMemory *)jitConfig->scratchSegment;
+    if (!persistentMemory) {
+        TR::RawAllocator rawAllocator(jitConfig->javaVM);
+        try {
+            persistentMemory = new (rawAllocator) TR_PersistentMemory(jitConfig, TR::Compiler->persistentAllocator());
+            ::trPersistentMemory = persistentMemory;
+            jitConfig->scratchSegment = pointer_cast<J9MemorySegment *>(persistentMemory);
+        } catch (const std::exception &e) {
+        }
+    }
+    return persistentMemory;
+}
 

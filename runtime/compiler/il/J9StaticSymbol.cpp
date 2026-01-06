@@ -27,33 +27,33 @@
 #include "il/StaticSymbol_inlines.hpp"
 #include "il/Symbol.hpp"
 
+template<typename AllocatorType>
+TR::StaticSymbol *J9::StaticSymbol::createRecognized(AllocatorType m, TR::DataType d, TR::Symbol::RecognizedField f)
+{
+    TR::StaticSymbol *sym = new (m) TR::StaticSymbol(d);
+    sym->makeRecognized(f);
+    return sym;
+}
 
-template <typename AllocatorType>
-TR::StaticSymbol * J9::StaticSymbol::createRecognized(AllocatorType m, TR::DataType d, TR::Symbol::RecognizedField f)
-   {
-   TR::StaticSymbol * sym = new (m) TR::StaticSymbol(d);
-   sym->makeRecognized(f);
-   return sym;
-   }
+template<typename AllocatorType>
+TR::StaticSymbol *J9::StaticSymbol::createMethodTypeTableEntry(AllocatorType m, int32_t methodTypeIndex)
+{
+    TR::StaticSymbol *sym = new (m) TR::StaticSymbol(TR::Address);
+    sym->makeMethodTypeTableEntry(methodTypeIndex);
+    return sym;
+}
 
-template <typename AllocatorType>
-TR::StaticSymbol * J9::StaticSymbol::createMethodTypeTableEntry(AllocatorType m, int32_t methodTypeIndex)
-   {
-   TR::StaticSymbol * sym = new (m) TR::StaticSymbol(TR::Address);
-   sym->makeMethodTypeTableEntry(methodTypeIndex);
-   return sym;
-   }
+// Explicit Instantiations
+template TR::StaticSymbol *J9::StaticSymbol::createRecognized(TR_HeapMemory m, TR::DataType d,
+    TR::Symbol::RecognizedField f);
+template TR::StaticSymbol *J9::StaticSymbol::createMethodTypeTableEntry(TR_HeapMemory m, int32_t methodTypeIndex);
 
+template TR::StaticSymbol *J9::StaticSymbol::createRecognized(TR_StackMemory m, TR::DataType d,
+    TR::Symbol::RecognizedField f);
+template TR::StaticSymbol *J9::StaticSymbol::createMethodTypeTableEntry(TR_StackMemory m, int32_t methodTypeIndex);
 
-//Explicit Instantiations
-template TR::StaticSymbol * J9::StaticSymbol::createRecognized(TR_HeapMemory m, TR::DataType d, TR::Symbol::RecognizedField f) ;
-template TR::StaticSymbol * J9::StaticSymbol::createMethodTypeTableEntry(TR_HeapMemory m, int32_t methodTypeIndex) ;
-
-template TR::StaticSymbol * J9::StaticSymbol::createRecognized(TR_StackMemory m, TR::DataType d, TR::Symbol::RecognizedField f) ;
-template TR::StaticSymbol * J9::StaticSymbol::createMethodTypeTableEntry(TR_StackMemory m, int32_t methodTypeIndex) ;
-
-template TR::StaticSymbol * J9::StaticSymbol::createRecognized(PERSISTENT_NEW_DECLARE m, TR::DataType d, TR::Symbol::RecognizedField f) ;
-template TR::StaticSymbol * J9::StaticSymbol::createMethodTypeTableEntry(PERSISTENT_NEW_DECLARE m, int32_t methodTypeIndex) ;
-
-
+template TR::StaticSymbol *J9::StaticSymbol::createRecognized(PERSISTENT_NEW_DECLARE m, TR::DataType d,
+    TR::Symbol::RecognizedField f);
+template TR::StaticSymbol *J9::StaticSymbol::createMethodTypeTableEntry(PERSISTENT_NEW_DECLARE m,
+    int32_t methodTypeIndex);
 

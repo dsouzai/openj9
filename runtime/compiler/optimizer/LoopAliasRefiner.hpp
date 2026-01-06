@@ -37,13 +37,13 @@
 
 class TR_InductionVariable;
 class TR_RegionStructure;
+
 namespace TR {
 class Block;
 class Compilation;
 class Optimization;
 class TreeTop;
-}
-
+} // namespace TR
 
 /*
  * Class TR_LoopAliasRefiner
@@ -81,164 +81,192 @@ class TreeTop;
  * on array accesses inside loops.
  */
 
-class TR_LoopAliasRefiner: public TR_LoopVersioner
-   {
-   public:
-   TR_LoopAliasRefiner(TR::OptimizationManager *manager);
+class TR_LoopAliasRefiner : public TR_LoopVersioner {
+public:
+    TR_LoopAliasRefiner(TR::OptimizationManager *manager);
 
-   virtual const char * optDetailString() const throw();
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_LoopAliasRefiner(manager);
-      }
+    virtual const char *optDetailString() const throw();
 
-   bool processArrayAliasCandidates();
-   void collectArrayAliasCandidates(TR::Node *node, vcount_t visitCount);
-   void buildAliasRefinementComparisonTrees(List<TR::TreeTop> *, List<TR::TreeTop> *, List<TR::TreeTop> *, List<TR::TreeTop> *, TR_ScratchList<TR::Node> *, TR::Block *);
-   void initAdditionalDataStructures();
-   void refineArrayAliases(TR_RegionStructure *);
-   bool hasMulShadowTypes(TR_ScratchList<TR_NodeParentBlockTuple> *candList);
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_LoopAliasRefiner(manager);
+    }
 
-   /*
-    * Used to represent expression trees in terms of IVs.
-    * A given index expression will result in an ordered list of
-    * IVExpr nodes.  e.g.
-    * intArray[dimsize1*(j-1+dimsize2*(i+1))-k] (aka intArray[i+1, j-1, -k]
-    * would result in a list like:
-    *  element       node                               equiv expr
-    *   1       [iv:i, scale:dimsize1*dimsize2, invar:+1]    (i+1) * dimsize1* dimsize2
-    *   2       [iv:j, scale:dimsize1, invar:-1, invar:-1]     (j-1) *dimsize1
-    *   3       [iv:k, scale:NULL, invar:NULL, isSub=true]      -k
+    bool processArrayAliasCandidates();
+    void collectArrayAliasCandidates(TR::Node *node, vcount_t visitCount);
+    void buildAliasRefinementComparisonTrees(List<TR::TreeTop> *, List<TR::TreeTop> *, List<TR::TreeTop> *,
+        List<TR::TreeTop> *, TR_ScratchList<TR::Node> *, TR::Block *);
+    void initAdditionalDataStructures();
+    void refineArrayAliases(TR_RegionStructure *);
+    bool hasMulShadowTypes(TR_ScratchList<TR_NodeParentBlockTuple> *candList);
 
-    * note that the scaling factor for integer (4) and any constant offset will be represented in
-    * CanonicalArrayReference,  since the basic form of the array must be followed when
-    * reconstructing the full array expression.
-    */
-   class IVExpr
-      {
-      public:
-      TR_ALLOC(TR_Memory::LoopAliasRefiner);
+    /*
+     * Used to represent expression trees in terms of IVs.
+     * A given index expression will result in an ordered list of
+     * IVExpr nodes.  e.g.
+     * intArray[dimsize1*(j-1+dimsize2*(i+1))-k] (aka intArray[i+1, j-1, -k]
+     * would result in a list like:
+     *  element       node                               equiv expr
+     *   1       [iv:i, scale:dimsize1*dimsize2, invar:+1]    (i+1) * dimsize1* dimsize2
+     *   2       [iv:j, scale:dimsize1, invar:-1, invar:-1]     (j-1) *dimsize1
+     *   3       [iv:k, scale:NULL, invar:NULL, isSub=true]      -k
 
-      IVExpr():_ivRef(NULL), _scalingExpr(NULL), _invariantExpr(NULL), _isSub(false){}
+     * note that the scaling factor for integer (4) and any constant offset will be represented in
+     * CanonicalArrayReference,  since the basic form of the array must be followed when
+     * reconstructing the full array expression.
+     */
+    class IVExpr {
+    public:
+        TR_ALLOC(TR_Memory::LoopAliasRefiner);
 
-      IVExpr(TR::SymbolReference *ref, TR::Node *scale, TR::Node *constExpr, bool b):
-         _ivRef(ref), _scalingExpr(scale), _invariantExpr(constExpr), _isSub(b){}
-      TR::SymbolReference *getIVReference() { return _ivRef; }
+        IVExpr()
+            : _ivRef(NULL)
+            , _scalingExpr(NULL)
+            , _invariantExpr(NULL)
+            , _isSub(false)
+        {}
 
-      void dump(TR::Compilation *comp){
-         comp->log()->printf("\tiv:#%d scalingNode:%p invariantExpr:%p %s\n",
-            _ivRef?_ivRef->getReferenceNumber():-1,
-            _scalingExpr,
-            _invariantExpr,
-            (_isSub?"is-subtract":"is-add"));
-      }
+        IVExpr(TR::SymbolReference *ref, TR::Node *scale, TR::Node *constExpr, bool b)
+            : _ivRef(ref)
+            , _scalingExpr(scale)
+            , _invariantExpr(constExpr)
+            , _isSub(b)
+        {}
 
-      TR::Node * generateExpr(TR::Compilation *comp, TR::Node *ivExpr);
-      TR::SymbolReference * getIVRef() { return _ivRef; }
-      TR::Node * getScalingExpr() { return _scalingExpr; }
-      TR::Node *getInvariantExpr() { return _invariantExpr; }
-      void setInvariantExpr(TR::Node *n){ _invariantExpr = n;}
-      bool isSub() { return _isSub; }
+        TR::SymbolReference *getIVReference() { return _ivRef; }
 
-      private:
-      TR::SymbolReference * _ivRef;
-      TR::Node *            _invariantExpr;
-      TR::Node *            _scalingExpr;
-      bool                 _isSub;
-      };
+        void dump(TR::Compilation *comp)
+        {
+            comp->log()->printf("\tiv:#%d scalingNode:%p invariantExpr:%p %s\n",
+                _ivRef ? _ivRef->getReferenceNumber() : -1, _scalingExpr, _invariantExpr,
+                (_isSub ? "is-subtract" : "is-add"));
+        }
 
+        TR::Node *generateExpr(TR::Compilation *comp, TR::Node *ivExpr);
 
-   class IVValueRange
-      {
-      public:
-      TR_ALLOC(TR_Memory::LoopAliasRefiner);
-      IVValueRange(TR_InductionVariable *iv, TR::Node *smallest, TR::Node *largest) :
-         _iv(iv), _smallestValue(smallest), _largestValue(largest){}
-      TR::Node * getSmallestValue() { return _smallestValue;}
-      TR::Node *getLargestValue() { return _largestValue; }
-      TR_InductionVariable * getIV(){ return _iv; }
-      private:
-      TR_InductionVariable *_iv;
-      TR::Node * _largestValue;
-      TR::Node * _smallestValue;
-      };
+        TR::SymbolReference *getIVRef() { return _ivRef; }
 
-   class ArrayRangeLimits
-      {
-      public:
-      TR_ALLOC(TR_Memory::LoopAliasRefiner);
+        TR::Node *getScalingExpr() { return _scalingExpr; }
 
-      ArrayRangeLimits( TR_ScratchList<TR_NodeParentBlockTuple> *candList, TR::SymbolReference *baseSymRef,
-                        TR::SymbolReference *memberSymRef, TR::SymbolReference *arrayAccessSymRef):
-                        _arrayAddrRef(baseSymRef), _arrayDerefSym(memberSymRef), _candidateList(candList), _arrayAccessSymRef(arrayAccessSymRef) {}
+        TR::Node *getInvariantExpr() { return _invariantExpr; }
 
-      TR_ScratchList<TR_NodeParentBlockTuple> *getCandidateList() { return _candidateList;}
-      TR::SymbolReference * getBaseSymRef() { return _arrayAddrRef; }
-      TR::SymbolReference * getMemberSymRef() { return _arrayDerefSym; }
-      TR::SymbolReference * getArrayAccessSymRef() { return _arrayAccessSymRef; }
-      TR::Node * getMinValueExpr() { return _minValue; }
-      TR::Node *getMaxValueExpr() { return _maxValue;}
-      TR::Node *createRangeTestExpr(TR::Compilation *, ArrayRangeLimits *other, TR::Block *, bool trace);
+        void setInvariantExpr(TR::Node *n) { _invariantExpr = n; }
 
-      private:
-      TR::SymbolReference * _arrayAddrRef;
-      union
-         {
-         TR::SymbolReference * _arrayDerefSym;
-         TR::Node *_minValue;
-         };
-      TR::Node *_maxValue;
-      TR_ScratchList<TR_NodeParentBlockTuple> *_candidateList;
-      TR::SymbolReference * _arrayAccessSymRef;
-      };
+        bool isSub() { return _isSub; }
 
-   class CanonicalDimension
-      {
-      public:
-      TR_ALLOC(TR_Memory::LoopAliasRefiner);
+    private:
+        TR::SymbolReference *_ivRef;
+        TR::Node *_invariantExpr;
+        TR::Node *_scalingExpr;
+        bool _isSub;
+    };
 
-      };
-   class CanonicalArrayReference
-      {
-      public:
-      TR_ALLOC(TR_Memory::LoopAliasRefiner);
-      CanonicalArrayReference() :_arrayAddrRef(NULL), _nonIVExpr(NULL),
-                                 _origExpr(NULL){}
+    class IVValueRange {
+    public:
+        TR_ALLOC(TR_Memory::LoopAliasRefiner);
 
-      CanonicalArrayReference(const CanonicalArrayReference &src,  TR::Compilation *comp);
+        IVValueRange(TR_InductionVariable *iv, TR::Node *smallest, TR::Node *largest)
+            : _iv(iv)
+            , _smallestValue(smallest)
+            , _largestValue(largest)
+        {}
 
+        TR::Node *getSmallestValue() { return _smallestValue; }
 
-      void dump(TR::Compilation* comp)
-            {
-            comp->log()->printf("Ref:#%d nonIVExpr:%p OrigExpr:%p\n",
-                    _arrayAddrRef->getReferenceNumber(),
-                    _nonIVExpr,
-                    _origExpr);
+        TR::Node *getLargestValue() { return _largestValue; }
+
+        TR_InductionVariable *getIV() { return _iv; }
+
+    private:
+        TR_InductionVariable *_iv;
+        TR::Node *_largestValue;
+        TR::Node *_smallestValue;
+    };
+
+    class ArrayRangeLimits {
+    public:
+        TR_ALLOC(TR_Memory::LoopAliasRefiner);
+
+        ArrayRangeLimits(TR_ScratchList<TR_NodeParentBlockTuple> *candList, TR::SymbolReference *baseSymRef,
+            TR::SymbolReference *memberSymRef, TR::SymbolReference *arrayAccessSymRef)
+            : _arrayAddrRef(baseSymRef)
+            , _arrayDerefSym(memberSymRef)
+            , _candidateList(candList)
+            , _arrayAccessSymRef(arrayAccessSymRef)
+        {}
+
+        TR_ScratchList<TR_NodeParentBlockTuple> *getCandidateList() { return _candidateList; }
+
+        TR::SymbolReference *getBaseSymRef() { return _arrayAddrRef; }
+
+        TR::SymbolReference *getMemberSymRef() { return _arrayDerefSym; }
+
+        TR::SymbolReference *getArrayAccessSymRef() { return _arrayAccessSymRef; }
+
+        TR::Node *getMinValueExpr() { return _minValue; }
+
+        TR::Node *getMaxValueExpr() { return _maxValue; }
+
+        TR::Node *createRangeTestExpr(TR::Compilation *, ArrayRangeLimits *other, TR::Block *, bool trace);
+
+    private:
+        TR::SymbolReference *_arrayAddrRef;
+
+        union {
+            TR::SymbolReference *_arrayDerefSym;
+            TR::Node *_minValue;
+        };
+
+        TR::Node *_maxValue;
+        TR_ScratchList<TR_NodeParentBlockTuple> *_candidateList;
+        TR::SymbolReference *_arrayAccessSymRef;
+    };
+
+    class CanonicalDimension {
+    public:
+        TR_ALLOC(TR_Memory::LoopAliasRefiner);
+    };
+
+    class CanonicalArrayReference {
+    public:
+        TR_ALLOC(TR_Memory::LoopAliasRefiner);
+
+        CanonicalArrayReference()
+            : _arrayAddrRef(NULL)
+            , _nonIVExpr(NULL)
+            , _origExpr(NULL)
+        {}
+
+        CanonicalArrayReference(const CanonicalArrayReference &src, TR::Compilation *comp);
+
+        void dump(TR::Compilation *comp)
+        {
+            comp->log()->printf("Ref:#%d nonIVExpr:%p OrigExpr:%p\n", _arrayAddrRef->getReferenceNumber(), _nonIVExpr,
+                _origExpr);
             TR_ASSERT(_ivExprs, "_ivexprs is null");
             ListIterator<IVExpr> rangeIterator(_ivExprs);
             IVExpr *ar;
-            for(ar = rangeIterator.getFirst();ar;ar= rangeIterator.getNext())
-               {
-               ar->dump(comp);
-               }
+            for (ar = rangeIterator.getFirst(); ar; ar = rangeIterator.getNext()) {
+                ar->dump(comp);
             }
+        }
 
-      TR::SymbolReference *        _arrayAddrRef;
-      TR::Node *                   _origExpr;
-      TR::Node *                   _nonIVExpr;
-      TR_ScratchList<IVExpr>     *_ivExprs;
-      };
+        TR::SymbolReference *_arrayAddrRef;
+        TR::Node *_origExpr;
+        TR::Node *_nonIVExpr;
+        TR_ScratchList<IVExpr> *_ivExprs;
+    };
 
-   private:
-   void collectArrayAliasCandidates(TR::Node *, TR::Node*,  vcount_t visitCount, bool isStore);
+private:
+    void collectArrayAliasCandidates(TR::Node *, TR::Node *, vcount_t visitCount, bool isStore);
 
-   void markAsProcessed(int32_t loopID){ _processedLoops->set(loopID);}
-   bool isAlreadyProcessed(int32_t loopID) { return _processedLoops->isSet(loopID);}
+    void markAsProcessed(int32_t loopID) { _processedLoops->set(loopID); }
 
-   TR_ScratchList<ArrayRangeLimits>   *_arrayRanges;
-   TR_ScratchList<TR::SymbolReference> *_independentArrays;
-   TR_BitVector                       *_processedLoops;
-   bool                                _supportArrayMembers;
+    bool isAlreadyProcessed(int32_t loopID) { return _processedLoops->isSet(loopID); }
 
-   };
+    TR_ScratchList<ArrayRangeLimits> *_arrayRanges;
+    TR_ScratchList<TR::SymbolReference> *_independentArrays;
+    TR_BitVector *_processedLoops;
+    bool _supportArrayMembers;
+};
 #endif

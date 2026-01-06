@@ -24,80 +24,69 @@
 #include "codegen/Relocation.hpp"
 #include "ras/Logger.hpp"
 
-TR::J9WatchedInstanceFieldSnippet::J9WatchedInstanceFieldSnippet(TR::CodeGenerator *cg, TR::Node *node, J9Method *m, UDATA loc, UDATA os)
-   : TR::Snippet(cg, node, generateLabelSymbol(cg), false)
-   {
-   instanceFieldData.method = m;
-   instanceFieldData.location = loc;
-   instanceFieldData.offset = os;
-   }
+TR::J9WatchedInstanceFieldSnippet::J9WatchedInstanceFieldSnippet(TR::CodeGenerator *cg, TR::Node *node, J9Method *m,
+    UDATA loc, UDATA os)
+    : TR::Snippet(cg, node, generateLabelSymbol(cg), false)
+{
+    instanceFieldData.method = m;
+    instanceFieldData.location = loc;
+    instanceFieldData.offset = os;
+}
 
 uint8_t *TR::J9WatchedInstanceFieldSnippet::emitSnippetBody()
-   {
-   uint8_t *cursor = cg()->getBinaryBufferCursor();
-   getSnippetLabel()->setCodeLocation(cursor);
-   TR::Node *node = getNode();
+{
+    uint8_t *cursor = cg()->getBinaryBufferCursor();
+    getSnippetLabel()->setCodeLocation(cursor);
+    TR::Node *node = getNode();
 
-   // We emit the dataSnippet based on the assumption that the J9JITWatchedInstanceFieldData structure is laid out as below:
-/*   typedef struct J9JITWatchedInstanceFieldData {
-         J9Method *method;               // Currently executing method
-         UDATA location;                 // Bytecode PC index
-         UDATA offset;                   // Field offset (not including header)
-   } J9JITWatchedInstanceFieldData; */
+    // We emit the dataSnippet based on the assumption that the J9JITWatchedInstanceFieldData structure is laid out as
+    // below:
+    /*   typedef struct J9JITWatchedInstanceFieldData {
+             J9Method *method;               // Currently executing method
+             UDATA location;                 // Bytecode PC index
+             UDATA offset;                   // Field offset (not including header)
+       } J9JITWatchedInstanceFieldData; */
 
-   // Emit each field and add a relocation record (for AOT compiles) for any field if needed.
+    // Emit each field and add a relocation record (for AOT compiles) for any field if needed.
 
-   J9JITWatchedInstanceFieldData *str = reinterpret_cast<J9JITWatchedInstanceFieldData *>(cursor);
-   str->method = instanceFieldData.method;
-   str->location = instanceFieldData.location;
-   str->offset = instanceFieldData.offset;
+    J9JITWatchedInstanceFieldData *str = reinterpret_cast<J9JITWatchedInstanceFieldData *>(cursor);
+    str->method = instanceFieldData.method;
+    str->location = instanceFieldData.location;
+    str->offset = instanceFieldData.offset;
 
-   if (cg()->comp()->getOption(TR_UseSymbolValidationManager))
-      {
-      cg()->addExternalRelocation(
-         TR::ExternalRelocation::create(
-            cursor + offsetof(J9JITWatchedInstanceFieldData, method),
-            reinterpret_cast<uint8_t *>(instanceFieldData.method),
-            reinterpret_cast<uint8_t *>(TR::SymbolType::typeMethod),
-            TR_SymbolFromManager,
-            cg()),
-         __FILE__,
-         __LINE__,
-         node);
-      }
-   else
-      {
-      cg()->addExternalRelocation(
-         TR::ExternalRelocation::create(
-            cursor  + offsetof(J9JITWatchedInstanceFieldData, method),
-            NULL,
-            TR_RamMethod,
-            cg()),
-         __FILE__,
-         __LINE__,
-         node);
-      }
-   cursor += sizeof(J9JITWatchedInstanceFieldData);
+    if (cg()->comp()->getOption(TR_UseSymbolValidationManager)) {
+        cg()->addExternalRelocation(
+            TR::ExternalRelocation::create(cursor + offsetof(J9JITWatchedInstanceFieldData, method),
+                reinterpret_cast<uint8_t *>(instanceFieldData.method),
+                reinterpret_cast<uint8_t *>(TR::SymbolType::typeMethod), TR_SymbolFromManager, cg()),
+            __FILE__, __LINE__, node);
+    } else {
+        cg()->addExternalRelocation(
+            TR::ExternalRelocation::create(cursor + offsetof(J9JITWatchedInstanceFieldData, method), NULL, TR_RamMethod,
+                cg()),
+            __FILE__, __LINE__, node);
+    }
+    cursor += sizeof(J9JITWatchedInstanceFieldData);
 
-   return cursor;
-   }
+    return cursor;
+}
 
 void TR::J9WatchedInstanceFieldSnippet::print(OMR::Logger *log, TR_Debug *debug)
-   {
-   uint8_t *bufferPos = getSnippetLabel()->getCodeLocation();
+{
+    uint8_t *bufferPos = getSnippetLabel()->getCodeLocation();
 
-   debug->printSnippetLabel(log, getSnippetLabel(), bufferPos, "J9WatchedInstanceFieldSnippet");
+    debug->printSnippetLabel(log, getSnippetLabel(), bufferPos, "J9WatchedInstanceFieldSnippet");
 
-   debug->printPrefix(log, NULL, bufferPos, sizeof(J9Method *));
-   log->printf("DC   \t%p \t\t# J9Method", *(reinterpret_cast<J9Method **>(bufferPos)));
-   bufferPos += sizeof(J9Method *);
+    debug->printPrefix(log, NULL, bufferPos, sizeof(J9Method *));
+    log->printf("DC   \t%p \t\t# J9Method", *(reinterpret_cast<J9Method **>(bufferPos)));
+    bufferPos += sizeof(J9Method *);
 
-   debug->printPrefix(log, NULL, bufferPos, sizeof(UDATA));
-   log->printf("DC   \t%lu \t\t# location", *(reinterpret_cast<UDATA *>(bufferPos)));
-   bufferPos += sizeof(UDATA);
+    debug->printPrefix(log, NULL, bufferPos, sizeof(UDATA));
+    log->printf("DC   \t%lu \t\t# location", *(reinterpret_cast<UDATA *>(bufferPos)));
+    bufferPos += sizeof(UDATA);
 
-   debug->printPrefix(log, NULL, bufferPos, sizeof(UDATA));
-   log->printf("DC   \t%lu \t\t# offset", *(reinterpret_cast<UDATA *>(bufferPos)));
-   bufferPos += sizeof(UDATA);
-   }
+    debug->printPrefix(log, NULL, bufferPos, sizeof(UDATA));
+    log->printf("DC   \t%lu \t\t# offset", *(reinterpret_cast<UDATA *>(bufferPos)));
+    bufferPos += sizeof(UDATA);
+}
 

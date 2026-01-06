@@ -35,21 +35,19 @@
 
 class TR_ResolvedMethod;
 
-class TR_OptAnnotation : public TR_AnnotationBase
-   {
-   public:
+class TR_OptAnnotation : public TR_AnnotationBase {
+public:
+    bool hasAnnotation(TR::Symbol *sym);
+    TR_OptAnnotation(TR::Compilation *comp, TR_ResolvedMethod *);
 
-   bool hasAnnotation(TR::Symbol *sym);
-   TR_OptAnnotation(TR::Compilation *comp,TR_ResolvedMethod *);
+    // assumes isValid is true
+    TR_Hotness getOptLevel() { return _optLevel; }
 
-   // assumes isValid is true
-   TR_Hotness getOptLevel() { return _optLevel;}
-   int32_t getCount(){ return _count;}
+    int32_t getCount() { return _count; }
 
-   private:
-   TR_Hotness      _optLevel;
-   int32_t         _count;
+private:
+    TR_Hotness _optLevel;
+    int32_t _count;
 };
-
 
 #endif

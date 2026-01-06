@@ -30,55 +30,44 @@ namespace TR {
 class Snippet;
 }
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE MemoryReference : public J9::MemoryReferenceConnector
-   {
-   private:
+class OMR_EXTENSIBLE MemoryReference : public J9::MemoryReferenceConnector {
+private:
+    MemoryReference(TR::CodeGenerator *cg)
+        : J9::MemoryReferenceConnector(cg)
+    {}
 
-   MemoryReference(TR::CodeGenerator *cg)
-      : J9::MemoryReferenceConnector(cg) {}
+    MemoryReference(TR::Register *br, TR::Register *ir, TR::CodeGenerator *cg)
+        : J9::MemoryReferenceConnector(br, ir, cg)
+    {}
 
-   MemoryReference(
-         TR::Register *br,
-         TR::Register *ir,
-         TR::CodeGenerator *cg)
-      : J9::MemoryReferenceConnector(br, ir, cg) {}
+    MemoryReference(TR::Register *br, TR::Register *ir, uint8_t scale, TR::CodeGenerator *cg)
+        : J9::MemoryReferenceConnector(br, ir, scale, cg)
+    {}
 
-   MemoryReference(
-         TR::Register *br,
-         TR::Register *ir,
-         uint8_t scale,
-         TR::CodeGenerator *cg)
-      : J9::MemoryReferenceConnector(br, ir, scale, cg) {}
+    MemoryReference(TR::Register *br, int32_t disp, TR::CodeGenerator *cg)
+        : J9::MemoryReferenceConnector(br, disp, cg)
+    {}
 
-   MemoryReference(
-         TR::Register *br,
-         int32_t disp,
-         TR::CodeGenerator *cg)
-      : J9::MemoryReferenceConnector(br, disp, cg) {}
+    MemoryReference(TR::Node *node, TR::CodeGenerator *cg)
+        : J9::MemoryReferenceConnector(node, cg)
+    {}
 
-   MemoryReference(
-         TR::Node *node,
-         TR::CodeGenerator *cg)
-      : J9::MemoryReferenceConnector(node, cg) {}
+    MemoryReference(TR::Node *node, TR::SymbolReference *symRef, TR::CodeGenerator *cg)
+        : J9::MemoryReferenceConnector(node, symRef, cg)
+    {}
 
-   MemoryReference(
-         TR::Node *node,
-         TR::SymbolReference *symRef,
-         TR::CodeGenerator *cg)
-      : J9::MemoryReferenceConnector(node, symRef, cg) {}
+public:
+    static TR::MemoryReference *create(TR::CodeGenerator *cg);
+    static TR::MemoryReference *createWithIndexReg(TR::CodeGenerator *cg, TR::Register *baseReg, TR::Register *indexReg,
+        uint8_t scale = 0, TR::ARM64ExtendCode extendCode = TR::ARM64ExtendCode::EXT_UXTX);
+    static TR::MemoryReference *createWithDisplacement(TR::CodeGenerator *cg, TR::Register *baseReg,
+        int64_t displacement);
+    static TR::MemoryReference *createWithRootLoadOrStore(TR::CodeGenerator *cg, TR::Node *rootLoadOrStore);
+    static TR::MemoryReference *createWithSymRef(TR::CodeGenerator *cg, TR::Node *node, TR::SymbolReference *symRef);
+};
 
-   public:
-
-   static TR::MemoryReference *create(TR::CodeGenerator *cg);
-   static TR::MemoryReference *createWithIndexReg(TR::CodeGenerator *cg, TR::Register *baseReg, TR::Register *indexReg, uint8_t scale = 0, TR::ARM64ExtendCode extendCode = TR::ARM64ExtendCode::EXT_UXTX);
-   static TR::MemoryReference *createWithDisplacement(TR::CodeGenerator *cg, TR::Register *baseReg, int64_t displacement);
-   static TR::MemoryReference *createWithRootLoadOrStore(TR::CodeGenerator *cg, TR::Node *rootLoadOrStore);
-   static TR::MemoryReference *createWithSymRef(TR::CodeGenerator *cg, TR::Node *node, TR::SymbolReference *symRef);
-   };
-
-} // TR
+} // namespace TR
 
 #endif

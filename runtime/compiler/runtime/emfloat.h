@@ -21,22 +21,22 @@
  *******************************************************************************/
 
 /*
-* ARM Testarossa and Cinquecento use integer registers for float results
-* All other Cinquecento use integer registers for float results
-* All other Testarossa builds using fp emulation use float registers for float results
-*/
+ * ARM Testarossa and Cinquecento use integer registers for float results
+ * All other Cinquecento use integer registers for float results
+ * All other Testarossa builds using fp emulation use float registers for float results
+ */
 
 #if defined(TR_HOST_ARM)
-#define FLOAT_RESULT    I_32
-#define	DOUBLE_RESULT   I_64
+#define FLOAT_RESULT I_32
+#define DOUBLE_RESULT I_64
 #else
-#define	FLOAT_RESULT    ESSINGLE
-#define	DOUBLE_RESULT   ESDOUBLE
+#define FLOAT_RESULT ESSINGLE
+#define DOUBLE_RESULT ESDOUBLE
 #endif
-#define	INT_RESULT      I_32
-#define	INT_ARG         I_32
-#define LONG_RESULT     I_64
-#define LONG_ARG        I_64
+#define INT_RESULT I_32
+#define INT_ARG I_32
+#define LONG_RESULT I_64
+#define LONG_ARG I_64
 
 #ifdef __cplusplus
 extern "C" {

@@ -22,6 +22,5 @@
 
 #include "j9.h"
 #include "j9protos.h"
-extern void * j9ThunkLookupNameAndSig(void * jitConfig, void *parm);
-
+extern void *j9ThunkLookupNameAndSig(void *jitConfig, void *parm);
 

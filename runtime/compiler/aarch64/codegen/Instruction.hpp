@@ -26,74 +26,68 @@
 #include "codegen/J9Instruction.hpp"
 #include "codegen/RegisterDependency.hpp"
 
-namespace TR
-{
+namespace TR {
 class Instruction;
 
-class OMR_EXTENSIBLE Instruction : public J9::InstructionConnector
-   {
-   public:
+class OMR_EXTENSIBLE Instruction : public J9::InstructionConnector {
+public:
+    /**
+     * @brief Constructor
+     * @param[in] op : opcode
+     * @param[in] node : node
+     * @param[in] precedingInstruction : preceding instruction
+     * @param[in] cg : CodeGenerator
+     */
+    Instruction(TR::InstOpCode::Mnemonic op, TR::Node *node, TR::Instruction *precedingInstruction,
+        TR::CodeGenerator *cg)
+        : J9::InstructionConnector(cg, precedingInstruction, op, node)
+    {}
 
-   /**
-    * @brief Constructor
-    * @param[in] op : opcode
-    * @param[in] node : node
-    * @param[in] precedingInstruction : preceding instruction
-    * @param[in] cg : CodeGenerator
-    */
-   Instruction(TR::InstOpCode::Mnemonic op, TR::Node *node, TR::Instruction *precedingInstruction,
-               TR::CodeGenerator *cg)
-      : J9::InstructionConnector(cg, precedingInstruction, op, node)
-      {
-      }
+    /**
+     * @brief Constructor
+     * @param[in] op : opcode
+     * @param[in] node : node
+     * @param[in] cg : CodeGenerator
+     */
+    Instruction(TR::InstOpCode::Mnemonic op, TR::Node *node, TR::CodeGenerator *cg)
+        : J9::InstructionConnector(cg, op, node)
+    {}
 
-   /**
-    * @brief Constructor
-    * @param[in] op : opcode
-    * @param[in] node : node
-    * @param[in] cg : CodeGenerator
-    */
-   Instruction(TR::InstOpCode::Mnemonic op, TR::Node *node, TR::CodeGenerator *cg)
-      : J9::InstructionConnector(cg, op, node)
-      {
-      }
+    /**
+     * @brief Constructor
+     * @param[in] op : opcode
+     * @param[in] node : node
+     * @param[in] cond : register dependency conditions
+     * @param[in] precedingInstruction : preceding instruction
+     * @param[in] cg : CodeGenerator
+     */
+    Instruction(TR::InstOpCode::Mnemonic op, TR::Node *node, TR::RegisterDependencyConditions *cond,
+        TR::Instruction *precedingInstruction, TR::CodeGenerator *cg)
+        : J9::InstructionConnector(cg, precedingInstruction, op, node)
+    {
+        self()->setDependencyConditions(cond);
+        if (cond)
+            cond->bookKeepingRegisterUses(self(), cg);
+    }
 
-   /**
-    * @brief Constructor
-    * @param[in] op : opcode
-    * @param[in] node : node
-    * @param[in] cond : register dependency conditions
-    * @param[in] precedingInstruction : preceding instruction
-    * @param[in] cg : CodeGenerator
-    */
-   Instruction(TR::InstOpCode::Mnemonic op, TR::Node *node, TR::RegisterDependencyConditions *cond,
-               TR::Instruction *precedingInstruction, TR::CodeGenerator *cg)
-      : J9::InstructionConnector(cg, precedingInstruction, op, node)
-      {
-      self()->setDependencyConditions(cond);
-      if (cond)
-         cond->bookKeepingRegisterUses(self(), cg);
-      }
+    /**
+     * @brief Constructor
+     * @param[in] op : opcode
+     * @param[in] node : node
+     * @param[in] cond : register dependency conditions
+     * @param[in] cg : CodeGenerator
+     */
+    Instruction(TR::InstOpCode::Mnemonic op, TR::Node *node, TR::RegisterDependencyConditions *cond,
+        TR::CodeGenerator *cg)
+        : J9::InstructionConnector(cg, op, node)
+    {
+        self()->setDependencyConditions(cond);
+        if (cond)
+            cond->bookKeepingRegisterUses(self(), cg);
+    }
+};
 
-   /**
-    * @brief Constructor
-    * @param[in] op : opcode
-    * @param[in] node : node
-    * @param[in] cond : register dependency conditions
-    * @param[in] cg : CodeGenerator
-    */
-   Instruction(TR::InstOpCode::Mnemonic op, TR::Node *node, TR::RegisterDependencyConditions *cond,
-               TR::CodeGenerator *cg)
-      : J9::InstructionConnector(cg, op, node)
-      {
-      self()->setDependencyConditions(cond);
-      if (cond)
-         cond->bookKeepingRegisterUses(self(), cg);
-      }
-
-   };
-
-} // TR
+} // namespace TR
 
 #include "codegen/J9Instruction_inlines.hpp"
 

@@ -28,10 +28,11 @@
  */
 #ifndef J9_OPTIMIZER_CONNECTOR
 #define J9_OPTIMIZER_CONNECTOR
+
 namespace J9 {
 class Optimizer;
 typedef J9::Optimizer OptimizerConnector;
-}
+} // namespace J9
 #endif
 
 #include "optimizer/OMROptimizer.hpp"
@@ -43,35 +44,31 @@ namespace TR {
 class Compilation;
 class Optimizer;
 class ResolvedMethodSymbol;
-}
+} // namespace TR
 struct OptimizationStrategy;
 class TR_J9InlinerPolicy;
 class TR_J9InlinerUtil;
 
-namespace J9
-{
+namespace J9 {
 
-class Optimizer : public OMR::OptimizerConnector
-   {
-   public:
+class Optimizer : public OMR::OptimizerConnector {
+public:
+    Optimizer(TR::Compilation *comp, TR::ResolvedMethodSymbol *methodSymbol, bool isIlGen,
+        const OptimizationStrategy *strategy = NULL, uint16_t VNType = 0);
 
-   Optimizer(TR::Compilation *comp, TR::ResolvedMethodSymbol *methodSymbol, bool isIlGen,
-         const OptimizationStrategy *strategy = NULL, uint16_t VNType = 0);
+    OMR_InlinerPolicy *getInlinerPolicy();
+    OMR_InlinerUtil *getInlinerUtil();
 
-   OMR_InlinerPolicy *getInlinerPolicy();
-   OMR_InlinerUtil *getInlinerUtil();
+    bool switchToProfiling(uint32_t f, uint32_t c);
+    bool switchToProfiling();
 
-   bool switchToProfiling(uint32_t f, uint32_t c);
-   bool switchToProfiling();
+    static const OptimizationStrategy *optimizationStrategy(TR::Compilation *c);
+    static ValueNumberInfoBuildType valueNumberInfoBuildType();
 
-   static const OptimizationStrategy *optimizationStrategy(TR::Compilation *c);
-   static ValueNumberInfoBuildType valueNumberInfoBuildType();
+private:
+    TR::Optimizer *self();
+};
 
-   private:
-
-   TR::Optimizer *self();
-   };
-
-}
+} // namespace J9
 
 #endif

@@ -29,30 +29,24 @@ namespace TR {
 class Options;
 }
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE Options : public J9::OptionsConnector
-{
+class OMR_EXTENSIBLE Options : public J9::OptionsConnector {
 public:
+    Options()
+        : J9::OptionsConnector()
+    {}
 
-   Options() : J9::OptionsConnector() {}
+    Options(TR_Memory *m, int32_t index, int32_t lineNumber, TR_ResolvedMethod *compilee, void *oldStartPC,
+        TR_OptimizationPlan *optimizationPlan, bool isAOT = false, int32_t compThreadID = -1)
+        : J9::OptionsConnector(m, index, lineNumber, compilee, oldStartPC, optimizationPlan, isAOT, compThreadID)
+    {}
 
-   Options(TR_Memory * m,
-           int32_t index,
-           int32_t lineNumber,
-           TR_ResolvedMethod *compilee,
-           void *oldStartPC,
-           TR_OptimizationPlan *optimizationPlan,
-           bool isAOT=false,
-           int32_t compThreadID=-1)
-      : J9::OptionsConnector(m,index,lineNumber,compilee,oldStartPC,optimizationPlan,isAOT,compThreadID)
-      {}
-
-   Options(TR::Options &other) : J9::OptionsConnector(other) {}
-
+    Options(TR::Options &other)
+        : J9::OptionsConnector(other)
+    {}
 };
 
-}
+} // namespace TR
 
 #endif

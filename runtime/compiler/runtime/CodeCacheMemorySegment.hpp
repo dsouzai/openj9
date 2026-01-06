@@ -25,15 +25,21 @@
 
 #include "runtime/J9CodeCacheMemorySegment.hpp"
 
-namespace TR
-{
-class OMR_EXTENSIBLE CodeCacheMemorySegment : public J9::CodeCacheMemorySegmentConnector
-    {
-    public:
-    CodeCacheMemorySegment() : J9::CodeCacheMemorySegmentConnector() { }
-    CodeCacheMemorySegment(uint8_t *memory, uint8_t *top) : J9::CodeCacheMemorySegmentConnector(memory, top) { }
-    CodeCacheMemorySegment(J9MemorySegment *segment) : J9::CodeCacheMemorySegmentConnector(segment) { }
-    };
-}
+namespace TR {
+class OMR_EXTENSIBLE CodeCacheMemorySegment : public J9::CodeCacheMemorySegmentConnector {
+public:
+    CodeCacheMemorySegment()
+        : J9::CodeCacheMemorySegmentConnector()
+    {}
+
+    CodeCacheMemorySegment(uint8_t *memory, uint8_t *top)
+        : J9::CodeCacheMemorySegmentConnector(memory, top)
+    {}
+
+    CodeCacheMemorySegment(J9MemorySegment *segment)
+        : J9::CodeCacheMemorySegmentConnector(segment)
+    {}
+};
+} // namespace TR
 
 #endif // TR_CODECACHEMEMORYSEGMENT_INCL

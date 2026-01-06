@@ -24,19 +24,14 @@
 
 #include "optimizer/J9TransformUtil.hpp"
 
-
-namespace TR
-   {
-   class OMR_EXTENSIBLE TransformUtil : public J9::TransformUtilConnector
-      {
-      public:
-
-      TransformUtil() :
-         J9::TransformUtilConnector()
-         {
-         }
-      };
-   }
+namespace TR {
+class OMR_EXTENSIBLE TransformUtil : public J9::TransformUtilConnector {
+public:
+    TransformUtil()
+        : J9::TransformUtilConnector()
+    {}
+};
+} // namespace TR
 
 #endif
 

@@ -36,71 +36,72 @@ class TR_MHJ2IThunk;
 
 /* Mfence patching constants */
 
-#define   VolCheckMask            0x00080000
-#define   VolUpperLongCheckMask   0x00020000
-#define   VolLowerLongCheckMask   0x00040000
-#define   MFenceNOPPatch          0xff001f0f
-#define   MFenceWordCheck         0xae0f
-#define   LORNOPPatchDWord        0x00441f0f
-#define   LORNOPPatchTrailingByte 0x00
-#define   LCMPXCHGNOPPatchDWord   0x90666666
-#define   LCMPXCHGCheckMaskWord   0x0ff0
-
+#define VolCheckMask 0x00080000
+#define VolUpperLongCheckMask 0x00020000
+#define VolLowerLongCheckMask 0x00040000
+#define MFenceNOPPatch 0xff001f0f
+#define MFenceWordCheck 0xae0f
+#define LORNOPPatchDWord 0x00441f0f
+#define LORNOPPatchTrailingByte 0x00
+#define LCMPXCHGNOPPatchDWord 0x90666666
+#define LCMPXCHGCheckMaskWord 0x0ff0
 
 // TR_RelocationTarget defines how a platform target implements the individual steps of processing
 //    relocation records.
 // This is intended to be a base class that should not be itself instantiated
 
-class TR_X86RelocationTarget : public TR_RelocationTarget
-   {
-   public:
-      TR_ALLOC(TR_Memory::Relocation)
-      void * operator new(size_t, J9JITConfig *);
-      TR_X86RelocationTarget(TR_RelocationRuntime *reloRuntime) : TR_RelocationTarget(reloRuntime) {}
+class TR_X86RelocationTarget : public TR_RelocationTarget {
+public:
+    TR_ALLOC(TR_Memory::Relocation)
+    void *operator new(size_t, J9JITConfig *);
 
-      virtual uint8_t *eipBaseForCallOffset(uint8_t *reloLocation);
-      virtual void storeCallTarget(uintptr_t callTarget, uint8_t *reloLocation);
-      virtual void storeRelativeTarget(uintptr_t callTarget, uint8_t *reloLocation);
-      virtual uint8_t *loadAddressSequence(uint8_t *reloLocation);
-      virtual void storeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber);
+    TR_X86RelocationTarget(TR_RelocationRuntime *reloRuntime)
+        : TR_RelocationTarget(reloRuntime)
+    {}
 
-      virtual void storeRelativeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber)
-         {
-         address = (uint8_t *)((intptr_t)address - (intptr_t)(reloLocation + 4));
-         storeAddressSequence(address, reloLocation, seqNumber);
-         }
+    virtual uint8_t *eipBaseForCallOffset(uint8_t *reloLocation);
+    virtual void storeCallTarget(uintptr_t callTarget, uint8_t *reloLocation);
+    virtual void storeRelativeTarget(uintptr_t callTarget, uint8_t *reloLocation);
+    virtual uint8_t *loadAddressSequence(uint8_t *reloLocation);
+    virtual void storeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber);
 
-      virtual uint32_t loadCPIndex(uint8_t *reloLocation);
-      virtual uintptr_t loadThunkCPIndex(uint8_t *reloLocation);
+    virtual void storeRelativeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber)
+    {
+        address = (uint8_t *)((intptr_t)address - (intptr_t)(reloLocation + 4));
+        storeAddressSequence(address, reloLocation, seqNumber);
+    }
 
+    virtual uint32_t loadCPIndex(uint8_t *reloLocation);
+    virtual uintptr_t loadThunkCPIndex(uint8_t *reloLocation);
 
-
-      virtual void performThunkRelocation(uint8_t *thunkAddress, uintptr_t vmHelper);
+    virtual void performThunkRelocation(uint8_t *thunkAddress, uintptr_t vmHelper);
 #if defined(J9VM_OPT_JITSERVER)
-      virtual void performInvokeExactJ2IThunkRelocation(TR_MHJ2IThunk *thunk);
+    virtual void performInvokeExactJ2IThunkRelocation(TR_MHJ2IThunk *thunk);
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
-      virtual bool useTrampoline(uint8_t * helperAddress, uint8_t *baseLocation) { return false; }
+    virtual bool useTrampoline(uint8_t *helperAddress, uint8_t *baseLocation) { return false; }
 
-      virtual uint8_t *arrayCopyHelperAddress(J9JavaVM *javaVM);
+    virtual uint8_t *arrayCopyHelperAddress(J9JavaVM *javaVM);
 
-      virtual void patchNonVolatileFieldMemoryFence(J9ROMFieldShape* resolvedField, UDATA cpAddr, U_8 descriptorByte, U_8 *instructionAddress, U_8 *snippetStartAddress, J9JavaVM *javaVM);
+    virtual void patchNonVolatileFieldMemoryFence(J9ROMFieldShape *resolvedField, UDATA cpAddr, U_8 descriptorByte,
+        U_8 *instructionAddress, U_8 *snippetStartAddress, J9JavaVM *javaVM);
+};
 
-   };
+class TR_AMD64RelocationTarget : public TR_X86RelocationTarget {
+public:
+    TR_ALLOC(TR_Memory::Relocation)
+    void *operator new(size_t, J9JITConfig *);
 
-class TR_AMD64RelocationTarget : public TR_X86RelocationTarget
-   {
-   public:
-      TR_ALLOC(TR_Memory::Relocation)
-      void * operator new(size_t, J9JITConfig *);
-      TR_AMD64RelocationTarget(TR_RelocationRuntime *reloRuntime) : TR_X86RelocationTarget(reloRuntime) {}
+    TR_AMD64RelocationTarget(TR_RelocationRuntime *reloRuntime)
+        : TR_X86RelocationTarget(reloRuntime)
+    {}
 
-      virtual void storeRelativeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber)
-         {
-         storeAddressSequence(address, reloLocation, seqNumber);
-         }
+    virtual void storeRelativeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber)
+    {
+        storeAddressSequence(address, reloLocation, seqNumber);
+    }
 
-      virtual bool useTrampoline(uint8_t * helperAddress, uint8_t *baseLocation);
-   };
+    virtual bool useTrampoline(uint8_t *helperAddress, uint8_t *baseLocation);
+};
 
-#endif   // X86RELOCATION_TARGET_INCL
+#endif // X86RELOCATION_TARGET_INCL

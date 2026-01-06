@@ -20,13 +20,13 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0 OR GPL-2.0-only WITH OpenJDK-assembly-exception-1.0
  *******************************************************************************/
 
-//On zOS XLC linker can't handle files with same name at link time
-//This workaround with pragma is needed. What this does is essentially
-//give a different name to the codesection (csect) for this file. So it
-//doesn't conflict with another file with same name.
-#pragma csect(CODE,"TRJ9ZInstBase#C")
-#pragma csect(STATIC,"TRJ9ZInstBase#S")
-#pragma csect(TEST,"TRJ9ZInstBase#T")
+// On zOS XLC linker can't handle files with same name at link time
+// This workaround with pragma is needed. What this does is essentially
+// give a different name to the codesection (csect) for this file. So it
+// doesn't conflict with another file with same name.
+#pragma csect(CODE, "TRJ9ZInstBase#C")
+#pragma csect(STATIC, "TRJ9ZInstBase#S")
+#pragma csect(TEST, "TRJ9ZInstBase#T")
 
 #include "codegen/Instruction.hpp"
 #include "codegen/CodeGenerator.hpp"
@@ -34,8 +34,8 @@
 #include "il/Node_inlines.hpp"
 #include "codegen/S390AOTRelocation.hpp"
 
-void
-J9::Z::Instruction::addEncodingRelocation(TR::CodeGenerator *codeGen, uint8_t *cursor, char* file, uintptr_t line, TR::Node* node)
-   {
-   self()->getEncodingRelocation()->addRelocation(codeGen, cursor, file, line, node);
-   }
+void J9::Z::Instruction::addEncodingRelocation(TR::CodeGenerator *codeGen, uint8_t *cursor, char *file, uintptr_t line,
+    TR::Node *node)
+{
+    self()->getEncodingRelocation()->addRelocation(codeGen, cursor, file, line, node);
+}

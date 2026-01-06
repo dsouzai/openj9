@@ -25,20 +25,19 @@
 
 #pragma once
 
-enum CompilationPriority
-   {
-   CP_MIN                = 0x0001,
-   CP_ASYNC_ABOVE_MIN    = 0x0020, // used for low priority request that need an upgrade
-   CP_ASYNC_BELOW_NORMAL = 0x0040,
-   CP_ASYNC_NORMAL       = 0x0080,
-   CP_ASYNC_ABOVE_NORMAL = 0x00C0, // priority for very-hot and scorching requests
-   CP_ASYNC_BELOW_MAX    = 0x00FE, // used for relocatble methods from shared cache
-   CP_ASYNC_MAX          = 0x00FF, // async requests promoted in the queue
-   CP_SYNC_MIN           = 0x0100,
-   CP_SYNC_NORMAL        = 0x1000,
-   CP_SYNC_BELOW_MAX     = 0x7FFE,
-   CP_MAX                = 0x7FFF // request to stop compilation thread
-   };
+enum CompilationPriority {
+    CP_MIN = 0x0001,
+    CP_ASYNC_ABOVE_MIN = 0x0020, // used for low priority request that need an upgrade
+    CP_ASYNC_BELOW_NORMAL = 0x0040,
+    CP_ASYNC_NORMAL = 0x0080,
+    CP_ASYNC_ABOVE_NORMAL = 0x00C0, // priority for very-hot and scorching requests
+    CP_ASYNC_BELOW_MAX = 0x00FE, // used for relocatble methods from shared cache
+    CP_ASYNC_MAX = 0x00FF, // async requests promoted in the queue
+    CP_SYNC_MIN = 0x0100,
+    CP_SYNC_NORMAL = 0x1000,
+    CP_SYNC_BELOW_MAX = 0x7FFE,
+    CP_MAX = 0x7FFF // request to stop compilation thread
+};
 
 #endif // COMPILATIONPRIORITY_HPP
 

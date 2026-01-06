@@ -32,294 +32,254 @@
 #include "infra/BitVector.hpp"
 #include "ras/Logger.hpp"
 
+J9::AliasBuilder::AliasBuilder(TR::SymbolReferenceTable *symRefTab, size_t sizeHint, TR::Compilation *c)
+    : OMR::AliasBuilderConnector(symRefTab, sizeHint, c)
+    , _userFieldSymRefNumbers(c->trMemory(), _numNonUserFieldClasses)
+    , _tenantDataMetaSymRefs(sizeHint, c->trMemory(), heapAlloc, growable)
+    , _callSiteTableEntrySymRefs(sizeHint, c->trMemory(), heapAlloc, growable)
+    , _unresolvedShadowSymRefs(sizeHint, c->trMemory(), heapAlloc, growable)
+    , _immutableConstructorDefAliases(c->trMemory(), _numImmutableClasses)
+    , _methodTypeTableEntrySymRefs(sizeHint, c->trMemory(), heapAlloc, growable)
+{
+    for (int32_t i = 0; i < _numNonUserFieldClasses; i++)
+        _userFieldSymRefNumbers[i] = new (trHeapMemory()) TR_BitVector(sizeHint, c->trMemory(), heapAlloc, growable);
+}
 
-J9::AliasBuilder::AliasBuilder(TR::SymbolReferenceTable *symRefTab, size_t sizeHint, TR::Compilation *c) :
-   OMR::AliasBuilderConnector(symRefTab, sizeHint, c),
-      _userFieldSymRefNumbers(c->trMemory(), _numNonUserFieldClasses),
-      _tenantDataMetaSymRefs(sizeHint, c->trMemory(), heapAlloc, growable),
-      _callSiteTableEntrySymRefs(sizeHint, c->trMemory(), heapAlloc, growable),
-      _unresolvedShadowSymRefs(sizeHint, c->trMemory(), heapAlloc, growable),
-      _immutableConstructorDefAliases(c->trMemory(), _numImmutableClasses),
-      _methodTypeTableEntrySymRefs(sizeHint, c->trMemory(), heapAlloc, growable)
-   {
-   for (int32_t i = 0; i < _numNonUserFieldClasses; i++)
-      _userFieldSymRefNumbers[i] = new (trHeapMemory()) TR_BitVector(sizeHint, c->trMemory(), heapAlloc, growable);
-   }
+TR_BitVector *J9::AliasBuilder::methodAliases(TR::SymbolReference *symRef)
+{
+    OMR::Logger *log = comp()->log();
+    bool trace = comp()->getOption(TR_TraceAliases);
 
+    static bool newImmutableAlias = feGetEnv("TR_noNewImmutableAlias") == NULL;
+    static bool newUserFieldAlias = feGetEnv("TR_noNewUserFieldAlias") == NULL;
 
-TR_BitVector *
-J9::AliasBuilder::methodAliases(TR::SymbolReference *symRef)
-   {
-   OMR::Logger *log = comp()->log();
-   bool trace = comp()->getOption(TR_TraceAliases);
+    if (symRef->isUnresolved() || !newImmutableAlias || !symRefTab()->hasImmutable() || !newUserFieldAlias
+        || !symRefTab()->hasUserField()) {
+        logprintf(trace, log, "For method sym %d default aliases\n", symRef->getReferenceNumber());
+        return &defaultMethodDefAliases();
+    }
 
-   static bool newImmutableAlias = feGetEnv("TR_noNewImmutableAlias") == NULL;
-   static bool newUserFieldAlias = feGetEnv("TR_noNewUserFieldAlias") == NULL;
+    TR::ResolvedMethodSymbol *method = symRef->getSymbol()->castToResolvedMethodSymbol();
 
-   if (symRef->isUnresolved() || !newImmutableAlias || !symRefTab()->hasImmutable() || !newUserFieldAlias || !symRefTab()->hasUserField())
-      {
-      logprintf(trace, log, "For method sym %d default aliases\n", symRef->getReferenceNumber());
-      return &defaultMethodDefAliases();
-      }
+    while (true) {
+        int32_t id = symRefTab()->immutableConstructorId(method);
+        if (id >= 0)
+            return _immutableConstructorDefAliases[id];
 
-   TR::ResolvedMethodSymbol *method = symRef->getSymbol()->castToResolvedMethodSymbol();
-
-   while (true)
-      {
-      int32_t id = symRefTab()->immutableConstructorId(method);
-      if (id >= 0)
-         return _immutableConstructorDefAliases[id];
-
-      id = symRefTab()->userFieldMethodId(method);
-      if (id >= 0)
-         {
-         if (trace)
-            {
-            log->printf("For method sym %d aliases\n", symRef->getReferenceNumber());
-            _userFieldMethodDefAliases[id]->print(log, comp());
-            log->println();
+        id = symRefTab()->userFieldMethodId(method);
+        if (id >= 0) {
+            if (trace) {
+                log->printf("For method sym %d aliases\n", symRef->getReferenceNumber());
+                _userFieldMethodDefAliases[id]->print(log, comp());
+                log->println();
             }
-         return _userFieldMethodDefAliases[id];
-         }
+            return _userFieldMethodDefAliases[id];
+        }
 
-      if (symRef->isInitMethod())
-         {
-         TR_BitVector *result          = NULL;
-         TR_BitVector *allocatedResult = NULL;
-         for (TR_OpaqueClassBlock *clazz = method->getResolvedMethod()->containingClass(); clazz; clazz = comp()->fe()->getSuperClass(clazz))
-            {
-            int32_t clazzNameLen;
-            char   *clazzName = TR::Compiler->cls.classNameChars(comp(), clazz, clazzNameLen);
+        if (symRef->isInitMethod()) {
+            TR_BitVector *result = NULL;
+            TR_BitVector *allocatedResult = NULL;
+            for (TR_OpaqueClassBlock *clazz = method->getResolvedMethod()->containingClass(); clazz;
+                 clazz = comp()->fe()->getSuperClass(clazz)) {
+                int32_t clazzNameLen;
+                char *clazzName = TR::Compiler->cls.classNameChars(comp(), clazz, clazzNameLen);
 
-            ListElement<TR_ImmutableInfo> *immutableClassInfoElem = symRefTab()->immutableInfo().getListHead();
-            while (immutableClassInfoElem)
-               {
-               TR_ImmutableInfo *immutableClassInfo = immutableClassInfoElem->getData();
-               int32_t immutableClassNameLen;
-               char *immutableClassName = TR::Compiler->cls.classNameChars(comp(), immutableClassInfo->_clazz, immutableClassNameLen);
-               if ((immutableClassNameLen == clazzNameLen) &&
-                   !strncmp(immutableClassName, clazzName, clazzNameLen))
-                  {
-                  TR_BitVector *symrefsToInclude = immutableClassInfo->_immutableConstructorDefAliases;
-                  if (trace)
-                     {
-                     log->printf("Method sym %d includes aliases for %.*s.<init>\n", symRef->getReferenceNumber(), clazzNameLen, clazzName);
-                     symrefsToInclude->print(log, comp());
-                     log->println();
-                     }
-                  if (allocatedResult)
-                     *allocatedResult |= *symrefsToInclude;
-                  else if (result)
-                     {
-                     allocatedResult = new (comp()->trHeapMemory()) TR_BitVector(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
-                     *allocatedResult = *result;
-                     *allocatedResult |= *symrefsToInclude;
-                     result = allocatedResult;
-                     }
-                  else
-                     result = symrefsToInclude;
-                  }
-               immutableClassInfoElem = immutableClassInfoElem->getNextElement();
-               }
+                ListElement<TR_ImmutableInfo> *immutableClassInfoElem = symRefTab()->immutableInfo().getListHead();
+                while (immutableClassInfoElem) {
+                    TR_ImmutableInfo *immutableClassInfo = immutableClassInfoElem->getData();
+                    int32_t immutableClassNameLen;
+                    char *immutableClassName
+                        = TR::Compiler->cls.classNameChars(comp(), immutableClassInfo->_clazz, immutableClassNameLen);
+                    if ((immutableClassNameLen == clazzNameLen)
+                        && !strncmp(immutableClassName, clazzName, clazzNameLen)) {
+                        TR_BitVector *symrefsToInclude = immutableClassInfo->_immutableConstructorDefAliases;
+                        if (trace) {
+                            log->printf("Method sym %d includes aliases for %.*s.<init>\n",
+                                symRef->getReferenceNumber(), clazzNameLen, clazzName);
+                            symrefsToInclude->print(log, comp());
+                            log->println();
+                        }
+                        if (allocatedResult)
+                            *allocatedResult |= *symrefsToInclude;
+                        else if (result) {
+                            allocatedResult = new (comp()->trHeapMemory())
+                                TR_BitVector(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
+                            *allocatedResult = *result;
+                            *allocatedResult |= *symrefsToInclude;
+                            result = allocatedResult;
+                        } else
+                            result = symrefsToInclude;
+                    }
+                    immutableClassInfoElem = immutableClassInfoElem->getNextElement();
+                }
             }
-         if (result)
-            return result;
-         }
+            if (result)
+                return result;
+        }
 
-      method = symRef->getOwningMethodSymbol(_compilation);
-      mcount_t method_index = ((TR::ResolvedMethodSymbol *)method)->getResolvedMethodIndex();
-      if (method_index == JITTED_METHOD_INDEX)
-         break;
+        method = symRef->getOwningMethodSymbol(_compilation);
+        mcount_t method_index = ((TR::ResolvedMethodSymbol *)method)->getResolvedMethodIndex();
+        if (method_index == JITTED_METHOD_INDEX)
+            break;
 
-      // get symbol reference for the owning method
-      symRef = _compilation->getResolvedMethodSymbolReference(method_index);
-      if (!symRef)
-         break;
-      }
+        // get symbol reference for the owning method
+        symRef = _compilation->getResolvedMethodSymbolReference(method_index);
+        if (!symRef)
+            break;
+    }
 
-   if (trace)
-      {
-      log->printf("For method sym %d default aliases without immutable\n", symRef->getReferenceNumber());
-      defaultMethodDefAliasesWithoutImmutable().print(log, comp());
-      log->println();
-      }
+    if (trace) {
+        log->printf("For method sym %d default aliases without immutable\n", symRef->getReferenceNumber());
+        defaultMethodDefAliasesWithoutImmutable().print(log, comp());
+        log->println();
+    }
 
-   return &defaultMethodDefAliasesWithoutImmutable();
+    return &defaultMethodDefAliasesWithoutImmutable();
+}
 
-   }
+void J9::AliasBuilder::createAliasInfo()
+{
+    TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+    self()->unresolvedShadowSymRefs().pack();
+    addressShadowSymRefs().pack();
+    genericIntShadowSymRefs().pack();
+    genericIntArrayShadowSymRefs().pack();
+    genericIntNonArrayShadowSymRefs().pack();
+    intShadowSymRefs().pack();
+    nonIntPrimitiveShadowSymRefs().pack();
+    addressStaticSymRefs().pack();
+    intStaticSymRefs().pack();
+    nonIntPrimitiveStaticSymRefs().pack();
+    methodSymRefs().pack();
+    unsafeSymRefNumbers().pack();
+    gcSafePointSymRefNumbers().pack();
 
+    self()->tenantDataMetaSymRefs().pack();
 
-void
-J9::AliasBuilder::createAliasInfo()
-   {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
-   self()->unresolvedShadowSymRefs().pack();
-   addressShadowSymRefs().pack();
-   genericIntShadowSymRefs().pack();
-   genericIntArrayShadowSymRefs().pack();
-   genericIntNonArrayShadowSymRefs().pack();
-   intShadowSymRefs().pack();
-   nonIntPrimitiveShadowSymRefs().pack();
-   addressStaticSymRefs().pack();
-   intStaticSymRefs().pack();
-   nonIntPrimitiveStaticSymRefs().pack();
-   methodSymRefs().pack();
-   unsafeSymRefNumbers().pack();
-   gcSafePointSymRefNumbers().pack();
+    int32_t i;
 
-   self()->tenantDataMetaSymRefs().pack();
+    for (i = 0; i < _numImmutableClasses; i++) {
+        symRefTab()->immutableSymRefNumbers()[i]->pack();
+    }
 
-   int32_t i;
+    ListElement<TR_ImmutableInfo> *immutableClassInfoElem = symRefTab()->immutableInfo().getListHead();
+    while (immutableClassInfoElem) {
+        TR_ImmutableInfo *immutableClassInfo = immutableClassInfoElem->getData();
+        immutableClassInfo->_immutableSymRefNumbers->pack();
+        immutableClassInfoElem = immutableClassInfoElem->getNextElement();
+    }
 
-   for (i = 0; i < _numImmutableClasses; i++)
-      {
-      symRefTab()->immutableSymRefNumbers()[i]->pack();
-      }
+    for (i = 0; i < _numNonUserFieldClasses; i++) {
+        self()->userFieldSymRefNumbers()[i]->pack();
+    }
 
-   ListElement<TR_ImmutableInfo> *immutableClassInfoElem = symRefTab()->immutableInfo().getListHead();
-   while (immutableClassInfoElem)
-      {
-      TR_ImmutableInfo *immutableClassInfo = immutableClassInfoElem->getData();
-      immutableClassInfo->_immutableSymRefNumbers->pack();
-      immutableClassInfoElem = immutableClassInfoElem->getNextElement();
-      }
+    setCatchLocalUseSymRefs();
 
-   for (i = 0; i < _numNonUserFieldClasses; i++)
-      {
-      self()->userFieldSymRefNumbers()[i]->pack();
-      }
+    defaultMethodDefAliases().init(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
+    defaultMethodDefAliases() |= addressShadowSymRefs();
+    defaultMethodDefAliases() |= intShadowSymRefs();
+    defaultMethodDefAliases() |= nonIntPrimitiveShadowSymRefs();
+    defaultMethodDefAliases() |= arrayElementSymRefs();
+    defaultMethodDefAliases() |= arrayletElementSymRefs();
+    defaultMethodDefAliases() |= addressStaticSymRefs();
+    defaultMethodDefAliases() |= intStaticSymRefs();
+    defaultMethodDefAliases() |= nonIntPrimitiveStaticSymRefs();
+    defaultMethodDefAliases() |= unsafeSymRefNumbers();
+    defaultMethodDefAliases() |= gcSafePointSymRefNumbers();
 
-   setCatchLocalUseSymRefs();
+    defaultMethodDefAliases() |= self()->tenantDataMetaSymRefs();
 
-   defaultMethodDefAliases().init(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
-   defaultMethodDefAliases() |= addressShadowSymRefs();
-   defaultMethodDefAliases() |= intShadowSymRefs();
-   defaultMethodDefAliases() |= nonIntPrimitiveShadowSymRefs();
-   defaultMethodDefAliases() |= arrayElementSymRefs();
-   defaultMethodDefAliases() |= arrayletElementSymRefs();
-   defaultMethodDefAliases() |= addressStaticSymRefs();
-   defaultMethodDefAliases() |= intStaticSymRefs();
-   defaultMethodDefAliases() |= nonIntPrimitiveStaticSymRefs();
-   defaultMethodDefAliases() |= unsafeSymRefNumbers();
-   defaultMethodDefAliases() |= gcSafePointSymRefNumbers();
+    TR::SymbolReference *currentThreadSymRef = symRefTab()->element(TR::SymbolReferenceTable::currentThreadSymbol);
+    if (currentThreadSymRef && !comp()->fej9()->isJ9VMThreadCurrentThreadImmutable()) {
+        // "CurrentThread" could be modified by any method calls
+        defaultMethodDefAliases().set(currentThreadSymRef->getReferenceNumber());
+    }
 
-   defaultMethodDefAliases() |= self()->tenantDataMetaSymRefs();
+    defaultMethodDefAliasesWithoutImmutable().init(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc,
+        growable);
+    defaultMethodDefAliasesWithoutUserField().init(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc,
+        growable);
 
-   TR::SymbolReference *currentThreadSymRef = symRefTab()->element(TR::SymbolReferenceTable::currentThreadSymbol);
-   if (currentThreadSymRef && !comp()->fej9()->isJ9VMThreadCurrentThreadImmutable())
-      {
-      // "CurrentThread" could be modified by any method calls
-      defaultMethodDefAliases().set(currentThreadSymRef->getReferenceNumber());
-      }
+    defaultMethodDefAliasesWithoutUserField() |= defaultMethodDefAliases();
 
-   defaultMethodDefAliasesWithoutImmutable().init(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
-   defaultMethodDefAliasesWithoutUserField().init(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
+    for (i = 0; i < _numNonUserFieldClasses; i++) {
+        defaultMethodDefAliasesWithoutUserField() -= *(self()->userFieldSymRefNumbers()[i]);
+    }
 
-   defaultMethodDefAliasesWithoutUserField() |= defaultMethodDefAliases();
+    defaultMethodDefAliasesWithoutImmutable() |= defaultMethodDefAliases();
 
-    for (i = 0; i < _numNonUserFieldClasses; i++)
-      {
-      defaultMethodDefAliasesWithoutUserField() -= *(self()->userFieldSymRefNumbers()[i]);
-      }
+    for (i = 0; i < _numImmutableClasses; i++) {
+        defaultMethodDefAliasesWithoutImmutable() -= *(symRefTab()->immutableSymRefNumbers()[i]);
+    }
 
-   defaultMethodDefAliasesWithoutImmutable() |= defaultMethodDefAliases();
+    immutableClassInfoElem = symRefTab()->immutableInfo().getListHead();
+    while (immutableClassInfoElem) {
+        TR_ImmutableInfo *immutableClassInfo = immutableClassInfoElem->getData();
+        defaultMethodDefAliasesWithoutImmutable() -= *(immutableClassInfo->_immutableSymRefNumbers);
+        immutableClassInfoElem = immutableClassInfoElem->getNextElement();
+    }
 
-   for (i = 0; i < _numImmutableClasses; i++)
-      {
-      defaultMethodDefAliasesWithoutImmutable() -= *(symRefTab()->immutableSymRefNumbers()[i]);
-      }
+    for (i = 0; i < _numImmutableClasses; i++) {
+        immutableConstructorDefAliases()[i]
+            = new (trHeapMemory()) TR_BitVector(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
+        *(immutableConstructorDefAliases()[i]) = defaultMethodDefAliasesWithoutImmutable();
+        *(immutableConstructorDefAliases()[i]) |= *(symRefTab()->immutableSymRefNumbers()[i]);
+    }
 
-   immutableClassInfoElem = symRefTab()->immutableInfo().getListHead();
-   while (immutableClassInfoElem)
-      {
-      TR_ImmutableInfo *immutableClassInfo = immutableClassInfoElem->getData();
-      defaultMethodDefAliasesWithoutImmutable() -= *(immutableClassInfo->_immutableSymRefNumbers);
-      immutableClassInfoElem = immutableClassInfoElem->getNextElement();
-      }
+    for (i = 0; i < _numNonUserFieldClasses; i++) {
+        userFieldMethodDefAliases()[i]
+            = new (trHeapMemory()) TR_BitVector(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
+        *(userFieldMethodDefAliases()[i]) = defaultMethodDefAliasesWithoutUserField();
+    }
 
-   for (i = 0; i < _numImmutableClasses; i++)
-      {
-      immutableConstructorDefAliases()[i] = new (trHeapMemory()) TR_BitVector(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
-      *(immutableConstructorDefAliases()[i]) = defaultMethodDefAliasesWithoutImmutable();
-      *(immutableConstructorDefAliases()[i]) |= *(symRefTab()->immutableSymRefNumbers()[i]);
-      }
+    immutableClassInfoElem = symRefTab()->immutableInfo().getListHead();
+    while (immutableClassInfoElem) {
+        TR_ImmutableInfo *immutableClassInfo = immutableClassInfoElem->getData();
+        immutableClassInfo->_immutableConstructorDefAliases
+            = new (trHeapMemory()) TR_BitVector(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
+        *(immutableClassInfo->_immutableConstructorDefAliases) = defaultMethodDefAliasesWithoutImmutable();
+        *(immutableClassInfo->_immutableConstructorDefAliases) |= *(immutableClassInfo->_immutableSymRefNumbers);
+        immutableClassInfoElem = immutableClassInfoElem->getNextElement();
+    }
 
-   for (i = 0; i < _numNonUserFieldClasses; i++)
-      {
-      userFieldMethodDefAliases()[i] = new (trHeapMemory()) TR_BitVector(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
-      *(userFieldMethodDefAliases()[i]) = defaultMethodDefAliasesWithoutUserField();
-      }
+    defaultMethodUseAliases().init(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
+    defaultMethodUseAliases() |= defaultMethodDefAliases();
+    defaultMethodUseAliases() |= catchLocalUseSymRefs();
 
-   immutableClassInfoElem = symRefTab()->immutableInfo().getListHead();
-   while (immutableClassInfoElem)
-      {
-      TR_ImmutableInfo *immutableClassInfo = immutableClassInfoElem->getData();
-      immutableClassInfo->_immutableConstructorDefAliases = new (trHeapMemory()) TR_BitVector(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
-      *(immutableClassInfo->_immutableConstructorDefAliases) = defaultMethodDefAliasesWithoutImmutable();
-      *(immutableClassInfo->_immutableConstructorDefAliases) |= *(immutableClassInfo->_immutableSymRefNumbers);
-      immutableClassInfoElem = immutableClassInfoElem->getNextElement();
-      }
+    if (symRefTab()->element(TR::SymbolReferenceTable::contiguousArraySizeSymbol))
+        defaultMethodUseAliases().set(
+            symRefTab()->element(TR::SymbolReferenceTable::contiguousArraySizeSymbol)->getReferenceNumber());
+    if (symRefTab()->element(TR::SymbolReferenceTable::discontiguousArraySizeSymbol))
+        defaultMethodUseAliases().set(
+            symRefTab()->element(TR::SymbolReferenceTable::discontiguousArraySizeSymbol)->getReferenceNumber());
+    if (symRefTab()->element(TR::SymbolReferenceTable::vftSymbol))
+        defaultMethodUseAliases().set(symRefTab()->element(TR::SymbolReferenceTable::vftSymbol)->getReferenceNumber());
 
-   defaultMethodUseAliases().init(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
-   defaultMethodUseAliases() |= defaultMethodDefAliases();
-   defaultMethodUseAliases() |= catchLocalUseSymRefs();
+    methodsThatMayThrow().init(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
+    methodsThatMayThrow() |= methodSymRefs();
 
-   if (symRefTab()->element(TR::SymbolReferenceTable::contiguousArraySizeSymbol))
-      defaultMethodUseAliases().set(symRefTab()->element(TR::SymbolReferenceTable::contiguousArraySizeSymbol)->getReferenceNumber());
-   if (symRefTab()->element(TR::SymbolReferenceTable::discontiguousArraySizeSymbol))
-      defaultMethodUseAliases().set(symRefTab()->element(TR::SymbolReferenceTable::discontiguousArraySizeSymbol)->getReferenceNumber());
-   if (symRefTab()->element(TR::SymbolReferenceTable::vftSymbol))
-      defaultMethodUseAliases().set(symRefTab()->element(TR::SymbolReferenceTable::vftSymbol)->getReferenceNumber());
+    static TR_RuntimeHelper helpersThatMayThrow[] = { TR_typeCheckArrayStore, TR_arrayStoreException,
+        TR_arrayBoundsCheck, TR_checkCast, TR_checkCastForArrayStore, TR_divCheck, TR_aThrow, TR_aNewArray,
+        TR_monitorExit, TR_newObject, TR_newObjectNoZeroInit, TR_acmpeqHelper, TR_acmpneHelper, TR_newValue,
+        TR_newValueNoZeroInit, TR_newArray, TR_nullCheck, TR_methodTypeCheck, TR_incompatibleReceiver,
+        TR_IncompatibleClassChangeError, TR_multiANewArray, TR_identityException };
 
-   methodsThatMayThrow().init(symRefTab()->getNumSymRefs(), comp()->trMemory(), heapAlloc, growable);
-   methodsThatMayThrow() |= methodSymRefs();
+    for (i = 0; i < (sizeof(helpersThatMayThrow) / 4); ++i)
+        if (symRefTab()->element(helpersThatMayThrow[i]))
+            methodsThatMayThrow().set(helpersThatMayThrow[i]);
 
-   static TR_RuntimeHelper helpersThatMayThrow[] =
-      {
-      TR_typeCheckArrayStore,
-      TR_arrayStoreException,
-      TR_arrayBoundsCheck,
-      TR_checkCast,
-      TR_checkCastForArrayStore,
-      TR_divCheck,
-      TR_aThrow,
-      TR_aNewArray,
-      TR_monitorExit,
-      TR_newObject,
-      TR_newObjectNoZeroInit,
-      TR_acmpeqHelper,
-      TR_acmpneHelper,
-      TR_newValue,
-      TR_newValueNoZeroInit,
-      TR_newArray,
-      TR_nullCheck,
-      TR_methodTypeCheck,
-      TR_incompatibleReceiver,
-      TR_IncompatibleClassChangeError,
-      TR_multiANewArray,
-      TR_identityException
-      };
+    static TR::SymbolReferenceTable::CommonNonhelperSymbol nonhelpersThatMayThrow[]
+        = { TR::SymbolReferenceTable::resolveCheckSymbol };
 
-   for (i = 0; i < (sizeof(helpersThatMayThrow) / 4); ++i)
-      if (symRefTab()->element(helpersThatMayThrow[i]))
-         methodsThatMayThrow().set(helpersThatMayThrow[i]);
+    for (i = 0; i < (sizeof(nonhelpersThatMayThrow) / 4); ++i)
+        if (symRefTab()->element(helpersThatMayThrow[i]))
+            methodsThatMayThrow().set(symRefTab()->getNumHelperSymbols() + nonhelpersThatMayThrow[i]);
 
-   static TR::SymbolReferenceTable::CommonNonhelperSymbol nonhelpersThatMayThrow[] =
-      {
-      TR::SymbolReferenceTable::resolveCheckSymbol
-      };
+    for (CallAliases *callAliases = _callAliases.getFirst(); callAliases; callAliases = callAliases->getNext())
+        callAliases->_methodSymbol->setHasVeryRefinedAliasSets(false);
+    _callAliases.setFirst(0);
 
-   for (i = 0; i < (sizeof(nonhelpersThatMayThrow) / 4); ++i)
-      if (symRefTab()->element(helpersThatMayThrow[i]))
-         methodsThatMayThrow().set(symRefTab()->getNumHelperSymbols() + nonhelpersThatMayThrow[i]);
-
-   for (CallAliases * callAliases = _callAliases.getFirst(); callAliases; callAliases = callAliases->getNext())
-      callAliases->_methodSymbol->setHasVeryRefinedAliasSets(false);
-   _callAliases.setFirst(0);
-
-   if (comp()->getOption(TR_TraceAliases))
-      {
-      comp()->getDebug()->printAliasInfo(comp()->log(), symRefTab());
-      }
-
-   }
+    if (comp()->getOption(TR_TraceAliases)) {
+        comp()->getDebug()->printAliasInfo(comp()->log(), symRefTab());
+    }
+}

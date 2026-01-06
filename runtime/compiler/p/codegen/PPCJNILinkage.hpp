@@ -28,14 +28,14 @@
 #include "codegen/Linkage.hpp"
 #include "infra/Assert.hpp"
 
-extern "C"
-   {
-   unsigned int crc32_oneByte(unsigned int crc, unsigned int b);
-   unsigned int crc32_no_vpmsum(unsigned int crc, unsigned char *p, unsigned long len, unsigned int castognoli);
-   unsigned int crc32_vpmsum(unsigned int crc, unsigned char *p, unsigned long len, unsigned int castognoli);
-   }
+extern "C" {
+unsigned int crc32_oneByte(unsigned int crc, unsigned int b);
+unsigned int crc32_no_vpmsum(unsigned int crc, unsigned char *p, unsigned long len, unsigned int castognoli);
+unsigned int crc32_vpmsum(unsigned int crc, unsigned char *p, unsigned long len, unsigned int castognoli);
+}
 
 class TR_BitVector;
+
 namespace TR {
 class AutomaticSymbol;
 class CodeGenerator;
@@ -44,53 +44,45 @@ class Node;
 class ParameterSymbol;
 class RegisterDependencyConditions;
 class ResolvedMethodSymbol;
-}
+} // namespace TR
 
-namespace J9
-{
+namespace J9 { namespace Power {
 
-namespace Power
-{
+class JNILinkage : public PrivateLinkage {
+protected:
+    TR::PPCLinkageProperties _properties;
 
-class JNILinkage : public PrivateLinkage
-   {
-   protected:
-   TR::PPCLinkageProperties _properties;
+public:
+    JNILinkage(TR::CodeGenerator *cg);
 
-   public:
-   JNILinkage(TR::CodeGenerator *cg);
-
-   void releaseVMAccess(TR::Node* callNode, TR::RegisterDependencyConditions* deps, TR::RealRegister* metaReg, TR::Register* zeroReg, TR::Register* tempReg1, TR::Register* tempReg2);
-   void acquireVMAccess(TR::Node* callNode, TR::RegisterDependencyConditions* deps, TR::RealRegister* metaReg, TR::Register* tempReg0, TR::Register* tempReg1, TR::Register* tempReg2);
+    void releaseVMAccess(TR::Node *callNode, TR::RegisterDependencyConditions *deps, TR::RealRegister *metaReg,
+        TR::Register *zeroReg, TR::Register *tempReg1, TR::Register *tempReg2);
+    void acquireVMAccess(TR::Node *callNode, TR::RegisterDependencyConditions *deps, TR::RealRegister *metaReg,
+        TR::Register *tempReg0, TR::Register *tempReg1, TR::Register *tempReg2);
 #ifdef J9VM_INTERP_ATOMIC_FREE_JNI
-   void releaseVMAccessAtomicFree(TR::Node* callNode, TR::RegisterDependencyConditions* deps, TR::RealRegister* metaReg, TR::Register* cr0Reg, TR::Register* tempReg1, TR::Register* tempReg2);
-   void acquireVMAccessAtomicFree(TR::Node* callNode, TR::RegisterDependencyConditions* deps, TR::RealRegister* metaReg, TR::Register* cr0Reg, TR::Register* tempReg1, TR::Register* tempReg2);
+    void releaseVMAccessAtomicFree(TR::Node *callNode, TR::RegisterDependencyConditions *deps,
+        TR::RealRegister *metaReg, TR::Register *cr0Reg, TR::Register *tempReg1, TR::Register *tempReg2);
+    void acquireVMAccessAtomicFree(TR::Node *callNode, TR::RegisterDependencyConditions *deps,
+        TR::RealRegister *metaReg, TR::Register *cr0Reg, TR::Register *tempReg1, TR::Register *tempReg2);
 #endif /* J9VM_INTERP_ATOMIC_FREE_JNI */
 
-   virtual int32_t buildJNIArgs(TR::Node *callNode,
-                             TR::RegisterDependencyConditions *dependencies,
-                             const TR::PPCLinkageProperties &properties,
-                             bool isFastJNI = true,
-                             bool passReceiver = true,
-                             bool implicitEnvArg = true);
+    virtual int32_t buildJNIArgs(TR::Node *callNode, TR::RegisterDependencyConditions *dependencies,
+        const TR::PPCLinkageProperties &properties, bool isFastJNI = true, bool passReceiver = true,
+        bool implicitEnvArg = true);
 
-   TR::Register *pushJNIReferenceArg(TR::Node *child);
+    TR::Register *pushJNIReferenceArg(TR::Node *child);
 
-   virtual TR::Register *buildDirectDispatch(TR::Node *callNode);
-   virtual int32_t      buildArgs( TR::Node *callNode,
-                                   TR::RegisterDependencyConditions *dependencies,
-                                   const TR::PPCLinkageProperties &properties);
+    virtual TR::Register *buildDirectDispatch(TR::Node *callNode);
+    virtual int32_t buildArgs(TR::Node *callNode, TR::RegisterDependencyConditions *dependencies,
+        const TR::PPCLinkageProperties &properties);
 
-   virtual TR::Register *buildIndirectDispatch(TR::Node *callNode);
-   virtual void         buildVirtualDispatch( TR::Node                          *callNode,
-                                              TR::RegisterDependencyConditions *dependencies,
-                                              uint32_t                           sizeOfArguments);
+    virtual TR::Register *buildIndirectDispatch(TR::Node *callNode);
+    virtual void buildVirtualDispatch(TR::Node *callNode, TR::RegisterDependencyConditions *dependencies,
+        uint32_t sizeOfArguments);
 
-   virtual const TR::PPCLinkageProperties& getProperties();
-   };
+    virtual const TR::PPCLinkageProperties &getProperties();
+};
 
-}
+}} // namespace J9::Power
 
-}
-
-#endif //PPC_JNILINKAGE_INCL
+#endif // PPC_JNILINKAGE_INCL

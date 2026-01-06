@@ -29,35 +29,29 @@ namespace TR {
 class CodeGenerator;
 class Instruction;
 class LabelSymbol;
-}
+} // namespace TR
 
 namespace TR {
 
-class ARM64ForceRecompilationSnippet : public TR::Snippet
-   {
-   TR::LabelSymbol *_restartLabel;
+class ARM64ForceRecompilationSnippet : public TR::Snippet {
+    TR::LabelSymbol *_restartLabel;
 
-   public:
+public:
+    ARM64ForceRecompilationSnippet(TR::CodeGenerator *cg, TR::Node *node, TR::LabelSymbol *snippetLabel,
+        TR::LabelSymbol *restartLabel)
+        : TR::Snippet(cg, node, snippetLabel, false)
+        , _restartLabel(restartLabel)
+    {}
 
-   ARM64ForceRecompilationSnippet(
-         TR::CodeGenerator *cg,
-         TR::Node *node,
-         TR::LabelSymbol *snippetLabel,
-         TR::LabelSymbol *restartLabel
-         )
-      : TR::Snippet(cg, node, snippetLabel, false), _restartLabel(restartLabel)
-      {
-      }
+    virtual Kind getKind() { return IsForceRecompilation; }
 
-   virtual Kind getKind() { return IsForceRecompilation; }
+    TR::LabelSymbol *getRestartLabel() { return _restartLabel; }
 
-   TR::LabelSymbol *getRestartLabel() { return _restartLabel; }
+    virtual uint8_t *emitSnippetBody();
 
-   virtual uint8_t *emitSnippetBody();
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
+};
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-   };
-
-} // TR
+} // namespace TR
 
 #endif

@@ -36,31 +36,29 @@ namespace TR {
 class PersistentInfo;
 }
 
-extern "C"
-   {
-   extern   int __j9_smp_flag;
-   };
+extern "C" {
+extern int __j9_smp_flag;
+};
 
-void * ppcPicTrampInit(TR_FrontEnd *vm, TR::PersistentInfo * persistentInfo)
-   {
-   void *retVal = 0;
+void *ppcPicTrampInit(TR_FrontEnd *vm, TR::PersistentInfo *persistentInfo)
+{
+    void *retVal = 0;
 
 #ifdef TR_HOST_POWER
-   if (TR::Compiler->target.isSMP())
-      __j9_smp_flag = -1;
-   else
-      __j9_smp_flag = 0;
+    if (TR::Compiler->target.isSMP())
+        __j9_smp_flag = -1;
+    else
+        __j9_smp_flag = 0;
 #endif
 
 #ifdef TR_TARGET_64BIT
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)vm;
-   if (!fej9->isAOT_DEPRECATED_DO_NOT_USE() &&  // don't init TOC if it is jar2jxe AOT compile
-       !TR::Options::getCmdLineOptions()->getOption(TR_DisableTOC))
-      {
-      retVal = TR_PPCTableOfConstants::initTOC(fej9, persistentInfo, 0);
-      }
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)vm;
+    if (!fej9->isAOT_DEPRECATED_DO_NOT_USE() && // don't init TOC if it is jar2jxe AOT compile
+        !TR::Options::getCmdLineOptions()->getOption(TR_DisableTOC)) {
+        retVal = TR_PPCTableOfConstants::initTOC(fej9, persistentInfo, 0);
+    }
 #endif
 
-   return retVal;
-   }
+    return retVal;
+}
 

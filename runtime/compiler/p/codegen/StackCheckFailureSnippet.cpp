@@ -47,393 +47,347 @@
 #include "ras/Logger.hpp"
 #include "runtime/CodeCacheManager.hpp"
 
-uint8_t *storeArgumentItem(TR::InstOpCode::Mnemonic op, uint8_t *buffer, TR::RealRegister *reg, int32_t offset, TR::CodeGenerator *cg)
-   {
-   TR::RealRegister *stackPtr = cg->getLinkage()->cg()->getStackPointerRegister();
-   TR::InstOpCode       opCode(op);
-   opCode.copyBinaryToBuffer(buffer);
-   reg->setRegisterFieldRS(toPPCCursor(buffer));
-   stackPtr->setRegisterFieldRA(toPPCCursor(buffer));
-   *toPPCCursor(buffer) |= offset & 0x0000ffff;
-   return(buffer+4);
-   }
+uint8_t *storeArgumentItem(TR::InstOpCode::Mnemonic op, uint8_t *buffer, TR::RealRegister *reg, int32_t offset,
+    TR::CodeGenerator *cg)
+{
+    TR::RealRegister *stackPtr = cg->getLinkage()->cg()->getStackPointerRegister();
+    TR::InstOpCode opCode(op);
+    opCode.copyBinaryToBuffer(buffer);
+    reg->setRegisterFieldRS(toPPCCursor(buffer));
+    stackPtr->setRegisterFieldRA(toPPCCursor(buffer));
+    *toPPCCursor(buffer) |= offset & 0x0000ffff;
+    return (buffer + 4);
+}
 
-uint8_t *loadArgumentItem(TR::InstOpCode::Mnemonic op, uint8_t *buffer, TR::RealRegister *reg, int32_t offset, TR::CodeGenerator *cg)
-   {
-   TR::RealRegister *stackPtr = cg->getLinkage()->cg()->getStackPointerRegister();
-   TR::InstOpCode       opCode(op);
-   opCode.copyBinaryToBuffer(buffer);
-   reg->setRegisterFieldRT(toPPCCursor(buffer));
-   stackPtr->setRegisterFieldRA(toPPCCursor(buffer));
-   *toPPCCursor(buffer) |= offset & 0x0000ffff;
-   return(buffer+4);
-   }
+uint8_t *loadArgumentItem(TR::InstOpCode::Mnemonic op, uint8_t *buffer, TR::RealRegister *reg, int32_t offset,
+    TR::CodeGenerator *cg)
+{
+    TR::RealRegister *stackPtr = cg->getLinkage()->cg()->getStackPointerRegister();
+    TR::InstOpCode opCode(op);
+    opCode.copyBinaryToBuffer(buffer);
+    reg->setRegisterFieldRT(toPPCCursor(buffer));
+    stackPtr->setRegisterFieldRA(toPPCCursor(buffer));
+    *toPPCCursor(buffer) |= offset & 0x0000ffff;
+    return (buffer + 4);
+}
 
 uint8_t *TR::PPCStackCheckFailureSnippet::emitSnippetBody()
-   {
-   TR::Compilation * comp = cg()->comp();
-   TR::ResolvedMethodSymbol *bodySymbol=comp->getJittedMethodSymbol();
-   TR::Machine *machine = cg()->machine();
-   TR::SymbolReference  *sofRef  = comp->getSymRefTab()->findOrCreateStackOverflowSymbolRef(comp->getJittedMethodSymbol());
-   TR::MethodSymbol *sof = sofRef->getSymbol()->castToMethodSymbol();
+{
+    TR::Compilation *comp = cg()->comp();
+    TR::ResolvedMethodSymbol *bodySymbol = comp->getJittedMethodSymbol();
+    TR::Machine *machine = cg()->machine();
+    TR::SymbolReference *sofRef
+        = comp->getSymRefTab()->findOrCreateStackOverflowSymbolRef(comp->getJittedMethodSymbol());
+    TR::MethodSymbol *sof = sofRef->getSymbol()->castToMethodSymbol();
 
-   int32_t              offsetAdjust=cg()->getFrameSizeInBytes();
-   ListIterator<TR::ParameterSymbol> paramIterator(&(bodySymbol->getParameterList()));
-   TR::ParameterSymbol  *paramCursor = paramIterator.getFirst();
-   const TR::PPCLinkageProperties &linkage = cg()->getLinkage()->getProperties();
+    int32_t offsetAdjust = cg()->getFrameSizeInBytes();
+    ListIterator<TR::ParameterSymbol> paramIterator(&(bodySymbol->getParameterList()));
+    TR::ParameterSymbol *paramCursor = paramIterator.getFirst();
+    const TR::PPCLinkageProperties &linkage = cg()->getLinkage()->getProperties();
 
-   uint8_t             *buffer = cg()->getBinaryBufferCursor();
-   uint8_t             *bufferStart = buffer;
-   uint8_t             *returnLocation;
-   bool                 saveLR = (cg()->getSnippetList().size()<=1 &&
-                                  !bodySymbol->isEHAware()         &&
-                                  !cg()->canExceptByTrap()         &&
-                                  !machine->getLinkRegisterKilled());
-   TR::InstOpCode         add_opCode(TR::InstOpCode::add);
-   TR::InstOpCode         addi_opCode(TR::InstOpCode::addi);
-   TR::InstOpCode         subf_opCode(TR::InstOpCode::subf);
-   TR::RealRegister  *stackPtr = cg()->getLinkage()->cg()->getStackPointerRegister();
-   TR::RealRegister  *gr12 = machine->getRealRegister(TR::RealRegister::gr12);
+    uint8_t *buffer = cg()->getBinaryBufferCursor();
+    uint8_t *bufferStart = buffer;
+    uint8_t *returnLocation;
+    bool saveLR = (cg()->getSnippetList().size() <= 1 && !bodySymbol->isEHAware() && !cg()->canExceptByTrap()
+        && !machine->getLinkRegisterKilled());
+    TR::InstOpCode add_opCode(TR::InstOpCode::add);
+    TR::InstOpCode addi_opCode(TR::InstOpCode::addi);
+    TR::InstOpCode subf_opCode(TR::InstOpCode::subf);
+    TR::RealRegister *stackPtr = cg()->getLinkage()->cg()->getStackPointerRegister();
+    TR::RealRegister *gr12 = machine->getRealRegister(TR::RealRegister::gr12);
 
-   getSnippetLabel()->setCodeLocation(buffer);
+    getSnippetLabel()->setCodeLocation(buffer);
 
-   if (offsetAdjust)
-      {
-      if (offsetAdjust > UPPER_IMMED)	// addi is not applicable
-         {
-         // prologue arranged for gr12 to contain offsetAdjust
-         // add sp, sp, gr12
-         add_opCode.copyBinaryToBuffer(buffer);
-         stackPtr->setRegisterFieldRT(toPPCCursor(buffer));
-         stackPtr->setRegisterFieldRA(toPPCCursor(buffer));
-         gr12->setRegisterFieldRB(toPPCCursor(buffer));
-         buffer += 4;
-         }
-      else
-         {
-         // addi sp, sp, framesize
-         addi_opCode.copyBinaryToBuffer(buffer);
-         stackPtr->setRegisterFieldRT(toPPCCursor(buffer));
-         stackPtr->setRegisterFieldRA(toPPCCursor(buffer));
-         *toPPCCursor(buffer) |= offsetAdjust & 0x0000ffff;
-         buffer += 4;
-         // pass framesize to jitStackOverflow in gr12
-         // addi gr12, gr0, framesize (ie li gr12, framesize)
-         addi_opCode.copyBinaryToBuffer(buffer);
-         gr12->setRegisterFieldRT(toPPCCursor(buffer));
-         *toPPCCursor(buffer) |= offsetAdjust & 0x0000ffff;
-         buffer += 4;
-         }
-      }
-   else
-      {
-      if (saveLR)
-         {
-         //  addi sp, sp, -sizeOfJavaPointer
-         addi_opCode.copyBinaryToBuffer(buffer);
-         stackPtr->setRegisterFieldRT(toPPCCursor(buffer));
-         stackPtr->setRegisterFieldRA(toPPCCursor(buffer));
-         *toPPCCursor(buffer) |= (-TR::Compiler->om.sizeofReferenceAddress()) & 0x0000ffff;
-         buffer += 4;
-         }
-      // pass framesize to jitStackOverflow in gr12
-      // addi gr12, gr0, framesize (ie li gr12, framesize)
-      addi_opCode.copyBinaryToBuffer(buffer);
-      gr12->setRegisterFieldRT(toPPCCursor(buffer));
-      *toPPCCursor(buffer) |= offsetAdjust & 0x0000ffff;
-      buffer += 4;
-      }
+    if (offsetAdjust) {
+        if (offsetAdjust > UPPER_IMMED) // addi is not applicable
+        {
+            // prologue arranged for gr12 to contain offsetAdjust
+            // add sp, sp, gr12
+            add_opCode.copyBinaryToBuffer(buffer);
+            stackPtr->setRegisterFieldRT(toPPCCursor(buffer));
+            stackPtr->setRegisterFieldRA(toPPCCursor(buffer));
+            gr12->setRegisterFieldRB(toPPCCursor(buffer));
+            buffer += 4;
+        } else {
+            // addi sp, sp, framesize
+            addi_opCode.copyBinaryToBuffer(buffer);
+            stackPtr->setRegisterFieldRT(toPPCCursor(buffer));
+            stackPtr->setRegisterFieldRA(toPPCCursor(buffer));
+            *toPPCCursor(buffer) |= offsetAdjust & 0x0000ffff;
+            buffer += 4;
+            // pass framesize to jitStackOverflow in gr12
+            // addi gr12, gr0, framesize (ie li gr12, framesize)
+            addi_opCode.copyBinaryToBuffer(buffer);
+            gr12->setRegisterFieldRT(toPPCCursor(buffer));
+            *toPPCCursor(buffer) |= offsetAdjust & 0x0000ffff;
+            buffer += 4;
+        }
+    } else {
+        if (saveLR) {
+            //  addi sp, sp, -sizeOfJavaPointer
+            addi_opCode.copyBinaryToBuffer(buffer);
+            stackPtr->setRegisterFieldRT(toPPCCursor(buffer));
+            stackPtr->setRegisterFieldRA(toPPCCursor(buffer));
+            *toPPCCursor(buffer) |= (-TR::Compiler->om.sizeofReferenceAddress()) & 0x0000ffff;
+            buffer += 4;
+        }
+        // pass framesize to jitStackOverflow in gr12
+        // addi gr12, gr0, framesize (ie li gr12, framesize)
+        addi_opCode.copyBinaryToBuffer(buffer);
+        gr12->setRegisterFieldRT(toPPCCursor(buffer));
+        *toPPCCursor(buffer) |= offsetAdjust & 0x0000ffff;
+        buffer += 4;
+    }
 
-   if (saveLR)
-      {
-      // mflr gr0
-      *(int32_t *)buffer = 0x7c0802a6;
-      buffer += 4;
-      }
+    if (saveLR) {
+        // mflr gr0
+        *(int32_t *)buffer = 0x7c0802a6;
+        buffer += 4;
+    }
 
-   if (saveLR)
-      {
-      if (comp->target().is64Bit())
-        // std [gr14, 0], gr0
-        *(int32_t *)buffer = 0xf80e0000;
-      else
-        // stw [gr14, 0], gr0
-        *(int32_t *)buffer = 0x900e0000;
-      buffer += 4;
-      }
+    if (saveLR) {
+        if (comp->target().is64Bit())
+            // std [gr14, 0], gr0
+            *(int32_t *)buffer = 0xf80e0000;
+        else
+            // stw [gr14, 0], gr0
+            *(int32_t *)buffer = 0x900e0000;
+        buffer += 4;
+    }
 
-   intptr_t helperAddress = (intptr_t)sof->getMethodAddress();
-   if (cg()->directCallRequiresTrampoline(helperAddress, (intptr_t)buffer))
-      {
-      helperAddress = TR::CodeCacheManager::instance()->findHelperTrampoline(sofRef->getReferenceNumber(), (void *)buffer);
-      TR_ASSERT_FATAL(comp->target().cpu.isTargetWithinIFormBranchRange(helperAddress, (intptr_t)buffer), "Helper address is out of range");
-      }
+    intptr_t helperAddress = (intptr_t)sof->getMethodAddress();
+    if (cg()->directCallRequiresTrampoline(helperAddress, (intptr_t)buffer)) {
+        helperAddress
+            = TR::CodeCacheManager::instance()->findHelperTrampoline(sofRef->getReferenceNumber(), (void *)buffer);
+        TR_ASSERT_FATAL(comp->target().cpu.isTargetWithinIFormBranchRange(helperAddress, (intptr_t)buffer),
+            "Helper address is out of range");
+    }
 
-   // bl distance
-   *(int32_t *)buffer = 0x48000001 | ((helperAddress - (intptr_t)buffer) & 0x03ffffff);
-   cg()->addExternalRelocation(
-      TR::ExternalRelocation::create(
-         buffer,
-         (uint8_t *)sofRef,
-         TR_HelperAddress,
-         cg()),
-      __FILE__,
-      __LINE__,
-      getNode());
-   buffer += 4;
-   returnLocation = buffer;
+    // bl distance
+    *(int32_t *)buffer = 0x48000001 | ((helperAddress - (intptr_t)buffer) & 0x03ffffff);
+    cg()->addExternalRelocation(TR::ExternalRelocation::create(buffer, (uint8_t *)sofRef, TR_HelperAddress, cg()),
+        __FILE__, __LINE__, getNode());
+    buffer += 4;
+    returnLocation = buffer;
 
-   if (saveLR)
-      {
-      // For FSD, we have to reload the return address
-      if (comp->getOption(TR_FullSpeedDebug))
-	 {
-         if (comp->target().is64Bit())
-            // ld gr0, [gr14, 0]
-            *(int32_t *)buffer = 0xe80e0000;
-         else
-            // lwz gr0, [gr14, 0]
-            *(int32_t *)buffer = 0x800e0000;
-         buffer += 4;
-	 }
+    if (saveLR) {
+        // For FSD, we have to reload the return address
+        if (comp->getOption(TR_FullSpeedDebug)) {
+            if (comp->target().is64Bit())
+                // ld gr0, [gr14, 0]
+                *(int32_t *)buffer = 0xe80e0000;
+            else
+                // lwz gr0, [gr14, 0]
+                *(int32_t *)buffer = 0x800e0000;
+            buffer += 4;
+        }
 
-      // mtlr gr0
-      *(int32_t *)buffer = 0x7c0803a6;
-      buffer += 4;
-      }
+        // mtlr gr0
+        *(int32_t *)buffer = 0x7c0803a6;
+        buffer += 4;
+    }
 
-   if (offsetAdjust)
-      {
-      if (offsetAdjust > (-LOWER_IMMED))	// addi is not applicable
-         {
-         // prologue arranged for gr12 to contain offsetAdjust
-         // and gr12 is preserved across the call to jitStackOverflow
-         // subf sp, gr12, sp
-         subf_opCode.copyBinaryToBuffer(buffer);
-         stackPtr->setRegisterFieldRT(toPPCCursor(buffer));
-         gr12->setRegisterFieldRA(toPPCCursor(buffer));
-         stackPtr->setRegisterFieldRB(toPPCCursor(buffer));
-         }
-      else
-         {
-         // addi sp, sp, -framesize
-         addi_opCode.copyBinaryToBuffer(buffer);
-         stackPtr->setRegisterFieldRT(toPPCCursor(buffer));
-         stackPtr->setRegisterFieldRA(toPPCCursor(buffer));
-         *toPPCCursor(buffer) |= -offsetAdjust & 0x0000ffff;
-         }
-      buffer += 4;
-      }
-   else if (saveLR)
-      {
-      // addi sp, sp, sizeOfJavaPointer
-      addi_opCode.copyBinaryToBuffer(buffer);
-      stackPtr->setRegisterFieldRT(toPPCCursor(buffer));
-      stackPtr->setRegisterFieldRA(toPPCCursor(buffer));
-      *toPPCCursor(buffer) |= TR::Compiler->om.sizeofReferenceAddress() & 0x0000ffff;
-      buffer += 4;
-      }
+    if (offsetAdjust) {
+        if (offsetAdjust > (-LOWER_IMMED)) // addi is not applicable
+        {
+            // prologue arranged for gr12 to contain offsetAdjust
+            // and gr12 is preserved across the call to jitStackOverflow
+            // subf sp, gr12, sp
+            subf_opCode.copyBinaryToBuffer(buffer);
+            stackPtr->setRegisterFieldRT(toPPCCursor(buffer));
+            gr12->setRegisterFieldRA(toPPCCursor(buffer));
+            stackPtr->setRegisterFieldRB(toPPCCursor(buffer));
+        } else {
+            // addi sp, sp, -framesize
+            addi_opCode.copyBinaryToBuffer(buffer);
+            stackPtr->setRegisterFieldRT(toPPCCursor(buffer));
+            stackPtr->setRegisterFieldRA(toPPCCursor(buffer));
+            *toPPCCursor(buffer) |= -offsetAdjust & 0x0000ffff;
+        }
+        buffer += 4;
+    } else if (saveLR) {
+        // addi sp, sp, sizeOfJavaPointer
+        addi_opCode.copyBinaryToBuffer(buffer);
+        stackPtr->setRegisterFieldRT(toPPCCursor(buffer));
+        stackPtr->setRegisterFieldRA(toPPCCursor(buffer));
+        *toPPCCursor(buffer) |= TR::Compiler->om.sizeofReferenceAddress() & 0x0000ffff;
+        buffer += 4;
+    }
 
-   // b restartLabel  -- assuming it is less than 64MB away.
-   *(int32_t *)buffer = 0x48000000 | (((intptr_t)getReStartLabel()->getCodeLocation() - (intptr_t)buffer) & 0x03fffffc);
+    // b restartLabel  -- assuming it is less than 64MB away.
+    *(int32_t *)buffer
+        = 0x48000000 | (((intptr_t)getReStartLabel()->getCodeLocation() - (intptr_t)buffer) & 0x03fffffc);
 
-   TR::GCStackAtlas *atlas = cg()->getStackAtlas();
-   if (atlas)
-      {
-      // only the arg references are live at this point
-      uint32_t  numberOfParmSlots = atlas->getNumberOfParmSlotsMapped();
-      TR_GCStackMap *map = new (cg()->trHeapMemory(), numberOfParmSlots) TR_GCStackMap(numberOfParmSlots);
+    TR::GCStackAtlas *atlas = cg()->getStackAtlas();
+    if (atlas) {
+        // only the arg references are live at this point
+        uint32_t numberOfParmSlots = atlas->getNumberOfParmSlotsMapped();
+        TR_GCStackMap *map = new (cg()->trHeapMemory(), numberOfParmSlots) TR_GCStackMap(numberOfParmSlots);
 
-      map->copy(atlas->getParameterMap());
-      while (paramCursor != NULL)
-	 {
-         int32_t  intRegArgIndex = paramCursor->getLinkageRegisterIndex();
-         if (intRegArgIndex >= 0                   &&
-             paramCursor->isReferencedParameter()  &&
-             paramCursor->isCollectedReference())
-	    {
-            // In full speed debug all the parameters are passed in the stack for this case
-            // but will also reside in the registers
-            if (!comp->getOption(TR_FullSpeedDebug))
-               {
-               map->resetBit(paramCursor->getGCMapIndex());
-               }
-            map->setRegisterBits(cg()->registerBitMask(linkage.getIntegerArgumentRegister(intRegArgIndex)));
-	    }
-         paramCursor = paramIterator.getNext();
-	 }
+        map->copy(atlas->getParameterMap());
+        while (paramCursor != NULL) {
+            int32_t intRegArgIndex = paramCursor->getLinkageRegisterIndex();
+            if (intRegArgIndex >= 0 && paramCursor->isReferencedParameter() && paramCursor->isCollectedReference()) {
+                // In full speed debug all the parameters are passed in the stack for this case
+                // but will also reside in the registers
+                if (!comp->getOption(TR_FullSpeedDebug)) {
+                    map->resetBit(paramCursor->getGCMapIndex());
+                }
+                map->setRegisterBits(cg()->registerBitMask(linkage.getIntegerArgumentRegister(intRegArgIndex)));
+            }
+            paramCursor = paramIterator.getNext();
+        }
 
-      // set the GC map
-      gcMap().setStackMap(map);
-      atlas->setParameterMap(map);
-      }
-   gcMap().registerStackMap(returnLocation, cg());
-   return buffer + 4;
-   }
+        // set the GC map
+        gcMap().setStackMap(map);
+        atlas->setParameterMap(map);
+    }
+    gcMap().registerStackMap(returnLocation, cg());
+    return buffer + 4;
+}
 
+void TR_Debug::print(OMR::Logger *log, TR::PPCStackCheckFailureSnippet *snippet)
+{
+    uint8_t *cursor = snippet->getSnippetLabel()->getCodeLocation();
 
-void
-TR_Debug::print(OMR::Logger *log, TR::PPCStackCheckFailureSnippet * snippet)
-   {
-   uint8_t *cursor = snippet->getSnippetLabel()->getCodeLocation();
+    printSnippetLabel(log, snippet->getSnippetLabel(), cursor, "Stack Check Failure Snippet");
 
-   printSnippetLabel(log, snippet->getSnippetLabel(), cursor, "Stack Check Failure Snippet");
+    TR::ResolvedMethodSymbol *bodySymbol = _comp->getJittedMethodSymbol();
+    const TR::PPCLinkageProperties &linkage = _cg->getLinkage()->getProperties();
+    TR::Machine *machine = _cg->machine();
+    TR::RealRegister *stackPtr = _cg->getStackPointerRegister();
 
-   TR::ResolvedMethodSymbol *bodySymbol=_comp->getJittedMethodSymbol();
-   const TR::PPCLinkageProperties &linkage = _cg->getLinkage()->getProperties();
-   TR::Machine *machine  = _cg->machine();
-   TR::RealRegister *stackPtr = _cg->getStackPointerRegister();
+    bool saveLR = (_cg->getSnippetList().size() <= 1 && !bodySymbol->isEHAware() && !_cg->canExceptByTrap()
+        && !machine->getLinkRegisterKilled());
 
-   bool saveLR = (_cg->getSnippetList().size() <= 1 &&
-                  !bodySymbol->isEHAware()                     &&
-                  !_cg->canExceptByTrap()              &&
-                  !machine->getLinkRegisterKilled());
+    int32_t offsetAdjust = _cg->getFrameSizeInBytes();
 
-   int32_t offsetAdjust = _cg->getFrameSizeInBytes();
+    if (offsetAdjust) {
+        if (offsetAdjust > UPPER_IMMED) // addi is not applicable
+        {
+            // prologue arranged for gr12 to contain offsetAdjust
+            printPrefix(log, NULL, cursor, 4);
+            log->prints("add \t");
+            print(log, stackPtr, TR_WordReg);
+            log->prints(", ");
+            print(log, stackPtr, TR_WordReg);
+            log->prints(", gr12");
+            cursor += 4;
+        } else {
+            printPrefix(log, NULL, cursor, 4);
+            log->prints("addi2 \t");
+            print(log, stackPtr, TR_WordReg);
+            log->prints(", ");
+            print(log, stackPtr, TR_WordReg);
+            log->printf(", 0x%x", offsetAdjust);
+            cursor += 4;
+            printPrefix(log, NULL, cursor, 4);
+            log->prints("li \tgr12");
+            log->printf(", 0x%x", offsetAdjust);
+            cursor += 4;
+        }
+    } else {
+        if (saveLR) {
+            printPrefix(log, NULL, cursor, 4);
+            log->prints("addi2 \t");
+            print(log, stackPtr, TR_WordReg);
+            log->prints(", ");
+            print(log, stackPtr, TR_WordReg);
+            log->printf(", 0x%x", -TR::Compiler->om.sizeofReferenceAddress());
+            cursor += 4;
+        }
+        printPrefix(log, NULL, cursor, 4);
+        log->prints("li \tgr12");
+        log->printf(", 0x%x", offsetAdjust);
+        cursor += 4;
+    }
 
-   if (offsetAdjust)
-      {
-      if (offsetAdjust > UPPER_IMMED)   // addi is not applicable
-         {
-         // prologue arranged for gr12 to contain offsetAdjust
-         printPrefix(log, NULL, cursor, 4);
-         log->prints("add \t");
-         print(log, stackPtr, TR_WordReg);
-         log->prints(", ");
-         print(log, stackPtr, TR_WordReg);
-         log->prints(", gr12");
-         cursor += 4;
-         }
-      else
-         {
-         printPrefix(log, NULL, cursor, 4);
-         log->prints("addi2 \t");
-         print(log, stackPtr, TR_WordReg);
-         log->prints(", ");
-         print(log, stackPtr, TR_WordReg);
-         log->printf(", 0x%x", offsetAdjust);
-         cursor += 4;
-         printPrefix(log, NULL, cursor, 4);
-         log->prints("li \tgr12");
-         log->printf(", 0x%x", offsetAdjust);
-         cursor += 4;
-         }
-      }
-   else
-      {
-      if (saveLR)
-         {
-         printPrefix(log, NULL, cursor, 4);
-         log->prints("addi2 \t");
-         print(log, stackPtr, TR_WordReg);
-         log->prints(", ");
-         print(log, stackPtr, TR_WordReg);
-         log->printf(", 0x%x", -TR::Compiler->om.sizeofReferenceAddress());
-         cursor += 4;
-         }
-      printPrefix(log, NULL, cursor, 4);
-      log->prints("li \tgr12");
-      log->printf(", 0x%x", offsetAdjust);
-      cursor += 4;
-      }
+    if (saveLR) {
+        printPrefix(log, NULL, cursor, 4);
+        log->prints("mflr \tgr0");
+        cursor += 4;
+    }
 
-   if (saveLR)
-      {
-      printPrefix(log, NULL, cursor, 4);
-      log->prints("mflr \tgr0");
-      cursor += 4;
-      }
+    if (saveLR) {
+        printPrefix(log, NULL, cursor, 4);
+        if (_comp->target().is64Bit())
+            log->prints("std \t[gr14, 0], gr0");
+        else
+            log->prints("stw \t[gr14, 0], gr0");
+        cursor += 4;
+    }
 
-   if (saveLR)
-      {
-      printPrefix(log, NULL, cursor, 4);
-      if (_comp->target().is64Bit())
-         log->prints("std \t[gr14, 0], gr0");
-      else
-         log->prints("stw \t[gr14, 0], gr0");
-      cursor += 4;
-      }
+    const char *info = "";
+    int32_t distance;
+    if (isBranchToTrampoline(_comp->getSymRefTab()->element(TR_stackOverflow), cursor, distance))
+        info = " Through trampoline";
 
-   const char *info = "";
-   int32_t     distance;
-   if (isBranchToTrampoline(_comp->getSymRefTab()->element(TR_stackOverflow), cursor, distance))
-      info = " Through trampoline";
+    printPrefix(log, NULL, cursor, 4);
+    distance = *((int32_t *)cursor) & 0x03fffffc;
+    distance = (distance << 6) >> 6; // sign extend
+    log->printf("bl \t" POINTER_PRINTF_FORMAT "\t\t;%s", (intptr_t)cursor + distance, info);
+    cursor += 4;
 
-   printPrefix(log, NULL, cursor, 4);
-   distance = *((int32_t *) cursor) & 0x03fffffc;
-   distance = (distance << 6) >> 6;     // sign extend
-   log->printf("bl \t" POINTER_PRINTF_FORMAT "\t\t;%s", (intptr_t)cursor + distance, info);
-   cursor += 4;
+    if (saveLR) {
+        printPrefix(log, NULL, cursor, 4);
+        log->prints("mtlr \tgr0");
+        cursor += 4;
+    }
 
-   if (saveLR)
-      {
-      printPrefix(log, NULL, cursor, 4);
-      log->prints("mtlr \tgr0");
-      cursor += 4;
-      }
+    if (offsetAdjust) {
+        if (offsetAdjust > (-LOWER_IMMED)) // addi is not applicable
+        {
+            // prologue arranged for gr12 to contain offsetAdjust
+            printPrefix(log, NULL, cursor, 4);
+            log->prints("subf \t");
+            print(log, stackPtr, TR_WordReg);
+            log->prints(", gr12, ");
+            print(log, stackPtr, TR_WordReg);
+        } else {
+            printPrefix(log, NULL, cursor, 4);
+            log->prints("addi2 \t");
+            print(log, stackPtr, TR_WordReg);
+            log->prints(", ");
+            print(log, stackPtr, TR_WordReg);
+            log->printf(", 0x%x", -offsetAdjust);
+        }
+        cursor += 4;
+    } else if (saveLR) {
+        printPrefix(log, NULL, cursor, 4);
+        log->prints("addi2 \t");
+        print(log, stackPtr, TR_WordReg);
+        log->prints(", ");
+        print(log, stackPtr, TR_WordReg);
+        log->printf(", 0x%x", TR::Compiler->om.sizeofReferenceAddress());
+        cursor += 4;
+    }
 
-   if (offsetAdjust)
-      {
-      if (offsetAdjust > (-LOWER_IMMED))        // addi is not applicable
-         {
-         // prologue arranged for gr12 to contain offsetAdjust
-         printPrefix(log, NULL, cursor, 4);
-         log->prints("subf \t");
-         print(log, stackPtr, TR_WordReg);
-         log->prints(", gr12, ");
-         print(log, stackPtr, TR_WordReg);
-         }
-      else
-         {
-         printPrefix(log, NULL, cursor, 4);
-         log->prints("addi2 \t");
-         print(log, stackPtr, TR_WordReg);
-         log->prints(", ");
-         print(log, stackPtr, TR_WordReg);
-         log->printf(", 0x%x", -offsetAdjust);
-         }
-      cursor += 4;
-      }
-   else if (saveLR)
-      {
-      printPrefix(log, NULL, cursor, 4);
-      log->prints("addi2 \t");
-      print(log, stackPtr, TR_WordReg);
-      log->prints(", ");
-      print(log, stackPtr, TR_WordReg);
-      log->printf(", 0x%x", TR::Compiler->om.sizeofReferenceAddress());
-      cursor += 4;
-      }
-
-   // b restartLabel  -- assuming it is less than 64MB away.
-   printPrefix(log, NULL, cursor, 4);
-   distance = *((int32_t *) cursor) & 0x03fffffc;
-   distance = (distance << 6) >> 6;     // sign extend
-   log->printf("b \t" POINTER_PRINTF_FORMAT "\t\t; Back to ", (intptr_t)cursor + distance);
-   print(log, snippet->getReStartLabel());
-   }
+    // b restartLabel  -- assuming it is less than 64MB away.
+    printPrefix(log, NULL, cursor, 4);
+    distance = *((int32_t *)cursor) & 0x03fffffc;
+    distance = (distance << 6) >> 6; // sign extend
+    log->printf("b \t" POINTER_PRINTF_FORMAT "\t\t; Back to ", (intptr_t)cursor + distance);
+    print(log, snippet->getReStartLabel());
+}
 
 uint32_t TR::PPCStackCheckFailureSnippet::getLength(int32_t estimatedSnippetStart)
-   {
-   int32_t                length = 0;
-   TR::ResolvedMethodSymbol *bodySymbol=cg()->comp()->getJittedMethodSymbol();
+{
+    int32_t length = 0;
+    TR::ResolvedMethodSymbol *bodySymbol = cg()->comp()->getJittedMethodSymbol();
 
-   if (cg()->getSnippetList().size()<=1 &&
-       !bodySymbol->isEHAware()         &&
-       !cg()->canExceptByTrap() &&
-       !cg()->machine()->getLinkRegisterKilled())
-      {
-      length += 12;
-      if (cg()->getFrameSizeInBytes() == 0)
+    if (cg()->getSnippetList().size() <= 1 && !bodySymbol->isEHAware() && !cg()->canExceptByTrap()
+        && !cg()->machine()->getLinkRegisterKilled()) {
+        length += 12;
+        if (cg()->getFrameSizeInBytes() == 0)
+            length += 8;
+        if (cg()->comp()->getOption(TR_FullSpeedDebug))
+            length += 4;
+    }
+
+    if (cg()->getFrameSizeInBytes())
         length += 8;
-      if (cg()->comp()->getOption(TR_FullSpeedDebug))
-         length += 4;
-      }
+    if (cg()->getFrameSizeInBytes() <= UPPER_IMMED)
+        length += 4; // to load r12 with framesize
 
-   if (cg()->getFrameSizeInBytes())
-      length += 8;
-   if (cg()->getFrameSizeInBytes() <= UPPER_IMMED)
-      length += 4;  // to load r12 with framesize
-
-   return(length+8);
-   }
+    return (length + 8);
+}

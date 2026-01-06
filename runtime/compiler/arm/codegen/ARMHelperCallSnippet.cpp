@@ -37,47 +37,42 @@
 #include "runtime/CodeCacheManager.hpp"
 
 uint8_t *TR::ARMHelperCallSnippet::emitSnippetBody()
-   {
-   uint8_t   *buffer = cg()->getBinaryBufferCursor();
-   intptr_t distance = (intptr_t)getDestination()->getSymbol()->castToMethodSymbol()->getMethodAddress() - (intptr_t)buffer - 8;
+{
+    uint8_t *buffer = cg()->getBinaryBufferCursor();
+    intptr_t distance
+        = (intptr_t)getDestination()->getSymbol()->castToMethodSymbol()->getMethodAddress() - (intptr_t)buffer - 8;
 
-   getSnippetLabel()->setCodeLocation(buffer);
+    getSnippetLabel()->setCodeLocation(buffer);
 
-   if (!(distance>=BRANCH_BACKWARD_LIMIT && distance<=BRANCH_FORWARD_LIMIT))
-      {
-      distance = TR::CodeCacheManager::instance()->findHelperTrampoline(getDestination()->getReferenceNumber(), (void *)buffer) - (intptr_t)buffer - 8;
-      TR_ASSERT(distance>=BRANCH_BACKWARD_LIMIT && distance<=BRANCH_FORWARD_LIMIT,
-             "CodeCache is more than 32MB.\n");
-      }
+    if (!(distance >= BRANCH_BACKWARD_LIMIT && distance <= BRANCH_FORWARD_LIMIT)) {
+        distance = TR::CodeCacheManager::instance()->findHelperTrampoline(getDestination()->getReferenceNumber(),
+                       (void *)buffer)
+            - (intptr_t)buffer - 8;
+        TR_ASSERT(distance >= BRANCH_BACKWARD_LIMIT && distance <= BRANCH_FORWARD_LIMIT,
+            "CodeCache is more than 32MB.\n");
+    }
 
-   // b|bl distance
-   *(int32_t *)buffer = 0xea000000 | ((distance >> 2)& 0x00ffffff);
-   if (_restartLabel != NULL)
-      *(int32_t *)buffer |= 0x01000000;
-   cg()->addExternalRelocation(
-      TR::ExternalRelocation::create(
-         buffer,
-         (uint8_t *)getDestination(),
-         TR_HelperAddress,
-         cg()),
-      __FILE__,
-      __LINE__,
-      getNode());
-   buffer += 4;
+    // b|bl distance
+    *(int32_t *)buffer = 0xea000000 | ((distance >> 2) & 0x00ffffff);
+    if (_restartLabel != NULL)
+        *(int32_t *)buffer |= 0x01000000;
+    cg()->addExternalRelocation(
+        TR::ExternalRelocation::create(buffer, (uint8_t *)getDestination(), TR_HelperAddress, cg()), __FILE__, __LINE__,
+        getNode());
+    buffer += 4;
 
-   gcMap().registerStackMap(buffer, cg());
+    gcMap().registerStackMap(buffer, cg());
 
-   if (_restartLabel != NULL)
-      {
-      int32_t returnDistance = _restartLabel->getCodeLocation() - buffer - 8 ;
-      *(int32_t *)buffer = 0xea000000 | ((returnDistance >> 2) & 0x00ffffff);
-      buffer += 4;
-      }
+    if (_restartLabel != NULL) {
+        int32_t returnDistance = _restartLabel->getCodeLocation() - buffer - 8;
+        *(int32_t *)buffer = 0xea000000 | ((returnDistance >> 2) & 0x00ffffff);
+        buffer += 4;
+    }
 
-   return buffer;
-   }
+    return buffer;
+}
 
 uint32_t TR::ARMHelperCallSnippet::getLength(int32_t estimatedSnippetStart)
-   {
-   return ((_restartLabel==NULL)?4:8);
-   }
+{
+    return ((_restartLabel == NULL) ? 4 : 8);
+}

@@ -26,19 +26,21 @@
 namespace TR {
 class CodeGenerator;
 class CompilationInfoPerThread;
-}
+} // namespace TR
 
 namespace TR {
 
-extern void createCCPreLoadedCode(uint8_t *CCPreLoadedCodeBase, uint8_t *CCPreLoadedCodeTop, void ** CCPreLoadedCodeTable, TR::CodeGenerator *cg);
+extern void createCCPreLoadedCode(uint8_t *CCPreLoadedCodeBase, uint8_t *CCPreLoadedCodeTop,
+    void **CCPreLoadedCodeTable, TR::CodeGenerator *cg);
 extern uint32_t getCCPreLoadedCodeSize();
 
-}
+} // namespace TR
 
 struct J9JITConfig;
 void initializeCodeRuntimeHelperTable(J9JITConfig *jitConfig, char isSMP);
 
-void rtlogPrint(J9JITConfig *jitConfig, TR::CompilationInfoPerThread *compInfoPT, const char *buffer, bool lock = false);
+void rtlogPrint(J9JITConfig *jitConfig, TR::CompilationInfoPerThread *compInfoPT, const char *buffer,
+    bool lock = false);
 void rtlogPrintLocked(J9JITConfig *jitConfig, TR::CompilationInfoPerThread *compInfoPT, const char *buffer);
 void rtlogPrintf(J9JITConfig *jitConfig, TR::CompilationInfoPerThread *compInfoPT, const char *format, ...);
 void rtlogPrintfLocked(J9JITConfig *jitConfig, TR::CompilationInfoPerThread *compInfoPT, const char *format, ...);
@@ -49,8 +51,8 @@ void rtlogPrintfLocked(J9JITConfig *jitConfig, TR::CompilationInfoPerThread *com
 //   JITRT_UNLOCK_LOG(jitConfig);
 //
 
-#define   JITRT_PRINTF(jitConfig)     ((TR_JitPrivateConfig*)(jitConfig->privateConfig))->j9jitrt_printf
-#define   JITRT_LOCK_LOG(jitConfig)   ((TR_JitPrivateConfig*)(jitConfig->privateConfig))->j9jitrt_lock_log(jitConfig)
-#define   JITRT_UNLOCK_LOG(jitConfig) ((TR_JitPrivateConfig*)(jitConfig->privateConfig))->j9jitrt_unlock_log(jitConfig)
+#define JITRT_PRINTF(jitConfig) ((TR_JitPrivateConfig *)(jitConfig->privateConfig))->j9jitrt_printf
+#define JITRT_LOCK_LOG(jitConfig) ((TR_JitPrivateConfig *)(jitConfig->privateConfig))->j9jitrt_lock_log(jitConfig)
+#define JITRT_UNLOCK_LOG(jitConfig) ((TR_JitPrivateConfig *)(jitConfig->privateConfig))->j9jitrt_unlock_log(jitConfig)
 
 #endif // CODERUNTIME_HPP

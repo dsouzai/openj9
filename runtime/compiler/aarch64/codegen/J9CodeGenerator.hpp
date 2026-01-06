@@ -28,10 +28,14 @@
  */
 #ifndef J9_CODEGENERATOR_CONNECTOR
 #define J9_CODEGENERATOR_CONNECTOR
+
 namespace J9 {
-namespace ARM64 { class CodeGenerator; }
-typedef J9::ARM64::CodeGenerator CodeGeneratorConnector;
+namespace ARM64 {
+class CodeGenerator;
 }
+
+typedef J9::ARM64::CodeGenerator CodeGeneratorConnector;
+} // namespace J9
 #else
 #error J9::ARM64::CodeGenerator expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -43,90 +47,81 @@ namespace TR {
 class Recompilation;
 }
 
-namespace J9
-{
+namespace J9 { namespace ARM64 {
 
-namespace ARM64
-{
-
-class OMR_EXTENSIBLE CodeGenerator : public J9::CodeGenerator
-   {
-
+class OMR_EXTENSIBLE CodeGenerator : public J9::CodeGenerator {
 protected:
-
-   CodeGenerator(TR::Compilation *comp);
+    CodeGenerator(TR::Compilation *comp);
 
 public:
+    void initialize();
 
-   void initialize();
+    /**
+     * @brief Allocates recompilation information
+     */
+    TR::Recompilation *allocateRecompilationInfo();
 
-   /**
-    * @brief Allocates recompilation information
-    */
-   TR::Recompilation *allocateRecompilationInfo();
+    /**
+     * @brief Gets or creates a TR::Linkage object
+     * @param[in] lc : linkage convention
+     * @return created linkage object
+     */
+    TR::Linkage *createLinkage(TR_LinkageConventions lc);
 
-   /**
-    * @brief Gets or creates a TR::Linkage object
-    * @param[in] lc : linkage convention
-    * @return created linkage object
-    */
-   TR::Linkage *createLinkage(TR_LinkageConventions lc);
+    /**
+     * @brief Encode a BL (or B) instruction to the specified symbol
+     * @param[in] symRef : target symbol
+     * @param[in] cursor : instruction cursor
+     * @param[in] node : node
+     * @param[in] omitLink : use `b` instruction if true
+     * @return Endoded BL (or B) instruction
+     */
+    uint32_t encodeHelperBranchAndLink(TR::SymbolReference *symRef, uint8_t *cursor, TR::Node *node,
+        bool omitLink = false);
 
-   /**
-    * @brief Encode a BL (or B) instruction to the specified symbol
-    * @param[in] symRef : target symbol
-    * @param[in] cursor : instruction cursor
-    * @param[in] node : node
-    * @param[in] omitLink : use `b` instruction if true
-    * @return Endoded BL (or B) instruction
-    */
-   uint32_t encodeHelperBranchAndLink(TR::SymbolReference *symRef, uint8_t *cursor, TR::Node *node, bool omitLink = false);
+    bool inlineDirectCall(TR::Node *node, TR::Register *&resultReg);
 
-   bool inlineDirectCall(TR::Node *node, TR::Register *&resultReg);
+    /**
+     * @brief Generates pre-prologue
+     * @param[in] data : binary encoding data
+     */
+    void generateBinaryEncodingPrePrologue(TR_ARM64BinaryEncodingData &data);
 
-   /**
-    * @brief Generates pre-prologue
-    * @param[in] data : binary encoding data
-    */
-   void generateBinaryEncodingPrePrologue(TR_ARM64BinaryEncodingData &data);
+    /**
+     * @brief Generates switch-to-interpreter pre-prologue
+     * @param[in] cursor : cursor
+     * @param[in] node : node
+     */
+    TR::Instruction *generateSwitchToInterpreterPrePrologue(TR::Instruction *cursor, TR::Node *node);
 
-   /**
-    * @brief Generates switch-to-interpreter pre-prologue
-    * @param[in] cursor : cursor
-    * @param[in] node : node
-    */
-   TR::Instruction *generateSwitchToInterpreterPrePrologue(TR::Instruction *cursor, TR::Node *node);
+    bool supportsDirectJNICallsForAOT() { return true; }
 
-   bool supportsDirectJNICallsForAOT() { return true; }
+    /**
+     * \brief Determines whether the code generator supports stack allocations
+     */
+    bool supportsStackAllocations() { return true; }
 
-   /**
-    * \brief Determines whether the code generator supports stack allocations
-    */
-   bool supportsStackAllocations() { return true; }
+    /**
+     * @brief Answers whether isInstance inline fast helper is supported
+     * @return true if isInstance inline fast helper is supported
+     */
+    bool supportsInliningOfIsInstance();
 
-   /**
-    * @brief Answers whether isInstance inline fast helper is supported
-    * @return true if isInstance inline fast helper is supported
-    */
-   bool supportsInliningOfIsInstance();
+    /**
+     * @brief Answers whether isAssignableFrom inline fast helper is supported
+     * @return true if AssignableFrom inline fast helper is supported
+     */
+    bool supportsInliningOfIsAssignableFrom();
 
-   /**
-    * @brief Answers whether isAssignableFrom inline fast helper is supported
-    * @return true if AssignableFrom inline fast helper is supported
-    */
-   bool supportsInliningOfIsAssignableFrom();
+    /**
+     * @brief Answers whether inlining of the specified recognized method should be suppressed
+     * @return true if inlining of the method should be suppressed
+     */
+    bool suppressInliningOfRecognizedMethod(TR::RecognizedMethod method);
 
-   /**
-    * @brief Answers whether inlining of the specified recognized method should be suppressed
-    * @return true if inlining of the method should be suppressed
-    */
-   bool suppressInliningOfRecognizedMethod(TR::RecognizedMethod method);
+    bool callUsesHelperImplementation(TR::Symbol *sym);
+};
 
-   bool callUsesHelperImplementation(TR::Symbol *sym);
-   };
-
-}
-
-}
+}} // namespace J9::ARM64
 
 #endif

@@ -30,6 +30,7 @@
 #include "optimizer/Inliner.hpp"
 
 class TR_CallStack;
+
 namespace TR {
 class Compilation;
 }
@@ -39,110 +40,111 @@ struct TR_CallTarget;
 #define MAX_ECS_RECURSION_DEPTH 30
 
 enum EcsCleanupErrorStates {
-   ECS_NORMAL = 0,
-   ECS_RECURSION_DEPTH_THRESHOLD_EXCEEDED,
-   ECS_OPTIMISTIC_SIZE_THRESHOLD_EXCEEDED,
-   ECS_VISITED_COUNT_THRESHOLD_EXCEEDED,
-   ECS_REAL_SIZE_THRESHOLD_EXCEEDED,
-   ECS_ARGUMENTS_INCOMPATIBLE,
-   ECS_CALLSITES_CREATION_FAILED
+    ECS_NORMAL = 0,
+    ECS_RECURSION_DEPTH_THRESHOLD_EXCEEDED,
+    ECS_OPTIMISTIC_SIZE_THRESHOLD_EXCEEDED,
+    ECS_VISITED_COUNT_THRESHOLD_EXCEEDED,
+    ECS_REAL_SIZE_THRESHOLD_EXCEEDED,
+    ECS_ARGUMENTS_INCOMPATIBLE,
+    ECS_CALLSITES_CREATION_FAILED
 };
 
-class TR_EstimateCodeSize
-   {
-   public:
+class TR_EstimateCodeSize {
+public:
+    void *operator new(size_t size, TR::Allocator allocator) { return allocator.allocate(size); }
 
-   void * operator new (size_t size, TR::Allocator allocator) { return allocator.allocate(size); }
-   void operator delete (void *, TR::Allocator allocator) {}
+    void operator delete(void *, TR::Allocator allocator) {}
 
-   //    {
-   //    TR_EstimateCodeSize::raiiWrapper lexicalScopeObject(....);
-   //    TR_EstimateCodeSize *ecs = lexicalScopeObject->getCodeEstimator();
-   //    ... do whatever you gotta do
-   //    } // estimator will be automatically freed by lexicalScopeObject regardless of how scope is exited
-   class raiiWrapper
-      {
-      public:
-      raiiWrapper(TR_InlinerBase *inliner, TR_InlinerTracer *tracer, int32_t sizeThreshold)
-         {
-         _estimator = TR_EstimateCodeSize::get(inliner, tracer, sizeThreshold);
-         }
+    //    {
+    //    TR_EstimateCodeSize::raiiWrapper lexicalScopeObject(....);
+    //    TR_EstimateCodeSize *ecs = lexicalScopeObject->getCodeEstimator();
+    //    ... do whatever you gotta do
+    //    } // estimator will be automatically freed by lexicalScopeObject regardless of how scope is exited
+    class raiiWrapper {
+    public:
+        raiiWrapper(TR_InlinerBase *inliner, TR_InlinerTracer *tracer, int32_t sizeThreshold)
+        {
+            _estimator = TR_EstimateCodeSize::get(inliner, tracer, sizeThreshold);
+        }
 
-      ~raiiWrapper()
-         {
-         TR_EstimateCodeSize::release(_estimator);
-         }
+        ~raiiWrapper() { TR_EstimateCodeSize::release(_estimator); }
 
-      TR_EstimateCodeSize *getCodeEstimator()
-         {
-         return _estimator;
-         }
+        TR_EstimateCodeSize *getCodeEstimator() { return _estimator; }
 
-      private:
-      TR_EstimateCodeSize *_estimator;
-      };
+    private:
+        TR_EstimateCodeSize *_estimator;
+    };
 
-   TR_EstimateCodeSize() { }
+    TR_EstimateCodeSize() {}
 
-   static TR_EstimateCodeSize *get(TR_InlinerBase *inliner, TR_InlinerTracer *tracer, int32_t sizeThreshold);
-   static void release(TR_EstimateCodeSize *estimator);
+    static TR_EstimateCodeSize *get(TR_InlinerBase *inliner, TR_InlinerTracer *tracer, int32_t sizeThreshold);
+    static void release(TR_EstimateCodeSize *estimator);
 
-   bool calculateCodeSize(TR_CallTarget *, TR_CallStack *, bool recurseDown = true);
+    bool calculateCodeSize(TR_CallTarget *, TR_CallStack *, bool recurseDown = true);
 
-   int32_t getSize()                   { return _realSize; }
-   virtual int32_t getOptimisticSize() { return 0; } // override in subclasses that support partial inlining
-   const char *getError();
-   int32_t getSizeThreshold()          { return _sizeThreshold; }
-   bool aggressivelyInlineThrows()     { return _aggressivelyInlineThrows; }
-   bool recursedTooDeep()              { return _recursedTooDeep; }
-   bool isLeaf()                       { return _isLeaf; }
+    int32_t getSize() { return _realSize; }
 
-   int32_t getNumOfEstimatedCalls()    { return _numOfEstimatedCalls; }
-   /*
-    * \brief
-    *    tell whether this callsite has inlineable target
-    */
-   bool isInlineable(TR_CallStack *, TR_CallSite *callsite);
+    virtual int32_t getOptimisticSize() { return 0; } // override in subclasses that support partial inlining
 
-   TR::Compilation *comp()              { return _inliner->comp(); }
-   TR_InlinerTracer *tracer()          { return _tracer; }
-   TR_InlinerBase* getInliner()        { return _inliner; }
+    const char *getError();
 
-   protected:
+    int32_t getSizeThreshold() { return _sizeThreshold; }
 
-   virtual bool estimateCodeSize(TR_CallTarget *, TR_CallStack * , bool recurseDown = true, int32_t callerAnalyzedSizeThreshold = 0) = 0;
+    bool aggressivelyInlineThrows() { return _aggressivelyInlineThrows; }
 
+    bool recursedTooDeep() { return _recursedTooDeep; }
 
-   /*
-    *  \brief common tasks requiring completion before returning from estimation
-    *
-    *  \param errorState
-    *       an unique state used to identify where estimate code size bailed out
-    */
-   bool returnCleanup(EcsCleanupErrorStates errorState);
+    bool isLeaf() { return _isLeaf; }
 
-   /* Fields */
+    int32_t getNumOfEstimatedCalls() { return _numOfEstimatedCalls; }
 
-   bool _isLeaf;
-   bool _foundThrow;
-   bool _hasExceptionHandlers;
-   bool _mayHaveVirtualCallProfileInfo;
-   bool _aggressivelyInlineThrows;
+    /*
+     * \brief
+     *    tell whether this callsite has inlineable target
+     */
+    bool isInlineable(TR_CallStack *, TR_CallSite *callsite);
 
-   int32_t _recursionDepth;
-   bool _recursedTooDeep;
+    TR::Compilation *comp() { return _inliner->comp(); }
 
-   int32_t _sizeThreshold;
-   int32_t _realSize;        // size once we know if we're doing a partial inline or not
-   EcsCleanupErrorStates _error;
+    TR_InlinerTracer *tracer() { return _tracer; }
 
-   int32_t _totalBCSize;     // Pure accumulation of the bytecode size. Used by HW-based inlining.
+    TR_InlinerBase *getInliner() { return _inliner; }
 
-   TR_InlinerBase * _inliner;
-   TR_InlinerTracer *_tracer;
+protected:
+    virtual bool estimateCodeSize(TR_CallTarget *, TR_CallStack *, bool recurseDown = true,
+        int32_t callerAnalyzedSizeThreshold = 0)
+        = 0;
 
-   int32_t _numOfEstimatedCalls;
-   bool _hasNonColdCalls;
-   };
+    /*
+     *  \brief common tasks requiring completion before returning from estimation
+     *
+     *  \param errorState
+     *       an unique state used to identify where estimate code size bailed out
+     */
+    bool returnCleanup(EcsCleanupErrorStates errorState);
+
+    /* Fields */
+
+    bool _isLeaf;
+    bool _foundThrow;
+    bool _hasExceptionHandlers;
+    bool _mayHaveVirtualCallProfileInfo;
+    bool _aggressivelyInlineThrows;
+
+    int32_t _recursionDepth;
+    bool _recursedTooDeep;
+
+    int32_t _sizeThreshold;
+    int32_t _realSize; // size once we know if we're doing a partial inline or not
+    EcsCleanupErrorStates _error;
+
+    int32_t _totalBCSize; // Pure accumulation of the bytecode size. Used by HW-based inlining.
+
+    TR_InlinerBase *_inliner;
+    TR_InlinerTracer *_tracer;
+
+    int32_t _numOfEstimatedCalls;
+    bool _hasNonColdCalls;
+};
 
 #endif

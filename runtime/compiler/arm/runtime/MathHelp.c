@@ -24,53 +24,51 @@
 #include "j9comp.h"
 
 I_32 __intDivideC(I_32 p1, I_32 p2) { return p1 / p2; }
+
 I_32 __intRemainderC(I_32 p1, I_32 p2) { return p1 % p2; }
+
 I_64 __longDivideC(I_64 p1, I_64 p2) { return p1 / p2; }
+
 I_64 __longRemainderC(I_64 p1, I_64 p2) { return p1 % p2; }
+
 I_64 __multi64(I_64 p1, I_64 p2) { return p1 * p2; }
 
 #if (defined(__VFP_FP__) && !defined(__SOFTFP__))
 
 I_64 __convertDouble2Long(double a)
-   {
-   /* NaN, max long, and min long cases are handled in Math.s:_double2Long */
-   return (I_64) a;
-   }
+{
+    /* NaN, max long, and min long cases are handled in Math.s:_double2Long */
+    return (I_64)a;
+}
 
 I_64 __convertFloat2Long(float a)
-   {
-   /* NaN, max long, and min long cases are handled in Math.s:_float2Long */
-   return (I_64) a;
-   }
-   
-double __convertLong2Double(I_64 a)
-   {
-   return (double) a;
-   }
+{
+    /* NaN, max long, and min long cases are handled in Math.s:_float2Long */
+    return (I_64)a;
+}
 
-float __convertLong2Float(I_64 a)
-   {
-   return (float) a;
-   }
-   
+double __convertLong2Double(I_64 a) { return (double)a; }
+
+float __convertLong2Float(I_64 a) { return (float)a; }
+
 double __doubleRemainderC(double p1, double p2)
-   {
-   if (isnan(p1))
-      return p1;
-   else if (isnan(p2))
-      return p2;
-   else
-      return fmod(p1, p2);
-   }
+{
+    if (isnan(p1))
+        return p1;
+    else if (isnan(p2))
+        return p2;
+    else
+        return fmod(p1, p2);
+}
 
 float __floatRemainderC(float p1, float p2)
-   {
-   if (isnan(p1)) 
-      return p1;
-   else if (isnan(p2))
-      return p2;
-   else
-      return fmodf(p1, p2);
-   }
+{
+    if (isnan(p1))
+        return p1;
+    else if (isnan(p2))
+        return p2;
+    else
+        return fmodf(p1, p2);
+}
 #endif
 

@@ -20,14 +20,14 @@
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0 OR GPL-2.0-only WITH OpenJDK-assembly-exception-1.0
  *******************************************************************************/
 
-//On zOS XLC linker can't handle files with same name at link time
-//This workaround with pragma is needed. What this does is essentially
-//give a different name to the codesection (csect) for this file. So it
-//doesn't conflict with another file with same name.
+// On zOS XLC linker can't handle files with same name at link time
+// This workaround with pragma is needed. What this does is essentially
+// give a different name to the codesection (csect) for this file. So it
+// doesn't conflict with another file with same name.
 
-#pragma csect(CODE,"TRJ9ZCGPhase#C")
-#pragma csect(STATIC,"TRJ9ZCGPhase#S")
-#pragma csect(TEST,"TRJ9ZCGPhase#T")
+#pragma csect(CODE, "TRJ9ZCGPhase#C")
+#pragma csect(STATIC, "TRJ9ZCGPhase#S")
+#pragma csect(TEST, "TRJ9ZCGPhase#T")
 
 #include "codegen/CodeGenPhase.hpp"
 #include "codegen/CodeGenerator.hpp"
@@ -37,61 +37,46 @@
 #include "ras/Logger.hpp"
 
 // to decide if asyncchecks should be inserted at method exits
-#define BYTECODESIZE_THRESHOLD_FOR_ASYNCCHECKS  300
+#define BYTECODESIZE_THRESHOLD_FOR_ASYNCCHECKS 300
 
-void
-J9::Z::CodeGenPhase::performInMemoryLoadStoreMarkingPhase(TR::CodeGenerator * cg, TR::CodeGenPhase * phase)
-   {
-   InMemoryLoadStoreMarking obj = InMemoryLoadStoreMarking(cg);
-   obj.perform();
-   }
+void J9::Z::CodeGenPhase::performInMemoryLoadStoreMarkingPhase(TR::CodeGenerator *cg, TR::CodeGenPhase *phase)
+{
+    InMemoryLoadStoreMarking obj = InMemoryLoadStoreMarking(cg);
+    obj.perform();
+}
 
-void
-J9::Z::CodeGenPhase::performReduceSynchronizedFieldLoadPhase(TR::CodeGenerator * cg, TR::CodeGenPhase * phase)
-   {
-   ReduceSynchronizedFieldLoad obj = ReduceSynchronizedFieldLoad(cg);
+void J9::Z::CodeGenPhase::performReduceSynchronizedFieldLoadPhase(TR::CodeGenerator *cg, TR::CodeGenPhase *phase)
+{
+    ReduceSynchronizedFieldLoad obj = ReduceSynchronizedFieldLoad(cg);
 
-   if (obj.perform())
-      {
-      if (cg->comp()->getOption(TR_TraceCG))
-         {
-         cg->comp()->dumpMethodTrees(cg->comp()->log(), "Post Reduce Synchronized Field Load Trees");
-         }
-      }
-   }
+    if (obj.perform()) {
+        if (cg->comp()->getOption(TR_TraceCG)) {
+            cg->comp()->dumpMethodTrees(cg->comp()->log(), "Post Reduce Synchronized Field Load Trees");
+        }
+    }
+}
 
-void
-J9::Z::CodeGenPhase::performUncommonBCDCHKAddressNodePhase(TR::CodeGenerator * cg, TR::CodeGenPhase * phase)
-   {
-   UncommonBCDCHKAddressNode obj = UncommonBCDCHKAddressNode(cg);
-   obj.perform();
-   }
+void J9::Z::CodeGenPhase::performUncommonBCDCHKAddressNodePhase(TR::CodeGenerator *cg, TR::CodeGenPhase *phase)
+{
+    UncommonBCDCHKAddressNode obj = UncommonBCDCHKAddressNode(cg);
+    obj.perform();
+}
 
-int
-J9::Z::CodeGenPhase::getNumPhases()
-   {
-   return static_cast<int>(TR::CodeGenPhase::LastJ9ZPhase);
-   }
+int J9::Z::CodeGenPhase::getNumPhases() { return static_cast<int>(TR::CodeGenPhase::LastJ9ZPhase); }
 
-const char *
-J9::Z::CodeGenPhase::getName()
-   {
-   return TR::CodeGenPhase::getName(_currentPhase);
-   }
+const char *J9::Z::CodeGenPhase::getName() { return TR::CodeGenPhase::getName(_currentPhase); }
 
-const char *
-J9::Z::CodeGenPhase::getName(TR::CodeGenPhase::PhaseValue phase)
-   {
-   switch (phase)
-      {
-      case InMemoryLoadStoreMarkingPhase:
-         return "InMemoryLoadStoreMarkingPhase";
-      case ReduceSynchronizedFieldLoadPhase:
-         return "ReduceSynchronizedFieldLoadPhase";
-      case UncommonBCDCHKAddressNodePhase:
-         return "UncommonBCDCHKAddressNodePhase";
-      default:
-	      return J9::CodeGenPhase::getName(phase);
-      }
-   }
+const char *J9::Z::CodeGenPhase::getName(TR::CodeGenPhase::PhaseValue phase)
+{
+    switch (phase) {
+        case InMemoryLoadStoreMarkingPhase:
+            return "InMemoryLoadStoreMarkingPhase";
+        case ReduceSynchronizedFieldLoadPhase:
+            return "ReduceSynchronizedFieldLoadPhase";
+        case UncommonBCDCHKAddressNodePhase:
+            return "UncommonBCDCHKAddressNodePhase";
+        default:
+            return J9::CodeGenPhase::getName(phase);
+    }
+}
 

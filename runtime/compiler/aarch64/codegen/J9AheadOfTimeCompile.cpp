@@ -27,57 +27,48 @@
 #include "runtime/RelocationRuntime.hpp"
 #include "runtime/RelocationRecord.hpp"
 
-J9::ARM64::AheadOfTimeCompile::AheadOfTimeCompile(TR::CodeGenerator *cg) :
-      J9::AheadOfTimeCompile(NULL, cg->comp()),
-      _cg(cg)
-   {
-   }
+J9::ARM64::AheadOfTimeCompile::AheadOfTimeCompile(TR::CodeGenerator *cg)
+    : J9::AheadOfTimeCompile(NULL, cg->comp())
+    , _cg(cg)
+{}
 
-void J9::ARM64::AheadOfTimeCompile::processRelocations()
-   {
-   J9::AheadOfTimeCompile::processRelocations();
-   }
+void J9::ARM64::AheadOfTimeCompile::processRelocations() { J9::AheadOfTimeCompile::processRelocations(); }
 
-bool
-J9::ARM64::AheadOfTimeCompile::initializePlatformSpecificAOTRelocationHeader(TR::IteratedExternalRelocation *relocation,
-                                                                             TR_RelocationTarget *reloTarget,
-                                                                             TR_RelocationRecord *reloRecord,
-                                                                             uint8_t targetKind)
-   {
-   bool platformSpecificReloInitialized = true;
+bool J9::ARM64::AheadOfTimeCompile::initializePlatformSpecificAOTRelocationHeader(
+    TR::IteratedExternalRelocation *relocation, TR_RelocationTarget *reloTarget, TR_RelocationRecord *reloRecord,
+    uint8_t targetKind)
+{
+    bool platformSpecificReloInitialized = true;
 
-   switch (targetKind)
-      {
-      case TR_DiscontiguousSymbolFromManager:
-         {
-         TR_RelocationRecordDiscontiguousSymbolFromManager *dsfmRecord = reinterpret_cast<TR_RelocationRecordDiscontiguousSymbolFromManager *>(reloRecord);
+    switch (targetKind) {
+        case TR_DiscontiguousSymbolFromManager: {
+            TR_RelocationRecordDiscontiguousSymbolFromManager *dsfmRecord
+                = reinterpret_cast<TR_RelocationRecordDiscontiguousSymbolFromManager *>(reloRecord);
 
-         uint8_t *symbol = (uint8_t *)relocation->getTargetAddress();
-         uint16_t symbolID = self()->comp()->getSymbolValidationManager()->getSymbolIDFromValue(static_cast<void *>(symbol));
+            uint8_t *symbol = (uint8_t *)relocation->getTargetAddress();
+            uint16_t symbolID
+                = self()->comp()->getSymbolValidationManager()->getSymbolIDFromValue(static_cast<void *>(symbol));
 
-         uint16_t symbolType = (uint16_t)(uintptr_t)relocation->getTargetAddress2();
+            uint16_t symbolType = (uint16_t)(uintptr_t)relocation->getTargetAddress2();
 
-         dsfmRecord->setSymbolID(reloTarget, symbolID);
-         dsfmRecord->setSymbolType(reloTarget, static_cast<TR::SymbolType>(symbolType));
-         }
-         break;
+            dsfmRecord->setSymbolID(reloTarget, symbolID);
+            dsfmRecord->setSymbolType(reloTarget, static_cast<TR::SymbolType>(symbolType));
+        } break;
 
-      case TR_HCR:
-         {
-         TR_RelocationRecordHCR *hcrRecord = reinterpret_cast<TR_RelocationRecordHCR *>(reloRecord);
+        case TR_HCR: {
+            TR_RelocationRecordHCR *hcrRecord = reinterpret_cast<TR_RelocationRecordHCR *>(reloRecord);
 
-         uintptr_t gv = reinterpret_cast<uintptr_t>(relocation->getTargetAddress());
-         uint8_t flags = static_cast<uint8_t>(reinterpret_cast<uintptr_t>(relocation->getTargetAddress2()));
+            uintptr_t gv = reinterpret_cast<uintptr_t>(relocation->getTargetAddress());
+            uint8_t flags = static_cast<uint8_t>(reinterpret_cast<uintptr_t>(relocation->getTargetAddress2()));
 
-         hcrRecord->setReloFlags(reloTarget, flags);
-         hcrRecord->setOffset(reloTarget, gv);
-         }
-         break;
+            hcrRecord->setReloFlags(reloTarget, flags);
+            hcrRecord->setOffset(reloTarget, gv);
+        } break;
 
-      default:
-         platformSpecificReloInitialized = false;
-      }
+        default:
+            platformSpecificReloInitialized = false;
+    }
 
-   return platformSpecificReloInitialized;
-   }
+    return platformSpecificReloInitialized;
+}
 

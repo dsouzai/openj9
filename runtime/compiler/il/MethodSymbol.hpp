@@ -32,26 +32,21 @@ namespace TR {
 class Method;
 }
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE MethodSymbol : public J9::MethodSymbolConnector
-   {
-
+class OMR_EXTENSIBLE MethodSymbol : public J9::MethodSymbolConnector {
 protected:
-
-   MethodSymbol(TR_LinkageConventions lc = TR_Private, TR::Method * m = NULL) :
-      J9::MethodSymbolConnector(lc, m) { }
+    MethodSymbol(TR_LinkageConventions lc = TR_Private, TR::Method *m = NULL)
+        : J9::MethodSymbolConnector(lc, m)
+    {}
 
 private:
+    // When adding another class to the hierarchy, add it as a friend here
+    friend class J9::MethodSymbol;
+    friend class OMR::MethodSymbol;
+};
 
-   // When adding another class to the hierarchy, add it as a friend here
-   friend class J9::MethodSymbol;
-   friend class OMR::MethodSymbol;
-
-   };
-
-}
+} // namespace TR
 
 #endif
 

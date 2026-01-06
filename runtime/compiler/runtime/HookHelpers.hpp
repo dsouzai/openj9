@@ -26,20 +26,27 @@
 #include <stddef.h>
 
 class TR_FrontEnd;
-namespace OMR { struct CodeCacheMethodHeader; }
-namespace OMR { struct FaintCacheBlock; }
+
+namespace OMR {
+struct CodeCacheMethodHeader;
+}
+
+namespace OMR {
+struct FaintCacheBlock;
+}
 struct J9ClassLoader;
 struct J9JITConfig;
 struct J9JITExceptionTable;
 struct J9VMThread;
 
-void jitReleaseCodeCollectMetaData(J9JITConfig *jitConfig, J9VMThread *vmThread, J9JITExceptionTable *metaData, OMR::FaintCacheBlock* = 0);
-void jitRemoveAllMetaDataForClassLoader(J9VMThread * vmThread, J9ClassLoader * classLoader);
+void jitReleaseCodeCollectMetaData(J9JITConfig *jitConfig, J9VMThread *vmThread, J9JITExceptionTable *metaData,
+    OMR::FaintCacheBlock * = 0);
+void jitRemoveAllMetaDataForClassLoader(J9VMThread *vmThread, J9ClassLoader *classLoader);
 void jitReclaimMarkedAssumptions(bool isEager);
 void vlogReclamation(const char *prefix, J9JITExceptionTable *metaData, size_t bytesToSaveAtStart);
 void freeFastWalkCache(J9VMThread *vmThread, J9JITExceptionTable *metaData);
 
 // Defined in Runtime.cpp
-OMR::CodeCacheMethodHeader *getCodeCacheMethodHeader(char *p, int searchLimit, J9JITExceptionTable* metaData = NULL);
+OMR::CodeCacheMethodHeader *getCodeCacheMethodHeader(char *p, int searchLimit, J9JITExceptionTable *metaData = NULL);
 
 #endif

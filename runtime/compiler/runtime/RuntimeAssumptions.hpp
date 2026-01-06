@@ -34,7 +34,6 @@
 #include "infra/Link.hpp"
 #include "runtime/OMRRuntimeAssumptions.hpp"
 
-
 class TR_FrontEnd;
 class TR_OpaqueClassBlock;
 class TR_PatchJNICallSite;
@@ -48,282 +47,335 @@ class TR_UnloadedClassPicSite;
 /**
  * @brief Enum to describe the result of a Class Chain Validation (CCV).
  */
-enum CCVResult : uint8_t
-   {
-   notYetValidated,
-   success,
-   failure
-   };
+enum CCVResult : uint8_t {
+    notYetValidated,
+    success,
+    failure
+};
 
-class TR_SubClass : public TR_Link0<TR_SubClass>
-   {
+class TR_SubClass : public TR_Link0<TR_SubClass> {
 public:
-   TR_PERSISTENT_ALLOC(TR_Memory::PersistentInfo);
-   TR_SubClass(TR_PersistentClassInfo * classInfo) : _classInfo(classInfo) { }
-   TR_PersistentClassInfo * getClassInfo() { return _classInfo; }
+    TR_PERSISTENT_ALLOC(TR_Memory::PersistentInfo);
+
+    TR_SubClass(TR_PersistentClassInfo *classInfo)
+        : _classInfo(classInfo)
+    {}
+
+    TR_PersistentClassInfo *getClassInfo() { return _classInfo; }
 
 private:
-   TR_PersistentClassInfo * _classInfo;
-   };
+    TR_PersistentClassInfo *_classInfo;
+};
 
-class TR_PersistentClassInfo : public TR_Link0<TR_PersistentClassInfo>
-   {
-   public:
-   TR_PERSISTENT_ALLOC(TR_Memory::PersistentInfo);
-   TR_PersistentClassInfo(TR_OpaqueClassBlock *id) :
-      _classId((TR_OpaqueClassBlock *)((uintptr_t)id | 1)),// Bit is switched on to mark it as uninitialized
-      _fieldInfo(0),
-      _prexAssumptions(0),
-      _timeStamp(0),
-      _shouldNotBeNewlyExtended(0),
-      _flags(0),
-      _ccvResult(notYetValidated) { }
+class TR_PersistentClassInfo : public TR_Link0<TR_PersistentClassInfo> {
+public:
+    TR_PERSISTENT_ALLOC(TR_Memory::PersistentInfo);
 
-   TR_OpaqueClassBlock *getClassId() { return (TR_OpaqueClassBlock *) (((uintptr_t) _classId) & ~(uintptr_t)1); }
-   bool isInitialized(bool validate = true);
-   virtual void setInitialized(TR_PersistentMemory *);
+    TR_PersistentClassInfo(TR_OpaqueClassBlock *id)
+        : _classId((TR_OpaqueClassBlock *)((uintptr_t)id | 1))
+        , // Bit is switched on to mark it as uninitialized
+        _fieldInfo(0)
+        , _prexAssumptions(0)
+        , _timeStamp(0)
+        , _shouldNotBeNewlyExtended(0)
+        , _flags(0)
+        , _ccvResult(notYetValidated)
+    {}
 
-   // HCR
-   virtual void setClassId(TR_OpaqueClassBlock *newClass)
-      {
-      _classId = (TR_OpaqueClassBlock *) (((uintptr_t)newClass) | (uintptr_t)isInitialized());
-      setClassHasBeenRedefined(true);
-      }
+    TR_OpaqueClassBlock *getClassId() { return (TR_OpaqueClassBlock *)(((uintptr_t)_classId) & ~(uintptr_t)1); }
 
-   TR_SubClass *getFirstSubclass() { return _subClasses.getFirst(); }
-   virtual void setFirstSubClass(TR_SubClass *sc) { _subClasses.setFirst(sc); }
+    bool isInitialized(bool validate = true);
+    virtual void setInitialized(TR_PersistentMemory *);
 
-   void setVisited() {_visitedStatus |= 1; }
-   void resetVisited() { _visitedStatus = _visitedStatus & ~(uintptr_t)1; }
-   bool hasBeenVisited()
+    // HCR
+    virtual void setClassId(TR_OpaqueClassBlock *newClass)
     {
-    if (_visitedStatus & 1)
-       return true;
-    return false;
+        _classId = (TR_OpaqueClassBlock *)(((uintptr_t)newClass) | (uintptr_t)isInitialized());
+        setClassHasBeenRedefined(true);
     }
 
-   TR_PersistentClassInfoForFields *getFieldInfo()
-      {
-      uintptr_t fieldInfo = (uintptr_t) _fieldInfo;
-      fieldInfo = fieldInfo & ~(uintptr_t)3;
-      return (TR_PersistentClassInfoForFields *) fieldInfo;
-      }
-   virtual void setFieldInfo(TR_PersistentClassInfoForFields *i)
-      {
-      uintptr_t fieldInfo = (uintptr_t) i;
-      fieldInfo |= (((uintptr_t) _fieldInfo) & (uintptr_t)3);
-      _visitedStatus = fieldInfo;
-      }
+    TR_SubClass *getFirstSubclass() { return _subClasses.getFirst(); }
 
-   int32_t getSubClassesCount() { return _subClasses.getSize(); }
+    virtual void setFirstSubClass(TR_SubClass *sc) { _subClasses.setFirst(sc); }
 
-   virtual TR_SubClass *addSubClass(TR_PersistentClassInfo *subClass);
-   virtual void removeSubClasses(TR_PersistentMemory *persistentMemory = ::trPersistentMemory);
-   virtual void removeASubClass(TR_PersistentClassInfo *subClass);
-   virtual void removeUnloadedSubClasses();
-   virtual void setUnloaded(){_visitedStatus |= 0x2;}
-   bool getUnloaded()
+    void setVisited() { _visitedStatus |= 1; }
+
+    void resetVisited() { _visitedStatus = _visitedStatus & ~(uintptr_t)1; }
+
+    bool hasBeenVisited()
     {
-    if (_visitedStatus & 0x2)
-       return true;
-    return false;
-   }
-   uint16_t getTimeStamp() { return _timeStamp; }
-   int16_t getNumPrexAssumptions() { return _prexAssumptions; }
-   virtual void incNumPrexAssumptions() { _prexAssumptions++; }
+        if (_visitedStatus & 1)
+            return true;
+        return false;
+    }
 
-   virtual void setReservable(bool v = true)              { _flags.set(_isReservable, v); }
-   bool isReservable()                            { return _flags.testAny(_isReservable); }
+    TR_PersistentClassInfoForFields *getFieldInfo()
+    {
+        uintptr_t fieldInfo = (uintptr_t)_fieldInfo;
+        fieldInfo = fieldInfo & ~(uintptr_t)3;
+        return (TR_PersistentClassInfoForFields *)fieldInfo;
+    }
 
-   virtual void setShouldNotBeNewlyExtended(int32_t ID);
-   virtual void resetShouldNotBeNewlyExtended(int32_t ID)   { _shouldNotBeNewlyExtended.reset(1 << ID); }
-   virtual void clearShouldNotBeNewlyExtended()             { _shouldNotBeNewlyExtended.clear(); }
-   bool shouldNotBeNewlyExtended()                   { return _shouldNotBeNewlyExtended.testAny(0xffff); }
-   bool shouldNotBeNewlyExtended(int32_t ID)         { return _shouldNotBeNewlyExtended.testAny(1 << ID); }
-   flags16_t getShouldNotBeNewlyExtendedMask() const { return _shouldNotBeNewlyExtended; }
+    virtual void setFieldInfo(TR_PersistentClassInfoForFields *i)
+    {
+        uintptr_t fieldInfo = (uintptr_t)i;
+        fieldInfo |= (((uintptr_t)_fieldInfo) & (uintptr_t)3);
+        _visitedStatus = fieldInfo;
+    }
 
-   virtual void setAlreadyScannedForFinalPutstatic() { _flags.set(_alreadyScannedForFinalPutstatic, true); }
-   bool alreadyScannedForFinalPutstatic() { return _flags.testAny(_alreadyScannedForFinalPutstatic); }
+    int32_t getSubClassesCount() { return _subClasses.getSize(); }
 
-   virtual void setHasRecognizedAnnotations(bool v = true){ _flags.set(_containsRecognizedAnnotations, v); }
-   bool hasRecognizedAnnotations()                { return _flags.testAny(_containsRecognizedAnnotations); }
-   virtual void setAlreadyCheckedForAnnotations(bool v = true){ _flags.set(_alreadyScannedForAnnotations, v); }
-   bool alreadyCheckedForAnnotations()            { return _flags.testAny(_alreadyScannedForAnnotations); }
+    virtual TR_SubClass *addSubClass(TR_PersistentClassInfo *subClass);
+    virtual void removeSubClasses(TR_PersistentMemory *persistentMemory = ::trPersistentMemory);
+    virtual void removeASubClass(TR_PersistentClassInfo *subClass);
+    virtual void removeUnloadedSubClasses();
 
-   virtual void setCannotTrustStaticFinal(bool v = true)  { _flags.set(_cannotTrustStaticFinal, v); }
-   bool cannotTrustStaticFinal()                  { return _flags.testAny(_cannotTrustStaticFinal); }
+    virtual void setUnloaded() { _visitedStatus |= 0x2; }
 
-   // HCR
-   virtual void setClassHasBeenRedefined(bool v = true)  { _flags.set(_classHasBeenRedefined, v); }
-   bool classHasBeenRedefined()                  { return _flags.testAny(_classHasBeenRedefined); }
+    bool getUnloaded()
+    {
+        if (_visitedStatus & 0x2)
+            return true;
+        return false;
+    }
 
-   void setCCVResult(CCVResult result) { _ccvResult = result; }
-   CCVResult getCCVResult() const { return _ccvResult; }
+    uint16_t getTimeStamp() { return _timeStamp; }
 
-   private:
+    int16_t getNumPrexAssumptions() { return _prexAssumptions; }
 
-   enum // flag bits
-      {
-      _alreadyScannedForFinalPutstatic      = 0x01,
-      _isReservable                         = 0x02,
-      _containsRecognizedAnnotations        = 0x04,
-      _alreadyScannedForAnnotations         = 0x08,
-      _cannotTrustStaticFinal               = 0x10,
-      // HCR
-      _classHasBeenRedefined                = 0x20,
-      _dummyEnum
-      };
+    virtual void incNumPrexAssumptions() { _prexAssumptions++; }
 
-   friend class TR_ClassQueries;
-   friend class J9::Options;
-   friend class ::OMR::Options;
+    virtual void setReservable(bool v = true) { _flags.set(_isReservable, v); }
+
+    bool isReservable() { return _flags.testAny(_isReservable); }
+
+    virtual void setShouldNotBeNewlyExtended(int32_t ID);
+
+    virtual void resetShouldNotBeNewlyExtended(int32_t ID) { _shouldNotBeNewlyExtended.reset(1 << ID); }
+
+    virtual void clearShouldNotBeNewlyExtended() { _shouldNotBeNewlyExtended.clear(); }
+
+    bool shouldNotBeNewlyExtended() { return _shouldNotBeNewlyExtended.testAny(0xffff); }
+
+    bool shouldNotBeNewlyExtended(int32_t ID) { return _shouldNotBeNewlyExtended.testAny(1 << ID); }
+
+    flags16_t getShouldNotBeNewlyExtendedMask() const { return _shouldNotBeNewlyExtended; }
+
+    virtual void setAlreadyScannedForFinalPutstatic() { _flags.set(_alreadyScannedForFinalPutstatic, true); }
+
+    bool alreadyScannedForFinalPutstatic() { return _flags.testAny(_alreadyScannedForFinalPutstatic); }
+
+    virtual void setHasRecognizedAnnotations(bool v = true) { _flags.set(_containsRecognizedAnnotations, v); }
+
+    bool hasRecognizedAnnotations() { return _flags.testAny(_containsRecognizedAnnotations); }
+
+    virtual void setAlreadyCheckedForAnnotations(bool v = true) { _flags.set(_alreadyScannedForAnnotations, v); }
+
+    bool alreadyCheckedForAnnotations() { return _flags.testAny(_alreadyScannedForAnnotations); }
+
+    virtual void setCannotTrustStaticFinal(bool v = true) { _flags.set(_cannotTrustStaticFinal, v); }
+
+    bool cannotTrustStaticFinal() { return _flags.testAny(_cannotTrustStaticFinal); }
+
+    // HCR
+    virtual void setClassHasBeenRedefined(bool v = true) { _flags.set(_classHasBeenRedefined, v); }
+
+    bool classHasBeenRedefined() { return _flags.testAny(_classHasBeenRedefined); }
+
+    void setCCVResult(CCVResult result) { _ccvResult = result; }
+
+    CCVResult getCCVResult() const { return _ccvResult; }
+
+private:
+    enum // flag bits
+    {
+        _alreadyScannedForFinalPutstatic = 0x01,
+        _isReservable = 0x02,
+        _containsRecognizedAnnotations = 0x04,
+        _alreadyScannedForAnnotations = 0x08,
+        _cannotTrustStaticFinal = 0x10,
+        // HCR
+        _classHasBeenRedefined = 0x20,
+        _dummyEnum
+    };
+
+    friend class TR_ClassQueries;
+    friend class J9::Options;
+    friend class ::OMR::Options;
 #if defined(J9VM_OPT_JITSERVER)
-   friend class FlatPersistentClassInfo;
+    friend class FlatPersistentClassInfo;
 #endif
 
-   TR_OpaqueClassBlock      *_classId;
-   TR_LinkHead0<TR_SubClass> _subClasses;
+    TR_OpaqueClassBlock *_classId;
+    TR_LinkHead0<TR_SubClass> _subClasses;
 
-   union
-      {
-      uintptr_t _visitedStatus;
-      TR_PersistentClassInfoForFields *_fieldInfo;
-      };
-   int16_t   _prexAssumptions;
-   uint16_t  _timeStamp;
-   flags16_t _shouldNotBeNewlyExtended; // one bit for each possible compilation thread
-   flags8_t  _flags;
-   CCVResult _ccvResult;
-   };
+    union {
+        uintptr_t _visitedStatus;
+        TR_PersistentClassInfoForFields *_fieldInfo;
+    };
 
-class TR_AddressRange
-   {
-   uintptr_t _start;
-   uintptr_t _end; // start == end means only one address in this range
+    int16_t _prexAssumptions;
+    uint16_t _timeStamp;
+    flags16_t _shouldNotBeNewlyExtended; // one bit for each possible compilation thread
+    flags8_t _flags;
+    CCVResult _ccvResult;
+};
 
-   public:
-   TR_PERSISTENT_ALLOC(TR_MemoryBase::Assumption);
-   TR_AddressRange()
+class TR_AddressRange {
+    uintptr_t _start;
+    uintptr_t _end; // start == end means only one address in this range
+
+public:
+    TR_PERSISTENT_ALLOC(TR_MemoryBase::Assumption);
+    TR_AddressRange()
 #if defined(DEBUG)
-      // Paint invalid fields
-      :_start(0x321dead),
-       _end(0x321dead)
+        // Paint invalid fields
+        : _start(0x321dead)
+        , _end(0x321dead)
 #endif
-      {}
+    {}
 
-   uintptr_t getStart() { return _start; }
-   uintptr_t getEnd()   { return _end; }
+    uintptr_t getStart() { return _start; }
 
-   void initialize(uintptr_t start, uintptr_t end){ _start = start; _end = end; }
-   void add(uintptr_t start, uintptr_t end){ _start = std::min(_start, start); _end = std::max(end, _end); }
-   bool covers(uintptr_t address){ return _start <= address && address <= _end; }
+    uintptr_t getEnd() { return _end; }
 
-   };
+    void initialize(uintptr_t start, uintptr_t end)
+    {
+        _start = start;
+        _end = end;
+    }
 
-class TR_AddressSet
-   {
-   TR_AddressRange *_addressRanges;
-   int32_t          _numAddressRanges;
-   int32_t          _maxAddressRanges;
+    void add(uintptr_t start, uintptr_t end)
+    {
+        _start = std::min(_start, start);
+        _end = std::max(end, _end);
+    }
 
-   static void trace(const char *format, ...);
-   static bool enableTraceDetails();
-   static void traceDetails(const char *format, ...);
+    bool covers(uintptr_t address) { return _start <= address && address <= _end; }
+};
 
-   void moveAddressRanges(int32_t desiredHole, int32_t currentHole);
-   void moveAddressRangesBy(int32_t low, int32_t high, int32_t distance);
-   void findCheapestRangesToMerge(uintptr_t *cost, int32_t *lowerIndex);
+class TR_AddressSet {
+    TR_AddressRange *_addressRanges;
+    int32_t _numAddressRanges;
+    int32_t _maxAddressRanges;
 
-   int32_t firstHigherAddressRangeIndex(uintptr_t address); // the binary search
+    static void trace(const char *format, ...);
+    static bool enableTraceDetails();
+    static void traceDetails(const char *format, ...);
 
-   public:
+    void moveAddressRanges(int32_t desiredHole, int32_t currentHole);
+    void moveAddressRangesBy(int32_t low, int32_t high, int32_t distance);
+    void findCheapestRangesToMerge(uintptr_t *cost, int32_t *lowerIndex);
 
+    int32_t firstHigherAddressRangeIndex(uintptr_t address); // the binary search
 
-   TR_PERSISTENT_ALLOC(TR_Memory::Assumption);
+public:
+    TR_PERSISTENT_ALLOC(TR_Memory::Assumption);
 
-   TR_AddressSet(TR_PersistentMemory *persistentMemory, int32_t maxAddressRanges):
-      _addressRanges(new (persistentMemory) TR_AddressRange[maxAddressRanges]),
-      _numAddressRanges(0),
-      _maxAddressRanges(maxAddressRanges)
-      {}
+    TR_AddressSet(TR_PersistentMemory *persistentMemory, int32_t maxAddressRanges)
+        : _addressRanges(new(persistentMemory) TR_AddressRange[maxAddressRanges])
+        , _numAddressRanges(0)
+        , _maxAddressRanges(maxAddressRanges)
+    {}
 
 #if defined(J9VM_OPT_JITSERVER)
-   void destroy(TR_PersistentMemory *persistentMemory);
-   void getRanges(std::vector<TR_AddressRange> &ranges); // copies the address ranges stored in the current object into a vector
-   void setRanges(const std::vector<TR_AddressRange> &ranges); // loads the address ranges from the vector given as parameter
-   int32_t getNumberOfRanges() const { return _numAddressRanges; }
-   int32_t getMaxRanges() const { return _maxAddressRanges; }
+    void destroy(TR_PersistentMemory *persistentMemory);
+    void getRanges(
+        std::vector<TR_AddressRange> &ranges); // copies the address ranges stored in the current object into a vector
+    void setRanges(
+        const std::vector<TR_AddressRange> &ranges); // loads the address ranges from the vector given as parameter
+
+    int32_t getNumberOfRanges() const { return _numAddressRanges; }
+
+    int32_t getMaxRanges() const { return _maxAddressRanges; }
 #endif
 
-   void add        (uintptr_t address){ add(address, address); }
-   void add        (uintptr_t start, uintptr_t end);
-   bool mayContain (uintptr_t address)
-      {
-      traceDetails("%p.mayContain(%p)\n", this, address);
-      int32_t index = firstHigherAddressRangeIndex(address);
-      if (index < _numAddressRanges && _addressRanges[index].covers(address))
-         return true;
-      else
-         return false;
-      }
+    void add(uintptr_t address) { add(address, address); }
 
-   };
+    void add(uintptr_t start, uintptr_t end);
 
-class TR_UnloadedClassPicSite : public OMR::ValueModifyRuntimeAssumption
-   {
-   protected:
-   TR_UnloadedClassPicSite(TR_PersistentMemory * pm, uintptr_t key, uint8_t *picLocation, uint32_t size = sizeof(uintptr_t))
-      : OMR::ValueModifyRuntimeAssumption(pm, key), _picLocation(picLocation), _size(size)
-         {}
+    bool mayContain(uintptr_t address)
+    {
+        traceDetails("%p.mayContain(%p)\n", this, address);
+        int32_t index = firstHigherAddressRangeIndex(address);
+        if (index < _numAddressRanges && _addressRanges[index].covers(address))
+            return true;
+        else
+            return false;
+    }
+};
 
-   public:
-   static TR_UnloadedClassPicSite *make(
-      TR_FrontEnd *fe, TR_PersistentMemory * pm, uintptr_t key, uint8_t *picLocation, uint32_t size,
-      TR_RuntimeAssumptionKind kind, OMR::RuntimeAssumption **sentinel);
-   virtual TR_RuntimeAssumptionKind getAssumptionKind() { return RuntimeAssumptionOnClassUnload; }
-   virtual void compensate(TR_FrontEnd *vm, bool isSMP, void *data);
-   virtual bool equals(OMR::RuntimeAssumption &other)
-      {
-      TR_UnloadedClassPicSite *o = other.asUCPSite();
-      return (o != 0) && o->_picLocation == _picLocation;
-      }
-   virtual uint8_t *getFirstAssumingPC() { return getPicLocation(); }
-   virtual uint8_t *getLastAssumingPC() { return getPicLocation(); }
-   virtual TR_UnloadedClassPicSite *asUCPSite() { return this; }
-   uint8_t * getPicLocation()    { return _picLocation; }
-   void      setPicLocation   (uint8_t *p) { _picLocation = p; }
-   uintptr_t getPicEntry() { return *((uintptr_t*)_picLocation); }
+class TR_UnloadedClassPicSite : public OMR::ValueModifyRuntimeAssumption {
+protected:
+    TR_UnloadedClassPicSite(TR_PersistentMemory *pm, uintptr_t key, uint8_t *picLocation,
+        uint32_t size = sizeof(uintptr_t))
+        : OMR::ValueModifyRuntimeAssumption(pm, key)
+        , _picLocation(picLocation)
+        , _size(size)
+    {}
 
-   virtual void dumpInfo();
+public:
+    static TR_UnloadedClassPicSite *make(TR_FrontEnd *fe, TR_PersistentMemory *pm, uintptr_t key, uint8_t *picLocation,
+        uint32_t size, TR_RuntimeAssumptionKind kind, OMR::RuntimeAssumption **sentinel);
 
-   private:
-   uint8_t    *_picLocation;
-   uint32_t    _size;
-   };
+    virtual TR_RuntimeAssumptionKind getAssumptionKind() { return RuntimeAssumptionOnClassUnload; }
+
+    virtual void compensate(TR_FrontEnd *vm, bool isSMP, void *data);
+
+    virtual bool equals(OMR::RuntimeAssumption &other)
+    {
+        TR_UnloadedClassPicSite *o = other.asUCPSite();
+        return (o != 0) && o->_picLocation == _picLocation;
+    }
+
+    virtual uint8_t *getFirstAssumingPC() { return getPicLocation(); }
+
+    virtual uint8_t *getLastAssumingPC() { return getPicLocation(); }
+
+    virtual TR_UnloadedClassPicSite *asUCPSite() { return this; }
+
+    uint8_t *getPicLocation() { return _picLocation; }
+
+    void setPicLocation(uint8_t *p) { _picLocation = p; }
+
+    uintptr_t getPicEntry() { return *((uintptr_t *)_picLocation); }
+
+    virtual void dumpInfo();
+
+private:
+    uint8_t *_picLocation;
+    uint32_t _size;
+};
 
 #ifdef J9VM_OPT_JITSERVER
 // The following needs to have enough fields to cover any possible
 // runtime assumption that we may want to send from the server to the client
-struct SerializedRuntimeAssumption
-   {
-   SerializedRuntimeAssumption(TR_RuntimeAssumptionKind kind,
-                               uintptr_t key,
-                               intptr_t offset,
-                               uint32_t size = 0,
-                               bool bOffsetFromMetaDataBase = false)
-      : _kind(kind), _key(key), _offset(offset), _size(size), _bOffsetFromMetaDataBase(bOffsetFromMetaDataBase) {}
-   TR_RuntimeAssumptionKind getKind() const { return _kind; }
-   uintptr_t getKey() const { return _key; }
-   intptr_t getOffset() const { return _offset; }
-   uint32_t getSize() const { return _size; }
-   bool isOffsetFromMetaDataBase() const { return _bOffsetFromMetaDataBase; }
+struct SerializedRuntimeAssumption {
+    SerializedRuntimeAssumption(TR_RuntimeAssumptionKind kind, uintptr_t key, intptr_t offset, uint32_t size = 0,
+        bool bOffsetFromMetaDataBase = false)
+        : _kind(kind)
+        , _key(key)
+        , _offset(offset)
+        , _size(size)
+        , _bOffsetFromMetaDataBase(bOffsetFromMetaDataBase)
+    {}
 
-   TR_RuntimeAssumptionKind _kind;
-   uint32_t  _size;
-   uintptr_t _key;
-   intptr_t  _offset; // By default, it is the offset from the start of the binary buffer.
-   bool      _bOffsetFromMetaDataBase; // If true, the _offset is from the start of TR_MethodMetaData.
-   };
+    TR_RuntimeAssumptionKind getKind() const { return _kind; }
+
+    uintptr_t getKey() const { return _key; }
+
+    intptr_t getOffset() const { return _offset; }
+
+    uint32_t getSize() const { return _size; }
+
+    bool isOffsetFromMetaDataBase() const { return _bOffsetFromMetaDataBase; }
+
+    TR_RuntimeAssumptionKind _kind;
+    uint32_t _size;
+    uintptr_t _key;
+    intptr_t _offset; // By default, it is the offset from the start of the binary buffer.
+    bool _bOffsetFromMetaDataBase; // If true, the _offset is from the start of TR_MethodMetaData.
+};
 #endif // J9VM_OPT_JITSERVER
 
 #endif

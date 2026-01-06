@@ -29,28 +29,27 @@
 
 namespace J9 {
 
-class J9SegmentCache : public J9SegmentProvider
-   {
+class J9SegmentCache : public J9SegmentProvider {
 public:
+    J9SegmentCache(size_t cachedSegmentSize, J9SegmentProvider &backingProvider);
+    J9SegmentCache(J9SegmentCache &donor);
 
-   J9SegmentCache(size_t cachedSegmentSize, J9SegmentProvider &backingProvider);
-   J9SegmentCache(J9SegmentCache &donor);
+    ~J9SegmentCache() throw();
 
-   ~J9SegmentCache() throw();
+    virtual J9MemorySegment &request(size_t requiredSize);
+    virtual void release(J9MemorySegment &segment) throw();
 
-   virtual J9MemorySegment& request(size_t requiredSize);
-   virtual void release(J9MemorySegment& segment) throw();
-   virtual size_t getPreferredSegmentSize() { return _cachedSegmentSize; }
+    virtual size_t getPreferredSegmentSize() { return _cachedSegmentSize; }
 
-   J9SegmentCache &ref() { return *this; }
+    J9SegmentCache &ref() { return *this; }
 
 private:
-   size_t _cachedSegmentSize;
-   J9SegmentProvider &_backingProvider;
-   J9MemorySegment *_firstSegment;
-   bool _firstSegmentInUse;
-   };
+    size_t _cachedSegmentSize;
+    J9SegmentProvider &_backingProvider;
+    J9MemorySegment *_firstSegment;
+    bool _firstSegmentInUse;
+};
 
-}
+} // namespace J9
 
 #endif // J9SEGMENT_CACHE_H

@@ -26,73 +26,62 @@
 #include "j9.h"
 #include "j9port.h"
 
-TR::CPU
-J9::Power::CPU::detectRelocatable(OMRPortLibrary * const omrPortLib)
-   {
-   if (omrPortLib == NULL)
-      return TR::CPU();
+TR::CPU J9::Power::CPU::detectRelocatable(OMRPortLibrary * const omrPortLib)
+{
+    if (omrPortLib == NULL)
+        return TR::CPU();
 
-   OMRPORT_ACCESS_FROM_OMRPORT(omrPortLib);
-   OMRProcessorDesc portableProcessorDescription;
-   omrsysinfo_get_processor_description(&portableProcessorDescription);
+    OMRPORT_ACCESS_FROM_OMRPORT(omrPortLib);
+    OMRProcessorDesc portableProcessorDescription;
+    omrsysinfo_get_processor_description(&portableProcessorDescription);
 
-   if (portableProcessorDescription.processor > OMR_PROCESSOR_PPC_P8)
-      {
-      portableProcessorDescription.processor = OMR_PROCESSOR_PPC_P8;
-      portableProcessorDescription.physicalProcessor = OMR_PROCESSOR_PPC_P8;
-      }
+    if (portableProcessorDescription.processor > OMR_PROCESSOR_PPC_P8) {
+        portableProcessorDescription.processor = OMR_PROCESSOR_PPC_P8;
+        portableProcessorDescription.physicalProcessor = OMR_PROCESSOR_PPC_P8;
+    }
 
-   const uint32_t disabledFeatures [] = { OMR_FEATURE_PPC_HTM };
-   for (size_t i = 0; i < sizeof(disabledFeatures)/sizeof(uint32_t); i++)
-      {
-      omrsysinfo_processor_set_feature(&portableProcessorDescription, disabledFeatures[i], FALSE);
-      }
+    const uint32_t disabledFeatures[] = { OMR_FEATURE_PPC_HTM };
+    for (size_t i = 0; i < sizeof(disabledFeatures) / sizeof(uint32_t); i++) {
+        omrsysinfo_processor_set_feature(&portableProcessorDescription, disabledFeatures[i], FALSE);
+    }
 
-   return TR::CPU::customize(portableProcessorDescription);
-   }
+    return TR::CPU::customize(portableProcessorDescription);
+}
 
-bool
-J9::Power::CPU::isCompatible(const OMRProcessorDesc& processorDescription)
-   {
-   const OMRProcessorArchitecture& targetProcessor = self()->getProcessorDescription().processor;
-   const OMRProcessorArchitecture& processor = processorDescription.processor;
+bool J9::Power::CPU::isCompatible(const OMRProcessorDesc &processorDescription)
+{
+    const OMRProcessorArchitecture &targetProcessor = self()->getProcessorDescription().processor;
+    const OMRProcessorArchitecture &processor = processorDescription.processor;
 
-   for (int i = 0; i < OMRPORT_SYSINFO_FEATURES_SIZE; i++)
-      {
-      if ((processorDescription.features[i] & self()->getProcessorDescription().features[i]) != processorDescription.features[i])
-         return false;
-      }
+    for (int i = 0; i < OMRPORT_SYSINFO_FEATURES_SIZE; i++) {
+        if ((processorDescription.features[i] & self()->getProcessorDescription().features[i])
+            != processorDescription.features[i])
+            return false;
+    }
 
-   // Backwards compatibility only applies to p4,p5,p6,p7 and onwards
-   // Looks for equality otherwise
-   if ((processor == OMR_PROCESSOR_PPC_GP
-       || processor == OMR_PROCESSOR_PPC_GR
-       || processor == OMR_PROCESSOR_PPC_P6
-       || (processor >= OMR_PROCESSOR_PPC_P7 && processor <= OMR_PROCESSOR_PPC_LAST))
-       && (targetProcessor == OMR_PROCESSOR_PPC_GP
-        || targetProcessor == OMR_PROCESSOR_PPC_GR
-        || targetProcessor == OMR_PROCESSOR_PPC_P6
-        || targetProcessor >= OMR_PROCESSOR_PPC_P7 && targetProcessor <= OMR_PROCESSOR_PPC_LAST))
-      {
-      return targetProcessor >= processor;
-      }
-   return targetProcessor == processor;
-   }
+    // Backwards compatibility only applies to p4,p5,p6,p7 and onwards
+    // Looks for equality otherwise
+    if ((processor == OMR_PROCESSOR_PPC_GP || processor == OMR_PROCESSOR_PPC_GR || processor == OMR_PROCESSOR_PPC_P6
+            || (processor >= OMR_PROCESSOR_PPC_P7 && processor <= OMR_PROCESSOR_PPC_LAST))
+        && (targetProcessor == OMR_PROCESSOR_PPC_GP || targetProcessor == OMR_PROCESSOR_PPC_GR
+            || targetProcessor == OMR_PROCESSOR_PPC_P6
+            || targetProcessor >= OMR_PROCESSOR_PPC_P7 && targetProcessor <= OMR_PROCESSOR_PPC_LAST)) {
+        return targetProcessor >= processor;
+    }
+    return targetProcessor == processor;
+}
 
-void
-J9::Power::CPU::enableFeatureMasks()
-   {
-   // Only enable the features that compiler currently uses
-   const uint32_t utilizedFeatures [] = {OMR_FEATURE_PPC_HAS_ALTIVEC, OMR_FEATURE_PPC_HAS_DFP,
-                                        OMR_FEATURE_PPC_HTM, OMR_FEATURE_PPC_HAS_VSX};
+void J9::Power::CPU::enableFeatureMasks()
+{
+    // Only enable the features that compiler currently uses
+    const uint32_t utilizedFeatures[]
+        = { OMR_FEATURE_PPC_HAS_ALTIVEC, OMR_FEATURE_PPC_HAS_DFP, OMR_FEATURE_PPC_HTM, OMR_FEATURE_PPC_HAS_VSX };
 
+    memset(_supportedFeatureMasks.features, 0, OMRPORT_SYSINFO_FEATURES_SIZE * sizeof(uint32_t));
+    OMRPORT_ACCESS_FROM_OMRPORT(TR::Compiler->omrPortLib);
+    for (size_t i = 0; i < sizeof(utilizedFeatures) / sizeof(uint32_t); i++) {
+        omrsysinfo_processor_set_feature(&_supportedFeatureMasks, utilizedFeatures[i], TRUE);
+    }
 
-   memset(_supportedFeatureMasks.features, 0, OMRPORT_SYSINFO_FEATURES_SIZE*sizeof(uint32_t));
-   OMRPORT_ACCESS_FROM_OMRPORT(TR::Compiler->omrPortLib);
-   for (size_t i = 0; i < sizeof(utilizedFeatures)/sizeof(uint32_t); i++)
-      {
-      omrsysinfo_processor_set_feature(&_supportedFeatureMasks, utilizedFeatures[i], TRUE);
-      }
-
-   _isSupportedFeatureMasksEnabled = true;
-   }
+    _isSupportedFeatureMasksEnabled = true;
+}

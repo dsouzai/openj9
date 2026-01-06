@@ -57,126 +57,125 @@
  * This opt will also try to discover as many known objects as possible.
  */
 
-class TR_MethodHandleTransformer : public TR::Optimization
-   {
-   public:
-   TR_MethodHandleTransformer(TR::OptimizationManager *manager)
-      : TR::Optimization(manager),
-      _numLocals(0),
-      _currentObjectInfo(NULL),
-      _blockEndObjectInfos(NULL)
-      {}
+class TR_MethodHandleTransformer : public TR::Optimization {
+public:
+    TR_MethodHandleTransformer(TR::OptimizationManager *manager)
+        : TR::Optimization(manager)
+        , _numLocals(0)
+        , _currentObjectInfo(NULL)
+        , _blockEndObjectInfos(NULL)
+    {}
 
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_MethodHandleTransformer(manager);
-      }
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_MethodHandleTransformer(manager);
+    }
 
-   virtual int32_t perform();
-   virtual const char * optDetailString() const throw();
+    virtual int32_t perform();
+    virtual const char *optDetailString() const throw();
 
-   typedef TR::typed_allocator<TR::KnownObjectTable::Index, TR::Region &> ObjectInfoAllocator;
-   typedef std::vector<TR::KnownObjectTable::Index, ObjectInfoAllocator> ObjectInfo;
+    typedef TR::typed_allocator<TR::KnownObjectTable::Index, TR::Region &> ObjectInfoAllocator;
+    typedef std::vector<TR::KnownObjectTable::Index, ObjectInfoAllocator> ObjectInfo;
 
-   // Walk through trees and nodes in block, update local object info
-   // Also discover new known objects through field folding
-   //
-   void processBlockAndUpdateObjectInfo(TR::Block *block, ObjectInfo *objectInfo);
+    // Walk through trees and nodes in block, update local object info
+    // Also discover new known objects through field folding
+    //
+    void processBlockAndUpdateObjectInfo(TR::Block *block, ObjectInfo *objectInfo);
 
-   // Merge ObjectInfo from second into first
-   //
-   void mergeObjectInfo(ObjectInfo *first, ObjectInfo *second);
+    // Merge ObjectInfo from second into first
+    //
+    void mergeObjectInfo(ObjectInfo *first, ObjectInfo *second);
 
-   // Obect info at method entry or first block of the method
-   // The object info comes from prex arg info
-   //
-   ObjectInfo* getMethodEntryObjectInfo();
+    // Obect info at method entry or first block of the method
+    // The object info comes from prex arg info
+    //
+    ObjectInfo *getMethodEntryObjectInfo();
 
-   // Object info of a block can be derived from its predecessors
-   //
-   ObjectInfo* blockStartObjectInfoFromPredecessors(TR::Block* block);
+    // Object info of a block can be derived from its predecessors
+    //
+    ObjectInfo *blockStartObjectInfoFromPredecessors(TR::Block *block);
 
-   // Assign local index to autos
-   //
-   void assignLocalIndices();
-   // Walk trees and collect autos into a list
-   //
-   void collectAutosFromTrees(List<TR::SymbolReference> &autosList);
+    // Assign local index to autos
+    //
+    void assignLocalIndices();
+    // Walk trees and collect autos into a list
+    //
+    void collectAutosFromTrees(List<TR::SymbolReference> &autosList);
 
-   // Given an address-typed node, try to figure out its object info. If a
-   // known object is found, then after this method returns, the known object
-   // index will be available in the IL directly from the node or its symref
-   // (and therefore via getObjectInfoOfNode()).
-   //
-   // The children of node have already been processed.
-   //
-   void computeObjectInfoOfNode(TR::TreeTop *tt, TR::Node *node);
+    // Given an address-typed node, try to figure out its object info. If a
+    // known object is found, then after this method returns, the known object
+    // index will be available in the IL directly from the node or its symref
+    // (and therefore via getObjectInfoOfNode()).
+    //
+    // The children of node have already been processed.
+    //
+    void computeObjectInfoOfNode(TR::TreeTop *tt, TR::Node *node);
 
-   // Given a visited address-typed node, retrieve its object info from the
-   // node itself or from its symref.
-   //
-   TR::KnownObjectTable::Index getObjectInfoOfNode(TR::Node *node);
+    // Given a visited address-typed node, retrieve its object info from the
+    // node itself or from its symref.
+    //
+    TR::KnownObjectTable::Index getObjectInfoOfNode(TR::Node *node);
 
-   // The folowing visit functions will visit different types of node, update object info,
-   // and/or do transformations
-   //
-   void visitIndirectLoad(TR::TreeTop* tt, TR::Node* node);
-   void visitStoreToLocalVariable(TR::TreeTop* tt, TR::Node* node);
-   void visitCall(TR::TreeTop* tt, TR::Node* node);
-   void visitNode(TR::TreeTop* tt, TR::Node* node, TR::NodeChecklist &visitedNodes);
+    // The folowing visit functions will visit different types of node, update object info,
+    // and/or do transformations
+    //
+    void visitIndirectLoad(TR::TreeTop *tt, TR::Node *node);
+    void visitStoreToLocalVariable(TR::TreeTop *tt, TR::Node *node);
+    void visitCall(TR::TreeTop *tt, TR::Node *node);
+    void visitNode(TR::TreeTop *tt, TR::Node *node, TR::NodeChecklist &visitedNodes);
 
-   // Refine MethodHandle.invokeBasic with known object info
-   //
-   void process_java_lang_invoke_MethodHandle_invokeBasic(TR::TreeTop* tt, TR::Node* node);
+    // Refine MethodHandle.invokeBasic with known object info
+    //
+    void process_java_lang_invoke_MethodHandle_invokeBasic(TR::TreeTop *tt, TR::Node *node);
 
-   // Refine MethodHandle.linkTo* with known object info
-   //
-   void process_java_lang_invoke_MethodHandle_linkTo(TR::TreeTop* tt, TR::Node* node);
+    // Refine MethodHandle.linkTo* with known object info
+    //
+    void process_java_lang_invoke_MethodHandle_linkTo(TR::TreeTop *tt, TR::Node *node);
 
-   /** \brief
-    *    Transforms calls to java/lang/invoke/Invokers.checkExactType to ZEROCHK, or eliminated
-    *    entirely if the check can be performed at compile time
-    *
-    *  \param tt
-    *    The treetop of the call node
-    *
-    *  \param node
-    *    The call node representing the call to java/lang/invoke/Invokers.checkExactType
-    */
-   void process_java_lang_invoke_Invokers_checkExactType(TR::TreeTop* tt, TR::Node* node);
+    /** \brief
+     *    Transforms calls to java/lang/invoke/Invokers.checkExactType to ZEROCHK, or eliminated
+     *    entirely if the check can be performed at compile time
+     *
+     *  \param tt
+     *    The treetop of the call node
+     *
+     *  \param node
+     *    The call node representing the call to java/lang/invoke/Invokers.checkExactType
+     */
+    void process_java_lang_invoke_Invokers_checkExactType(TR::TreeTop *tt, TR::Node *node);
 
-   /** \brief
-    *    Eliminates calls to java/lang/invoke/Invokers.checkCustomized when its argument
-    *    is a known object
-    *
-    *  \param tt
-    *    The treetop of the call node
-    *
-    *  \param node
-    *    The call node representing the call to java/lang/invoke/Invokers.checkCustomized
-    */
-   void process_java_lang_invoke_Invokers_checkCustomized(TR::TreeTop* tt, TR::Node* node);
+    /** \brief
+     *    Eliminates calls to java/lang/invoke/Invokers.checkCustomized when its argument
+     *    is a known object
+     *
+     *  \param tt
+     *    The treetop of the call node
+     *
+     *  \param node
+     *    The call node representing the call to java/lang/invoke/Invokers.checkCustomized
+     */
+    void process_java_lang_invoke_Invokers_checkCustomized(TR::TreeTop *tt, TR::Node *node);
 
-   /**
-    * \brief
-    *    Eliminates calls to Invokers.checkVarHandleGenericType when its VarHandle and AccessDescriptor
-    *    args are known objects
-    *
-    * \param tt
-    *    The treetop of the call node
-    * \param node
-    *    The call node representing the call to java/lang/invoke/Invokers.checkVarHandleGenericType
-    */
-   void process_java_lang_invoke_Invokers_checkVarHandleGenericType(TR::TreeTop* tt, TR::Node* node);
+    /**
+     * \brief
+     *    Eliminates calls to Invokers.checkVarHandleGenericType when its VarHandle and AccessDescriptor
+     *    args are known objects
+     *
+     * \param tt
+     *    The treetop of the call node
+     * \param node
+     *    The call node representing the call to java/lang/invoke/Invokers.checkVarHandleGenericType
+     */
+    void process_java_lang_invoke_Invokers_checkVarHandleGenericType(TR::TreeTop *tt, TR::Node *node);
 
-   private:
-   int32_t _numLocals; // Number of parms, autos and temps
-   ObjectInfo * _currentObjectInfo;  // Object info for current block being processed
+private:
+    int32_t _numLocals; // Number of parms, autos and temps
+    ObjectInfo *_currentObjectInfo; // Object info for current block being processed
 
-   typedef TR::typed_allocator<std::pair<const int32_t, ObjectInfo *>, TR::Region &> ResultAllocator;
-   typedef std::map<int32_t, ObjectInfo *, std::less<int32_t>, ResultAllocator> BlockResultMap;
+    typedef TR::typed_allocator<std::pair<const int32_t, ObjectInfo *>, TR::Region &> ResultAllocator;
+    typedef std::map<int32_t, ObjectInfo *, std::less<int32_t>, ResultAllocator> BlockResultMap;
 
-   BlockResultMap* _blockEndObjectInfos; // A map of object info at the end of blocks
-   };
+    BlockResultMap *_blockEndObjectInfos; // A map of object info at the end of blocks
+};
 
 #endif

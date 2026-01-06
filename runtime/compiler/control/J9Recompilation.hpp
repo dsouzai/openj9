@@ -28,10 +28,11 @@
  */
 #ifndef J9_RECOMPILATION_CONNECTOR
 #define J9_RECOMPILATION_CONNECTOR
+
 namespace J9 {
 class Recompilation;
 typedef J9::Recompilation RecompilationConnector;
-}
+} // namespace J9
 #endif
 
 #include "control/OMRRecompilation.hpp"
@@ -44,130 +45,135 @@ class CompilationStrategy;
 class TR_ValueProfiler;
 class TR_RecompilationProfiler;
 
-namespace J9
-{
+namespace J9 {
 
-class Recompilation : public OMR::RecompilationConnector
-   {
-   friend class J9::CompilationStrategy;
+class Recompilation : public OMR::RecompilationConnector {
+    friend class J9::CompilationStrategy;
 
 public:
+    Recompilation(TR::Compilation *comp);
 
-   Recompilation(TR::Compilation *comp);
+    void setupMethodInfo();
 
-   void setupMethodInfo();
+    void createProfilers();
 
-   void createProfilers();
+    TR_PersistentJittedBodyInfo *getJittedBodyInfo() { return _bodyInfo; }
 
-   TR_PersistentJittedBodyInfo *getJittedBodyInfo() { return _bodyInfo; }
-   TR_PersistentMethodInfo *getMethodInfo() { return _methodInfo; }
-   void setMethodInfo(TR_PersistentMethodInfo *methodInfo) { _methodInfo = methodInfo; }
-   void setJittedBodyInfo(TR_PersistentJittedBodyInfo *bodyInfo) { _bodyInfo = bodyInfo; }
+    TR_PersistentMethodInfo *getMethodInfo() { return _methodInfo; }
 
-   TR_ValueProfiler * getValueProfiler();
-   TR_BlockFrequencyProfiler * getBlockFrequencyProfiler();
-   TR_RecompilationProfiler * getFirstProfiler() { return _profilers.getFirst(); }
-   void removeProfiler(TR_RecompilationProfiler *rp);
+    void setMethodInfo(TR_PersistentMethodInfo *methodInfo) { _methodInfo = methodInfo; }
 
-   bool isProfilingCompilation() { return _bodyInfo->getIsProfilingBody(); }
+    void setJittedBodyInfo(TR_PersistentJittedBodyInfo *bodyInfo) { _bodyInfo = bodyInfo; }
 
-   // for replay
-   void setIsProfilingCompilation(bool v) { _bodyInfo->setIsProfilingBody(v); }
+    TR_ValueProfiler *getValueProfiler();
+    TR_BlockFrequencyProfiler *getBlockFrequencyProfiler();
 
-   TR_PersistentProfileInfo *findOrCreateProfileInfo();
-   TR_PersistentProfileInfo *getProfileInfo();
+    TR_RecompilationProfiler *getFirstProfiler() { return _profilers.getFirst(); }
 
-   bool useSampling() {return _useSampling;}
+    void removeProfiler(TR_RecompilationProfiler *rp);
 
-   bool switchToProfiling(uint32_t freq, uint32_t count);
-   bool switchToProfiling();
-   void switchAwayFromProfiling();
+    bool isProfilingCompilation() { return _bodyInfo->getIsProfilingBody(); }
 
-   int32_t getProfilingFrequency();
-   int32_t getProfilingCount();
+    // for replay
+    void setIsProfilingCompilation(bool v) { _bodyInfo->setIsProfilingBody(v); }
 
-   TR::SymbolReference *getCounterSymRef();
-   void *getCounterAddress() { return _bodyInfo->getCounterAddress(); }
+    TR_PersistentProfileInfo *findOrCreateProfileInfo();
+    TR_PersistentProfileInfo *getProfileInfo();
 
-   bool isRecompilation() { return !_firstCompile; }
+    bool useSampling() { return _useSampling; }
 
-   void startOfCompilation();
-   void beforeOptimization();
-   void beforeCodeGen();
-   void endOfCompilation();
+    bool switchToProfiling(uint32_t freq, uint32_t count);
+    bool switchToProfiling();
+    void switchAwayFromProfiling();
 
-   bool couldBeCompiledAgain();
-   bool shouldBeCompiledAgain();
+    int32_t getProfilingFrequency();
+    int32_t getProfilingCount();
 
-   void preventRecompilation();
+    TR::SymbolReference *getCounterSymRef();
 
-   static void shutdown();
+    void *getCounterAddress() { return _bodyInfo->getCounterAddress(); }
 
-   static TR_PersistentJittedBodyInfo  *getJittedBodyInfoFromPC(void *startPC);
+    bool isRecompilation() { return !_firstCompile; }
 
-   static TR_PersistentMethodInfo *getMethodInfoFromPC(void *startPC)
-      {
-      TR_PersistentJittedBodyInfo *jbi = getJittedBodyInfoFromPC(startPC);
-      return jbi? jbi->getMethodInfo() : NULL;
-      }
+    void startOfCompilation();
+    void beforeOptimization();
+    void beforeCodeGen();
+    void endOfCompilation();
 
-   static bool countingSupported() { return _countingSupported; }
-   static TR_Hotness getNextCompileLevel(void *oldStartPC);
-   static void methodHasBeenRecompiled(void *oldStartPC, void *newStartPC, TR_FrontEnd *fe);
-   static void fixUpMethodCode(void *startPC);
+    bool couldBeCompiledAgain();
+    bool shouldBeCompiledAgain();
 
-   // Recompile the method when convenient
-   //
-   static bool induceRecompilation(TR_FrontEnd *fe, void *startPC, bool *queued, TR_OptimizationPlan *optimizationPlan = NULL);
+    void preventRecompilation();
 
-   static bool isAlreadyBeingCompiled(TR_OpaqueMethodBlock *methodInfo, void *startPC, TR_FrontEnd *fe);
-   static void methodCannotBeRecompiled(void *oldStartPC, TR_FrontEnd *fe);
-   static void invalidateMethodBody(void *startPC, TR_FrontEnd *fe, TR_JitBodyInvalidations::Reason reason);
+    static void shutdown();
 
-   // Called at runtime to sample a method
-   //
-   static void sampleMethod(void *vmThread, TR_FrontEnd *fe, void *startPC, int32_t codeSize, void *samplePC, void *methodInfo, int32_t tickCount);
+    static TR_PersistentJittedBodyInfo *getJittedBodyInfoFromPC(void *startPC);
 
-   static bool isAlreadyPreparedForRecompile(void *startPC);
+    static TR_PersistentMethodInfo *getMethodInfoFromPC(void *startPC)
+    {
+        TR_PersistentJittedBodyInfo *jbi = getJittedBodyInfoFromPC(startPC);
+        return jbi ? jbi->getMethodInfo() : NULL;
+    }
 
-   virtual TR_PersistentMethodInfo *getExistingMethodInfo(TR_ResolvedMethod *method);
+    static bool countingSupported() { return _countingSupported; }
 
-   static int32_t globalSampleCount;
-   static int32_t hwpGlobalSampleCount;
-   static int32_t jitGlobalSampleCount;
-   static int32_t jitRecompilationsInduced;
+    static TR_Hotness getNextCompileLevel(void *oldStartPC);
+    static void methodHasBeenRecompiled(void *oldStartPC, void *newStartPC, TR_FrontEnd *fe);
+    static void fixUpMethodCode(void *startPC);
+
+    // Recompile the method when convenient
+    //
+    static bool induceRecompilation(TR_FrontEnd *fe, void *startPC, bool *queued,
+        TR_OptimizationPlan *optimizationPlan = NULL);
+
+    static bool isAlreadyBeingCompiled(TR_OpaqueMethodBlock *methodInfo, void *startPC, TR_FrontEnd *fe);
+    static void methodCannotBeRecompiled(void *oldStartPC, TR_FrontEnd *fe);
+    static void invalidateMethodBody(void *startPC, TR_FrontEnd *fe, TR_JitBodyInvalidations::Reason reason);
+
+    // Called at runtime to sample a method
+    //
+    static void sampleMethod(void *vmThread, TR_FrontEnd *fe, void *startPC, int32_t codeSize, void *samplePC,
+        void *methodInfo, int32_t tickCount);
+
+    static bool isAlreadyPreparedForRecompile(void *startPC);
+
+    virtual TR_PersistentMethodInfo *getExistingMethodInfo(TR_ResolvedMethod *method);
+
+    static int32_t globalSampleCount;
+    static int32_t hwpGlobalSampleCount;
+    static int32_t jitGlobalSampleCount;
+    static int32_t jitRecompilationsInduced;
 
 #if defined(J9VM_OPT_JITSERVER)
-   static TR_PersistentJittedBodyInfo * persistentJittedBodyInfoFromString(const std::string &bodyInfoStr, const std::string &methodInfoStr, TR_Memory * trMemory);
-   static void resetPersistentProfileInfo(TR_PersistentMethodInfo *methodInfo);
+    static TR_PersistentJittedBodyInfo *persistentJittedBodyInfoFromString(const std::string &bodyInfoStr,
+        const std::string &methodInfoStr, TR_Memory *trMemory);
+    static void resetPersistentProfileInfo(TR_PersistentMethodInfo *methodInfo);
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
 protected:
-   static int32_t limitMethodsCompiled;
-   static int32_t hotThresholdMethodsCompiled;
-   static int32_t scorchingThresholdMethodsCompiled;
-   static bool _countingSupported;
+    static int32_t limitMethodsCompiled;
+    static int32_t hotThresholdMethodsCompiled;
+    static int32_t scorchingThresholdMethodsCompiled;
+    static bool _countingSupported;
 
-   bool _firstCompile;
-   bool _useSampling;
-   bool _doNotCompileAgain;
-   TR_Hotness _nextLevel;
-   int32_t _nextCounter;
-   TR_SingleTimer _timer;
+    bool _firstCompile;
+    bool _useSampling;
+    bool _doNotCompileAgain;
+    TR_Hotness _nextLevel;
+    int32_t _nextCounter;
+    TR_SingleTimer _timer;
 
-   TR_PersistentMethodInfo *_methodInfo;
-   TR_PersistentJittedBodyInfo *_bodyInfo;
+    TR_PersistentMethodInfo *_methodInfo;
+    TR_PersistentJittedBodyInfo *_bodyInfo;
 
-   TR_LinkHead<TR_RecompilationProfiler> _profilers;
-   };
-}
-
+    TR_LinkHead<TR_RecompilationProfiler> _profilers;
+};
+} // namespace J9
 
 // A way to call induceRecompilation from ASM via jitCallCFunction.
 // argsPtr[0] == startPC, argsPtr[1] == vmThread.
 // resultPtr is ignored.
 //
 extern "C" void induceRecompilation_unwrapper(void **argsPtr, void **resultPtr);
-
 
 #endif

@@ -28,10 +28,14 @@
  */
 #ifndef J9_CPU_CONNECTOR
 #define J9_CPU_CONNECTOR
+
 namespace J9 {
-namespace Z { class CPU; }
-typedef J9::Z::CPU CPUConnector;
+namespace Z {
+class CPU;
 }
+
+typedef J9::Z::CPU CPUConnector;
+} // namespace J9
 #else
 #error J9::Z::CPU expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -41,46 +45,43 @@ typedef J9::Z::CPU CPUConnector;
 #include "infra/Assert.hpp"
 #include "infra/Flags.hpp"
 
-namespace J9
-{
+namespace J9 { namespace Z {
 
-namespace Z
-{
-
-class OMR_EXTENSIBLE CPU : public J9::CPU
-   {
+class OMR_EXTENSIBLE CPU : public J9::CPU {
 protected:
+    CPU()
+        : J9::CPU()
+    {}
 
-   CPU() : J9::CPU() {}
-   CPU(const OMRProcessorDesc& processorDescription) : J9::CPU(processorDescription) {}
+    CPU(const OMRProcessorDesc &processorDescription)
+        : J9::CPU(processorDescription)
+    {}
 
 public:
+    /**
+     * @brief A factory method used to construct a CPU object for portable AOT compilations
+     * @param[in] omrPortLib : the port library
+     * @return TR::CPU
+     */
+    static TR::CPU detectRelocatable(OMRPortLibrary * const omrPortLib);
 
-   /** 
-    * @brief A factory method used to construct a CPU object for portable AOT compilations
-    * @param[in] omrPortLib : the port library
-    * @return TR::CPU
-    */
-   static TR::CPU detectRelocatable(OMRPortLibrary * const omrPortLib);
+    /**
+     * @brief A factory method used to construct a CPU object based on user customized processorDescription
+     * @param[in] OMRProcessorDesc : the processor description
+     * @return TR::CPU
+     */
+    static TR::CPU customize(OMRProcessorDesc processorDescription);
 
-   /** 
-    * @brief A factory method used to construct a CPU object based on user customized processorDescription
-    * @param[in] OMRProcessorDesc : the processor description
-    * @return TR::CPU
-    */
-   static TR::CPU customize(OMRProcessorDesc processorDescription);
+    /**
+     * @brief Intialize _supportedFeatureMasks to the list of processor features that will be exploited by the compiler
+     * and set _isSupportedFeatureMasksEnabled to true
+     * @return void
+     */
+    static void enableFeatureMasks();
 
-   /**
-    * @brief Intialize _supportedFeatureMasks to the list of processor features that will be exploited by the compiler and set _isSupportedFeatureMasksEnabled to true
-    * @return void
-    */
-   static void enableFeatureMasks();
-   
-   bool isCompatible(const OMRProcessorDesc& processorDescription);
-   };
+    bool isCompatible(const OMRProcessorDesc &processorDescription);
+};
 
-}
-
-}
+}} // namespace J9::Z
 
 #endif

@@ -34,16 +34,14 @@
 #define OPT_DETAILS "O^O CFG SIMPLIFICATION: "
 
 bool J9::CFGSimplifier::simplifyIfPatterns(bool needToDuplicateTree)
-   {
-   static char *enableCFGSimplification = feGetEnv("TR_enableCFGSimplificaiton");
-   if (enableCFGSimplification == NULL)
-      return false;
+{
+    static char *enableCFGSimplification = feGetEnv("TR_enableCFGSimplificaiton");
+    if (enableCFGSimplification == NULL)
+        return false;
 
-   return OMR::CFGSimplifier::simplifyIfPatterns(needToDuplicateTree)
-          || simplifyResolvedRequireNonNull(needToDuplicateTree)
-          || simplifyUnresolvedRequireNonNull(needToDuplicateTree)
-          ;
-   }
+    return OMR::CFGSimplifier::simplifyIfPatterns(needToDuplicateTree)
+        || simplifyResolvedRequireNonNull(needToDuplicateTree) || simplifyUnresolvedRequireNonNull(needToDuplicateTree);
+}
 
 // Look for pattern of the form:
 //
@@ -71,142 +69,143 @@ bool J9::CFGSimplifier::simplifyIfPatterns(bool needToDuplicateTree)
 //       => new
 
 bool J9::CFGSimplifier::simplifyUnresolvedRequireNonNull(bool needToDuplicateTree)
-   {
-   OMR::Logger *log = comp()->log();
+{
+    OMR::Logger *log = comp()->log();
 
-   static char *disableSimplifyExplicitNULLTest = feGetEnv("TR_disableSimplifyExplicitNULLTest");
-   static char *disableSimplifyUnresolvedRequireNonNull = feGetEnv("TR_disableSimplifyUnresolvedRequireNonNull");
-   if (disableSimplifyExplicitNULLTest != NULL || disableSimplifyUnresolvedRequireNonNull != NULL)
-      return false;
+    static char *disableSimplifyExplicitNULLTest = feGetEnv("TR_disableSimplifyExplicitNULLTest");
+    static char *disableSimplifyUnresolvedRequireNonNull = feGetEnv("TR_disableSimplifyUnresolvedRequireNonNull");
+    if (disableSimplifyExplicitNULLTest != NULL || disableSimplifyUnresolvedRequireNonNull != NULL)
+        return false;
 
-   if (comp()->getOSRMode() == TR::involuntaryOSR)
-         return false;
+    if (comp()->getOSRMode() == TR::involuntaryOSR)
+        return false;
 
-   logprints(trace(), log, "Start simplifyUnresolvedRequireNonNull\n");
+    logprints(trace(), log, "Start simplifyUnresolvedRequireNonNull\n");
 
-   // This block must end in an ifacmpeq or ifacmpne against aconst NULLa
-   TR::TreeTop *compareTreeTop = getLastRealTreetop(_block);
-   TR::Node *compareNode       = compareTreeTop->getNode();
-   if (compareNode->getOpCodeValue() != TR::ifacmpeq
-       && compareNode->getOpCodeValue() != TR::ifacmpne)
-      return false;
+    // This block must end in an ifacmpeq or ifacmpne against aconst NULLa
+    TR::TreeTop *compareTreeTop = getLastRealTreetop(_block);
+    TR::Node *compareNode = compareTreeTop->getNode();
+    if (compareNode->getOpCodeValue() != TR::ifacmpeq && compareNode->getOpCodeValue() != TR::ifacmpne)
+        return false;
 
-   logprintf(trace(), log, "   Found an ifacmp[eq/ne] n%dn\n", compareNode->getGlobalIndex());
+    logprintf(trace(), log, "   Found an ifacmp[eq/ne] n%dn\n", compareNode->getGlobalIndex());
 
-   if (compareNode->getSecondChild()->getOpCodeValue() != TR::aconst
-       || compareNode->getSecondChild()->getAddress() != 0)
-      return false;
+    if (compareNode->getSecondChild()->getOpCodeValue() != TR::aconst
+        || compareNode->getSecondChild()->getAddress() != 0)
+        return false;
 
-   // _next1 is fall through so grab the block where the value is NULL
-   TR::Block *nullBlock = compareNode->getOpCodeValue() == TR::ifacmpeq ? _next2 : _next1;
-   TR::Block *nonnullBlock = compareNode->getOpCodeValue() == TR::ifacmpeq ? _next1 : _next2;
+    // _next1 is fall through so grab the block where the value is NULL
+    TR::Block *nullBlock = compareNode->getOpCodeValue() == TR::ifacmpeq ? _next2 : _next1;
+    TR::Block *nonnullBlock = compareNode->getOpCodeValue() == TR::ifacmpeq ? _next1 : _next2;
 
-   logprintf(trace(), log, "  Matched nullBlock %d\n", nullBlock->getNumber());
+    logprintf(trace(), log, "  Matched nullBlock %d\n", nullBlock->getNumber());
 
-   TR::TreeTop *nullBlockCursor = nullBlock->getEntry()->getNextTreeTop();
+    TR::TreeTop *nullBlockCursor = nullBlock->getEntry()->getNextTreeTop();
 
-   if (nullBlockCursor->getNode()->getOpCodeValue() != TR::ResolveCHK
-       || nullBlockCursor->getNode()->getFirstChild()->getOpCodeValue() != TR::loadaddr)
-      return false;
+    if (nullBlockCursor->getNode()->getOpCodeValue() != TR::ResolveCHK
+        || nullBlockCursor->getNode()->getFirstChild()->getOpCodeValue() != TR::loadaddr)
+        return false;
 
-   logprints(trace(), log, "   Match ResolveCHK of loadaddr\n");
+    logprints(trace(), log, "   Match ResolveCHK of loadaddr\n");
 
-   TR::Node *loadaddr = nullBlockCursor->getNode()->getFirstChild();
-   nullBlockCursor = nullBlockCursor->getNextTreeTop();
+    TR::Node *loadaddr = nullBlockCursor->getNode()->getFirstChild();
+    nullBlockCursor = nullBlockCursor->getNextTreeTop();
 
-   if (nullBlockCursor->getNode()->getOpCodeValue() != TR::treetop
-       || nullBlockCursor->getNode()->getFirstChild()->getOpCodeValue() != TR::New
-       || nullBlockCursor->getNode()->getFirstChild()->getFirstChild() != loadaddr)
-      return false;
+    if (nullBlockCursor->getNode()->getOpCodeValue() != TR::treetop
+        || nullBlockCursor->getNode()->getFirstChild()->getOpCodeValue() != TR::New
+        || nullBlockCursor->getNode()->getFirstChild()->getFirstChild() != loadaddr)
+        return false;
 
-   TR::Node *exceptionNode = nullBlockCursor->getNode()->getFirstChild();
+    TR::Node *exceptionNode = nullBlockCursor->getNode()->getFirstChild();
 
-   logprints(trace(), log, "   Matched new of loadaddr\n");
+    logprints(trace(), log, "   Matched new of loadaddr\n");
 
-   nullBlockCursor = nullBlockCursor->getNextTreeTop();
+    nullBlockCursor = nullBlockCursor->getNextTreeTop();
 
-   // optionally match pending push store
-   if (nullBlockCursor->getNode()->getOpCodeValue() == TR::astore
-       && nullBlockCursor->getNode()->getFirstChild() == exceptionNode
-       && nullBlockCursor->getNode()->getSymbol()->isPendingPush())
-      nullBlockCursor = nullBlockCursor->getNextTreeTop();
+    // optionally match pending push store
+    if (nullBlockCursor->getNode()->getOpCodeValue() == TR::astore
+        && nullBlockCursor->getNode()->getFirstChild() == exceptionNode
+        && nullBlockCursor->getNode()->getSymbol()->isPendingPush())
+        nullBlockCursor = nullBlockCursor->getNextTreeTop();
 
-   if (nullBlockCursor->getNode()->getOpCodeValue() != TR::ResolveAndNULLCHK
-       || nullBlockCursor->getNode()->getFirstChild()->getOpCodeValue() != TR::call
-       || nullBlockCursor->getNode()->getFirstChild()->getFirstChild() != exceptionNode)
-      return false;
+    if (nullBlockCursor->getNode()->getOpCodeValue() != TR::ResolveAndNULLCHK
+        || nullBlockCursor->getNode()->getFirstChild()->getOpCodeValue() != TR::call
+        || nullBlockCursor->getNode()->getFirstChild()->getFirstChild() != exceptionNode)
+        return false;
 
-   TR::Node *initCall = nullBlockCursor->getNode()->getFirstChild();
+    TR::Node *initCall = nullBlockCursor->getNode()->getFirstChild();
 
-   logprintf(trace(), log, "   Matched call node %d\n", initCall->getGlobalIndex());
+    logprintf(trace(), log, "   Matched call node %d\n", initCall->getGlobalIndex());
 
-   if (!initCall->getSymbolReference()->isUnresolved())
-      return false;
+    if (!initCall->getSymbolReference()->isUnresolved())
+        return false;
 
-   TR::Method *calleeMethod = initCall->getSymbol()->castToMethodSymbol()->getMethod();
-   logprintf(trace(), log, "   Matched calleeMethod %s %s %s\n", calleeMethod->classNameChars(), calleeMethod->nameChars(), calleeMethod->signatureChars());
-   if (strncmp(calleeMethod->nameChars(), "<init>", 6) != 0
-       || strncmp(calleeMethod->classNameChars(), "java/lang/NullPointerException", 30) != 0
-       || strncmp(calleeMethod->signatureChars(), "()V", 3) != 0)
-      return false;
+    TR::Method *calleeMethod = initCall->getSymbol()->castToMethodSymbol()->getMethod();
+    logprintf(trace(), log, "   Matched calleeMethod %s %s %s\n", calleeMethod->classNameChars(),
+        calleeMethod->nameChars(), calleeMethod->signatureChars());
+    if (strncmp(calleeMethod->nameChars(), "<init>", 6) != 0
+        || strncmp(calleeMethod->classNameChars(), "java/lang/NullPointerException", 30) != 0
+        || strncmp(calleeMethod->signatureChars(), "()V", 3) != 0)
+        return false;
 
+    logprints(trace(), log, "   Matched NPE init\n");
 
-   logprints(trace(), log, "   Matched NPE init\n");
+    nullBlockCursor = nullBlockCursor->getNextTreeTop();
+    if ((nullBlockCursor->getNode()->getOpCodeValue() != TR::NULLCHK
+            && nullBlockCursor->getNode()->getOpCodeValue() != TR::treetop)
+        || nullBlockCursor->getNode()->getFirstChild()->getOpCodeValue() != TR::athrow
+        || nullBlockCursor->getNode()->getFirstChild()->getFirstChild() != exceptionNode)
+        return false;
 
-   nullBlockCursor = nullBlockCursor->getNextTreeTop();
-   if ((nullBlockCursor->getNode()->getOpCodeValue() != TR::NULLCHK
-        && nullBlockCursor->getNode()->getOpCodeValue() != TR::treetop)
-       || nullBlockCursor->getNode()->getFirstChild()->getOpCodeValue() != TR::athrow
-       || nullBlockCursor->getNode()->getFirstChild()->getFirstChild() != exceptionNode)
-      return false;
+    logprints(trace(), log, "   Matched throw\n");
 
-   logprints(trace(), log, "   Matched throw\n");
+    TR::Node *throwNode = nullBlockCursor->getNode()->getFirstChild();
 
-   TR::Node *throwNode = nullBlockCursor->getNode()->getFirstChild();
+    nullBlockCursor = nullBlockCursor->getNextTreeTop();
+    if (nullBlockCursor != nullBlock->getExit())
+        return false;
 
-   nullBlockCursor = nullBlockCursor->getNextTreeTop();
-   if (nullBlockCursor != nullBlock->getExit())
-      return false;
+    if (!performTransformation(comp(),
+            "%sReplace ifacmpeq/ifacmpne of NULL node [%p] to throw of an NPE exception with NULLCHK\n", OPT_DETAILS,
+            compareNode))
+        return false;
 
-   if (!performTransformation(comp(), "%sReplace ifacmpeq/ifacmpne of NULL node [%p] to throw of an NPE exception with NULLCHK\n", OPT_DETAILS, compareNode))
-      return false;
+    _cfg->invalidateStructure();
 
-   _cfg->invalidateStructure();
+    TR::DebugCounter::incStaticDebugCounter(comp(),
+        TR::DebugCounter::debugCounterName(comp(), "cfgSimpNULLCHK/unresolvedNonNull/(%s)", comp()->signature()));
 
-   TR::DebugCounter::incStaticDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "cfgSimpNULLCHK/unresolvedNonNull/(%s)", comp()->signature()));
+    TR::Block *checkBlock = _block;
+    if (hasExceptionPoint(_block, compareTreeTop))
+        checkBlock = _block->split(compareTreeTop, _cfg, true, false);
 
-   TR::Block *checkBlock = _block;
-   if (hasExceptionPoint(_block, compareTreeTop))
-      checkBlock = _block->split(compareTreeTop, _cfg, true, false);
+    if (!nullBlock->getExceptionSuccessors().empty()) {
+        for (auto itr = nullBlock->getExceptionSuccessors().begin(), end = nullBlock->getExceptionSuccessors().end();
+             itr != end; ++itr) {
+            _cfg->addExceptionEdge(checkBlock, (*itr)->getTo());
+        }
+    }
 
-   if (!nullBlock->getExceptionSuccessors().empty())
-      {
-      for (auto itr = nullBlock->getExceptionSuccessors().begin(), end = nullBlock->getExceptionSuccessors().end(); itr != end; ++itr)
-         {
-         _cfg->addExceptionEdge(checkBlock, (*itr)->getTo());
-         }
-      }
+    TR::Node *passthroughNode = TR::Node::create(throwNode, TR::PassThrough, 1);
+    passthroughNode->setAndIncChild(0, compareNode->getFirstChild());
+    TR::SymbolReference *symRef = comp()->getSymRefTab()->findOrCreateNullCheckSymbolRef(comp()->getMethodSymbol());
+    TR::Node *nullchkNode = TR::Node::createWithSymRef(TR::NULLCHK, 1, 1, passthroughNode, symRef);
+    logprintf(trace(), log, "End simplifyUnresolvedRequireNonNull. Generated NULLCHK node n%dn\n",
+        nullchkNode->getGlobalIndex());
+    TR::TreeTop *nullchkTree = TR::TreeTop::create(comp(), nullchkNode);
+    checkBlock->getEntry()->insertAfter(nullchkTree);
 
-   TR::Node *passthroughNode = TR::Node::create(throwNode, TR::PassThrough, 1);
-   passthroughNode->setAndIncChild(0, compareNode->getFirstChild());
-   TR::SymbolReference *symRef = comp()->getSymRefTab()->findOrCreateNullCheckSymbolRef(comp()->getMethodSymbol());
-   TR::Node *nullchkNode = TR::Node::createWithSymRef(TR::NULLCHK, 1, 1, passthroughNode, symRef);
-   logprintf(trace(), log, "End simplifyUnresolvedRequireNonNull. Generated NULLCHK node n%dn\n", nullchkNode->getGlobalIndex());
-   TR::TreeTop *nullchkTree = TR::TreeTop::create(comp(), nullchkNode);
-   checkBlock->getEntry()->insertAfter(nullchkTree);
+    _cfg->removeEdge(checkBlock, nullBlock);
+    TR::TransformUtil::removeTree(comp(), compareTreeTop);
 
-   _cfg->removeEdge(checkBlock, nullBlock);
-   TR::TransformUtil::removeTree(comp(), compareTreeTop);
+    if (checkBlock->getNextBlock() != nonnullBlock) {
+        TR::Node *gotoNode = TR::Node::create(nullchkNode, TR::Goto, 0);
+        gotoNode->setBranchDestination(nonnullBlock->getEntry());
+        checkBlock->append(TR::TreeTop::create(comp(), gotoNode));
+    }
 
-   if (checkBlock->getNextBlock() != nonnullBlock)
-      {
-      TR::Node *gotoNode = TR::Node::create(nullchkNode, TR::Goto, 0);
-      gotoNode->setBranchDestination(nonnullBlock->getEntry());
-      checkBlock->append(TR::TreeTop::create(comp(), gotoNode));
-      }
-
-   return true;
-   }
+    return true;
+}
 
 // Look for pattern of the form:
 //
@@ -234,136 +233,139 @@ bool J9::CFGSimplifier::simplifyUnresolvedRequireNonNull(bool needToDuplicateTre
 // Replace the branch with a NULLCHK PassThrough of some ref
 //
 bool J9::CFGSimplifier::simplifyResolvedRequireNonNull(bool needToDuplicateTree)
-   {
-   OMR::Logger *log = comp()->log();
+{
+    OMR::Logger *log = comp()->log();
 
-   static char *disableSimplifyExplicitNULLTest = feGetEnv("TR_disableSimplifyExplicitNULLTest");
-   static char *disableSimplifyResolvedRequireNonNull = feGetEnv("TR_disableSimplifyResolvedRequireNonNull");
-   if (disableSimplifyExplicitNULLTest != NULL || disableSimplifyResolvedRequireNonNull != NULL)
-      return false;
+    static char *disableSimplifyExplicitNULLTest = feGetEnv("TR_disableSimplifyExplicitNULLTest");
+    static char *disableSimplifyResolvedRequireNonNull = feGetEnv("TR_disableSimplifyResolvedRequireNonNull");
+    if (disableSimplifyExplicitNULLTest != NULL || disableSimplifyResolvedRequireNonNull != NULL)
+        return false;
 
-   if (comp()->getOSRMode() == TR::involuntaryOSR)
-         return false;
+    if (comp()->getOSRMode() == TR::involuntaryOSR)
+        return false;
 
-   logprints(trace(), log, "Start simplifyResolvedRequireNonNull\n");
+    logprints(trace(), log, "Start simplifyResolvedRequireNonNull\n");
 
-   // This block must end in an ifacmpeq or ifacmpne against aconst NULL
-   TR::TreeTop *compareTreeTop = getLastRealTreetop(_block);
-   TR::Node *compareNode       = compareTreeTop->getNode();
-   if (compareNode->getOpCodeValue() != TR::ifacmpeq
-       && compareNode->getOpCodeValue() != TR::ifacmpne)
-      return false;
+    // This block must end in an ifacmpeq or ifacmpne against aconst NULL
+    TR::TreeTop *compareTreeTop = getLastRealTreetop(_block);
+    TR::Node *compareNode = compareTreeTop->getNode();
+    if (compareNode->getOpCodeValue() != TR::ifacmpeq && compareNode->getOpCodeValue() != TR::ifacmpne)
+        return false;
 
-   logprintf(trace(), log, "   Found an ifacmp[eq/ne] n%dn\n", compareNode->getGlobalIndex());
+    logprintf(trace(), log, "   Found an ifacmp[eq/ne] n%dn\n", compareNode->getGlobalIndex());
 
-   if (compareNode->getSecondChild()->getOpCodeValue() != TR::aconst
-       || compareNode->getSecondChild()->getAddress() != 0)
-      return false;
+    if (compareNode->getSecondChild()->getOpCodeValue() != TR::aconst
+        || compareNode->getSecondChild()->getAddress() != 0)
+        return false;
 
-   // _next1 is fall through so grab the block where the value is NULL
-   TR::Block *nullBlock = compareNode->getOpCodeValue() == TR::ifacmpeq ? _next2 : _next1;
-   TR::Block *nonnullBlock = compareNode->getOpCodeValue() == TR::ifacmpeq ? _next1 : _next2;
+    // _next1 is fall through so grab the block where the value is NULL
+    TR::Block *nullBlock = compareNode->getOpCodeValue() == TR::ifacmpeq ? _next2 : _next1;
+    TR::Block *nonnullBlock = compareNode->getOpCodeValue() == TR::ifacmpeq ? _next1 : _next2;
 
-   logprintf(trace(), log, "   Found nullBlock %d\n", nullBlock->getNumber());
+    logprintf(trace(), log, "   Found nullBlock %d\n", nullBlock->getNumber());
 
-   TR::TreeTop *nullBlockCursor = nullBlock->getEntry()->getNextTreeTop();
-   if (nullBlockCursor->getNode()->getOpCodeValue() != TR::treetop
-       || nullBlockCursor->getNode()->getFirstChild()->getOpCodeValue() != TR::New
-       || nullBlockCursor->getNode()->getFirstChild()->getFirstChild()->getOpCodeValue() != TR::loadaddr)
-      return false;
+    TR::TreeTop *nullBlockCursor = nullBlock->getEntry()->getNextTreeTop();
+    if (nullBlockCursor->getNode()->getOpCodeValue() != TR::treetop
+        || nullBlockCursor->getNode()->getFirstChild()->getOpCodeValue() != TR::New
+        || nullBlockCursor->getNode()->getFirstChild()->getFirstChild()->getOpCodeValue() != TR::loadaddr)
+        return false;
 
-   logprints(trace(), log, "   Matched new tree\n");
+    logprints(trace(), log, "   Matched new tree\n");
 
-   TR::Node *exceptionNode = nullBlockCursor->getNode()->getFirstChild();
-   TR::Node *loadaddr = nullBlockCursor->getNode()->getFirstChild()->getFirstChild();
-   // check for java/lang/NullPointerException as the loadaddr
-   TR_OpaqueClassBlock *NPEclazz = comp()->fej9()->getSystemClassFromClassName("java/lang/NullPointerException", strlen("java/lang/NullPointerException"));
-   if (loadaddr->getSymbolReference()->isUnresolved()
-       || loadaddr->getSymbolReference()->getSymbol()->castToStaticSymbol()->getStaticAddress() != NPEclazz)
-      return false;
+    TR::Node *exceptionNode = nullBlockCursor->getNode()->getFirstChild();
+    TR::Node *loadaddr = nullBlockCursor->getNode()->getFirstChild()->getFirstChild();
+    // check for java/lang/NullPointerException as the loadaddr
+    TR_OpaqueClassBlock *NPEclazz = comp()->fej9()->getSystemClassFromClassName("java/lang/NullPointerException",
+        strlen("java/lang/NullPointerException"));
+    if (loadaddr->getSymbolReference()->isUnresolved()
+        || loadaddr->getSymbolReference()->getSymbol()->castToStaticSymbol()->getStaticAddress() != NPEclazz)
+        return false;
 
-   logprints(trace(), log, "   Matched new tree class\n");
+    logprints(trace(), log, "   Matched new tree class\n");
 
-   nullBlockCursor = nullBlockCursor->getNextTreeTop();
+    nullBlockCursor = nullBlockCursor->getNextTreeTop();
 
-   // optionally match pending push store
-   if (nullBlockCursor->getNode()->getOpCodeValue() == TR::astore
-       && nullBlockCursor->getNode()->getFirstChild() == exceptionNode
-       && nullBlockCursor->getNode()->getSymbol()->isPendingPush())
-      nullBlockCursor = nullBlockCursor->getNextTreeTop();
+    // optionally match pending push store
+    if (nullBlockCursor->getNode()->getOpCodeValue() == TR::astore
+        && nullBlockCursor->getNode()->getFirstChild() == exceptionNode
+        && nullBlockCursor->getNode()->getSymbol()->isPendingPush())
+        nullBlockCursor = nullBlockCursor->getNextTreeTop();
 
-   if ((nullBlockCursor->getNode()->getOpCodeValue() != TR::treetop
-        && nullBlockCursor->getNode()->getOpCodeValue() != TR::NULLCHK)
-       || nullBlockCursor->getNode()->getFirstChild()->getOpCodeValue() != TR::call
-       || nullBlockCursor->getNode()->getFirstChild()->getFirstChild() != exceptionNode)
-      return false;
+    if ((nullBlockCursor->getNode()->getOpCodeValue() != TR::treetop
+            && nullBlockCursor->getNode()->getOpCodeValue() != TR::NULLCHK)
+        || nullBlockCursor->getNode()->getFirstChild()->getOpCodeValue() != TR::call
+        || nullBlockCursor->getNode()->getFirstChild()->getFirstChild() != exceptionNode)
+        return false;
 
-   logprints(trace(), log, "   Matched exceptionNode\n");
+    logprints(trace(), log, "   Matched exceptionNode\n");
 
-   TR::Node *initCall = nullBlockCursor->getNode()->getFirstChild();
-   if (initCall->getSymbolReference()->isUnresolved())
-      return false;
+    TR::Node *initCall = nullBlockCursor->getNode()->getFirstChild();
+    if (initCall->getSymbolReference()->isUnresolved())
+        return false;
 
-   TR_ResolvedMethod *calleeMethod = initCall->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod();
-   logprintf(trace(), log, "   Matched calleeMethod %s %s %s\n", calleeMethod->classNameChars(), calleeMethod->nameChars(), calleeMethod->signatureChars());
-   if (strncmp(calleeMethod->nameChars(), "<init>", 6) != 0
-       || strncmp(calleeMethod->classNameChars(), "java/lang/Throwable", 19) != 0
-       || strncmp(calleeMethod->signatureChars(), "()V", 3) != 0)
-      return false;
+    TR_ResolvedMethod *calleeMethod = initCall->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod();
+    logprintf(trace(), log, "   Matched calleeMethod %s %s %s\n", calleeMethod->classNameChars(),
+        calleeMethod->nameChars(), calleeMethod->signatureChars());
+    if (strncmp(calleeMethod->nameChars(), "<init>", 6) != 0
+        || strncmp(calleeMethod->classNameChars(), "java/lang/Throwable", 19) != 0
+        || strncmp(calleeMethod->signatureChars(), "()V", 3) != 0)
+        return false;
 
-   logprints(trace(), log, "   Matched exceptionNode call\n");
+    logprints(trace(), log, "   Matched exceptionNode call\n");
 
-   nullBlockCursor = nullBlockCursor->getNextTreeTop();
-   if ((nullBlockCursor->getNode()->getOpCodeValue() != TR::treetop
-        && nullBlockCursor->getNode()->getOpCodeValue() != TR::NULLCHK)
-       || nullBlockCursor->getNode()->getFirstChild()->getOpCodeValue() != TR::athrow
-       || nullBlockCursor->getNode()->getFirstChild()->getFirstChild() != exceptionNode)
-      return false;
+    nullBlockCursor = nullBlockCursor->getNextTreeTop();
+    if ((nullBlockCursor->getNode()->getOpCodeValue() != TR::treetop
+            && nullBlockCursor->getNode()->getOpCodeValue() != TR::NULLCHK)
+        || nullBlockCursor->getNode()->getFirstChild()->getOpCodeValue() != TR::athrow
+        || nullBlockCursor->getNode()->getFirstChild()->getFirstChild() != exceptionNode)
+        return false;
 
-   logprints(trace(), log, "   Matched exception throw\n");
+    logprints(trace(), log, "   Matched exception throw\n");
 
-   TR::Node *throwNode = nullBlockCursor->getNode()->getFirstChild();
+    TR::Node *throwNode = nullBlockCursor->getNode()->getFirstChild();
 
-   nullBlockCursor = nullBlockCursor->getNextTreeTop();
-   if (nullBlockCursor != nullBlock->getExit())
-      return false;
+    nullBlockCursor = nullBlockCursor->getNextTreeTop();
+    if (nullBlockCursor != nullBlock->getExit())
+        return false;
 
-   if (!performTransformation(comp(), "%sReplace ifacmpeq/ifacmpne of NULL node [%p] to throw of an NPE exception with NULLCHK\n", OPT_DETAILS, compareNode))
-      return false;
+    if (!performTransformation(comp(),
+            "%sReplace ifacmpeq/ifacmpne of NULL node [%p] to throw of an NPE exception with NULLCHK\n", OPT_DETAILS,
+            compareNode))
+        return false;
 
-   _cfg->invalidateStructure();
+    _cfg->invalidateStructure();
 
-   TR::DebugCounter::incStaticDebugCounter(comp(), TR::DebugCounter::debugCounterName(comp(), "cfgSimpNULLCHK/resolvedNonNull/(%s)", comp()->signature()));
+    TR::DebugCounter::incStaticDebugCounter(comp(),
+        TR::DebugCounter::debugCounterName(comp(), "cfgSimpNULLCHK/resolvedNonNull/(%s)", comp()->signature()));
 
-   TR::Block *checkBlock = _block;
-   if (hasExceptionPoint(_block, compareTreeTop))
-      checkBlock = _block->split(compareTreeTop, _cfg, true, false);
+    TR::Block *checkBlock = _block;
+    if (hasExceptionPoint(_block, compareTreeTop))
+        checkBlock = _block->split(compareTreeTop, _cfg, true, false);
 
-   if (!nullBlock->getExceptionSuccessors().empty())
-      {
-      for (auto itr = nullBlock->getExceptionSuccessors().begin(), end = nullBlock->getExceptionSuccessors().end(); itr != end; ++itr)
-         {
-         _cfg->addExceptionEdge(checkBlock, (*itr)->getTo());
-         }
-      }
+    if (!nullBlock->getExceptionSuccessors().empty()) {
+        for (auto itr = nullBlock->getExceptionSuccessors().begin(), end = nullBlock->getExceptionSuccessors().end();
+             itr != end; ++itr) {
+            _cfg->addExceptionEdge(checkBlock, (*itr)->getTo());
+        }
+    }
 
-   TR::Node *passthroughNode = TR::Node::create(throwNode, TR::PassThrough, 1);
-   passthroughNode->setAndIncChild(0, compareNode->getFirstChild());
-   TR::SymbolReference *symRef = comp()->getSymRefTab()->findOrCreateNullCheckSymbolRef(comp()->getMethodSymbol());
-   TR::Node *nullchkNode = TR::Node::createWithSymRef(TR::NULLCHK, 1, 1, passthroughNode, symRef);
-   logprintf(trace(), log, "End simplifyResolvedRequireNonNull. Generated NULLCHK node n%dn\n", nullchkNode->getGlobalIndex());
-   TR::TreeTop *nullchkTree = TR::TreeTop::create(comp(), nullchkNode);
-   checkBlock->getEntry()->insertAfter(nullchkTree);
+    TR::Node *passthroughNode = TR::Node::create(throwNode, TR::PassThrough, 1);
+    passthroughNode->setAndIncChild(0, compareNode->getFirstChild());
+    TR::SymbolReference *symRef = comp()->getSymRefTab()->findOrCreateNullCheckSymbolRef(comp()->getMethodSymbol());
+    TR::Node *nullchkNode = TR::Node::createWithSymRef(TR::NULLCHK, 1, 1, passthroughNode, symRef);
+    logprintf(trace(), log, "End simplifyResolvedRequireNonNull. Generated NULLCHK node n%dn\n",
+        nullchkNode->getGlobalIndex());
+    TR::TreeTop *nullchkTree = TR::TreeTop::create(comp(), nullchkNode);
+    checkBlock->getEntry()->insertAfter(nullchkTree);
 
-   _cfg->removeEdge(checkBlock, nullBlock);
-   TR::TransformUtil::removeTree(comp(), compareTreeTop);
+    _cfg->removeEdge(checkBlock, nullBlock);
+    TR::TransformUtil::removeTree(comp(), compareTreeTop);
 
-   if (checkBlock->getNextBlock() != nonnullBlock)
-      {
-      TR::Node *gotoNode = TR::Node::create(nullchkNode, TR::Goto, 0);
-      gotoNode->setBranchDestination(nonnullBlock->getEntry());
-      checkBlock->append(TR::TreeTop::create(comp(), gotoNode));
-      }
+    if (checkBlock->getNextBlock() != nonnullBlock) {
+        TR::Node *gotoNode = TR::Node::create(nullchkNode, TR::Goto, 0);
+        gotoNode->setBranchDestination(nonnullBlock->getEntry());
+        checkBlock->append(TR::TreeTop::create(comp(), gotoNode));
+    }
 
-   return true;
-   }
+    return true;
+}

@@ -51,72 +51,60 @@
 #include "optimizer/J9TransformUtil.hpp"
 #include "ras/Logger.hpp"
 
-void TR_StaticFinalFieldFolding::visitNode(TR::TreeTop * currentTree, TR::Node *node)
-   {
-   if (!_checklist->contains(node))
-      {
-      _checklist->add(node);
-      uint16_t childCount = node->getNumChildren();
-      for (int i = childCount; i>0; i--)
-         {
-         visitNode(currentTree, node->getChild(i-1));
-         }
-      if (node->getOpCode().isLoadVarDirect() && node->isLoadOfStaticFinalField())
-         {
-         TR_ASSERT_FATAL(childCount == 0, "Direct load node for static final field should have no child");
-         J9::TransformUtil::attemptGenericStaticFinalFieldFolding(this, currentTree, node);
-         }
-      }
-   }
+void TR_StaticFinalFieldFolding::visitNode(TR::TreeTop *currentTree, TR::Node *node)
+{
+    if (!_checklist->contains(node)) {
+        _checklist->add(node);
+        uint16_t childCount = node->getNumChildren();
+        for (int i = childCount; i > 0; i--) {
+            visitNode(currentTree, node->getChild(i - 1));
+        }
+        if (node->getOpCode().isLoadVarDirect() && node->isLoadOfStaticFinalField()) {
+            TR_ASSERT_FATAL(childCount == 0, "Direct load node for static final field should have no child");
+            J9::TransformUtil::attemptGenericStaticFinalFieldFolding(this, currentTree, node);
+        }
+    }
+}
 
 /**
  *
  * Fold static final fields based on certain criteria
  */
 int32_t TR_StaticFinalFieldFolding::perform()
-   {
-   OMR::Logger *log = comp()->log();
+{
+    OMR::Logger *log = comp()->log();
 
-   if (comp()->getOSRMode() == TR::involuntaryOSR)
-      {
-      if (trace())
-         log->prints("Static final field folding disabled due to involuntary OSR\n");
-      return 0;
-      }
+    if (comp()->getOSRMode() == TR::involuntaryOSR) {
+        if (trace())
+            log->prints("Static final field folding disabled due to involuntary OSR\n");
+        return 0;
+    }
 
-   if (comp()->getOption(TR_DisableOSR))
-      {
-      if (trace())
-         log->prints("Static final field folding disabled due to disabled OSR\n");
-      return 0;
-      }
+    if (comp()->getOption(TR_DisableOSR)) {
+        if (trace())
+            log->prints("Static final field folding disabled due to disabled OSR\n");
+        return 0;
+    }
 
-   if (comp()->getOption(TR_EnableFieldWatch))
-      {
-      if (trace())
-         log->prints("Static final field folding disabled due to field watch\n");
-      return 0;
-      }
+    if (comp()->getOption(TR_EnableFieldWatch)) {
+        if (trace())
+            log->prints("Static final field folding disabled due to field watch\n");
+        return 0;
+    }
 
-   if (comp()->getOption(TR_MimicInterpreterFrameShape))
-      {
-      if (trace())
-         log->prints("Static final field folding disabled due to mimic interpreter frame shape\n");
-      return 0;
-      }
+    if (comp()->getOption(TR_MimicInterpreterFrameShape)) {
+        if (trace())
+            log->prints("Static final field folding disabled due to mimic interpreter frame shape\n");
+        return 0;
+    }
 
-   _checklist = new (trStackMemory()) TR::NodeChecklist(comp());
+    _checklist = new (trStackMemory()) TR::NodeChecklist(comp());
 
-   for (TR::TreeTop * tt = comp()->getStartTree(); tt != NULL; tt = tt->getNextTreeTop())
-      {
-      TR::Node *node = tt->getNode();
-      visitNode(tt, node);
-      }
-   return 0;
-   }
+    for (TR::TreeTop *tt = comp()->getStartTree(); tt != NULL; tt = tt->getNextTreeTop()) {
+        TR::Node *node = tt->getNode();
+        visitNode(tt, node);
+    }
+    return 0;
+}
 
-const char *
-TR_StaticFinalFieldFolding::optDetailString() const throw()
-   {
-   return "O^O STATIC FINAL FIELD FOLDING: ";
-   }
+const char *TR_StaticFinalFieldFolding::optDetailString() const throw() { return "O^O STATIC FINAL FIELD FOLDING: "; }

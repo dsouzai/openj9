@@ -25,8 +25,7 @@
 
 struct J9JITExceptionTable;
 
-namespace OMR
-{
+namespace OMR {
 typedef J9JITExceptionTable MethodExceptionData;
 }
 

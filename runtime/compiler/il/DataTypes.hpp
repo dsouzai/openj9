@@ -25,19 +25,20 @@
 
 #include "il/J9DataTypes.hpp"
 
-namespace TR
-{ 
+namespace TR {
 
-class OMR_EXTENSIBLE DataType : public J9::DataTypeConnector
-   { 
-
+class OMR_EXTENSIBLE DataType : public J9::DataTypeConnector {
 public:
-   DataType() : J9::DataTypeConnector() { }
-   DataType(TR::DataTypes t) : J9::DataTypeConnector(t) { }
+    DataType()
+        : J9::DataTypeConnector()
+    {}
 
-   };
+    DataType(TR::DataTypes t)
+        : J9::DataTypeConnector(t)
+    {}
+};
 
-}
+} // namespace TR
 
 #include "il/DataTypes_inlines.hpp"
 

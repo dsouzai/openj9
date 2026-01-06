@@ -21,14 +21,14 @@
  *******************************************************************************/
 
 #if defined(J9ZOS390)
-//On zOS XLC linker can't handle files with same name at link time
-//This workaround with pragma is needed. What this does is essentially
-//give a different name to the codesection (csect) for this file. So it
-//doesn't conflict with another file with same name.
+// On zOS XLC linker can't handle files with same name at link time
+// This workaround with pragma is needed. What this does is essentially
+// give a different name to the codesection (csect) for this file. So it
+// doesn't conflict with another file with same name.
 
-#pragma csect(CODE,"TRJ9CGRABase#C")
-#pragma csect(STATIC,"TRJ9CGRABase#S")
-#pragma csect(TEST,"TRJ9CGRABase#T")
+#pragma csect(CODE, "TRJ9CGRABase#C")
+#pragma csect(STATIC, "TRJ9CGRABase#S")
+#pragma csect(TEST, "TRJ9CGRABase#T")
 #endif
 
 #include "codegen/J9CodeGenerator.hpp"
@@ -89,210 +89,207 @@
 #include "ras/Debug.hpp"
 #include "ras/Logger.hpp"
 
-TR::AutomaticSymbol *
-J9::CodeGenerator::allocateVariableSizeSymbol(int32_t size)
-   {
-   TR::AutomaticSymbol *sym = TR::AutomaticSymbol::createVariableSized(self()->trHeapMemory(), size);
-   self()->comp()->getMethodSymbol()->addVariableSizeSymbol(sym);
-   if (self()->getDebug())
-      self()->getDebug()->newVariableSizeSymbol(sym);
-   return sym;
-   }
+TR::AutomaticSymbol *J9::CodeGenerator::allocateVariableSizeSymbol(int32_t size)
+{
+    TR::AutomaticSymbol *sym = TR::AutomaticSymbol::createVariableSized(self()->trHeapMemory(), size);
+    self()->comp()->getMethodSymbol()->addVariableSizeSymbol(sym);
+    if (self()->getDebug())
+        self()->getDebug()->newVariableSizeSymbol(sym);
+    return sym;
+}
 
-TR::SymbolReference *
-J9::CodeGenerator::allocateVariableSizeSymRef(int32_t byteLength)
-   {
-   OMR::Logger *log = self()->comp()->log();
-   bool trace = self()->traceBCDCodeGen();
+TR::SymbolReference *J9::CodeGenerator::allocateVariableSizeSymRef(int32_t byteLength)
+{
+    OMR::Logger *log = self()->comp()->log();
+    bool trace = self()->traceBCDCodeGen();
 
-   logprintf(trace, log, "\tallocateVariableSizeSymbolReference: length = %d\n", byteLength);
-   TR::SymbolReference *symRef = self()->getFreeVariableSizeSymRef(byteLength);
-   TR::AutomaticSymbol *sym = NULL;
-   if (symRef == NULL)
-      {
-      sym = self()->allocateVariableSizeSymbol(byteLength);
-      symRef = new (self()->trHeapMemory()) TR::SymbolReference(self()->comp()->getSymRefTab(), sym);
-      symRef->setIsTempVariableSizeSymRef();
-      logprintf(trace, log, "\t\tno available symRef allocate symRef #%d : %s (%p) of length = %d\n",
+    logprintf(trace, log, "\tallocateVariableSizeSymbolReference: length = %d\n", byteLength);
+    TR::SymbolReference *symRef = self()->getFreeVariableSizeSymRef(byteLength);
+    TR::AutomaticSymbol *sym = NULL;
+    if (symRef == NULL) {
+        sym = self()->allocateVariableSizeSymbol(byteLength);
+        symRef = new (self()->trHeapMemory()) TR::SymbolReference(self()->comp()->getSymRefTab(), sym);
+        symRef->setIsTempVariableSizeSymRef();
+        logprintf(trace, log, "\t\tno available symRef allocate symRef #%d : %s (%p) of length = %d\n",
             symRef->getReferenceNumber(), self()->getDebug()->getName(sym), sym, byteLength);
-      _variableSizeSymRefAllocList.push_front(symRef);
-      }
-   else
-      {
-      sym = symRef->getSymbol()->getVariableSizeSymbol();
-      logprintf(trace, log, "\t\treuse available symRef #%d : %s (%p) with length = %d\n",
+        _variableSizeSymRefAllocList.push_front(symRef);
+    } else {
+        sym = symRef->getSymbol()->getVariableSizeSymbol();
+        logprintf(trace, log, "\t\treuse available symRef #%d : %s (%p) with length = %d\n",
             symRef->getReferenceNumber(), self()->getDebug()->getName(sym), sym, byteLength);
-      }
-   sym->setActiveSize(byteLength);
-   sym->setReferenceCount(0);
-   logprintf(trace, log, "\treturning symRef #%d (%s) : activeSize set to %d (length = %d)\n",
-         symRef->getReferenceNumber(), self()->getDebug()->getName(sym), sym->getActiveSize(), sym->getSize());
-   return symRef;
-   }
+    }
+    sym->setActiveSize(byteLength);
+    sym->setReferenceCount(0);
+    logprintf(trace, log, "\treturning symRef #%d (%s) : activeSize set to %d (length = %d)\n",
+        symRef->getReferenceNumber(), self()->getDebug()->getName(sym), sym->getActiveSize(), sym->getSize());
+    return symRef;
+}
 
-void
-J9::CodeGenerator::freeAllVariableSizeSymRefs()
-   {
-   if (!_variableSizeSymRefPendingFreeList.empty())
-      {
-      auto it = _variableSizeSymRefPendingFreeList.begin();
-      while (it != _variableSizeSymRefPendingFreeList.end())
-         {
-         TR_ASSERT((*it)->getSymbol()->isVariableSizeSymbol(),"symRef #%d must contain a variable size symbol\n",(*it)->getReferenceNumber());
-         self()->freeVariableSizeSymRef(*(it++), true); // freeAddressTakenSymbols=true
-         }
-      }
-   }
+void J9::CodeGenerator::freeAllVariableSizeSymRefs()
+{
+    if (!_variableSizeSymRefPendingFreeList.empty()) {
+        auto it = _variableSizeSymRefPendingFreeList.begin();
+        while (it != _variableSizeSymRefPendingFreeList.end()) {
+            TR_ASSERT((*it)->getSymbol()->isVariableSizeSymbol(), "symRef #%d must contain a variable size symbol\n",
+                (*it)->getReferenceNumber());
+            self()->freeVariableSizeSymRef(*(it++), true); // freeAddressTakenSymbols=true
+        }
+    }
+}
 
-void
-J9::CodeGenerator::freeVariableSizeSymRef(
-      TR::SymbolReference *symRef,
-      bool freeAddressTakenSymbol)
-   {
-   OMR::Logger *log = self()->comp()->log();
-   bool trace = self()->traceBCDCodeGen();
+void J9::CodeGenerator::freeVariableSizeSymRef(TR::SymbolReference *symRef, bool freeAddressTakenSymbol)
+{
+    OMR::Logger *log = self()->comp()->log();
+    bool trace = self()->traceBCDCodeGen();
 
-   TR_ASSERT(symRef->getSymbol()->isVariableSizeSymbol(),"symRef #%d must contain a variable size symbol\n",symRef->getReferenceNumber());
-   auto *sym = symRef->getSymbol()->getVariableSizeSymbol();
-   logprintf(trace, log, "\tfreeVariableSizeSymbol: #%d (%s)%s%s%s\n",
-         symRef->getReferenceNumber(), self()->getDebug()->getName(sym),
-         sym->isSingleUse()?", isSingleUse=true":"", freeAddressTakenSymbol?", freeAddressTakenSymbol=true":"", sym->isAddressTaken()?", symAddrTaken=true":"");
-   TR_ASSERT(!(std::find(_variableSizeSymRefFreeList.begin(), _variableSizeSymRefFreeList.end(), symRef) != _variableSizeSymRefFreeList.end()),
-         "symRef #%d has already been freed\n",symRef->getReferenceNumber());
-   if (sym->isAddressTaken() && !freeAddressTakenSymbol)
-      {
-      logprintf(trace, log, "\t\tsym->isAddressTaken()=true and freeAddressTakenSymbol=false so do not free sym #%d (%s %p)\n",
+    TR_ASSERT(symRef->getSymbol()->isVariableSizeSymbol(), "symRef #%d must contain a variable size symbol\n",
+        symRef->getReferenceNumber());
+    auto *sym = symRef->getSymbol()->getVariableSizeSymbol();
+    logprintf(trace, log, "\tfreeVariableSizeSymbol: #%d (%s)%s%s%s\n", symRef->getReferenceNumber(),
+        self()->getDebug()->getName(sym), sym->isSingleUse() ? ", isSingleUse=true" : "",
+        freeAddressTakenSymbol ? ", freeAddressTakenSymbol=true" : "",
+        sym->isAddressTaken() ? ", symAddrTaken=true" : "");
+    TR_ASSERT(!(std::find(_variableSizeSymRefFreeList.begin(), _variableSizeSymRefFreeList.end(), symRef)
+                  != _variableSizeSymRefFreeList.end()),
+        "symRef #%d has already been freed\n", symRef->getReferenceNumber());
+    if (sym->isAddressTaken() && !freeAddressTakenSymbol) {
+        logprintf(trace, log,
+            "\t\tsym->isAddressTaken()=true and freeAddressTakenSymbol=false so do not free sym #%d (%s %p)\n",
             symRef->getReferenceNumber(), self()->getDebug()->getName(sym), sym);
-      return;
-      }
-   else
-      {
-      logprintf(trace, log, "\t\tfree symRef #%d (%s %p)\n", symRef->getReferenceNumber(), self()->getDebug()->getName(sym), sym);
-      sym->setIsSingleUse(false);
-      sym->setIsAddressTaken(false);
-      sym->setNodeToFreeAfter(NULL);
-      sym->setReferenceCount(0);
-      symRef->resetHasTemporaryNegativeOffset();
-      bool found = (std::find(_variableSizeSymRefPendingFreeList.begin(), _variableSizeSymRefPendingFreeList.end(), symRef) != _variableSizeSymRefPendingFreeList.end());
-      if (!_variableSizeSymRefPendingFreeList.empty() && found)
-         _variableSizeSymRefPendingFreeList.remove(symRef);
-      _variableSizeSymRefFreeList.push_front(symRef);
-      }
-   }
+        return;
+    } else {
+        logprintf(trace, log, "\t\tfree symRef #%d (%s %p)\n", symRef->getReferenceNumber(),
+            self()->getDebug()->getName(sym), sym);
+        sym->setIsSingleUse(false);
+        sym->setIsAddressTaken(false);
+        sym->setNodeToFreeAfter(NULL);
+        sym->setReferenceCount(0);
+        symRef->resetHasTemporaryNegativeOffset();
+        bool found
+            = (std::find(_variableSizeSymRefPendingFreeList.begin(), _variableSizeSymRefPendingFreeList.end(), symRef)
+                != _variableSizeSymRefPendingFreeList.end());
+        if (!_variableSizeSymRefPendingFreeList.empty() && found)
+            _variableSizeSymRefPendingFreeList.remove(symRef);
+        _variableSizeSymRefFreeList.push_front(symRef);
+    }
+}
 
-void
-J9::CodeGenerator::pendingFreeVariableSizeSymRef(TR::SymbolReference *symRef)
-   {
-   TR_ASSERT(symRef->getSymbol()->isVariableSizeSymbol(),"symRef #%d must contain a variable size symbol\n",symRef->getReferenceNumber());
-   bool found = (std::find(_variableSizeSymRefPendingFreeList.begin(), _variableSizeSymRefPendingFreeList.end(), symRef) != _variableSizeSymRefPendingFreeList.end());
+void J9::CodeGenerator::pendingFreeVariableSizeSymRef(TR::SymbolReference *symRef)
+{
+    TR_ASSERT(symRef->getSymbol()->isVariableSizeSymbol(), "symRef #%d must contain a variable size symbol\n",
+        symRef->getReferenceNumber());
+    bool found
+        = (std::find(_variableSizeSymRefPendingFreeList.begin(), _variableSizeSymRefPendingFreeList.end(), symRef)
+            != _variableSizeSymRefPendingFreeList.end());
 
-   logprintf(self()->traceBCDCodeGen(), self()->comp()->log(), "\tpendingFreeVariableSizeSymRef: #%d (%s) %s to pending free list\n",
-         symRef->getReferenceNumber(), self()->getDebug()->getName(symRef->getSymbol()), found ?"do not add (already present)":"add");
+    logprintf(self()->traceBCDCodeGen(), self()->comp()->log(),
+        "\tpendingFreeVariableSizeSymRef: #%d (%s) %s to pending free list\n", symRef->getReferenceNumber(),
+        self()->getDebug()->getName(symRef->getSymbol()), found ? "do not add (already present)" : "add");
 
-   if (!found)
-      _variableSizeSymRefPendingFreeList.push_front(symRef);
-   }
+    if (!found)
+        _variableSizeSymRefPendingFreeList.push_front(symRef);
+}
 
+TR::SymbolReference *J9::CodeGenerator::getFreeVariableSizeSymRef(int32_t byteLength)
+{
+    OMR::Logger *log = self()->comp()->log();
+    bool trace = self()->traceBCDCodeGen();
 
-TR::SymbolReference *
-J9::CodeGenerator::getFreeVariableSizeSymRef(int32_t byteLength)
-   {
-   OMR::Logger *log = self()->comp()->log();
-   bool trace = self()->traceBCDCodeGen();
+    TR::SymbolReference *biggestSymRef;
+    if (_variableSizeSymRefFreeList.empty())
+        return NULL;
+    else
+        biggestSymRef = _variableSizeSymRefFreeList.front();
 
-   TR::SymbolReference *biggestSymRef;
-   if(_variableSizeSymRefFreeList.empty())
-      return NULL;
-   else
-      biggestSymRef = _variableSizeSymRefFreeList.front();
+    TR::SymbolReference *previous = NULL;
+    TR::SymbolReference *savedPrevious = NULL;
+    TR::SymbolReference *biggestPrevious = NULL;
+    logprintf(trace, log, "\tgetFreeVariableSizeSymRef of length %d\n", byteLength);
 
-   TR::SymbolReference *previous = NULL;
-   TR::SymbolReference *savedPrevious = NULL;
-   TR::SymbolReference *biggestPrevious = NULL;
-   logprintf(trace, log, "\tgetFreeVariableSizeSymRef of length %d\n", byteLength);
-
-   if (biggestSymRef)
-      {
-      logprintf(trace, log, "\t\tset initial biggestSymRef to #%d (%s) with length %d\n",
-            biggestSymRef->getReferenceNumber(), self()->getDebug()->getName(biggestSymRef->getSymbol()), biggestSymRef->getSymbol()->getSize());
-      auto i = _variableSizeSymRefFreeList.begin();
-      while (i != _variableSizeSymRefFreeList.end())
-         {
-         previous = savedPrevious;
-         logprintf(trace, log, "\t\texamine free symRef #%d (%s) with length %d\n",
-               (*i)->getReferenceNumber(), self()->getDebug()->getName((*i)->getSymbol()), (*i)->getSymbol()->getSize());
-         if ((*i)->getSymbol()->getSize() >= byteLength)
-            {
-            if (trace)
-               {
-               log->printf("\t\tfound big enough free symRef #%d (%s) with length >= req length of %d\n", (*i)->getReferenceNumber(), self()->getDebug()->getName((*i)->getSymbol()), byteLength);
-               log->printf("\t\tremove free symRef #%d (%s) from list, previous is %p\n", (*i)->getReferenceNumber(), self()->getDebug()->getName((*i)->getSymbol()), previous ? previous:(void *)0);
-               }
-            TR::SymbolReference *symRef = *i;
-            if(previous == NULL)
-               _variableSizeSymRefFreeList.pop_front();
-            else
-               {
-               auto foundIt = std::find(_variableSizeSymRefFreeList.begin(), _variableSizeSymRefFreeList.end(), previous);
-               if (foundIt != _variableSizeSymRefFreeList.end())
-                  {
-                  ++foundIt;
-                  _variableSizeSymRefFreeList.erase(foundIt);   // pops head if previous==NULL
-                  }
-               }
-            TR_ASSERT(!(std::find(_variableSizeSymRefFreeList.begin(), _variableSizeSymRefFreeList.end(), (*i)) != _variableSizeSymRefFreeList.end()),
-                  "shouldn't find symRef #%d as it was just removed\n",(*i)->getReferenceNumber());
-            return symRef;
+    if (biggestSymRef) {
+        logprintf(trace, log, "\t\tset initial biggestSymRef to #%d (%s) with length %d\n",
+            biggestSymRef->getReferenceNumber(), self()->getDebug()->getName(biggestSymRef->getSymbol()),
+            biggestSymRef->getSymbol()->getSize());
+        auto i = _variableSizeSymRefFreeList.begin();
+        while (i != _variableSizeSymRefFreeList.end()) {
+            previous = savedPrevious;
+            logprintf(trace, log, "\t\texamine free symRef #%d (%s) with length %d\n", (*i)->getReferenceNumber(),
+                self()->getDebug()->getName((*i)->getSymbol()), (*i)->getSymbol()->getSize());
+            if ((*i)->getSymbol()->getSize() >= byteLength) {
+                if (trace) {
+                    log->printf("\t\tfound big enough free symRef #%d (%s) with length >= req length of %d\n",
+                        (*i)->getReferenceNumber(), self()->getDebug()->getName((*i)->getSymbol()), byteLength);
+                    log->printf("\t\tremove free symRef #%d (%s) from list, previous is %p\n",
+                        (*i)->getReferenceNumber(), self()->getDebug()->getName((*i)->getSymbol()),
+                        previous ? previous : (void *)0);
+                }
+                TR::SymbolReference *symRef = *i;
+                if (previous == NULL)
+                    _variableSizeSymRefFreeList.pop_front();
+                else {
+                    auto foundIt
+                        = std::find(_variableSizeSymRefFreeList.begin(), _variableSizeSymRefFreeList.end(), previous);
+                    if (foundIt != _variableSizeSymRefFreeList.end()) {
+                        ++foundIt;
+                        _variableSizeSymRefFreeList.erase(foundIt); // pops head if previous==NULL
+                    }
+                }
+                TR_ASSERT(!(std::find(_variableSizeSymRefFreeList.begin(), _variableSizeSymRefFreeList.end(), (*i))
+                              != _variableSizeSymRefFreeList.end()),
+                    "shouldn't find symRef #%d as it was just removed\n", (*i)->getReferenceNumber());
+                return symRef;
+            } else if ((*i)->getSymbol()->getSize() > biggestSymRef->getSymbol()->getSize()) {
+                logprintf(trace, log, "\t\tupdate biggest symRef seen to #%d (%s) with length %d\n",
+                    (*i)->getReferenceNumber(), self()->getDebug()->getName((*i)->getSymbol()), byteLength);
+                biggestPrevious = previous;
+                biggestSymRef = *i;
             }
-         else if ((*i)->getSymbol()->getSize() > biggestSymRef->getSymbol()->getSize())
-            {
-            logprintf(trace, log, "\t\tupdate biggest symRef seen to #%d (%s) with length %d\n", (*i)->getReferenceNumber(), self()->getDebug()->getName((*i)->getSymbol()), byteLength);
-            biggestPrevious = previous;
-            biggestSymRef = *i;
-            }
-         savedPrevious = *i;
-         ++i;
-         }
-      logprintf(trace, log, "\t\tincrease biggestSymRef #%d (%s) size from %d -> %d\n",
-            biggestSymRef->getReferenceNumber(), self()->getDebug()->getName(biggestSymRef->getSymbol()), biggestSymRef->getSymbol()->getSize(), byteLength);
-      biggestSymRef->getSymbol()->setSize(byteLength);
-      }
+            savedPrevious = *i;
+            ++i;
+        }
+        logprintf(trace, log, "\t\tincrease biggestSymRef #%d (%s) size from %d -> %d\n",
+            biggestSymRef->getReferenceNumber(), self()->getDebug()->getName(biggestSymRef->getSymbol()),
+            biggestSymRef->getSymbol()->getSize(), byteLength);
+        biggestSymRef->getSymbol()->setSize(byteLength);
+    }
 
-   if (trace && biggestSymRef)
-      log->printf("\t\tremove free symRef #%d (%s) from list, previous is %p\n",
-            biggestSymRef->getReferenceNumber(), self()->getDebug()->getName(biggestSymRef->getSymbol()), previous ? previous:(void *)9999);
+    if (trace && biggestSymRef)
+        log->printf("\t\tremove free symRef #%d (%s) from list, previous is %p\n", biggestSymRef->getReferenceNumber(),
+            self()->getDebug()->getName(biggestSymRef->getSymbol()), previous ? previous : (void *)9999);
 
-   if (biggestPrevious == NULL)
-      _variableSizeSymRefFreeList.pop_front();
-   else
-      {
-      auto foundIt = std::find(_variableSizeSymRefFreeList.begin(), _variableSizeSymRefFreeList.end(), biggestPrevious);
-      if (foundIt != _variableSizeSymRefFreeList.end())
-         {
-         auto nextIt = ++foundIt;
-         _variableSizeSymRefFreeList.remove(*nextIt);   // pops head if previous==NULL
-         }
-      }
-   TR_ASSERT(!biggestSymRef || !(std::find(_variableSizeSymRefFreeList.begin(), _variableSizeSymRefFreeList.end(), biggestSymRef) != _variableSizeSymRefFreeList.end())
-             ,"shouldn't find biggestSymRef #%d as it was just removed\n",biggestSymRef->getReferenceNumber());
-   return biggestSymRef;
-   }
+    if (biggestPrevious == NULL)
+        _variableSizeSymRefFreeList.pop_front();
+    else {
+        auto foundIt
+            = std::find(_variableSizeSymRefFreeList.begin(), _variableSizeSymRefFreeList.end(), biggestPrevious);
+        if (foundIt != _variableSizeSymRefFreeList.end()) {
+            auto nextIt = ++foundIt;
+            _variableSizeSymRefFreeList.remove(*nextIt); // pops head if previous==NULL
+        }
+    }
+    TR_ASSERT(!biggestSymRef
+            || !(std::find(_variableSizeSymRefFreeList.begin(), _variableSizeSymRefFreeList.end(), biggestSymRef)
+                != _variableSizeSymRefFreeList.end()),
+        "shouldn't find biggestSymRef #%d as it was just removed\n", biggestSymRef->getReferenceNumber());
+    return biggestSymRef;
+}
 
-void
-J9::CodeGenerator::checkForUnfreedVariableSizeSymRefs()
-   {
-   OMR::Logger *log = self()->comp()->log();
-   bool foundUnfreedSlot = false;
-   for (auto i = _variableSizeSymRefAllocList.begin(); i != _variableSizeSymRefAllocList.end(); ++i)
-      {
-      bool found = (std::find(_variableSizeSymRefFreeList.begin(), _variableSizeSymRefFreeList.end(), (*i)) != _variableSizeSymRefFreeList.end());
-      if (!found)
-         {
-         TR_ASSERT((*i)->getSymbol()->isVariableSizeSymbol(),"symRef #%d must contain a variable size symbol\n",(*i)->getReferenceNumber());
-         logprintf(self()->traceBCDCodeGen(), log, "Variable size symRef #%d (%s) has not been freed (symbol refCount is %d)\n",
-               (*i)->getReferenceNumber(), self()->getDebug()->getName((*i)->getSymbol()), (*i)->getSymbol()->getVariableSizeSymbol()->getReferenceCount());
-         foundUnfreedSlot = true;
-         }
-      }
-   TR_ASSERT(!foundUnfreedSlot,"Unfreed variable size symRefs found at end of method\n");
-   }
+void J9::CodeGenerator::checkForUnfreedVariableSizeSymRefs()
+{
+    OMR::Logger *log = self()->comp()->log();
+    bool foundUnfreedSlot = false;
+    for (auto i = _variableSizeSymRefAllocList.begin(); i != _variableSizeSymRefAllocList.end(); ++i) {
+        bool found = (std::find(_variableSizeSymRefFreeList.begin(), _variableSizeSymRefFreeList.end(), (*i))
+            != _variableSizeSymRefFreeList.end());
+        if (!found) {
+            TR_ASSERT((*i)->getSymbol()->isVariableSizeSymbol(), "symRef #%d must contain a variable size symbol\n",
+                (*i)->getReferenceNumber());
+            logprintf(self()->traceBCDCodeGen(), log,
+                "Variable size symRef #%d (%s) has not been freed (symbol refCount is %d)\n",
+                (*i)->getReferenceNumber(), self()->getDebug()->getName((*i)->getSymbol()),
+                (*i)->getSymbol()->getVariableSizeSymbol()->getReferenceCount());
+            foundUnfreedSlot = true;
+        }
+    }
+    TR_ASSERT(!foundUnfreedSlot, "Unfreed variable size symRefs found at end of method\n");
+}

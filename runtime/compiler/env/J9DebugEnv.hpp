@@ -28,29 +28,26 @@
  */
 #ifndef J9_DEBUGENV_CONNECTOR
 #define J9_DEBUGENV_CONNECTOR
+
 namespace J9 {
 class DebugEnv;
 typedef J9::DebugEnv DebugEnvConnector;
-}
+} // namespace J9
 #endif
 
 #include "env/OMRDebugEnv.hpp"
 #include "infra/Annotations.hpp"
 #include "env/jittypes.h"
 
+namespace J9 {
 
-namespace J9
-{
-
-class OMR_EXTENSIBLE DebugEnv : public OMR::DebugEnvConnector
-   {
+class OMR_EXTENSIBLE DebugEnv : public OMR::DebugEnvConnector {
 public:
+    void breakPoint();
 
-   void breakPoint();
+    char *extraAssertMessage(TR::Compilation *comp);
+};
 
-   char *extraAssertMessage(TR::Compilation *comp);
-   };
-
-}
+} // namespace J9
 
 #endif

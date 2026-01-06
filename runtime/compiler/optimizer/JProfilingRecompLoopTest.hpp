@@ -22,9 +22,10 @@
 #include <stdint.h>
 #include "optimizer/Optimization.hpp"
 #include "optimizer/OptimizationManager.hpp"
-#include "infra/Checklist.hpp"                // fir NodeChecklist
+#include "infra/Checklist.hpp" // fir NodeChecklist
 #include "runtime/J9Profiler.hpp"
 #include "optimizer/Structure.hpp"
+
 /**
  * Class TR_JProfilingRecompLoopTest
  * ===================================
@@ -33,27 +34,34 @@
  * test that counts the method invocation to trip up recompilation. For work loads
  * where we are spending a lot of time in loops, we are hitting a risk where we
  * are running into compiled method body with profiling trees if we just rely on
- * method invocations. This optimization scans the method body and puts 
+ * method invocations. This optimization scans the method body and puts
  * recompilation test after asynccheck node to consider number of times a loop
  * is running.
  */
-class TR_JProfilingRecompLoopTest : public TR::Optimization
-   {
-   public:
-   // While doing the first walk over treetop, we collect  TreeTop after which we put recompilation test, corresponding Block and loop nesting depth
-   // Following data structures are used to keep this information  
-   typedef TR::typed_allocator<std::pair<std::pair<TR::TreeTop*, TR::Block*>, int32_t>, TR::Region &> RecompilationTestLocationInfoAllocator;
-   typedef std::deque<std::pair<std::pair<TR::TreeTop*, TR::Block*>, int32_t>, RecompilationTestLocationInfoAllocator> RecompilationTestLocationsInfo;
-   TR_JProfilingRecompLoopTest(TR::OptimizationManager *manager)
-      : TR::Optimization(manager)
-      {}
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_JProfilingRecompLoopTest(manager);
-      }
-   virtual int32_t perform();
-   virtual const char *optDetailString() const throw();
-   void addRecompilationTests(TR::Compilation *comp, RecompilationTestLocationsInfo &testLocations, TR_BlockFrequencyInfo *bfi);
-   bool isByteCodeInfoInCurrentTestLocationList(TR_ByteCodeInfo &bci, TR::list<TR_ByteCodeInfo, TR::Region&> &addedLocationBCIList);
-   static int32_t maxLoopRecompilationThreshold;
-   };
+class TR_JProfilingRecompLoopTest : public TR::Optimization {
+public:
+    // While doing the first walk over treetop, we collect  TreeTop after which we put recompilation test, corresponding
+    // Block and loop nesting depth Following data structures are used to keep this information
+    typedef TR::typed_allocator<std::pair<std::pair<TR::TreeTop *, TR::Block *>, int32_t>, TR::Region &>
+        RecompilationTestLocationInfoAllocator;
+    typedef std::deque<std::pair<std::pair<TR::TreeTop *, TR::Block *>, int32_t>,
+        RecompilationTestLocationInfoAllocator>
+        RecompilationTestLocationsInfo;
+
+    TR_JProfilingRecompLoopTest(TR::OptimizationManager *manager)
+        : TR::Optimization(manager)
+    {}
+
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_JProfilingRecompLoopTest(manager);
+    }
+
+    virtual int32_t perform();
+    virtual const char *optDetailString() const throw();
+    void addRecompilationTests(TR::Compilation *comp, RecompilationTestLocationsInfo &testLocations,
+        TR_BlockFrequencyInfo *bfi);
+    bool isByteCodeInfoInCurrentTestLocationList(TR_ByteCodeInfo &bci,
+        TR::list<TR_ByteCodeInfo, TR::Region &> &addedLocationBCIList);
+    static int32_t maxLoopRecompilationThreshold;
+};

@@ -28,21 +28,22 @@
 /*
  * These #ifndef's and classes must appear before including the OMR version of this file
  */
-namespace TR
-{
+namespace TR {
 
-//#ifndef TR_CODECACHE_COMPOSED
-//#define TR_CODECACHE_COMPOSED
-class OMR_EXTENSIBLE CodeCache : public J9::CodeCacheConnector
-   {
-   public:
-   CodeCache() : J9::CodeCacheConnector() { }
-   };
-//#endif // defined(TR_CODECACHE_COMPOSED)
+// #ifndef TR_CODECACHE_COMPOSED
+// #define TR_CODECACHE_COMPOSED
+class OMR_EXTENSIBLE CodeCache : public J9::CodeCacheConnector {
+public:
+    CodeCache()
+        : J9::CodeCacheConnector()
+    {}
+};
+
+// #endif // defined(TR_CODECACHE_COMPOSED)
 
 } // namespace TR
 
 #endif // !defined(TR_CODECACHE_INCL)
 
 // J9 doesn't override all CodeCache types; get the rest from OMR
-//#include "omr/compiler/runtime/CodeCache.hpp"
+// #include "omr/compiler/runtime/CodeCache.hpp"

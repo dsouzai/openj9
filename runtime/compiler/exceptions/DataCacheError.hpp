@@ -35,10 +35,9 @@ namespace J9 {
  *
  * Thrown when the compiler fails to allocate memory in the data cache.
  */
-class DataCacheError : public virtual std::bad_alloc
-   {
-   virtual const char* what() const throw() { return "Data Cache Error"; }
-   };
+class DataCacheError : public virtual std::bad_alloc {
+    virtual const char *what() const throw() { return "Data Cache Error"; }
+};
 
 /**
  * Recoverable Data Cache Allocation Failure exception type.
@@ -46,11 +45,10 @@ class DataCacheError : public virtual std::bad_alloc
  * Thrown on an Data Cache Allocation Failure condition which the
  * compiler can recover from by allowing a recompilation to occur.
  */
-class RecoverableDataCacheError : public virtual std::bad_alloc
-   {
-   virtual const char* what() const throw() { return "Recoverable Data Cache Error"; }
-   };
-}
+class RecoverableDataCacheError : public virtual std::bad_alloc {
+    virtual const char *what() const throw() { return "Recoverable Data Cache Error"; }
+};
+} // namespace J9
 
 #endif // DATA_CACHE_ERROR_HPP
 

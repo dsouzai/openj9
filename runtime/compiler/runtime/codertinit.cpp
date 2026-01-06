@@ -46,9 +46,9 @@
 #include "runtime/MethodMetaData.h"
 #include "runtime/asmprotos.h"
 
-char * feGetEnv(const char * s);
+char *feGetEnv(const char *s);
 
-TR::Monitor * assumptionTableMutex = NULL;
+TR::Monitor *assumptionTableMutex = NULL;
 
 JIT_HELPER(icallVMprJavaSendVirtual0);
 JIT_HELPER(icallVMprJavaSendVirtual1);
@@ -58,22 +58,20 @@ JIT_HELPER(icallVMprJavaSendVirtualD);
 
 extern "C" {
 
-extern void init_codert_vm_fntbl(J9JavaVM * vm);
+extern void init_codert_vm_fntbl(J9JavaVM *vm);
 
 #ifndef J9SW_NEEDS_JIT_2_INTERP_THUNKS
-   extern void * jit2InterpreterSendTargetTable;
+extern void *jit2InterpreterSendTargetTable;
 #endif
-
 
 #if defined(TR_HOST_X86) && !defined(J9HAMMER)
 
-enum TR_PatchingFenceTypes
-   {
-   // Make sure these match IA32PicBuilder.asm
-   TR_NoPatchingFence=0,
-   TR_CPUIDPatchingFence=1,
-   TR_CLFLUSHPatchingFence=2,
-   };
+enum TR_PatchingFenceTypes {
+    // Make sure these match IA32PicBuilder.asm
+    TR_NoPatchingFence = 0,
+    TR_CPUIDPatchingFence = 1,
+    TR_CLFLUSHPatchingFence = 2,
+};
 
 #endif // defined(TR_HOST_X86) && !defined(J9HAMMER)
 
@@ -83,26 +81,28 @@ U_32 vmThreadTLSKey;
 
 #if defined(J9VM_PORT_SIGNAL_SUPPORT) && defined(J9VM_INTERP_NATIVE_SUPPORT)
 #if defined(TR_HOST_X86) && defined(TR_TARGET_X86) && !defined(TR_TARGET_64BIT)
-extern "C" UDATA jitX86Handler(J9VMThread* vmThread, U_32 sigType, void* sigInfo);
+extern "C" UDATA jitX86Handler(J9VMThread *vmThread, U_32 sigType, void *sigInfo);
 #elif defined(TR_HOST_POWER) && defined(TR_TARGET_POWER)
-extern "C" UDATA jitPPCHandler(J9VMThread* vmThread, U_32 sigType, void* sigInfo);
+extern "C" UDATA jitPPCHandler(J9VMThread *vmThread, U_32 sigType, void *sigInfo);
 #elif defined(TR_HOST_S390) && defined(TR_TARGET_S390)
-extern "C" UDATA jit390Handler(J9VMThread* vmThread, U_32 sigType, void* sigInfo);
+extern "C" UDATA jit390Handler(J9VMThread *vmThread, U_32 sigType, void *sigInfo);
 #elif defined(TR_HOST_X86) && defined(TR_TARGET_X86) && defined(TR_TARGET_64BIT)
-extern "C" UDATA jitAMD64Handler(J9VMThread* vmThread, U_32 sigType, void* sigInfo);
+extern "C" UDATA jitAMD64Handler(J9VMThread *vmThread, U_32 sigType, void *sigInfo);
 #elif defined(TR_HOST_ARM64) && defined(TR_TARGET_ARM64)
-extern "C" UDATA jitARM64Handler(J9VMThread* vmThread, U_32 sigType, void* sigInfo);
+extern "C" UDATA jitARM64Handler(J9VMThread *vmThread, U_32 sigType, void *sigInfo);
 #endif
 #endif
 
-#if (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) || defined(TR_HOST_ARM64))
-extern "C" void jitClassesRedefined(J9VMThread * currentThread, UDATA classCount, J9JITRedefinedClass *classList, UDATA extensionsUsed);
-extern "C" void jitFlushCompilationQueue(J9VMThread * currentThread, J9JITFlushCompilationQueueReason reason);
+#if (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) \
+    || defined(TR_HOST_ARM64))
+extern "C" void jitClassesRedefined(J9VMThread *currentThread, UDATA classCount, J9JITRedefinedClass *classList,
+    UDATA extensionsUsed);
+extern "C" void jitFlushCompilationQueue(J9VMThread *currentThread, J9JITFlushCompilationQueueReason reason);
 #endif
 
 extern "C" void jitAddPermanentLoader(J9VMThread *currentThread, J9ClassLoader *loader);
 
-extern "C" void jitMethodBreakpointed(J9VMThread * currentThread, J9Method *j9method);
+extern "C" void jitMethodBreakpointed(J9VMThread *currentThread, J9Method *j9method);
 
 extern "C" void jitIllegalFinalFieldModification(J9VMThread *currentThread, J9Class *fieldClass);
 
@@ -115,54 +115,44 @@ extern "C" void *jitLookupDLT(J9VMThread *currentThread, J9Method *method, UDATA
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
 extern "C" void jitSetMutableCallSiteTarget(J9VMThread *vmThread, j9object_t mcs, j9object_t newTarget);
 #endif
-
 }
 
-static void codertOnBootstrap(J9HookInterface * * hookInterface, UDATA eventNum, void * eventData, void * userData)
-   {
-   J9VMAboutToBootstrapEvent * boostrapEvent = (J9VMAboutToBootstrapEvent*)eventData;
-   J9VMThread * vmThread = boostrapEvent->currentThread;
-   J9JavaVM * javaVM = vmThread->javaVM;
-   J9JITConfig * jitConfig = javaVM->jitConfig;
-   PORT_ACCESS_FROM_JAVAVM(javaVM);
+static void codertOnBootstrap(J9HookInterface **hookInterface, UDATA eventNum, void *eventData, void *userData)
+{
+    J9VMAboutToBootstrapEvent *boostrapEvent = (J9VMAboutToBootstrapEvent *)eventData;
+    J9VMThread *vmThread = boostrapEvent->currentThread;
+    J9JavaVM *javaVM = vmThread->javaVM;
+    J9JITConfig *jitConfig = javaVM->jitConfig;
+    PORT_ACCESS_FROM_JAVAVM(javaVM);
 
-   if (!jitConfig)
-      return;
+    if (!jitConfig)
+        return;
 
-   /* We know that the JIT will be running -- set up stack walk pointers */
-   if (!javaVM->jitWalkStackFrames)
-      {
-      javaVM->jitWalkStackFrames = jitWalkStackFrames;
-      javaVM->jitExceptionHandlerSearch = jitExceptionHandlerSearch;
-      javaVM->jitGetOwnedObjectMonitors = jitGetOwnedObjectMonitors;
-      }
+    /* We know that the JIT will be running -- set up stack walk pointers */
+    if (!javaVM->jitWalkStackFrames) {
+        javaVM->jitWalkStackFrames = jitWalkStackFrames;
+        javaVM->jitExceptionHandlerSearch = jitExceptionHandlerSearch;
+        javaVM->jitGetOwnedObjectMonitors = jitGetOwnedObjectMonitors;
+    }
 
-   return;
-   }
+    return;
+}
 
+static void codertShutdown(J9HookInterface **hook, UDATA eventNum, void *eventData, void *userData)
+{
+    J9VMShutdownEvent *event = (J9VMShutdownEvent *)eventData;
+    J9VMThread *vmThread = event->vmThread;
+    IDATA rc = event->exitCode;
 
-static void codertShutdown(J9HookInterface * * hook, UDATA eventNum, void * eventData, void * userData)
-   {
-   J9VMShutdownEvent * event = (J9VMShutdownEvent *)eventData;
-   J9VMThread * vmThread = event->vmThread;
-   IDATA rc = event->exitCode;
+    J9JavaVM *javaVM = vmThread->javaVM;
+    PORT_ACCESS_FROM_JAVAVM(javaVM);
+    return;
+}
 
-   J9JavaVM * javaVM = vmThread->javaVM;
-   PORT_ACCESS_FROM_JAVAVM(javaVM);
-   return;
-   }
-
-void codert_OnUnload(J9JavaVM * javaVM)
-   {
-   codert_freeJITConfig(javaVM);
-   }
+void codert_OnUnload(J9JavaVM *javaVM) { codert_freeJITConfig(javaVM); }
 
 extern "C" {
-void * getRuntimeHelperValue(int32_t h)
-   {
-   return runtimeHelperValue((TR_RuntimeHelper) h);
-   }
-
+void *getRuntimeHelperValue(int32_t h) { return runtimeHelperValue((TR_RuntimeHelper)h); }
 }
 
 #ifdef LINUX
@@ -172,437 +162,427 @@ void * getRuntimeHelperValue(int32_t h)
 #include <stdlib.h>
 #endif
 
-J9JITConfig * codert_onload(J9JavaVM * javaVM)
-   {
-   J9JITConfig * jitConfig = NULL;
-   PORT_ACCESS_FROM_JAVAVM(javaVM);
-   OMRPORT_ACCESS_FROM_J9PORT(PORTLIB);
+J9JITConfig *codert_onload(J9JavaVM *javaVM)
+{
+    J9JITConfig *jitConfig = NULL;
+    PORT_ACCESS_FROM_JAVAVM(javaVM);
+    OMRPORT_ACCESS_FROM_J9PORT(PORTLIB);
 
-   #if defined(TR_HOST_X86) && !defined(TR_HOST_64BIT)
-      vmThreadTLSKey = (U_32) javaVM->omrVM->_vmThreadKey;
-   #endif
-
-   J9HookInterface * * vmHooks = javaVM->internalVMFunctions->getVMHookInterface(javaVM);
-
-   #if defined(LINUX)
-   static char * sigstopOnLoad = feGetEnv("TR_SIGSTOPOnLoad");
-   if (sigstopOnLoad)
-      {
-      uint32_t pid = getpid();
-      fprintf(stderr, "JIT: sleeping to allow debugger to attach. Execute:\n"
-              "(sleep 2; kill -CONT %d) & gdb --pid=%d\n" , pid, pid);
-      raise(SIGSTOP);
-      }
-   #endif
-
-   // Attempt to allocate a table of mutexes
-   if (!TR::MonitorTable::init(privatePortLibrary, javaVM))
-      goto _abort;
-
-   TR_ASSERT(!javaVM->jitConfig, "jitConfig already initialized.");
-
-   javaVM->jitConfig = (J9JITConfig *) j9mem_allocate_memory(sizeof(J9JITConfig), J9MEM_CATEGORY_JIT);
-
-   if (!javaVM->jitConfig)
-      goto _abort;
-
-   memset(javaVM->jitConfig, 0, sizeof(J9JITConfig));
-   jitConfig = javaVM->jitConfig;
-   jitConfig->sampleInterruptHandlerKey = -1;
-
-   /* setup the hook interface */
-   if (J9HookInitializeInterface(J9_HOOK_INTERFACE(jitConfig->hookInterface), OMRPORTLIB, sizeof(jitConfig->hookInterface)))
-      goto _abort;
-
-   if (j9ThunkTableAllocate(javaVM))
-      goto _abort;
-
-   /* initialize assumptionTableMutex */
-   if (!assumptionTableMutex)
-      {
-      if (!(assumptionTableMutex = TR::Monitor::create("JIT-AssumptionTableMutex")))
-         goto _abort;
-      }
-
-   /* Should use portlib */
-#if defined(TR_HOST_POWER)
-   // On P10+ Prefix instructions require uniform 64-byte boundary alignment.
-   jitConfig->codeCacheAlignment = 64;
-#elif defined(TR_HOST_X86)
-   jitConfig->codeCacheAlignment = 32;
-#elif defined(TR_HOST_S390)
-   // On IBM Z, it can generate load and store quadword instructions from 
-   // Snippet. This requires quadword alignment.
-   jitConfig->codeCacheAlignment = 16;
-#elif defined(TR_HOST_64BIT)
-   jitConfig->codeCacheAlignment = 8;
-#else
-   jitConfig->codeCacheAlignment = 4;
+#if defined(TR_HOST_X86) && !defined(TR_HOST_64BIT)
+    vmThreadTLSKey = (U_32)javaVM->omrVM->_vmThreadKey;
 #endif
 
-   jitConfig->translationArtifacts = jit_allocate_artifacts(javaVM->portLibrary);
-   if (!jitConfig->translationArtifacts)
-      goto _abort;
+    J9HookInterface **vmHooks = javaVM->internalVMFunctions->getVMHookInterface(javaVM);
 
-   /* Setup bootstrap and shutdown hooks */
+#if defined(LINUX)
+    static char *sigstopOnLoad = feGetEnv("TR_SIGSTOPOnLoad");
+    if (sigstopOnLoad) {
+        uint32_t pid = getpid();
+        fprintf(stderr,
+            "JIT: sleeping to allow debugger to attach. Execute:\n"
+            "(sleep 2; kill -CONT %d) & gdb --pid=%d\n",
+            pid, pid);
+        raise(SIGSTOP);
+    }
+#endif
 
-   (*vmHooks)->J9HookRegisterWithCallSite(vmHooks, J9HOOK_VM_ABOUT_TO_BOOTSTRAP, codertOnBootstrap, OMR_GET_CALLSITE(), NULL);
+    // Attempt to allocate a table of mutexes
+    if (!TR::MonitorTable::init(privatePortLibrary, javaVM))
+        goto _abort;
 
-   if ((*vmHooks)->J9HookRegisterWithCallSite(vmHooks, J9HOOK_VM_SHUTTING_DOWN, codertShutdown, OMR_GET_CALLSITE(), NULL))
-      {
-      j9tty_printf(PORTLIB, "Error: Unable to install vm shutting down hook\n");
-      goto _abort;
-      }
+    TR_ASSERT(!javaVM->jitConfig, "jitConfig already initialized.");
+
+    javaVM->jitConfig = (J9JITConfig *)j9mem_allocate_memory(sizeof(J9JITConfig), J9MEM_CATEGORY_JIT);
+
+    if (!javaVM->jitConfig)
+        goto _abort;
+
+    memset(javaVM->jitConfig, 0, sizeof(J9JITConfig));
+    jitConfig = javaVM->jitConfig;
+    jitConfig->sampleInterruptHandlerKey = -1;
+
+    /* setup the hook interface */
+    if (J9HookInitializeInterface(J9_HOOK_INTERFACE(jitConfig->hookInterface), OMRPORTLIB,
+            sizeof(jitConfig->hookInterface)))
+        goto _abort;
+
+    if (j9ThunkTableAllocate(javaVM))
+        goto _abort;
+
+    /* initialize assumptionTableMutex */
+    if (!assumptionTableMutex) {
+        if (!(assumptionTableMutex = TR::Monitor::create("JIT-AssumptionTableMutex")))
+            goto _abort;
+    }
+
+    /* Should use portlib */
+#if defined(TR_HOST_POWER)
+    // On P10+ Prefix instructions require uniform 64-byte boundary alignment.
+    jitConfig->codeCacheAlignment = 64;
+#elif defined(TR_HOST_X86)
+    jitConfig->codeCacheAlignment = 32;
+#elif defined(TR_HOST_S390)
+    // On IBM Z, it can generate load and store quadword instructions from
+    // Snippet. This requires quadword alignment.
+    jitConfig->codeCacheAlignment = 16;
+#elif defined(TR_HOST_64BIT)
+    jitConfig->codeCacheAlignment = 8;
+#else
+    jitConfig->codeCacheAlignment = 4;
+#endif
+
+    jitConfig->translationArtifacts = jit_allocate_artifacts(javaVM->portLibrary);
+    if (!jitConfig->translationArtifacts)
+        goto _abort;
+
+    /* Setup bootstrap and shutdown hooks */
+
+    (*vmHooks)->J9HookRegisterWithCallSite(vmHooks, J9HOOK_VM_ABOUT_TO_BOOTSTRAP, codertOnBootstrap, OMR_GET_CALLSITE(),
+        NULL);
+
+    if ((*vmHooks)->J9HookRegisterWithCallSite(vmHooks, J9HOOK_VM_SHUTTING_DOWN, codertShutdown, OMR_GET_CALLSITE(),
+            NULL)) {
+        j9tty_printf(PORTLIB, "Error: Unable to install vm shutting down hook\n");
+        goto _abort;
+    }
 
 #if defined(TR_HOST_X86) && !defined(J9HAMMER)
-   /*
-    * VM guarantees SSE/SSE2 are available
-    */
-   jitConfig->runtimeFlags |=  J9JIT_PATCHING_FENCE_TYPE;
+    /*
+     * VM guarantees SSE/SSE2 are available
+     */
+    jitConfig->runtimeFlags |= J9JIT_PATCHING_FENCE_TYPE;
 #endif
 
 #if defined(J9VM_INTERP_AOT_RUNTIME_SUPPORT)
-   jitConfig->aotrt_getRuntimeHelper = getRuntimeHelperValue;
-   jitConfig->aotrt_lookupSendTargetForThunk = lookupSendTargetForThunk;
-#endif  /* J9VM_INTERP_AOT_RUNTIME_SUPPORT */
+    jitConfig->aotrt_getRuntimeHelper = getRuntimeHelperValue;
+    jitConfig->aotrt_lookupSendTargetForThunk = lookupSendTargetForThunk;
+#endif /* J9VM_INTERP_AOT_RUNTIME_SUPPORT */
 
-   jitConfig->osrFramesMaximumSize = (UDATA) 8192;
-   jitConfig->osrScratchBufferMaximumSize = (UDATA) 1024;
-   jitConfig->osrStackFrameMaximumSize = (UDATA) 8192;
+    jitConfig->osrFramesMaximumSize = (UDATA)8192;
+    jitConfig->osrScratchBufferMaximumSize = (UDATA)1024;
+    jitConfig->osrStackFrameMaximumSize = (UDATA)8192;
 
-   return jitConfig;
+    return jitConfig;
 
-   _abort:
-   codert_freeJITConfig(javaVM);
-   return NULL;
-   }
+_abort:
+    codert_freeJITConfig(javaVM);
+    return NULL;
+}
 
-void codert_freeJITConfig(J9JavaVM * javaVM)
-   {
-   J9JITConfig * jitConfig = javaVM->jitConfig;
+void codert_freeJITConfig(J9JavaVM *javaVM)
+{
+    J9JITConfig *jitConfig = javaVM->jitConfig;
 
-   if (jitConfig)
-      {
-      PORT_ACCESS_FROM_JAVAVM(javaVM);
+    if (jitConfig) {
+        PORT_ACCESS_FROM_JAVAVM(javaVM);
 
-      j9ThunkTableFree(javaVM);
+        j9ThunkTableFree(javaVM);
 
-      if (jitConfig->translationArtifacts)
-         avl_jit_artifact_free_all(javaVM, jitConfig->translationArtifacts);
+        if (jitConfig->translationArtifacts)
+            avl_jit_artifact_free_all(javaVM, jitConfig->translationArtifacts);
 
-      if (jitConfig->codeCacheList)
-         javaVM->internalVMFunctions->freeMemorySegmentList(javaVM, jitConfig->codeCacheList);
+        if (jitConfig->codeCacheList)
+            javaVM->internalVMFunctions->freeMemorySegmentList(javaVM, jitConfig->codeCacheList);
 
 #if defined(TR_TARGET_S390)
-      if (jitConfig->pseudoTOC)
-         j9mem_free_memory(jitConfig->pseudoTOC);
+        if (jitConfig->pseudoTOC)
+            j9mem_free_memory(jitConfig->pseudoTOC);
 #endif
 
-      if (jitConfig->compilationInfo)
-         {
-         TR_J9VMBase *fej9 = (TR_J9VMBase *)jitConfig->compilationInfo;
-         fej9->freeSharedCache();
-         jitConfig->compilationInfo = 0;
-         }
+        if (jitConfig->compilationInfo) {
+            TR_J9VMBase *fej9 = (TR_J9VMBase *)jitConfig->compilationInfo;
+            fej9->freeSharedCache();
+            jitConfig->compilationInfo = 0;
+        }
 
 #if defined(J9VM_INTERP_AOT_COMPILE_SUPPORT)
-      if (jitConfig->aotCompilationInfo)
-         {
-         TR_J9VMBase *fej9 = (TR_J9VMBase *)(jitConfig->aotCompilationInfo);
-         fej9->freeSharedCache();
-         jitConfig->aotCompilationInfo = 0;
-         }
+        if (jitConfig->aotCompilationInfo) {
+            TR_J9VMBase *fej9 = (TR_J9VMBase *)(jitConfig->aotCompilationInfo);
+            fej9->freeSharedCache();
+            jitConfig->aotCompilationInfo = 0;
+        }
 #endif
 
-/*  Commented out because of rare failure during shutdown: 90700: JIT_Sanity.TestSCCMLTests1.Mode110 Crash during freeJITconfig()
-    Deallocating malloced memory is not going to very useful even for zOS
+        /*  Commented out because of rare failure during shutdown: 90700: JIT_Sanity.TestSCCMLTests1.Mode110 Crash
+           during freeJITconfig() Deallocating malloced memory is not going to very useful even for zOS
 
-      // Free the caches for fast stack walk mechanism
-      // before freeing the data caches or code caches
-      J9MemorySegment *dataCacheSeg = jitConfig->dataCacheList->nextSegment;
-      while (dataCacheSeg) // Iterate over all the data cache segments
-         {
-         // Iterate over all records in the data cache segment
-         UDATA current = (UDATA)dataCacheSeg->heapBase;
-         UDATA end = (UDATA)dataCacheSeg->heapAlloc;
-         while (current < end)
-            {
-            J9JITDataCacheHeader * hdr = (J9JITDataCacheHeader *)current;
-            if (hdr->type == J9DataTypeExceptionInfo)
-               {
-               J9JITExceptionTable * metaData = (J9JITExceptionTable *)(current + sizeof(J9JITDataCacheHeader));
-               // Don't look at unloaded metaData
-               if (metaData->constantPool != NULL)
-                  {
-                  if (metaData->bodyInfo != NULL)
-                     {
-                     void *mapTablePtr = ((TR_PersistentJittedBodyInfo *)metaData->bodyInfo)->getMapTable();
-                     if (mapTablePtr != (void*)-1 && mapTablePtr != NULL)
-                        {
-                        j9mem_free_memory(mapTablePtr);
-                        ((TR_PersistentJittedBodyInfo *)metaData->bodyInfo)->setMapTable(NULL);
-                        }
-                     }
-                  }
-               }
-            current += hdr->size;
-            }
-         dataCacheSeg = dataCacheSeg->nextSegment;
-         } // end while (dataCacheSeg)
+              // Free the caches for fast stack walk mechanism
+              // before freeing the data caches or code caches
+              J9MemorySegment *dataCacheSeg = jitConfig->dataCacheList->nextSegment;
+              while (dataCacheSeg) // Iterate over all the data cache segments
+                 {
+                 // Iterate over all records in the data cache segment
+                 UDATA current = (UDATA)dataCacheSeg->heapBase;
+                 UDATA end = (UDATA)dataCacheSeg->heapAlloc;
+                 while (current < end)
+                    {
+                    J9JITDataCacheHeader * hdr = (J9JITDataCacheHeader *)current;
+                    if (hdr->type == J9DataTypeExceptionInfo)
+                       {
+                       J9JITExceptionTable * metaData = (J9JITExceptionTable *)(current + sizeof(J9JITDataCacheHeader));
+                       // Don't look at unloaded metaData
+                       if (metaData->constantPool != NULL)
+                          {
+                          if (metaData->bodyInfo != NULL)
+                             {
+                             void *mapTablePtr = ((TR_PersistentJittedBodyInfo *)metaData->bodyInfo)->getMapTable();
+                             if (mapTablePtr != (void*)-1 && mapTablePtr != NULL)
+                                {
+                                j9mem_free_memory(mapTablePtr);
+                                ((TR_PersistentJittedBodyInfo *)metaData->bodyInfo)->setMapTable(NULL);
+                                }
+                             }
+                          }
+                       }
+                    current += hdr->size;
+                    }
+                 dataCacheSeg = dataCacheSeg->nextSegment;
+                 } // end while (dataCacheSeg)
 
-*/
-      TR::CodeCacheManager *manager = TR::CodeCacheManager::instance();
-      if (manager)
-         manager->destroy();
+        */
+        TR::CodeCacheManager *manager = TR::CodeCacheManager::instance();
+        if (manager)
+            manager->destroy();
 
-      TR_DataCacheManager::destroyManager();
+        TR_DataCacheManager::destroyManager();
 
+        // Destroy faint blocks
+        OMR::FaintCacheBlock *currentFaintBlock = (OMR::FaintCacheBlock *)jitConfig->methodsToDelete;
+        while (currentFaintBlock) {
+            PORT_ACCESS_FROM_JITCONFIG(jitConfig);
+            OMR::FaintCacheBlock *nextFaintBlock = currentFaintBlock->_next;
+            j9mem_free_memory(currentFaintBlock);
+            currentFaintBlock = nextFaintBlock;
+        }
+        jitConfig->methodsToDelete = NULL;
 
-      // Destroy faint blocks
-      OMR::FaintCacheBlock *currentFaintBlock = (OMR::FaintCacheBlock *)jitConfig->methodsToDelete;
-      while (currentFaintBlock)
-         {
-         PORT_ACCESS_FROM_JITCONFIG(jitConfig);
-         OMR::FaintCacheBlock *nextFaintBlock = currentFaintBlock->_next;
-         j9mem_free_memory(currentFaintBlock);
-         currentFaintBlock = nextFaintBlock;
-         }
-      jitConfig->methodsToDelete = NULL;
+        J9HookInterface **hookInterface = J9_HOOK_INTERFACE(jitConfig->hookInterface);
+        if (*hookInterface)
+            (*hookInterface)->J9HookShutdownInterface(hookInterface);
 
+        // TEMP FIX for 92051 - do not free the jit config
+        // because some runtime code might still be in the process of running
+        // No longer the case. This code is called only when using j9 and it happens
+        // in stage 16 after INTERPRETER_SHUTDOWN
+        if (jitConfig->privateConfig) {
+            if (((TR_JitPrivateConfig *)jitConfig->privateConfig)->aotStats)
+                j9mem_free_memory(((TR_JitPrivateConfig *)jitConfig->privateConfig)->aotStats);
 
-      J9HookInterface** hookInterface = J9_HOOK_INTERFACE(jitConfig->hookInterface);
-      if (*hookInterface)
-         (*hookInterface)->J9HookShutdownInterface(hookInterface);
+            j9mem_free_memory(jitConfig->privateConfig);
+            jitConfig->privateConfig = NULL;
+        }
+        j9mem_free_memory(jitConfig);
 
-      // TEMP FIX for 92051 - do not free the jit config
-      // because some runtime code might still be in the process of running
-      // No longer the case. This code is called only when using j9 and it happens
-      // in stage 16 after INTERPRETER_SHUTDOWN
-      if (jitConfig->privateConfig)
-         {
-         if (((TR_JitPrivateConfig*)jitConfig->privateConfig)->aotStats)
-            j9mem_free_memory(((TR_JitPrivateConfig*)jitConfig->privateConfig)->aotStats);
+        /* Finally break the connection between the VM and the JIT */
+        javaVM->jitConfig = NULL;
 
-         j9mem_free_memory(jitConfig->privateConfig);
-         jitConfig->privateConfig = NULL;
-         }
-      j9mem_free_memory(jitConfig);
+        // TEMP FIX for 97269, re-enable when the similar problem for 92051
+        // above is fixed.
 
-      /* Finally break the connection between the VM and the JIT */
-      javaVM->jitConfig = NULL;
-
-      // TEMP FIX for 97269, re-enable when the similar problem for 92051
-      // above is fixed.
-
-      TR::MonitorTable::get()->free();
-      }
-   }
+        TR::MonitorTable::get()->free();
+    }
+}
 
 extern "C" UDATA trJitGOT();
 
 #if defined(J9VM_INTERP_NATIVE_SUPPORT) && defined(J9VM_ENV_SHARED_LIBS_USE_GLOBAL_TABLE)
-static void
-initJitTOCForAllThreads(J9JavaVM* javaVM, UDATA jitTOC)
-   {
-   j9thread_monitor_enter(javaVM->vmThreadListMutex);
+static void initJitTOCForAllThreads(J9JavaVM *javaVM, UDATA jitTOC)
+{
+    j9thread_monitor_enter(javaVM->vmThreadListMutex);
 
-   if (javaVM->mainThread)
-      {
-      J9VMThread* currThread = javaVM->mainThread;
-      do {
-         currThread->jitTOC = jitTOC;
-         }
-      while( (currThread=currThread->linkNext) != javaVM->mainThread );
-      }
+    if (javaVM->mainThread) {
+        J9VMThread *currThread = javaVM->mainThread;
+        do {
+            currThread->jitTOC = jitTOC;
+        } while ((currThread = currThread->linkNext) != javaVM->mainThread);
+    }
 
-   j9thread_monitor_exit (javaVM->vmThreadListMutex);
-   }
+    j9thread_monitor_exit(javaVM->vmThreadListMutex);
+}
 #endif
 
-
-void codert_init_helpers_and_targets(J9JITConfig * jitConfig, char isSMP)
-   {
-   J9JavaVM *javaVM = jitConfig->javaVM;
-   PORT_ACCESS_FROM_PORT(javaVM->portLibrary);
+void codert_init_helpers_and_targets(J9JITConfig *jitConfig, char isSMP)
+{
+    J9JavaVM *javaVM = jitConfig->javaVM;
+    PORT_ACCESS_FROM_PORT(javaVM->portLibrary);
 
 #ifdef J9VM_ENV_CALL_VIA_TABLE
-   init_codert_vm_fntbl(javaVM);
+    init_codert_vm_fntbl(javaVM);
 #else
-   {
-   /* set up TOC / GOT on PPC platforms */
-   #if defined(AIXPPC)
-   /* get the TOC from a function descriptor */
-   javaVM->jitTOC = ((UDATA *) codert_init_helpers_and_targets)[1];
-   #elif defined(LINUXPPC64)
-      #if defined(__LITTLE_ENDIAN__)
-          javaVM->jitTOC = trJitGOT();
-      #else
-          javaVM->jitTOC = ((UDATA *) codert_init_helpers_and_targets)[1];
-      #endif
-   #elif defined(LINUXPPC)
-   {
-   // Replaced this code for two reasons:
-   // 1. gr2 is now never used on Linux PPC 32 (Bugzilla 100451)
-   //    so we don't need to save a magicLinkageValue.
-   // 2. We want to be able to build Linux PPC with the xlC compiler, so we
-   //    don't want to use __asm__.
-   //        UDATA gotReg = 0xDEADBABE;
-   //        UDATA reservedReg = 0xDEADFACE;
-   //
-   //        __asm__("bl _GLOBAL_OFFSET_TABLE_@local-4; mflr %0; or %1,2,2":"=r"(gotReg), "=r"(reservedReg)
-   //        :  /* no inputs */ );
-   //
-   //        javaVM->jitTOC = gotReg;
-   //        javaVM->magicLinkageValue = reservedReg;
+    {
+/* set up TOC / GOT on PPC platforms */
+#if defined(AIXPPC)
+        /* get the TOC from a function descriptor */
+        javaVM->jitTOC = ((UDATA *)codert_init_helpers_and_targets)[1];
+#elif defined(LINUXPPC64)
+#if defined(__LITTLE_ENDIAN__)
+        javaVM->jitTOC = trJitGOT();
+#else
+        javaVM->jitTOC = ((UDATA *)codert_init_helpers_and_targets)[1];
+#endif
+#elif defined(LINUXPPC)
+        {
+            // Replaced this code for two reasons:
+            // 1. gr2 is now never used on Linux PPC 32 (Bugzilla 100451)
+            //    so we don't need to save a magicLinkageValue.
+            // 2. We want to be able to build Linux PPC with the xlC compiler, so we
+            //    don't want to use __asm__.
+            //        UDATA gotReg = 0xDEADBABE;
+            //        UDATA reservedReg = 0xDEADFACE;
+            //
+            //        __asm__("bl _GLOBAL_OFFSET_TABLE_@local-4; mflr %0; or %1,2,2":"=r"(gotReg), "=r"(reservedReg)
+            //        :  /* no inputs */ );
+            //
+            //        javaVM->jitTOC = gotReg;
+            //        javaVM->magicLinkageValue = reservedReg;
 
-   javaVM->jitTOC = trJitGOT();
-   }
-   #endif
-
-   #if defined(J9VM_INTERP_NATIVE_SUPPORT) && defined(J9VM_ENV_SHARED_LIBS_USE_GLOBAL_TABLE)
-   initJitTOCForAllThreads(javaVM,javaVM->jitTOC);
-   #endif
-   }
+            javaVM->jitTOC = trJitGOT();
+        }
 #endif
 
-   TR::CompilationInfo * compInfo = TR::CompilationInfo::get(jitConfig);
+#if defined(J9VM_INTERP_NATIVE_SUPPORT) && defined(J9VM_ENV_SHARED_LIBS_USE_GLOBAL_TABLE)
+        initJitTOCForAllThreads(javaVM, javaVM->jitTOC);
+#endif
+    }
+#endif
 
-   jitConfig->jitGetExceptionTableFromPC = jitGetExceptionTableFromPC;
-   jitConfig->jitGetStackMapFromPC = getStackMapFromJitPC;
-   jitConfig->jitGetInlinerMapFromPC = jitGetInlinerMapFromPC;
-   jitConfig->getJitInlineDepthFromCallSite = getJitInlineDepthFromCallSite;
-   jitConfig->getJitInlinedCallInfo = getJitInlinedCallInfo;
-   jitConfig->getStackMapFromJitPC = getStackMapFromJitPC;
-   jitConfig->getFirstInlinedCallSite = getFirstInlinedCallSite;
-   jitConfig->getNextInlinedCallSite = getNextInlinedCallSite;
-   jitConfig->hasMoreInlinedMethods = hasMoreInlinedMethods;
-   jitConfig->getInlinedMethod = getInlinedMethod;
-   jitConfig->getByteCodeIndex = getByteCodeIndex;
-   jitConfig->getByteCodeIndexFromStackMap = getByteCodeIndexFromStackMap;
-   jitConfig->getCurrentByteCodeIndexAndIsSameReceiver = getCurrentByteCodeIndexAndIsSameReceiver;
+    TR::CompilationInfo *compInfo = TR::CompilationInfo::get(jitConfig);
+
+    jitConfig->jitGetExceptionTableFromPC = jitGetExceptionTableFromPC;
+    jitConfig->jitGetStackMapFromPC = getStackMapFromJitPC;
+    jitConfig->jitGetInlinerMapFromPC = jitGetInlinerMapFromPC;
+    jitConfig->getJitInlineDepthFromCallSite = getJitInlineDepthFromCallSite;
+    jitConfig->getJitInlinedCallInfo = getJitInlinedCallInfo;
+    jitConfig->getStackMapFromJitPC = getStackMapFromJitPC;
+    jitConfig->getFirstInlinedCallSite = getFirstInlinedCallSite;
+    jitConfig->getNextInlinedCallSite = getNextInlinedCallSite;
+    jitConfig->hasMoreInlinedMethods = hasMoreInlinedMethods;
+    jitConfig->getInlinedMethod = getInlinedMethod;
+    jitConfig->getByteCodeIndex = getByteCodeIndex;
+    jitConfig->getByteCodeIndexFromStackMap = getByteCodeIndexFromStackMap;
+    jitConfig->getCurrentByteCodeIndexAndIsSameReceiver = getCurrentByteCodeIndexAndIsSameReceiver;
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
-   jitConfig->jitGetInvokeBasicCallSiteFromPC = jitGetInvokeBasicCallSiteFromPC;
+    jitConfig->jitGetInvokeBasicCallSiteFromPC = jitGetInvokeBasicCallSiteFromPC;
 #endif
-   jitConfig->getJitRegisterMap = getJitRegisterMap;
-   jitConfig->jitReportDynamicCodeLoadEvents = jitReportDynamicCodeLoadEvents;
-#if (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) || defined(TR_HOST_ARM64))
-   jitConfig->jitClassesRedefined = jitClassesRedefined;
-   jitConfig->jitFlushCompilationQueue = jitFlushCompilationQueue;
+    jitConfig->getJitRegisterMap = getJitRegisterMap;
+    jitConfig->jitReportDynamicCodeLoadEvents = jitReportDynamicCodeLoadEvents;
+#if (defined(TR_HOST_X86) || defined(TR_HOST_POWER) || defined(TR_HOST_S390) || defined(TR_HOST_ARM) \
+    || defined(TR_HOST_ARM64))
+    jitConfig->jitClassesRedefined = jitClassesRedefined;
+    jitConfig->jitFlushCompilationQueue = jitFlushCompilationQueue;
 #endif
-   jitConfig->jitDiscardPendingCompilationsOfNatives = jitDiscardPendingCompilationsOfNatives;
-   jitConfig->jitMethodBreakpointed = jitMethodBreakpointed;
-   jitConfig->jitIllegalFinalFieldModification = jitIllegalFinalFieldModification;
+    jitConfig->jitDiscardPendingCompilationsOfNatives = jitDiscardPendingCompilationsOfNatives;
+    jitConfig->jitMethodBreakpointed = jitMethodBreakpointed;
+    jitConfig->jitIllegalFinalFieldModification = jitIllegalFinalFieldModification;
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
-   jitConfig->jitSetMutableCallSiteTarget = jitSetMutableCallSiteTarget;
+    jitConfig->jitSetMutableCallSiteTarget = jitSetMutableCallSiteTarget;
 #endif
-   jitConfig->jitAddPermanentLoader = jitAddPermanentLoader;
+    jitConfig->jitAddPermanentLoader = jitAddPermanentLoader;
 
-   initializeCodertFunctionTable(javaVM);
+    initializeCodertFunctionTable(javaVM);
 
 #ifndef J9SW_NEEDS_JIT_2_INTERP_THUNKS
-   jitConfig->jitSendTargetTable = &jit2InterpreterSendTargetTable;
+    jitConfig->jitSendTargetTable = &jit2InterpreterSendTargetTable;
 #endif
 
 #if defined(J9VM_PORT_SIGNAL_SUPPORT) && defined(J9VM_INTERP_NATIVE_SUPPORT)
 #if defined(TR_HOST_X86) && defined(TR_TARGET_X86) && !defined(TR_TARGET_64BIT)
-   jitConfig->jitSignalHandler = jitX86Handler;
+    jitConfig->jitSignalHandler = jitX86Handler;
 #elif defined(TR_HOST_POWER) && defined(TR_TARGET_POWER)
-   jitConfig->jitSignalHandler = jitPPCHandler;
+    jitConfig->jitSignalHandler = jitPPCHandler;
 #elif defined(TR_HOST_S390) && defined(TR_TARGET_S390)
-   jitConfig->jitSignalHandler = jit390Handler;
+    jitConfig->jitSignalHandler = jit390Handler;
 #elif defined(TR_HOST_X86) && defined(TR_TARGET_X86) && defined(TR_TARGET_64BIT)
-   jitConfig->jitSignalHandler = jitAMD64Handler;
+    jitConfig->jitSignalHandler = jitAMD64Handler;
 #elif defined(TR_HOST_ARM64) && defined(TR_TARGET_ARM64)
-   jitConfig->jitSignalHandler = jitARM64Handler;
+    jitConfig->jitSignalHandler = jitARM64Handler;
 #endif
 #endif
 
 #if defined(J9VM_JIT_DYNAMIC_LOOP_TRANSFER)
-   jitConfig->isDLTReady = jitLookupDLT;
+    jitConfig->isDLTReady = jitLookupDLT;
 #endif
 
-   // OSR hooks
-   //jitConfig->jitOSRPatchMethod = preOSR;
-   //jitConfig->jitOSRUnpatchMethod = postOSR;
-   //jitConfig->jitCanResumeAtOSRPoint = jitCanResumeAtOSRPoint;
-   //jitConfig->jitUsesOSR = usesOSR;
+    // OSR hooks
+    // jitConfig->jitOSRPatchMethod = preOSR;
+    // jitConfig->jitOSRUnpatchMethod = postOSR;
+    // jitConfig->jitCanResumeAtOSRPoint = jitCanResumeAtOSRPoint;
+    // jitConfig->jitUsesOSR = usesOSR;
 
-   /* Initialize the runtime helper table lookup */
-   initializeCodeRuntimeHelperTable(jitConfig, isSMP);
+    /* Initialize the runtime helper table lookup */
+    initializeCodeRuntimeHelperTable(jitConfig, isSMP);
 
-   ::jitConfig = jitConfig;
-   }
+    ::jitConfig = jitConfig;
+}
 
-
-UDATA lookupSendTargetForThunk(J9JavaVM * javaVM, int thunkNumber)
-   {
+UDATA lookupSendTargetForThunk(J9JavaVM *javaVM, int thunkNumber)
+{
 #if defined(J9ZOS390)
-   #define VIRTUAL_TARGET(x) TOC_UNWRAP_ADDRESS(x)
+#define VIRTUAL_TARGET(x) TOC_UNWRAP_ADDRESS(x)
 #else
-   #define VIRTUAL_TARGET(x) (x)
+#define VIRTUAL_TARGET(x) (x)
 #endif
 
-   /* Use the internal function table which knows how to reference the code part of an intermodule reference */
-   #if !defined(TR_TARGET_32BIT) || !defined(TR_TARGET_X86)
-      switch (thunkNumber)
-         {
-         case 0:
-            return (UDATA) (UDATA)VIRTUAL_TARGET(icallVMprJavaSendVirtual0);
-         case 1:
-            return (UDATA) 0;
-         case 2:
-            return (UDATA) 0;
-         case 3:
-            return (UDATA) 0;
-         case 4:
-            return (UDATA) 0;
-         case 5:
-            return (UDATA) (UDATA)VIRTUAL_TARGET(icallVMprJavaSendVirtualF);
-         case 6:
-            return (UDATA) (UDATA)VIRTUAL_TARGET(icallVMprJavaSendVirtual1);
-         case 7:
-            return (UDATA) (UDATA)VIRTUAL_TARGET(icallVMprJavaSendVirtualD);
-         case 8:
-            return (UDATA) (UDATA)VIRTUAL_TARGET(icallVMprJavaSendVirtualJ);
-         case 9:
-            return (UDATA) 0;
-         }
-   #endif /* TR_HOST_X86 */
+/* Use the internal function table which knows how to reference the code part of an intermodule reference */
+#if !defined(TR_TARGET_32BIT) || !defined(TR_TARGET_X86)
+    switch (thunkNumber) {
+        case 0:
+            return (UDATA)(UDATA)VIRTUAL_TARGET(icallVMprJavaSendVirtual0);
+        case 1:
+            return (UDATA)0;
+        case 2:
+            return (UDATA)0;
+        case 3:
+            return (UDATA)0;
+        case 4:
+            return (UDATA)0;
+        case 5:
+            return (UDATA)(UDATA)VIRTUAL_TARGET(icallVMprJavaSendVirtualF);
+        case 6:
+            return (UDATA)(UDATA)VIRTUAL_TARGET(icallVMprJavaSendVirtual1);
+        case 7:
+            return (UDATA)(UDATA)VIRTUAL_TARGET(icallVMprJavaSendVirtualD);
+        case 8:
+            return (UDATA)(UDATA)VIRTUAL_TARGET(icallVMprJavaSendVirtualJ);
+        case 9:
+            return (UDATA)0;
+    }
+#endif /* TR_HOST_X86 */
 
-   return 0;
+    return 0;
 
 #undef VIRTUAL_TARGET
-   }
+}
 
-
-TR_X86CPUIDBuffer *queryX86TargetCPUID(void * javaVM);
+TR_X86CPUIDBuffer *queryX86TargetCPUID(void *javaVM);
 
 #ifdef TR_HOST_X86
 #include "x/runtime/X86Runtime.hpp"
 #endif
 
-static TR_X86CPUIDBuffer *initializeX86CPUIDBuffer(void * javaVM)
-   {
-   static TR_X86CPUIDBuffer buf = { {'U','n','k','n','o','w','n','B','r','a','n','d'} };
-   J9JITConfig *jitConfig = ((J9JavaVM *)javaVM)->jitConfig;
+static TR_X86CPUIDBuffer *initializeX86CPUIDBuffer(void *javaVM)
+{
+    static TR_X86CPUIDBuffer buf = {
+        { 'U', 'n', 'k', 'n', 'o', 'w', 'n', 'B', 'r', 'a', 'n', 'd' }
+    };
+    J9JITConfig *jitConfig = ((J9JavaVM *)javaVM)->jitConfig;
 
-   PORT_ACCESS_FROM_PORT(((J9JavaVM *)javaVM)->portLibrary);
+    PORT_ACCESS_FROM_PORT(((J9JavaVM *)javaVM)->portLibrary);
 
 #if defined(TR_HOST_X86)
-   // jitConfig can be NULL during AOT
-   if (jitConfig && jitConfig->processorInfo == NULL)
-      {
-      jitGetCPUID(&buf);
-      jitConfig->processorInfo = &buf;
-      }
+    // jitConfig can be NULL during AOT
+    if (jitConfig && jitConfig->processorInfo == NULL) {
+        jitGetCPUID(&buf);
+        jitConfig->processorInfo = &buf;
+    }
 #endif
 
-   return &buf;
-   }
+    return &buf;
+}
 
-TR_X86CPUIDBuffer *queryX86TargetCPUID(void * javaVM)
-   {
-   static TR_X86CPUIDBuffer *result = initializeX86CPUIDBuffer(javaVM);
-   return result;
-   }
+TR_X86CPUIDBuffer *queryX86TargetCPUID(void *javaVM)
+{
+    static TR_X86CPUIDBuffer *result = initializeX86CPUIDBuffer(javaVM);
+    return result;
+}
 

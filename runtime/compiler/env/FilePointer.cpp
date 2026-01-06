@@ -25,8 +25,7 @@
 #include <string.h>
 
 #if defined(J9ZOS390)
-extern "C"
-{
+extern "C" {
 #include "atoe.h"
 }
 #undef fwrite
@@ -38,79 +37,58 @@ extern "C"
 
 extern char *feGetEnv(const char *);
 
-namespace TR
-{
+namespace TR {
 
-FILE TR::FilePointer::_null   = FilePointer(NULL);
-FILE TR::FilePointer::_stdin  = FilePointer(stdin);
+FILE TR::FilePointer::_null = FilePointer(NULL);
+FILE TR::FilePointer::_stdin = FilePointer(stdin);
 FILE TR::FilePointer::_stdout = FilePointer(stdout);
 FILE TR::FilePointer::_stderr = FilePointer(stderr);
 
+FilePointer::FilePointer(::FILE *stream) { initialize(stream); }
 
-FilePointer::FilePointer(::FILE *stream)
-   {
-   initialize(stream);
-   }
-
-
-void
-FilePointer::initialize(::FILE *stream)
-   {
-   _stream  = stream;
-   _useJ9IO = false;
-   }
-
-
-void
-FilePointer::initialize(J9PortLibrary *portLib, int32_t fileId)
-   {
-   PORT_ACCESS_FROM_PORT(portLib);
-   _fileId  = fileId;
-   _useJ9IO = true;
-   }
-
-
-int32_t
-FilePointer::write(J9PortLibrary *portLib, char *buf, int32_t length)
-   {
-   PORT_ACCESS_FROM_PORT(portLib);
-   if (length > 0)
-      {
-      if (_useJ9IO)
-         {
-         return j9file_write(_fileId, buf, length);
-         }
-      else
-         length = fwrite(buf, 1, length, _stream);
-      }
-
-   return length;
-   }
-
-
-void
-FilePointer::close(J9PortLibrary *portLib)
-   {
-   PORT_ACCESS_FROM_PORT(portLib);
-   if (_useJ9IO)
-      {
-      flush(portLib);
-      j9file_sync(_fileId);
-      j9file_close(_fileId);
-      }
-   else
-      {
-      fclose(_stream);
-      }
-   }
-
-
-void
-FilePointer::flush(J9PortLibrary *portLib)
-   {
-   PORT_ACCESS_FROM_PORT(portLib);
-   if (!_useJ9IO)
-      fflush(_stream);
-   }
-
+void FilePointer::initialize(::FILE *stream)
+{
+    _stream = stream;
+    _useJ9IO = false;
 }
+
+void FilePointer::initialize(J9PortLibrary *portLib, int32_t fileId)
+{
+    PORT_ACCESS_FROM_PORT(portLib);
+    _fileId = fileId;
+    _useJ9IO = true;
+}
+
+int32_t FilePointer::write(J9PortLibrary *portLib, char *buf, int32_t length)
+{
+    PORT_ACCESS_FROM_PORT(portLib);
+    if (length > 0) {
+        if (_useJ9IO) {
+            return j9file_write(_fileId, buf, length);
+        } else
+            length = fwrite(buf, 1, length, _stream);
+    }
+
+    return length;
+}
+
+void FilePointer::close(J9PortLibrary *portLib)
+{
+    PORT_ACCESS_FROM_PORT(portLib);
+    if (_useJ9IO) {
+        flush(portLib);
+        j9file_sync(_fileId);
+        j9file_close(_fileId);
+    } else {
+        fclose(_stream);
+    }
+}
+
+void FilePointer::flush(J9PortLibrary *portLib)
+{
+    PORT_ACCESS_FROM_PORT(portLib);
+    if (!_useJ9IO)
+        fflush(_stream);
+}
+
+} // namespace TR

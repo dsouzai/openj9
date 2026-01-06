@@ -32,225 +32,198 @@
 
 #include "infra/Bit.hpp"
 
-class InstEmulator
-   {
-   public:
-      static InstEmulator *decode(uint8_t *pc);
-      virtual void emulate(mcontext_t *cpu) {}
-   };
+class InstEmulator {
+public:
+    static InstEmulator *decode(uint8_t *pc);
 
-class LXAEmulator : public InstEmulator
-   {
-   private:
-      uint8_t r1, x2, b2;
-      uint32_t dx2;
-      uint8_t shift;
-      bool isLogical;
-   public:
-      LXAEmulator(uint8_t *start);
-      virtual void emulate(mcontext_t *cpu);
-   };
+    virtual void emulate(mcontext_t *cpu) {}
+};
+
+class LXAEmulator : public InstEmulator {
+private:
+    uint8_t r1, x2, b2;
+    uint32_t dx2;
+    uint8_t shift;
+    bool isLogical;
+
+public:
+    LXAEmulator(uint8_t *start);
+    virtual void emulate(mcontext_t *cpu);
+};
 
 LXAEmulator::LXAEmulator(uint8_t *start)
-   {
-   r1 = (start[1] & 0xF0) >> 4;
-   x2 = start[1] & 0x0F;
-   b2 = (start[2] & 0xF0) >> 4;
-   uint32_t dxl2 = (uint32_t) ((*(uint16_t *)(start+2)) & 0x0FFF);
-   uint32_t dxh2 = start[4];
-   dx2 = dxl2 | (dxh2 << 12);
-   shift = (start[5] & 0xE) >> 1;
-   isLogical = (start[5] & 1) == 1;
-   }
+{
+    r1 = (start[1] & 0xF0) >> 4;
+    x2 = start[1] & 0x0F;
+    b2 = (start[2] & 0xF0) >> 4;
+    uint32_t dxl2 = (uint32_t)((*(uint16_t *)(start + 2)) & 0x0FFF);
+    uint32_t dxh2 = start[4];
+    dx2 = dxl2 | (dxh2 << 12);
+    shift = (start[5] & 0xE) >> 1;
+    isLogical = (start[5] & 1) == 1;
+}
 
 void LXAEmulator::emulate(mcontext_t *cpu)
-   {
-   int64_t addr;
-   int32_t tmp = (int32_t) dx2;
+{
+    int64_t addr;
+    int32_t tmp = (int32_t)dx2;
 
-   // sign extend immediate
-   if (tmp & 0x80000)
-      {
-      tmp |= 0xFFF00000;
-      }
+    // sign extend immediate
+    if (tmp & 0x80000) {
+        tmp |= 0xFFF00000;
+    }
 
-   if (x2 != 0)
-      {
-      tmp += cpu->gregs[x2];
-      }
+    if (x2 != 0) {
+        tmp += cpu->gregs[x2];
+    }
 
-   if (isLogical)
-      {
-      addr = (int64_t)(uint32_t) tmp;
-      }
-   else
-      {
-      addr = (int64_t) tmp;
-      }
+    if (isLogical) {
+        addr = (int64_t)(uint32_t)tmp;
+    } else {
+        addr = (int64_t)tmp;
+    }
 
-   addr <<= shift;
-   if (b2 != 0)
-      {
-      addr += cpu->gregs[b2];
-      }
-   cpu->gregs[r1] = addr;
-   }
+    addr <<= shift;
+    if (b2 != 0) {
+        addr += cpu->gregs[b2];
+    }
+    cpu->gregs[r1] = addr;
+}
 
-class BDEPGEmulator : public InstEmulator
-   {
-   private:
-      uint8_t r1, r2, r3;
-   public:
-      BDEPGEmulator(uint8_t *start);
-      virtual void emulate(mcontext_t *cpu);
-   };
+class BDEPGEmulator : public InstEmulator {
+private:
+    uint8_t r1, r2, r3;
+
+public:
+    BDEPGEmulator(uint8_t *start);
+    virtual void emulate(mcontext_t *cpu);
+};
 
 BDEPGEmulator::BDEPGEmulator(uint8_t *start)
-   {
-   r1 = (start[3] & 0xF0) >> 4;
-   r2 = start[3] & 0x0F;
-   r3 = (start[2] & 0xF0) >> 4;
-   }
+{
+    r1 = (start[3] & 0xF0) >> 4;
+    r2 = start[3] & 0x0F;
+    r3 = (start[2] & 0xF0) >> 4;
+}
 
 void BDEPGEmulator::emulate(mcontext_t *cpu)
-   {
-   uint64_t val = cpu->gregs[r2];
-   uint64_t mask = cpu->gregs[r3];
-   uint64_t res = 0;
+{
+    uint64_t val = cpu->gregs[r2];
+    uint64_t mask = cpu->gregs[r3];
+    uint64_t res = 0;
 
-   for (int n = 0; mask; n++)
-      {
-      if (mask & (1ULL << 63))
-         {
-         res |= (val & (1ULL << 63)) >> n;
-         val <<= 1;
-         }
-      mask <<= 1;
-      }
+    for (int n = 0; mask; n++) {
+        if (mask & (1ULL << 63)) {
+            res |= (val & (1ULL << 63)) >> n;
+            val <<= 1;
+        }
+        mask <<= 1;
+    }
 
-   cpu->gregs[r1] = res;
-   }
+    cpu->gregs[r1] = res;
+}
 
-class BEXTGEmulator : public InstEmulator
-   {
-   private:
-      uint8_t r1, r2, r3;
-   public:
-      BEXTGEmulator(uint8_t *start);
-      virtual void emulate(mcontext_t *cpu);
-   };
+class BEXTGEmulator : public InstEmulator {
+private:
+    uint8_t r1, r2, r3;
+
+public:
+    BEXTGEmulator(uint8_t *start);
+    virtual void emulate(mcontext_t *cpu);
+};
 
 BEXTGEmulator::BEXTGEmulator(uint8_t *start)
-   {
-   r1 = (start[3] & 0xF0) >> 4;
-   r2 = start[3] & 0x0F;
-   r3 = (start[2] & 0xF0) >> 4;
-   }
+{
+    r1 = (start[3] & 0xF0) >> 4;
+    r2 = start[3] & 0x0F;
+    r3 = (start[2] & 0xF0) >> 4;
+}
 
 void BEXTGEmulator::emulate(mcontext_t *cpu)
-   {
-   uint64_t val = cpu->gregs[r2];
-   uint64_t mask = cpu->gregs[r3];
-   uint64_t res = 0;
+{
+    uint64_t val = cpu->gregs[r2];
+    uint64_t mask = cpu->gregs[r3];
+    uint64_t res = 0;
 
-   for (int k = 0; mask; mask <<= 1, val <<= 1)
-      {
-      if (mask & (1ULL << 63))
-         {
-         res |= (val & (1ULL << 63)) >> k;
-         k++;
-         }
-      }
+    for (int k = 0; mask; mask <<= 1, val <<= 1) {
+        if (mask & (1ULL << 63)) {
+            res |= (val & (1ULL << 63)) >> k;
+            k++;
+        }
+    }
 
-   cpu->gregs[r1] = res;
-   }
+    cpu->gregs[r1] = res;
+}
 
-class CLZGEmulator : public InstEmulator
-   {
-   private:
-      uint8_t r1, r2;
-   public:
-      CLZGEmulator(uint8_t *start);
-      virtual void emulate(mcontext_t *cpu);
-   };
+class CLZGEmulator : public InstEmulator {
+private:
+    uint8_t r1, r2;
+
+public:
+    CLZGEmulator(uint8_t *start);
+    virtual void emulate(mcontext_t *cpu);
+};
 
 CLZGEmulator::CLZGEmulator(uint8_t *start)
-   {
-   r1 = (start[3] & 0xF0) >> 4;
-   r2 = start[3] & 0x0F;
-   }
+{
+    r1 = (start[3] & 0xF0) >> 4;
+    r2 = start[3] & 0x0F;
+}
 
-void CLZGEmulator::emulate(mcontext_t *cpu)
-   {
-   cpu->gregs[r1] = (uint64_t)leadingZeroes(cpu->gregs[r2]);
-   }
+void CLZGEmulator::emulate(mcontext_t *cpu) { cpu->gregs[r1] = (uint64_t)leadingZeroes(cpu->gregs[r2]); }
 
-class CTZGEmulator : public InstEmulator
-   {
-   private:
-      uint8_t r1, r2;
-   public:
-      CTZGEmulator(uint8_t *start);
-      virtual void emulate(mcontext_t *cpu);
-   };
+class CTZGEmulator : public InstEmulator {
+private:
+    uint8_t r1, r2;
+
+public:
+    CTZGEmulator(uint8_t *start);
+    virtual void emulate(mcontext_t *cpu);
+};
 
 CTZGEmulator::CTZGEmulator(uint8_t *start)
-   {
-   r1 = (start[3] & 0xF0) >> 4;
-   r2 = start[3] & 0x0F;
-   }
+{
+    r1 = (start[3] & 0xF0) >> 4;
+    r2 = start[3] & 0x0F;
+}
 
-void CTZGEmulator::emulate(mcontext_t *cpu)
-   {
-   cpu->gregs[r1] = (uint64_t)trailingZeroes(cpu->gregs[r2]);
-   }
+void CTZGEmulator::emulate(mcontext_t *cpu) { cpu->gregs[r1] = (uint64_t)trailingZeroes(cpu->gregs[r2]); }
 
 InstEmulator *InstEmulator::decode(uint8_t *pc)
-   {
-   // Checking the optcode in the first byte and last byte of the instruction to
-   // see if it is LXA/LLXA instructions (Op-codes '0xE360' to '0xE369')
-   if ((pc[-6] == 0xE3) && ((pc[-1] & 0xF0) == 0x60) && ((pc[-1] & 0x0F) < 10))
-      {
-      return new LXAEmulator(pc-6);
-      }
-   else if (*(uint16_t*)(pc-4) == 0xB96D)
-      {
-      return new BDEPGEmulator(pc-4);
-      }
-   else if (*(uint16_t*)(pc-4) == 0xB96C)
-      {
-      return new BEXTGEmulator(pc-4);
-      }
-   else if (*(uint16_t*)(pc-4) == 0xB968)
-      {
-      return new CLZGEmulator(pc-4);
-      }
-   else if (*(uint16_t*)(pc-4) == 0xB969)
-      {
-      return new CTZGEmulator(pc-4);
-      }
+{
+    // Checking the optcode in the first byte and last byte of the instruction to
+    // see if it is LXA/LLXA instructions (Op-codes '0xE360' to '0xE369')
+    if ((pc[-6] == 0xE3) && ((pc[-1] & 0xF0) == 0x60) && ((pc[-1] & 0x0F) < 10)) {
+        return new LXAEmulator(pc - 6);
+    } else if (*(uint16_t *)(pc - 4) == 0xB96D) {
+        return new BDEPGEmulator(pc - 4);
+    } else if (*(uint16_t *)(pc - 4) == 0xB96C) {
+        return new BEXTGEmulator(pc - 4);
+    } else if (*(uint16_t *)(pc - 4) == 0xB968) {
+        return new CLZGEmulator(pc - 4);
+    } else if (*(uint16_t *)(pc - 4) == 0xB969) {
+        return new CTZGEmulator(pc - 4);
+    }
 
-   return NULL;
-   }
+    return NULL;
+}
 
 #endif /* LINUX */
 
-extern "C"
-int jitS390Emulation(J9VMThread* vmThread, void* sigInfo)
-   {
+extern "C" int jitS390Emulation(J9VMThread *vmThread, void *sigInfo)
+{
 #ifdef LINUX
-   OMRUnixSignalInfo *unixSigInfo = (OMRUnixSignalInfo*) sigInfo;
+    OMRUnixSignalInfo *unixSigInfo = (OMRUnixSignalInfo *)sigInfo;
 
-   uint8_t *pc = (uint8_t*) unixSigInfo->platformSignalInfo.context->uc_mcontext.psw.addr;
+    uint8_t *pc = (uint8_t *)unixSigInfo->platformSignalInfo.context->uc_mcontext.psw.addr;
 
-   InstEmulator *inst = InstEmulator::decode(pc);
-   if (inst != NULL)
-      {
-      inst->emulate(&unixSigInfo->platformSignalInfo.context->uc_mcontext);
-      delete inst;
-      return 0;
-      }
+    InstEmulator *inst = InstEmulator::decode(pc);
+    if (inst != NULL) {
+        inst->emulate(&unixSigInfo->platformSignalInfo.context->uc_mcontext);
+        delete inst;
+        return 0;
+    }
 #endif /* LINUX */
 
-   return -1;
-   }
+    return -1;
+}

@@ -29,33 +29,29 @@ namespace TR {
 class CodeGenerator;
 class PPCConditionalBranchInstruction;
 class LabelSymbol;
-}
+} // namespace TR
 
 namespace TR {
 
-class PPCRecompilationSnippet : public TR::Snippet
-   {
-   TR::PPCConditionalBranchInstruction *branchToSnippet;
+class PPCRecompilationSnippet : public TR::Snippet {
+    TR::PPCConditionalBranchInstruction *branchToSnippet;
 
-   public:
+public:
+    PPCRecompilationSnippet(TR::LabelSymbol *snippetlab, TR::PPCConditionalBranchInstruction *bts,
+        TR::CodeGenerator *cg)
+        : TR::Snippet(cg, 0, snippetlab, false)
+        , branchToSnippet(bts)
+    {}
 
-   PPCRecompilationSnippet(
-         TR::LabelSymbol *snippetlab,
-         TR::PPCConditionalBranchInstruction *bts,
-         TR::CodeGenerator *cg)
-      : TR::Snippet(cg, 0, snippetlab, false), branchToSnippet(bts)
-      {
-      }
+    virtual Kind getKind() { return IsRecompilation; }
 
-   virtual Kind getKind() { return IsRecompilation; }
+    TR::PPCConditionalBranchInstruction *getBranchToSnippet() { return branchToSnippet; }
 
-   TR::PPCConditionalBranchInstruction *getBranchToSnippet() {return branchToSnippet;}
+    virtual uint8_t *emitSnippetBody();
 
-   virtual uint8_t *emitSnippetBody();
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
+};
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-   };
-
-}
+} // namespace TR
 
 #endif

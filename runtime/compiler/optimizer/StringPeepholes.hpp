@@ -42,110 +42,108 @@ namespace TR {
 class ResolvedMethodSymbol;
 class SymbolReference;
 class TreeTop;
-}
+} // namespace TR
 struct TR_BDChain;
 
-class TR_StringPeepholes : public TR::Optimization
-   {
-   public:
-   TR_StringPeepholes(TR::OptimizationManager *manager);
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_StringPeepholes(manager);
-      }
+class TR_StringPeepholes : public TR::Optimization {
+public:
+    TR_StringPeepholes(TR::OptimizationManager *manager);
 
-   virtual int32_t perform();
-   virtual int32_t performOnBlock(TR::Block *);
-   virtual void prePerformOnBlocks();
-   virtual const char * optDetailString() const throw();
-   int32_t process(TR::TreeTop *, TR::TreeTop *);
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_StringPeepholes(manager);
+    }
 
-   private:
-   void genFlush(TR::TreeTop *, TR::Node *node);
-   enum StringpeepholesMethods
-      {
-	   SPH_BigDecimal_SMAAMSS,
-	   SPH_BigDecimal_SMSS,
-	   SPH_BigDecimal_AAMSS,
-	   SPH_BigDecimal_MSS,
-	   START_STRING_METHODS, //separator
-       SPH_String_init_SC, //_initSymRef
-	   SPH_String_init_SS, //_initSymRef1
-	   SPH_String_init_SSS, //_initSymRef2
-	   SPH_String_init_SI, //_initSymRef3
-	   SPH_String_init_AIIZ, //_initSymRef4
-	   SPH_String_init_ISISS, //_initSymRef7
-	   END_STRINGPEEPHOLES_METHODS
-      };
+    virtual int32_t perform();
+    virtual int32_t performOnBlock(TR::Block *);
+    virtual void prePerformOnBlocks();
+    virtual const char *optDetailString() const throw();
+    int32_t process(TR::TreeTop *, TR::TreeTop *);
 
-   TR::SymbolReference **optSymRefs;
+private:
+    void genFlush(TR::TreeTop *, TR::Node *node);
 
-   TR::SymbolReference* findSymRefForOptMethod (StringpeepholesMethods m);
-   TR::SymbolReference* MethodEnumToArgsForMethodSymRefFromName (StringpeepholesMethods m);
+    enum StringpeepholesMethods {
+        SPH_BigDecimal_SMAAMSS,
+        SPH_BigDecimal_SMSS,
+        SPH_BigDecimal_AAMSS,
+        SPH_BigDecimal_MSS,
+        START_STRING_METHODS, // separator
+        SPH_String_init_SC, //_initSymRef
+        SPH_String_init_SS, //_initSymRef1
+        SPH_String_init_SSS, //_initSymRef2
+        SPH_String_init_SI, //_initSymRef3
+        SPH_String_init_AIIZ, //_initSymRef4
+        SPH_String_init_ISISS, //_initSymRef7
+        END_STRINGPEEPHOLES_METHODS
+    };
 
-   void processBlock(TR::Block *block);
-   TR::TreeTop *detectPattern(TR::Block *block, TR::TreeTop *tt, bool useStringBuffer);
-   TR::TreeTop *detectBDPattern(TR::Block *block, TR::TreeTop *tt, TR::Node *node);
-   TR::TreeTop *detectSubMulSetScalePattern(TR::TreeTop *tt, TR::TreeTop *exit, TR::Node *node);
-   TR::SymbolReference *findSymRefForValueOf(const char *sig);
+    TR::SymbolReference **optSymRefs;
 
-   bool checkMethodSignature(TR::SymbolReference *symRef, const char *sig);
-   TR::TreeTop *searchForStringAppend(const char *sig, TR::TreeTop *tt, TR::TreeTop *exitTree,
-                                     TR::ILOpCodes opCode, TR::Node *newBuffer, vcount_t visitCount,
-                                     TR::Node **string, TR::TreeTop **prim);
-   TR::TreeTop *searchForInitCall(const char *sig, TR::TreeTop *tt, TR::TreeTop *exitTree,
-                                 TR::Node *newBuffer, vcount_t visitCount, TR::TreeTop **initTree);
-   TR::TreeTop *searchForToStringCall(TR::TreeTop *tt, TR::TreeTop *exitTree,
-                                     TR::Node *newBuffer, vcount_t visitCount,
-                                     TR::TreeTop **toStringTree, bool useStringBuffer);
+    TR::SymbolReference *findSymRefForOptMethod(StringpeepholesMethods m);
+    TR::SymbolReference *MethodEnumToArgsForMethodSymRefFromName(StringpeepholesMethods m);
 
-   bool skipNodeUnderOSR(TR::Node *node);
-   bool invalidNodeUnderOSR(TR::Node *node);
-   void removePendingPushOfResult(TR::TreeTop *callTreeTop);
-   void removeAllocationFenceOfNew(TR::TreeTop *newTreeTop);
-   void postProcessTreesForOSR(TR::TreeTop *startTree, TR::TreeTop *endTree);
+    void processBlock(TR::Block *block);
+    TR::TreeTop *detectPattern(TR::Block *block, TR::TreeTop *tt, bool useStringBuffer);
+    TR::TreeTop *detectBDPattern(TR::Block *block, TR::TreeTop *tt, TR::Node *node);
+    TR::TreeTop *detectSubMulSetScalePattern(TR::TreeTop *tt, TR::TreeTop *exit, TR::Node *node);
+    TR::SymbolReference *findSymRefForValueOf(const char *sig);
 
-   bool _stringClassesRedefined;
-   bool classesRedefined();
-   bool classRedefined(TR_OpaqueClassBlock *clazz);
+    bool checkMethodSignature(TR::SymbolReference *symRef, const char *sig);
+    TR::TreeTop *searchForStringAppend(const char *sig, TR::TreeTop *tt, TR::TreeTop *exitTree, TR::ILOpCodes opCode,
+        TR::Node *newBuffer, vcount_t visitCount, TR::Node **string, TR::TreeTop **prim);
+    TR::TreeTop *searchForInitCall(const char *sig, TR::TreeTop *tt, TR::TreeTop *exitTree, TR::Node *newBuffer,
+        vcount_t visitCount, TR::TreeTop **initTree);
+    TR::TreeTop *searchForToStringCall(TR::TreeTop *tt, TR::TreeTop *exitTree, TR::Node *newBuffer, vcount_t visitCount,
+        TR::TreeTop **toStringTree, bool useStringBuffer);
 
-   TR::ResolvedMethodSymbol *_methodSymbol;
-   TR::SymbolReference      *_stringSymRef;
+    bool skipNodeUnderOSR(TR::Node *node);
+    bool invalidNodeUnderOSR(TR::Node *node);
+    void removePendingPushOfResult(TR::TreeTop *callTreeTop);
+    void removeAllocationFenceOfNew(TR::TreeTop *newTreeTop);
+    void postProcessTreesForOSR(TR::TreeTop *startTree, TR::TreeTop *endTree);
 
+    bool _stringClassesRedefined;
+    bool classesRedefined();
+    bool classRedefined(TR_OpaqueClassBlock *clazz);
 
-   /*
-   TR::SymbolReference      *_initSymRef; // String + Char constructor
-   TR::SymbolReference      *_initSymRef1;// String + String constructor
-   TR::SymbolReference      *_initSymRef2;// String + String + String constructor
-   TR::SymbolReference      *_initSymRef3;// String + Integer constructor
-   TR::SymbolReference      *_initSymRef4;// Constructor with parm types int, int, String
+    TR::ResolvedMethodSymbol *_methodSymbol;
+    TR::SymbolReference *_stringSymRef;
 
-   TR::SymbolReference      *_initSymRef5;// String Constructor with parm types String, int, int
-   TR::SymbolReference      *_initSymRef6;// String Constructor with parm types String, char, int
+    /*
+    TR::SymbolReference      *_initSymRef; // String + Char constructor
+    TR::SymbolReference      *_initSymRef1;// String + String constructor
+    TR::SymbolReference      *_initSymRef2;// String + String + String constructor
+    TR::SymbolReference      *_initSymRef3;// String + Integer constructor
+    TR::SymbolReference      *_initSymRef4;// Constructor with parm types int, int, String
 
-   TR::SymbolReference      *_initSymRef7;// String Constructor with parm types int, String, int, String, String
-   */
+    TR::SymbolReference      *_initSymRef5;// String Constructor with parm types String, int, int
+    TR::SymbolReference      *_initSymRef6;// String Constructor with parm types String, char, int
 
-   TR::SymbolReference      *_valueOfISymRef;// String.valueOf(I)
-   TR::SymbolReference      *_valueOfCSymRef;// String.valueOf(C)
-   TR::SymbolReference      *_valueOfJSymRef;// String.valueOf(J)
-   TR::SymbolReference      *_valueOfZSymRef;// String.valueOf(Z)
-   TR::SymbolReference      *_valueOfOSymRef;// String.valueOf(Ljava/lang/Object;)
+    TR::SymbolReference      *_initSymRef7;// String Constructor with parm types int, String, int, String, String
+    */
 
-   TR_ScratchList<TR::TreeTop> _transformedCalls;
+    TR::SymbolReference *_valueOfISymRef; // String.valueOf(I)
+    TR::SymbolReference *_valueOfCSymRef; // String.valueOf(C)
+    TR::SymbolReference *_valueOfJSymRef; // String.valueOf(J)
+    TR::SymbolReference *_valueOfZSymRef; // String.valueOf(Z)
+    TR::SymbolReference *_valueOfOSymRef; // String.valueOf(Ljava/lang/Object;)
 
-   TR::TreeTop *detectBDPattern(TR::TreeTop *tt, TR::TreeTop *exit, TR::Node *node);
-   TR_BDChain *detectChain(TR::RecognizedMethod recognizedMethod, TR::TreeTop *cursorTree, TR::Node *cursorNode, TR_BDChain *prevInChain);
+    TR_ScratchList<TR::TreeTop> _transformedCalls;
 
-   public:
-   static const int32_t numBDPatterns = 4;
+    TR::TreeTop *detectBDPattern(TR::TreeTop *tt, TR::TreeTop *exit, TR::Node *node);
+    TR_BDChain *detectChain(TR::RecognizedMethod recognizedMethod, TR::TreeTop *cursorTree, TR::Node *cursorNode,
+        TR_BDChain *prevInChain);
 
-   //TR::SymbolReference *_privateMethodSymRefs[numBDPatterns];
-   //TR::SymbolReference *_decFormatEntryPoint[2];
+public:
+    static const int32_t numBDPatterns = 4;
 
-   //TR::SymbolReference       *_privateMethodSymRef1;
-   //TR::SymbolReference       *_privateMethodSymRef2;
-   //TR::SymbolReference       *_privateMethodSymRef3;
-   };
+    // TR::SymbolReference *_privateMethodSymRefs[numBDPatterns];
+    // TR::SymbolReference *_decFormatEntryPoint[2];
+
+    // TR::SymbolReference       *_privateMethodSymRef1;
+    // TR::SymbolReference       *_privateMethodSymRef2;
+    // TR::SymbolReference       *_privateMethodSymRef3;
+};
 
 #endif

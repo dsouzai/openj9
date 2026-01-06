@@ -25,10 +25,11 @@
 
 #ifndef J9_MONITOR_CONNECTOR
 #define J9_MONITOR_CONNECTOR
+
 namespace J9 {
 class Monitor;
 typedef J9::Monitor MonitorConnector;
-}
+} // namespace J9
 #endif
 
 #include "env/TRMemory.hpp"
@@ -38,62 +39,62 @@ struct J9PortLibrary;
 struct J9ThreadMonitor;
 struct J9JavaVM;
 struct J9VMThread;
+
 namespace TR {
 class MonitorTable;
 class Monitor;
-}
+} // namespace TR
+
 namespace J9 {
 class MonitorTable;
 }
 
-namespace J9
-{
+namespace J9 {
 
-class Monitor : public TR_Link0<TR::Monitor>
-   {
-   public:
+class Monitor : public TR_Link0<TR::Monitor> {
+public:
+    static TR::Monitor *create(const char *name);
+    static void destroy(TR::Monitor *monitor);
 
-   static TR::Monitor *create(const char *name);
-   static void destroy(TR::Monitor *monitor);
+    void enter();
 
-   void enter();
+    int32_t try_enter();
 
-   int32_t try_enter();
+    int32_t exit();
 
-   int32_t exit();
+    void destroy();
 
-   void destroy();
+    void wait();
 
-   void wait();
+    intptr_t wait_timed(int64_t millis, int32_t nanos);
 
-   intptr_t wait_timed(int64_t millis, int32_t nanos);
+    void notify();
 
-   void notify();
+    void notifyAll();
 
-   void notifyAll();
+    int32_t num_waiting();
 
-   int32_t num_waiting();
+    int32_t owned_by_self(); // returns 1 if current thread owns the monitor, 0 otherwise
 
-   int32_t owned_by_self(); // returns 1 if current thread owns the monitor, 0 otherwise
+    // Dangerous: do not use this routine, except for thread exit
+    void *getVMMonitor() { return (void *)_monitor; }
 
-   // Dangerous: do not use this routine, except for thread exit
-   void *getVMMonitor() { return (void*)_monitor; }
+private:
+    friend class J9::MonitorTable;
 
-   private:
+    void *operator new(size_t size, void *p) { return p; }
 
-   friend class J9::MonitorTable;
+    void operator delete(void *p);
 
-   void *operator new(size_t size, void *p) { return p; }
-   void operator delete(void *p);
-   void operator delete(void *p, void *) {}
+    void operator delete(void *p, void *) {}
 
-   bool init(const char *name);
+    bool init(const char *name);
 
-   bool initFromVMMutex(void *mutex);
+    bool initFromVMMutex(void *mutex);
 
-   J9ThreadMonitor *_monitor;
-   };
+    J9ThreadMonitor *_monitor;
+};
 
-}
+} // namespace J9
 
 #endif

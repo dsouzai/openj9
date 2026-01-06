@@ -130,105 +130,101 @@ class Block;
  *     This environment variable can be used to override the final capacity that this optimization has heuristically
  *     calculated with the ### supplied.
  */
-class TR_StringBuilderTransformer : public TR::Optimization
-   {
-   public:
+class TR_StringBuilderTransformer : public TR::Optimization {
+public:
+    /** \brief
+     *     Initializes the StringBuilderTransformer optimization.
+     *
+     *  \param manager
+     *     The optimization manager.
+     */
+    TR_StringBuilderTransformer(TR::OptimizationManager *manager)
+        : TR::Optimization(manager)
+    {
+        // Void
+    }
 
-   /** \brief
-    *     Initializes the StringBuilderTransformer optimization.
-    *
-    *  \param manager
-    *     The optimization manager.
-    */
-   TR_StringBuilderTransformer(TR::OptimizationManager* manager)
-      : TR::Optimization(manager)
-      {
-      // Void
-      }
+    /** \brief
+     *     Helper function to create an instance of the StringBuilderTransformer optimization using the
+     *     OptimizationManager's default allocator.
+     *
+     *  \param manager
+     *     The optimization manager.
+     */
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_StringBuilderTransformer(manager);
+    }
 
-   /** \brief
-    *     Helper function to create an instance of the StringBuilderTransformer optimization using the
-    *     OptimizationManager's default allocator.
-    *
-    *  \param manager
-    *     The optimization manager.
-    */
-   static TR::Optimization* create(TR::OptimizationManager* manager)
-      {
-      return new (manager->allocator()) TR_StringBuilderTransformer(manager);
-      }
+    /** \brief
+     *     Performs the optimization on this compilation unit.
+     *
+     *  \return
+     *     1 if any transformation was performed; 0 otherwise.
+     */
+    virtual int32_t perform();
 
-   /** \brief
-    *     Performs the optimization on this compilation unit.
-    *
-    *  \return
-    *     1 if any transformation was performed; 0 otherwise.
-    */
-   virtual int32_t perform();
+    /** \brief
+     *     Performs the optimization on a specific block within this compilation unit.
+     *
+     *  \param block
+     *     The block on which to perform this optimization.
+     *
+     *  \return
+     *     1 if any transformation was performed; 0 otherwise.
+     */
+    virtual int32_t performOnBlock(TR::Block *block);
 
-   /** \brief
-    *     Performs the optimization on a specific block within this compilation unit.
-    *
-    *  \param block
-    *     The block on which to perform this optimization.
-    *
-    *  \return
-    *     1 if any transformation was performed; 0 otherwise.
-    */
-   virtual int32_t performOnBlock(TR::Block* block);
+    virtual const char *optDetailString() const throw() { return "O^O STRINGBUILDER TRANSFORMER: "; }
 
-   virtual const char * optDetailString() const throw()
-      {
-      return "O^O STRINGBUILDER TRANSFORMER: ";
-      }
+private:
+    /** \brief
+     *     Attempts to find a call to the StringBuilder.<init>() constructor whose receiver is \p newNode.
+     *
+     *  \param iter
+     *     The iterator to begin searching from.
+     *
+     *  \param newNode
+     *     A TR::New node which is the receiver of the constructor call we are searching for.
+     *
+     *  \return
+     *     The call to StringBuilder.<init>() or NULL if the call was not found.
+     */
+    TR::Node *findStringBuilderInit(TR::TreeTopIterator iter, TR::Node *newNode);
 
-   private:
+    /** \brief
+     *     Attempts to find and collect the arguments of a sequence of chained StringBuilder.append(...) calls which is
+     *     terminated by a call to StringBuilder.toString().
+     *
+     *  \param iter
+     *     The iterator to begin searching from.
+     *
+     *  \param newNode
+     *     A TR::New node which is the receiver of the first chained StringBuilder.append(...) call.
+     *
+     *  \param appendArguments
+     *     If this function returns non-NULL this out parameter contains an ordered list of all the arguments of the
+     *     sequence of chained StringBuilder.append(...) calls.
+     *
+     *  \return
+     *     The call to StringBuilder.toString() or NULL if the call was not found or if the StringBuilder.append(...)
+     *     chain was broken.
+     */
+    TR::Node *findStringBuilderChainedAppendArguments(TR::TreeTopIterator iter, TR::Node *newNode,
+        List<TR_Pair<TR::Node *, TR::RecognizedMethod> > &appendArguments);
 
-   /** \brief
-    *     Attempts to find a call to the StringBuilder.<init>() constructor whose receiver is \p newNode.
-    *
-    *  \param iter
-    *     The iterator to begin searching from.
-    *
-    *  \param newNode
-    *     A TR::New node which is the receiver of the constructor call we are searching for.
-    *
-    *  \return
-    *     The call to StringBuilder.<init>() or NULL if the call was not found.
-    */
-   TR::Node* findStringBuilderInit(TR::TreeTopIterator iter, TR::Node* newNode);
-
-   /** \brief
-    *     Attempts to find and collect the arguments of a sequence of chained StringBuilder.append(...) calls which is
-    *     terminated by a call to StringBuilder.toString().
-    *
-    *  \param iter
-    *     The iterator to begin searching from.
-    *
-    *  \param newNode
-    *     A TR::New node which is the receiver of the first chained StringBuilder.append(...) call.
-    *
-    *  \param appendArguments
-    *     If this function returns non-NULL this out parameter contains an ordered list of all the arguments of the
-    *     sequence of chained StringBuilder.append(...) calls.
-    *
-    *  \return
-    *     The call to StringBuilder.toString() or NULL if the call was not found or if the StringBuilder.append(...)
-    *     chain was broken.
-    */
-   TR::Node* findStringBuilderChainedAppendArguments(TR::TreeTopIterator iter, TR::Node* newNode, List<TR_Pair<TR::Node*, TR::RecognizedMethod> >& appendArguments);
-
-   /** \brief
-    *     Given a list of arguments of a sequence of chained StringBuilder.append(...) calls outputs the heuristically
-    *     calculated char length of the String that is the result of a call to StringBuilder.toString().
-    *
-    *  \param appendArguments
-    *     A list of arguments of a sequence of chained StringBuilder.append(...) calls.
-    *
-    *  \return
-    *     Heuristically calculated char length of the String that is the result of a call to StringBuilder.toString().
-    */
-   int32_t computeHeuristicStringBuilderInitCapacity(List<TR_Pair<TR::Node*, TR::RecognizedMethod> >& appendArguments);
-   };
+    /** \brief
+     *     Given a list of arguments of a sequence of chained StringBuilder.append(...) calls outputs the heuristically
+     *     calculated char length of the String that is the result of a call to StringBuilder.toString().
+     *
+     *  \param appendArguments
+     *     A list of arguments of a sequence of chained StringBuilder.append(...) calls.
+     *
+     *  \return
+     *     Heuristically calculated char length of the String that is the result of a call to StringBuilder.toString().
+     */
+    int32_t computeHeuristicStringBuilderInitCapacity(
+        List<TR_Pair<TR::Node *, TR::RecognizedMethod> > &appendArguments);
+};
 
 #endif

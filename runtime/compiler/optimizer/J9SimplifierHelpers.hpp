@@ -32,12 +32,12 @@ namespace TR {
 class Block;
 class Node;
 class Simplifier;
-}
+} // namespace TR
 
 bool propagateSignState(TR::Node *node, TR::Node *child, int32_t shiftAmount, TR::Block *block, TR::Simplifier *s);
 bool propagateSignStateUnaryConversion(TR::Node *node, TR::Block *block, TR::Simplifier *s);
 
-TR::Node *removeOperandWidening(TR::Node *node, TR::Node *parent, TR::Block *block, TR::Simplifier * s);
+TR::Node *removeOperandWidening(TR::Node *node, TR::Node *parent, TR::Block *block, TR::Simplifier *s);
 
 #endif
 

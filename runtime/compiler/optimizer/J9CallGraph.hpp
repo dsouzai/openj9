@@ -26,80 +26,84 @@
 
 class TR_ResolvedMethod;
 
+class TR_ProfileableCallSite : public TR_IndirectCallSite {
+public:
+    virtual bool findProfiledCallTargets(TR_CallStack *callStack, TR_InlinerBase *inliner);
 
-class TR_ProfileableCallSite : public  TR_IndirectCallSite
-   {
-   public:
-      virtual bool findProfiledCallTargets (TR_CallStack *callStack, TR_InlinerBase* inliner);
+protected:
+    TR_CALLSITE_TR_ALLOC_AND_INHERIT_EMPTY_CONSTRUCTOR(TR_ProfileableCallSite, TR_IndirectCallSite)
+    // capabilities
+    void findSingleProfiledReceiver(ListIterator<TR_ExtraAddressInfo> &, TR_AddressInfo *valueInfo,
+        TR_InlinerBase *inliner);
+    virtual void findSingleProfiledMethod(ListIterator<TR_ExtraAddressInfo> &, TR_AddressInfo *valueInfo,
+        TR_InlinerBase *inliner);
 
-   protected :
-      TR_CALLSITE_TR_ALLOC_AND_INHERIT_EMPTY_CONSTRUCTOR(TR_ProfileableCallSite, TR_IndirectCallSite)
-      //capabilities
-      void findSingleProfiledReceiver(ListIterator<TR_ExtraAddressInfo>&, TR_AddressInfo * valueInfo, TR_InlinerBase* inliner);
-      virtual void findSingleProfiledMethod(ListIterator<TR_ExtraAddressInfo>&, TR_AddressInfo * valueInfo, TR_InlinerBase* inliner);
-      virtual TR_YesNoMaybe isCallingObjectMethod() { return TR_maybe; };
-   };
+    virtual TR_YesNoMaybe isCallingObjectMethod() { return TR_maybe; };
+};
 
+class TR_J9MethodHandleCallSite : public TR_FunctionPointerCallSite {
+public:
+    TR_CALLSITE_TR_ALLOC_AND_INHERIT_EMPTY_CONSTRUCTOR(TR_J9MethodHandleCallSite, TR_FunctionPointerCallSite)
+    virtual bool findCallSiteTarget(TR_CallStack *callStack, TR_InlinerBase *inliner);
 
-class TR_J9MethodHandleCallSite : public  TR_FunctionPointerCallSite
-   {
-   public:
-      TR_CALLSITE_TR_ALLOC_AND_INHERIT_EMPTY_CONSTRUCTOR(TR_J9MethodHandleCallSite, TR_FunctionPointerCallSite)
-      virtual bool findCallSiteTarget (TR_CallStack *callStack, TR_InlinerBase* inliner);
-		virtual const char*  name () { return "TR_J9MethodHandleCallSite"; }
-   };
+    virtual const char *name() { return "TR_J9MethodHandleCallSite"; }
+};
 
+class TR_J9MutableCallSite : public TR_FunctionPointerCallSite {
+public:
+    TR_CALLSITE_TR_ALLOC_AND_INHERIT_CONSTRUCTOR(TR_J9MutableCallSite, TR_FunctionPointerCallSite)
+    {
+        _mcs = TR::KnownObjectTable::UNKNOWN;
+    }
 
-class TR_J9MutableCallSite : public  TR_FunctionPointerCallSite
-   {
-   public:
-      TR_CALLSITE_TR_ALLOC_AND_INHERIT_CONSTRUCTOR(
-         TR_J9MutableCallSite, TR_FunctionPointerCallSite)
-         {
-         _mcs = TR::KnownObjectTable::UNKNOWN;
-         }
+    virtual bool findCallSiteTarget(TR_CallStack *callStack, TR_InlinerBase *inliner);
 
-      virtual bool findCallSiteTarget(TR_CallStack *callStack, TR_InlinerBase* inliner);
-      virtual const char *name() { return "TR_J9MutableCallSite"; }
-      virtual void setMCS(TR::KnownObjectTable::Index mcs) { _mcs = mcs; }
+    virtual const char *name() { return "TR_J9MutableCallSite"; }
 
-   private:
-      TR::KnownObjectTable::Index _mcs;
-   };
+    virtual void setMCS(TR::KnownObjectTable::Index mcs) { _mcs = mcs; }
 
-class TR_J9VirtualCallSite : public TR_ProfileableCallSite
-   {
-   public:
-      TR_CALLSITE_TR_ALLOC_AND_INHERIT_CONSTRUCTOR(TR_J9VirtualCallSite, TR_ProfileableCallSite) { _isCallingObjectMethod = TR_maybe; }
-      virtual bool findCallSiteTarget (TR_CallStack *callStack, TR_InlinerBase* inliner);
-      virtual TR_ResolvedMethod* findSingleJittedImplementer (TR_InlinerBase *inliner);
-      virtual const char*  name () { return "TR_J9VirtualCallSite"; }
+private:
+    TR::KnownObjectTable::Index _mcs;
+};
 
-   protected:
-		//capabilities
-		bool findCallSiteForAbstractClass(TR_InlinerBase* inliner);
-		//queries
-		bool isBasicInvokeVirtual();
-      virtual TR_OpaqueClassBlock* getClassFromMethod ();
-      // Is the call site calling a method of java/lang/Object
-      virtual TR_YesNoMaybe isCallingObjectMethod() { return _isCallingObjectMethod; };
-   private:
-      TR_YesNoMaybe _isCallingObjectMethod;
+class TR_J9VirtualCallSite : public TR_ProfileableCallSite {
+public:
+    TR_CALLSITE_TR_ALLOC_AND_INHERIT_CONSTRUCTOR(TR_J9VirtualCallSite, TR_ProfileableCallSite)
+    {
+        _isCallingObjectMethod = TR_maybe;
+    }
 
-   };
+    virtual bool findCallSiteTarget(TR_CallStack *callStack, TR_InlinerBase *inliner);
+    virtual TR_ResolvedMethod *findSingleJittedImplementer(TR_InlinerBase *inliner);
 
-class TR_J9InterfaceCallSite : public TR_ProfileableCallSite
-   {
+    virtual const char *name() { return "TR_J9VirtualCallSite"; }
 
-   public:
-      TR_CALLSITE_TR_ALLOC_AND_INHERIT_EMPTY_CONSTRUCTOR(TR_J9InterfaceCallSite, TR_ProfileableCallSite)
-      virtual bool findCallSiteTarget (TR_CallStack *callStack, TR_InlinerBase* inliner);
-      bool findCallSiteTargetImpl (TR_CallStack *callStack, TR_InlinerBase *inliner, TR_OpaqueClassBlock *iface);
-      virtual TR_OpaqueClassBlock* getClassFromMethod ();
-		virtual const char*  name () { return "TR_J9InterfaceCallSite"; }
-   protected:
-      virtual TR_ResolvedMethod* getResolvedMethod (TR_OpaqueClassBlock* klass);
-      virtual void findSingleProfiledMethod(ListIterator<TR_ExtraAddressInfo>&, TR_AddressInfo * valueInfo, TR_InlinerBase* inliner);
+protected:
+    // capabilities
+    bool findCallSiteForAbstractClass(TR_InlinerBase *inliner);
+    // queries
+    bool isBasicInvokeVirtual();
+    virtual TR_OpaqueClassBlock *getClassFromMethod();
 
-   };
+    // Is the call site calling a method of java/lang/Object
+    virtual TR_YesNoMaybe isCallingObjectMethod() { return _isCallingObjectMethod; };
+
+private:
+    TR_YesNoMaybe _isCallingObjectMethod;
+};
+
+class TR_J9InterfaceCallSite : public TR_ProfileableCallSite {
+public:
+    TR_CALLSITE_TR_ALLOC_AND_INHERIT_EMPTY_CONSTRUCTOR(TR_J9InterfaceCallSite, TR_ProfileableCallSite)
+    virtual bool findCallSiteTarget(TR_CallStack *callStack, TR_InlinerBase *inliner);
+    bool findCallSiteTargetImpl(TR_CallStack *callStack, TR_InlinerBase *inliner, TR_OpaqueClassBlock *iface);
+    virtual TR_OpaqueClassBlock *getClassFromMethod();
+
+    virtual const char *name() { return "TR_J9InterfaceCallSite"; }
+
+protected:
+    virtual TR_ResolvedMethod *getResolvedMethod(TR_OpaqueClassBlock *klass);
+    virtual void findSingleProfiledMethod(ListIterator<TR_ExtraAddressInfo> &, TR_AddressInfo *valueInfo,
+        TR_InlinerBase *inliner);
+};
 

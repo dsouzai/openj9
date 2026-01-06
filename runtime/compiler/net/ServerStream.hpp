@@ -30,8 +30,7 @@
 #include "control/Options.hpp"
 #include "runtime/JITClientSession.hpp"
 
-namespace JITServer
-{
+namespace JITServer {
 
 /**
    @class ServerStream
@@ -57,252 +56,215 @@ namespace JITServer
    7) When compilation is completed successfully, the server responds with finishCompilation(T... args).
       When compilation is aborted, the sever responds with writeError(uint32_t statusCode).
  */
-class ServerStream : public CommunicationStream
-   {
+class ServerStream : public CommunicationStream {
 public:
-   /**
-      @brief Constructor of ServerStream class
+    /**
+       @brief Constructor of ServerStream class
 
-      @param connfd socket descriptor for the communication channel
-      @param ssl  BIO for the SSL enabled stream
-      @param timeout timeout value (ms) to be set for connfd
-   */
-   explicit ServerStream(int connfd, BIO *ssl);
-   virtual ~ServerStream()
-      {
-      _numConnectionsClosed++;
-      _pClientSessionData = NULL;
-      }
+       @param connfd socket descriptor for the communication channel
+       @param ssl  BIO for the SSL enabled stream
+       @param timeout timeout value (ms) to be set for connfd
+    */
+    explicit ServerStream(int connfd, BIO *ssl);
 
-   /**
-      @brief Send a message to the client
+    virtual ~ServerStream()
+    {
+        _numConnectionsClosed++;
+        _pClientSessionData = NULL;
+    }
 
-      @param [in] type Message type to be sent
-      @param [in] args Variable number of additional parameters to be sent
-   */
-   template <typename ...Args>
-   void write(MessageType type, Args... args)
-      {
-      if (isReadingClassUnload() &&
-          isClassUnloadingAttempted() &&
-          TR::compInfoPT->compilationCanBeInterrupted() &&
-          (MessageType::compilationFailure != type) &&
-          (MessageType::compilationCode != type))
-         {
-         if (TR::Options::getVerboseOption(TR_VerboseJITServer))
-            TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "compThreadID=%d MessageType[%u] %s: throw TR::CompilationInterrupted",
-               TR::compInfoPT->getCompThreadId(), type, messageNames[type]);
+    /**
+       @brief Send a message to the client
 
-         throw TR::CompilationInterrupted();
-         }
+       @param [in] type Message type to be sent
+       @param [in] args Variable number of additional parameters to be sent
+    */
+    template<typename... Args> void write(MessageType type, Args... args)
+    {
+        if (isReadingClassUnload() && isClassUnloadingAttempted() && TR::compInfoPT->compilationCanBeInterrupted()
+            && (MessageType::compilationFailure != type) && (MessageType::compilationCode != type)) {
+            if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+                TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
+                    "compThreadID=%d MessageType[%u] %s: throw TR::CompilationInterrupted",
+                    TR::compInfoPT->getCompThreadId(), type, messageNames[type]);
 
-      _sMsg.setType(type);
-      setArgsRaw<Args...>(_sMsg, args...);
-      writeMessage(_sMsg);
-      }
+            throw TR::CompilationInterrupted();
+        }
 
-   /**
-      @brief Read a message from the client
+        _sMsg.setType(type);
+        setArgsRaw<Args...>(_sMsg, args...);
+        writeMessage(_sMsg);
+    }
 
-      The read operation is blocking, subject to a timeout.
-      If the message received is `compilationInterrupted` then an exception of type StreamInterrupted is thrown.
-      If the message received is `connectionTerminate` then an exception of type StreamConnectionTerminate is thrown.
-      If the server detects an incompatibility with the client then a StreamMessageTypeMissmatch
-      exception is thrown.
-      Otherwise, the arguments sent by the client are returned as a tuple
+    /**
+       @brief Read a message from the client
 
-      @return Returns a tuple of arguments sent by the client
-   */
-   template <typename ...T>
-   std::tuple<T...> read()
-      {
-      readMessage(_cMsg);
-      switch (_cMsg.type())
-         {
-         case MessageType::compilationInterrupted:
-            {
-            // If we are inside an uninterruptible operation on the server,
-            // but the corresponding operation hasn't yet started on the client,
-            // ignore the request to interrupt a compilation
-            if (TR::compInfoPT->compilationCanBeInterrupted())
-               throw StreamInterrupted();
+       The read operation is blocking, subject to a timeout.
+       If the message received is `compilationInterrupted` then an exception of type StreamInterrupted is thrown.
+       If the message received is `connectionTerminate` then an exception of type StreamConnectionTerminate is thrown.
+       If the server detects an incompatibility with the client then a StreamMessageTypeMissmatch
+       exception is thrown.
+       Otherwise, the arguments sent by the client are returned as a tuple
+
+       @return Returns a tuple of arguments sent by the client
+    */
+    template<typename... T> std::tuple<T...> read()
+    {
+        readMessage(_cMsg);
+        switch (_cMsg.type()) {
+            case MessageType::compilationInterrupted: {
+                // If we are inside an uninterruptible operation on the server,
+                // but the corresponding operation hasn't yet started on the client,
+                // ignore the request to interrupt a compilation
+                if (TR::compInfoPT->compilationCanBeInterrupted())
+                    throw StreamInterrupted();
             }
-         case MessageType::connectionTerminate:
-            {
-            throw StreamConnectionTerminate();
+            case MessageType::connectionTerminate: {
+                throw StreamConnectionTerminate();
             }
-         default:
-            {
-            // We are expecting the response type (_cMsg.type()) to be the same as the request type (_sMsg.type())
-            if (_cMsg.type() != _sMsg.type())
-               throw StreamMessageTypeMismatch(_sMsg.type(), _cMsg.type());
+            default: {
+                // We are expecting the response type (_cMsg.type()) to be the same as the request type (_sMsg.type())
+                if (_cMsg.type() != _sMsg.type())
+                    throw StreamMessageTypeMismatch(_sMsg.type(), _cMsg.type());
             }
-         }
-      return getArgsRaw<T...>(_cMsg);
-      }
+        }
+        return getArgsRaw<T...>(_cMsg);
+    }
 
-   /**
-      @brief Function to read the compilation request from a client
+    /**
+       @brief Function to read the compilation request from a client
 
-      This is the first type of message received after a connection is established.
-      The number and position of parameters in the template must match the
-      the one sent by the client. In order to ensure this, the client will embed
-      version information in the first message it sends after a connection is established.
-      The server will check whether its version matches the client's version and throw
-      `StreamVersionIncompatible` if it doesn't.
+       This is the first type of message received after a connection is established.
+       The number and position of parameters in the template must match the
+       the one sent by the client. In order to ensure this, the client will embed
+       version information in the first message it sends after a connection is established.
+       The server will check whether its version matches the client's version and throw
+       `StreamVersionIncompatible` if it doesn't.
 
-      Exceptions thrown: StreamConnectionTerminate, StreamClientSessionTerminate, StreamVersionIncompatible, StreamMessageTypeMismatch
+       Exceptions thrown: StreamConnectionTerminate, StreamClientSessionTerminate, StreamVersionIncompatible,
+       StreamMessageTypeMismatch
 
-      @return Returns a tuple with information sent by the client
-   */
-   template <typename... T>
-   MessageType readCompileRequest(std::tuple<T...> &req, std::string &cacheName)
-      {
-      readMessage(_cMsg);
-      if (_cMsg.fullVersion() != 0 && _cMsg.fullVersion() != getJITServerFullVersion())
-         {
-         throw StreamVersionIncompatible(showFullVersionIncompatibility(getJITServerFullVersion(), _cMsg.fullVersion()));
-         }
+       @return Returns a tuple with information sent by the client
+    */
+    template<typename... T> MessageType readCompileRequest(std::tuple<T...> &req, std::string &cacheName)
+    {
+        readMessage(_cMsg);
+        if (_cMsg.fullVersion() != 0 && _cMsg.fullVersion() != getJITServerFullVersion()) {
+            throw StreamVersionIncompatible(
+                showFullVersionIncompatibility(getJITServerFullVersion(), _cMsg.fullVersion()));
+        }
 
-      switch (_cMsg.type())
-         {
-         case MessageType::connectionTerminate:
-            {
-            throw StreamConnectionTerminate();
+        switch (_cMsg.type()) {
+            case MessageType::connectionTerminate: {
+                throw StreamConnectionTerminate();
             }
-         case MessageType::clientSessionTerminate:
-            {
-            uint64_t clientId = std::get<0>(getRecvData<uint64_t>());
-            throw StreamClientSessionTerminate(clientId);
+            case MessageType::clientSessionTerminate: {
+                uint64_t clientId = std::get<0>(getRecvData<uint64_t>());
+                throw StreamClientSessionTerminate(clientId);
             }
-         case MessageType::compilationRequest:
-            {
-            req = getArgsRaw<T...>(_cMsg);
+            case MessageType::compilationRequest: {
+                req = getArgsRaw<T...>(_cMsg);
+            } break;
+            case MessageType::AOTCacheMap_request: {
+                cacheName = std::get<0>(getArgsRaw<std::string>(_cMsg));
+            } break;
+            default: {
+                throw StreamMessageTypeMismatch(MessageType::compilationRequest, _cMsg.type());
             }
-            break;
-         case MessageType::AOTCacheMap_request:
-            {
-            cacheName = std::get<0>(getArgsRaw<std::string>(_cMsg));
-            }
-            break;
-         default:
-            {
-            throw StreamMessageTypeMismatch(MessageType::compilationRequest, _cMsg.type());
-            }
-         }
+        }
 
-      return _cMsg.type();
-      }
+        return _cMsg.type();
+    }
 
-   /**
-      @brief Extract the data from the received message and return it
-   */
-   template <typename... T>
-   std::tuple<T...> getRecvData()
-      {
-      return getArgsRaw<T...>(_cMsg);
-      }
+    /**
+       @brief Extract the data from the received message and return it
+    */
+    template<typename... T> std::tuple<T...> getRecvData() { return getArgsRaw<T...>(_cMsg); }
 
-   /**
-      @brief Function invoked by server when compilation is completed successfully
+    /**
+       @brief Function invoked by server when compilation is completed successfully
 
-      This should be the last message sent by a server as a response to a compilation request.
-      It includes a variable number of parameters with compilation artifacts (including the compiled body).
-   */
-   template <typename... T>
-   void finishCompilation(T... args)
-      {
-      try
-         {
-         write(MessageType::compilationCode, args...);
-         }
-      catch (std::exception &e)
-         {
-         if (TR::Options::getVerboseOption(TR_VerboseJITServer))
-            TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Could not finish compilation: %s", e.what());
-         }
-      }
-   /**
-      @brief Function invoked by server when AOT cache store ignoring local SCC is completed successfully
+       This should be the last message sent by a server as a response to a compilation request.
+       It includes a variable number of parameters with compilation artifacts (including the compiled body).
+    */
+    template<typename... T> void finishCompilation(T... args)
+    {
+        try {
+            write(MessageType::compilationCode, args...);
+        } catch (std::exception &e) {
+            if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+                TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Could not finish compilation: %s", e.what());
+        }
+    }
 
-      This should be the last message sent by a server as a response to a compilation request.
-      It includes a variable number of parameters with compilation artifacts (including the serialized method).
-   */
-   template <typename... T>
-   void finishAotStoreCompilation(T... args)
-      {
-      try
-         {
-         write(MessageType::AOTCache_storedAOTMethod, args...);
-         }
-      catch (std::exception &e)
-         {
-         if (TR::Options::getVerboseOption(TR_VerboseJITServer))
-            TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Could not finish compilation: %s", e.what());
-         }
-      }
+    /**
+       @brief Function invoked by server when AOT cache store ignoring local SCC is completed successfully
 
-   /**
-      @brief Function invoked by server when compilation is aborted
-   */
-   void writeError(uint32_t statusCode, uint64_t otherData = -1)
-      {
-      try
-         {
-         if (TR::Options::getVerboseOption(TR_VerboseJITServer))
-            TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "compThreadID=%d MessageType::compilationFailure: statusCode %u",
-                  TR::compInfoPT->getCompThreadId(), statusCode);
-         write(MessageType::compilationFailure, statusCode, otherData);
-         }
-      catch (std::exception &e)
-         {
-         if (TR::Options::getVerboseOption(TR_VerboseJITServer))
-            TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Could not write error code: %s", e.what());
-         }
-      }
+       This should be the last message sent by a server as a response to a compilation request.
+       It includes a variable number of parameters with compilation artifacts (including the serialized method).
+    */
+    template<typename... T> void finishAotStoreCompilation(T... args)
+    {
+        try {
+            write(MessageType::AOTCache_storedAOTMethod, args...);
+        } catch (std::exception &e) {
+            if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+                TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Could not finish compilation: %s", e.what());
+        }
+    }
 
-   void setClientId(uint64_t clientId)
-      {
-      _clientId = clientId;
-      }
-   uint64_t getClientId() const
-      {
-      return _clientId;
-      }
+    /**
+       @brief Function invoked by server when compilation is aborted
+    */
+    void writeError(uint32_t statusCode, uint64_t otherData = -1)
+    {
+        try {
+            if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+                TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer,
+                    "compThreadID=%d MessageType::compilationFailure: statusCode %u", TR::compInfoPT->getCompThreadId(),
+                    statusCode);
+            write(MessageType::compilationFailure, statusCode, otherData);
+        } catch (std::exception &e) {
+            if (TR::Options::getVerboseOption(TR_VerboseJITServer))
+                TR_VerboseLog::writeLineLocked(TR_Vlog_JITServer, "Could not write error code: %s", e.what());
+        }
+    }
 
-   void setClientData(ClientSessionData *pClientData)
-      {
-      _pClientSessionData = pClientData;
-      }
+    void setClientId(uint64_t clientId) { _clientId = clientId; }
 
-   volatile bool isReadingClassUnload()
-      {
-      return (_pClientSessionData) ? _pClientSessionData->isReadingClassUnload() : false;
-      }
+    uint64_t getClientId() const { return _clientId; }
 
-   volatile bool isClassUnloadingAttempted()
-      {
-      return (_pClientSessionData) ? _pClientSessionData->isClassUnloadingAttempted() : false;
-      }
+    void setClientData(ClientSessionData *pClientData) { _pClientSessionData = pClientData; }
 
-   // Statistics
-   static int getNumConnectionsOpened() { return _numConnectionsOpened; }
-   static int getNumConnectionsClosed() { return _numConnectionsClosed; }
+    volatile bool isReadingClassUnload()
+    {
+        return (_pClientSessionData) ? _pClientSessionData->isReadingClassUnload() : false;
+    }
 
-   /**
-      @brief Create an SSL_CTX suitable for a server
-   */
-   static bool createSSLContext(SSL_CTX *&ctx, const char *sessionContextID, size_t sessionContextIDLen,
-                                const PersistentVector<std::string> &sslKeys, const PersistentVector<std::string> &sslCerts,
-                                const std::string &sslRootCerts);
+    volatile bool isClassUnloadingAttempted()
+    {
+        return (_pClientSessionData) ? _pClientSessionData->isClassUnloadingAttempted() : false;
+    }
+
+    // Statistics
+    static int getNumConnectionsOpened() { return _numConnectionsOpened; }
+
+    static int getNumConnectionsClosed() { return _numConnectionsClosed; }
+
+    /**
+       @brief Create an SSL_CTX suitable for a server
+    */
+    static bool createSSLContext(SSL_CTX *&ctx, const char *sessionContextID, size_t sessionContextIDLen,
+        const PersistentVector<std::string> &sslKeys, const PersistentVector<std::string> &sslCerts,
+        const std::string &sslRootCerts);
 
 private:
-   static int _numConnectionsOpened;
-   static int _numConnectionsClosed;
-   uint64_t _clientId;  // UID of client connected to this communication stream
-   ClientSessionData *_pClientSessionData;
-   };
+    static int _numConnectionsOpened;
+    static int _numConnectionsClosed;
+    uint64_t _clientId; // UID of client connected to this communication stream
+    ClientSessionData *_pClientSessionData;
+};
 
-}
+} // namespace JITServer
 
 #endif // SERVER_STREAM_H

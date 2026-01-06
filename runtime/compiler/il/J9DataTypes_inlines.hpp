@@ -26,86 +26,52 @@
 #include "il/J9DataTypes.hpp"
 #include "il/OMRDataTypes_inlines.hpp"
 
-bool
-J9::DataType::isFloatingPoint()
-   {
-   return self()->isBFPorHFP();
-   }
+bool J9::DataType::isFloatingPoint() { return self()->isBFPorHFP(); }
 
-bool
-J9::DataType::isEmbeddedSign()
-   {
-   return self()->isZonedEmbeddedSign() || self()->isAnyPacked();
-   }
+bool J9::DataType::isEmbeddedSign() { return self()->isZonedEmbeddedSign() || self()->isAnyPacked(); }
 
-bool
-J9::DataType::isUnicodeSignedType()
-   {
-   return self()->isUnicodeSeparateSign();
-   }
+bool J9::DataType::isUnicodeSignedType() { return self()->isUnicodeSeparateSign(); }
 
-bool
-J9::DataType::isSeparateSignType()
-   {
-   return self()->isZonedSeparateSign() || self()->isUnicodeSeparateSign();
-   }
+bool J9::DataType::isSeparateSignType() { return self()->isZonedSeparateSign() || self()->isUnicodeSeparateSign(); }
 
-bool
-J9::DataType::isLeadingSignType()
-   {
-   return self()->isZonedLeadingSign() || self()->isUnicodeLeadingSign();
-   }
+bool J9::DataType::isLeadingSignType() { return self()->isZonedLeadingSign() || self()->isUnicodeLeadingSign(); }
 
-bool
-J9::DataType::isSeparateSign()
-   {
-   return self()->isZonedSeparateSign() || self()->isUnicodeSeparateSign();
-   }
+bool J9::DataType::isSeparateSign() { return self()->isZonedSeparateSign() || self()->isUnicodeSeparateSign(); }
 
-bool
-J9::DataType::isLeadingSeparateSign()
-   {
-   return self()->getDataType() == TR::ZonedDecimalSignLeadingSeparate || self()->getDataType() == TR::UnicodeDecimalSignLeading;
-   }
+bool J9::DataType::isLeadingSeparateSign()
+{
+    return self()->getDataType() == TR::ZonedDecimalSignLeadingSeparate
+        || self()->getDataType() == TR::UnicodeDecimalSignLeading;
+}
 
-bool
-J9::DataType::isTrailingSeparateSign()
-   {
-   return self()->getDataType() == TR::ZonedDecimalSignTrailingSeparate || self()->getDataType() == TR::UnicodeDecimalSignTrailing;
-   }
+bool J9::DataType::isTrailingSeparateSign()
+{
+    return self()->getDataType() == TR::ZonedDecimalSignTrailingSeparate
+        || self()->getDataType() == TR::UnicodeDecimalSignTrailing;
+}
 
-bool
-J9::DataType::isLeadingSign()
-   {
-   return self()->isLeadingSeparateSign() || (self()->getDataType() == TR::ZonedDecimalSignLeadingEmbedded);
-   }
+bool J9::DataType::isLeadingSign()
+{
+    return self()->isLeadingSeparateSign() || (self()->getDataType() == TR::ZonedDecimalSignLeadingEmbedded);
+}
 
-bool
-J9::DataType::isTrailingSign()
-   {
-   return self()->isTrailingSeparateSign() || (self()->getDataType() == TR::PackedDecimal) || (self()->getDataType() == TR::ZonedDecimal);
-   }
+bool J9::DataType::isTrailingSign()
+{
+    return self()->isTrailingSeparateSign() || (self()->getDataType() == TR::PackedDecimal)
+        || (self()->getDataType() == TR::ZonedDecimal);
+}
 
-bool
-J9::DataType::isSignless()
-   {
-   return self()->getDataType() == TR::UnicodeDecimal;
-   }
+bool J9::DataType::isSignless() { return self()->getDataType() == TR::UnicodeDecimal; }
 
-bool
-J9::DataType::hasExposedConstantAddress()
-   {
-   return self()->isBCD() || self()->isAggregate();
-   }
+bool J9::DataType::hasExposedConstantAddress() { return self()->isBCD() || self()->isAggregate(); }
 
-bool
-J9::DataType::isSupportedRawSign(int32_t sign)
-    {
+bool J9::DataType::isSupportedRawSign(int32_t sign)
+{
     TR_RawBCDSignCode rawSign = TR::DataType::getSupportedRawSign(sign);
     if (rawSign == raw_bcd_sign_unknown)
         return false;
     else
         return true;
-    }
+}
 
 #endif // J9_DATATYPES_INLINES_INCL

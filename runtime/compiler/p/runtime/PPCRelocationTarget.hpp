@@ -30,72 +30,77 @@
 //    relocation records.
 // This is intended to be a base class that should not be itself instantiated
 
-class TR_PPCRelocationTarget : public TR_RelocationTarget
-   {
-   public:
-      TR_ALLOC(TR_Memory::Relocation)
-      void * operator new(size_t, J9JITConfig *);
-      TR_PPCRelocationTarget(TR_RelocationRuntime *reloRuntime) : TR_RelocationTarget(reloRuntime) {}
+class TR_PPCRelocationTarget : public TR_RelocationTarget {
+public:
+    TR_ALLOC(TR_Memory::Relocation)
+    void *operator new(size_t, J9JITConfig *);
 
-      virtual uint8_t *eipBaseForCallOffset(uint8_t *reloLocation);
-      virtual void storeCallTarget(uintptr_t callTarget, uint8_t *reloLocation);
-      virtual void storeRelativeTarget(uintptr_t callTarget, uint8_t *reloLocation);
-      virtual uint32_t loadCPIndex(uint8_t *reloLocation);
-      virtual uintptr_t loadThunkCPIndex(uint8_t *reloLocation);
+    TR_PPCRelocationTarget(TR_RelocationRuntime *reloRuntime)
+        : TR_RelocationTarget(reloRuntime)
+    {}
 
-      virtual void performThunkRelocation(uint8_t *thunkAddress, uintptr_t vmHelper);
+    virtual uint8_t *eipBaseForCallOffset(uint8_t *reloLocation);
+    virtual void storeCallTarget(uintptr_t callTarget, uint8_t *reloLocation);
+    virtual void storeRelativeTarget(uintptr_t callTarget, uint8_t *reloLocation);
+    virtual uint32_t loadCPIndex(uint8_t *reloLocation);
+    virtual uintptr_t loadThunkCPIndex(uint8_t *reloLocation);
 
-      virtual uint8_t *loadAddress(uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
-      virtual void storeAddress(uint8_t *address, uint8_t *reloLocationHigh, uint8_t *reloLocationLow, uint32_t seqNumber);
+    virtual void performThunkRelocation(uint8_t *thunkAddress, uintptr_t vmHelper);
 
-      virtual uint8_t *loadAddressSequence(uint8_t *reloLocation);
-      virtual void storeAddressSequence(uint8_t *computedAddress, uint8_t *reloLocation, uint32_t seqNumber);
+    virtual uint8_t *loadAddress(uint8_t *reloLocationHigh, uint8_t *reloLocationLow);
+    virtual void storeAddress(uint8_t *address, uint8_t *reloLocationHigh, uint8_t *reloLocationLow,
+        uint32_t seqNumber);
 
-      virtual bool isOrderedPairRelocation(TR_RelocationRecord *reloRecord, TR_RelocationTarget *reloTarget);
+    virtual uint8_t *loadAddressSequence(uint8_t *reloLocation);
+    virtual void storeAddressSequence(uint8_t *computedAddress, uint8_t *reloLocation, uint32_t seqNumber);
 
-      virtual bool useTrampoline(uint8_t * helperAddress, uint8_t *baseLocation);
+    virtual bool isOrderedPairRelocation(TR_RelocationRecord *reloRecord, TR_RelocationTarget *reloTarget);
 
-      virtual uint8_t *arrayCopyHelperAddress(J9JavaVM *javaVM);
-      virtual void flushCache(uint8_t *codeStart, unsigned long size);
+    virtual bool useTrampoline(uint8_t *helperAddress, uint8_t *baseLocation);
 
-   };
+    virtual uint8_t *arrayCopyHelperAddress(J9JavaVM *javaVM);
+    virtual void flushCache(uint8_t *codeStart, unsigned long size);
+};
 
-class TR_PPC64RelocationTarget : public TR_PPCRelocationTarget
-   {
-   public:
-      TR_ALLOC(TR_Memory::Relocation)
-      void * operator new(size_t, J9JITConfig *);
-      TR_PPC64RelocationTarget(TR_RelocationRuntime *reloRuntime) : TR_PPCRelocationTarget(reloRuntime) {}
+class TR_PPC64RelocationTarget : public TR_PPCRelocationTarget {
+public:
+    TR_ALLOC(TR_Memory::Relocation)
+    void *operator new(size_t, J9JITConfig *);
 
-      virtual void storeAddressSequence(uint8_t *computedAddress, uint8_t *reloLocation, uint32_t seqNumber);
+    TR_PPC64RelocationTarget(TR_RelocationRuntime *reloRuntime)
+        : TR_PPCRelocationTarget(reloRuntime)
+    {}
 
-      virtual void storeAddressRAM(uint8_t *address, uint8_t *reloLocation)
-         {
-         storeAddressSequence(address, reloLocation, fixedSequence1);
-         }
+    virtual void storeAddressSequence(uint8_t *computedAddress, uint8_t *reloLocation, uint32_t seqNumber);
 
-   private:
-         virtual void platformAddPICtoPatchPtrOnClassUnload(TR_OpaqueClassBlock *classKey, void *ptr);
+    virtual void storeAddressRAM(uint8_t *address, uint8_t *reloLocation)
+    {
+        storeAddressSequence(address, reloLocation, fixedSequence1);
+    }
 
-   };
+private:
+    virtual void platformAddPICtoPatchPtrOnClassUnload(TR_OpaqueClassBlock *classKey, void *ptr);
+};
 
-class TR_PPC32RelocationTarget : public TR_PPCRelocationTarget
-   {
-   public:
-      TR_ALLOC(TR_Memory::Relocation)
-      void * operator new(size_t, J9JITConfig *);
-      TR_PPC32RelocationTarget(TR_RelocationRuntime *reloRuntime) : TR_PPCRelocationTarget(reloRuntime) {}
+class TR_PPC32RelocationTarget : public TR_PPCRelocationTarget {
+public:
+    TR_ALLOC(TR_Memory::Relocation)
+    void *operator new(size_t, J9JITConfig *);
 
-      virtual void storeAddressSequence(uint8_t *computedAddress, uint8_t *reloLocation, uint32_t seqNumber);
+    TR_PPC32RelocationTarget(TR_RelocationRuntime *reloRuntime)
+        : TR_PPCRelocationTarget(reloRuntime)
+    {}
 
-      virtual bool isOrderedPairRelocation(TR_RelocationRecord *reloRecord, TR_RelocationTarget *reloTarget);
+    virtual void storeAddressSequence(uint8_t *computedAddress, uint8_t *reloLocation, uint32_t seqNumber);
 
-      virtual void storeRelativeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber);
+    virtual bool isOrderedPairRelocation(TR_RelocationRecord *reloRecord, TR_RelocationTarget *reloTarget);
 
-      virtual void storeAddressRAM(uint8_t *address, uint8_t *reloLocation)
-         {
-         storeRelativeAddressSequence(address, reloLocation, fixedSequence1);
-         }
-   };
+    virtual void storeRelativeAddressSequence(uint8_t *address, uint8_t *reloLocation, uint32_t seqNumber);
 
-#endif   // PPCRELOCATION_TARGET_INCL
+    virtual void storeAddressRAM(uint8_t *address, uint8_t *reloLocation)
+    {
+        storeRelativeAddressSequence(address, reloLocation, fixedSequence1);
+    }
+};
+
+#endif // PPCRELOCATION_TARGET_INCL

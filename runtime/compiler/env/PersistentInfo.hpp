@@ -25,17 +25,14 @@
 
 #include "env/J9PersistentInfo.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class PersistentInfo : public J9::PersistentInfoConnector
-   {
-   public:
-
-   PersistentInfo(TR_PersistentMemory *pm) :
-      J9::PersistentInfoConnector(pm)
-      {}
-   };
-}
+class PersistentInfo : public J9::PersistentInfoConnector {
+public:
+    PersistentInfo(TR_PersistentMemory *pm)
+        : J9::PersistentInfoConnector(pm)
+    {}
+};
+} // namespace TR
 
 #endif

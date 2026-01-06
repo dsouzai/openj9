@@ -32,115 +32,122 @@ namespace TR {
 class CodeGenerator;
 }
 
-namespace J9
-{
+namespace J9 {
 
-class PrivateLinkage : public TR::Linkage
-   {
+class PrivateLinkage : public TR::Linkage {
 public:
+    PrivateLinkage(TR::CodeGenerator *cg)
+        : TR::Linkage(cg)
+    {}
 
-   PrivateLinkage(TR::CodeGenerator *cg) :
-         TR::Linkage(cg)
-      {
-      }
+    /**
+     * @class LinkageInfo
+     *
+     * @brief Helper class for encoding and decoding the linkage info word that is
+     *    embedded in the code cache prior to the interpreter entry point in each
+     *    compiled method body.
+     *
+     * @details
+     *     Implementation restrictions:
+     *     * this is a non-instantiable abstract class
+     *     * this class cannot have any virtual methods
+     */
+    class LinkageInfo {
+    public:
+        static LinkageInfo *get(void *startPC) { return reinterpret_cast<LinkageInfo *>(((uint32_t *)startPC) - 1); }
 
-   /**
-    * @class LinkageInfo
-    *
-    * @brief Helper class for encoding and decoding the linkage info word that is
-    *    embedded in the code cache prior to the interpreter entry point in each
-    *    compiled method body.
-    *
-    * @details
-    *     Implementation restrictions:
-    *     * this is a non-instantiable abstract class
-    *     * this class cannot have any virtual methods
-    */
-   class LinkageInfo
-      {
-   public:
-      static LinkageInfo *get(void *startPC) { return reinterpret_cast<LinkageInfo *>(((uint32_t*)startPC)-1); }
+        void setCountingMethodBody() { _word |= CountingPrologue; }
 
-      void setCountingMethodBody() { _word |= CountingPrologue; }
-      void setSamplingMethodBody() { _word |= SamplingPrologue; }
-      void setHasBeenRecompiled()
-         {
-         TR_ASSERT((_word & HasFailedRecompilation)==0, "Cannot setHasBeenRecompiled because method has failed recompilation");
-         _word |= HasBeenRecompiled;
-         }
+        void setSamplingMethodBody() { _word |= SamplingPrologue; }
 
-      void setHasFailedRecompilation()
-         {
-         TR_ASSERT((_word & HasBeenRecompiled) == 0, "Cannot setHasFailedRecompilation because method has been recompiled");
-         _word |= HasFailedRecompilation;
-         }
+        void setHasBeenRecompiled()
+        {
+            TR_ASSERT((_word & HasFailedRecompilation) == 0,
+                "Cannot setHasBeenRecompiled because method has failed recompilation");
+            _word |= HasBeenRecompiled;
+        }
 
-      void setIsBeingRecompiled() { _word |= IsBeingRecompiled; }
-      void resetIsBeingRecompiled() { _word &= ~IsBeingRecompiled; }
+        void setHasFailedRecompilation()
+        {
+            TR_ASSERT((_word & HasBeenRecompiled) == 0,
+                "Cannot setHasFailedRecompilation because method has been recompiled");
+            _word |= HasFailedRecompilation;
+        }
 
-      bool isCountingMethodBody() { return (_word & CountingPrologue) != 0; }
-      bool isSamplingMethodBody() { return (_word & SamplingPrologue) != 0; }
-      bool isRecompMethodBody() { return (_word & (SamplingPrologue | CountingPrologue)) != 0; }
-      bool hasBeenRecompiled() { return (_word & HasBeenRecompiled) != 0; }
-      bool hasFailedRecompilation() { return (_word & HasFailedRecompilation) != 0; }
-      bool recompilationAttempted() { return hasBeenRecompiled() || hasFailedRecompilation(); }
-      bool isBeingCompiled() { return (_word & IsBeingRecompiled) != 0; }
+        void setIsBeingRecompiled() { _word |= IsBeingRecompiled; }
 
-      inline uint16_t getReservedWord() { return (_word & ReservedMask) >> 16; }
-      inline void setReservedWord(uint16_t w) { _word |= ((w << 16) & ReservedMask); }
+        void resetIsBeingRecompiled() { _word &= ~IsBeingRecompiled; }
 
-      inline TR_ReturnInfo getReturnInfo() { return (TR_ReturnInfo)(_word & ReturnInfoMask); }
-      inline void setReturnInfo(TR_ReturnInfo w) { _word |= (w & ReturnInfoMask); }
+        bool isCountingMethodBody() { return (_word & CountingPrologue) != 0; }
 
-      inline uint32_t getWord() { return _word; }
+        bool isSamplingMethodBody() { return (_word & SamplingPrologue) != 0; }
 
-      int32_t getJitEntryOffset()
-         {
+        bool isRecompMethodBody() { return (_word & (SamplingPrologue | CountingPrologue)) != 0; }
+
+        bool hasBeenRecompiled() { return (_word & HasBeenRecompiled) != 0; }
+
+        bool hasFailedRecompilation() { return (_word & HasFailedRecompilation) != 0; }
+
+        bool recompilationAttempted() { return hasBeenRecompiled() || hasFailedRecompilation(); }
+
+        bool isBeingCompiled() { return (_word & IsBeingRecompiled) != 0; }
+
+        inline uint16_t getReservedWord() { return (_word & ReservedMask) >> 16; }
+
+        inline void setReservedWord(uint16_t w) { _word |= ((w << 16) & ReservedMask); }
+
+        inline TR_ReturnInfo getReturnInfo() { return (TR_ReturnInfo)(_word & ReturnInfoMask); }
+
+        inline void setReturnInfo(TR_ReturnInfo w) { _word |= (w & ReturnInfoMask); }
+
+        inline uint32_t getWord() { return _word; }
+
+        int32_t getJitEntryOffset()
+        {
 #if defined(TR_TARGET_X86) && defined(TR_TARGET_32BIT)
-         return 0;
+            return 0;
 #else
-         return getReservedWord();
+            return getReservedWord();
 #endif
-         }
+        }
 
-      enum
-         {
-         ReturnInfoMask                     = 0x0000000F, // bottom 4 bits
-         // The VM depends on these four bits - word to the wise: don't mess
+        enum {
+            ReturnInfoMask = 0x0000000F, // bottom 4 bits
+            // The VM depends on these four bits - word to the wise: don't mess
 
-         SamplingPrologue                   = 0x00000010,
-         CountingPrologue                   = 0x00000020,
-         // NOTE: flags have to be set under the compilation monitor or during compilation process
-         HasBeenRecompiled                  = 0x00000040,
-         HasFailedRecompilation             = 0x00000100,
-         IsBeingRecompiled                  = 0x00000200,
+            SamplingPrologue = 0x00000010,
+            CountingPrologue = 0x00000020,
+            // NOTE: flags have to be set under the compilation monitor or during compilation process
+            HasBeenRecompiled = 0x00000040,
+            HasFailedRecompilation = 0x00000100,
+            IsBeingRecompiled = 0x00000200,
 
-         // RESERVED:
-         // non-ia32:                         0xffff0000 <---- jitEntryOffset
-         // ia32:                             0xffff0000 <---- Recomp/FSD save area
+            // RESERVED:
+            // non-ia32:                         0xffff0000 <---- jitEntryOffset
+            // ia32:                             0xffff0000 <---- Recomp/FSD save area
 
-         ReservedMask                       = 0xFFFF0000
-         };
+            ReservedMask = 0xFFFF0000
+        };
 
-      uint32_t _word;
+        uint32_t _word;
 
-   private:
-      LinkageInfo() {};
-      };
+    private:
+        LinkageInfo() {};
+    };
 
-   /**
-    * @brief J9 private linkage override of OMR function
-    */
-   virtual intptr_t entryPointFromCompiledMethod();
+    /**
+     * @brief J9 private linkage override of OMR function
+     */
+    virtual intptr_t entryPointFromCompiledMethod();
 
-   /**
-    * @brief J9 private linkage override of OMR function
-    */
-   virtual intptr_t entryPointFromInterpretedMethod();
+    /**
+     * @brief J9 private linkage override of OMR function
+     */
+    virtual intptr_t entryPointFromInterpretedMethod();
 
-   virtual void mapIncomingParms(TR::ResolvedMethodSymbol *method);
-   };
+    virtual void mapIncomingParms(TR::ResolvedMethodSymbol *method);
+};
 
-}
+} // namespace J9
 
 #endif

@@ -32,7 +32,7 @@
 namespace J9 {
 class CodeGenerator;
 typedef J9::CodeGenerator CodeGeneratorConnector;
-}
+} // namespace J9
 #endif
 
 #include "codegen/OMRCodeGenerator.hpp"
@@ -55,749 +55,780 @@ class NVVMIRBuffer;
 class TR_BitVector;
 class TR_SharedMemoryAnnotations;
 class TR_J9VMBase;
+
 namespace TR {
 class Block;
 class Node;
 class SymbolReference;
 class TreeTop;
-}
+} // namespace TR
 
-namespace J9
-{
+namespace J9 {
 
-class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGeneratorConnector
-   {
-
+class OMR_EXTENSIBLE CodeGenerator : public OMR::CodeGeneratorConnector {
 protected:
-
-   CodeGenerator(TR::Compilation *comp);
-
-public:
-
-   void initialize();
-
-   TR_J9VMBase *fej9();
-
-   TR::TreeTop *lowerTree(TR::Node *root, TR::TreeTop *treeTop);
-
-   void preLowerTrees();
-
-   void lowerTreesPreTreeTopVisit(TR::TreeTop *tt, vcount_t visitCount);
-
-   void lowerTreesPreChildrenVisit(TR::Node * parent, TR::TreeTop * treeTop, vcount_t visitCount);
-
-   void lowerTreeIfNeeded(TR::Node *node, int32_t childNumber, TR::Node *parent, TR::TreeTop *tt);
-
-   void lowerDualOperator(TR::Node *parent, int32_t childNumber, TR::TreeTop *treeTop);
+    CodeGenerator(TR::Compilation *comp);
 
 public:
+    void initialize();
 
-   bool collectSymRefs(TR::Node *node, TR_BitVector *symRefs, vcount_t secondVisitCount);
+    TR_J9VMBase *fej9();
 
-   void moveUpArrayLengthStores(TR::TreeTop *insertionPoint);
+    TR::TreeTop *lowerTree(TR::Node *root, TR::TreeTop *treeTop);
 
-   void doInstructionSelection();
+    void preLowerTrees();
 
-   void createReferenceReadBarrier(TR::TreeTop* treeTop, TR::Node* parent);
+    void lowerTreesPreTreeTopVisit(TR::TreeTop *tt, vcount_t visitCount);
 
-   TR::list<TR_Pair<TR_ResolvedMethod,TR::Instruction> *> &getJNICallSites() { return _jniCallSites; }  // registerAssumptions()
+    void lowerTreesPreChildrenVisit(TR::Node *parent, TR::TreeTop *treeTop, vcount_t visitCount);
 
-   // OSR, not code generator
-   void populateOSRBuffer();
+    void lowerTreeIfNeeded(TR::Node *node, int32_t childNumber, TR::Node *parent, TR::TreeTop *tt);
 
-   void lowerCompressedRefs(TR::TreeTop *, TR::Node*, vcount_t, TR_BitVector *);
-   void compressedReferenceRematerialization(); // J9
-   void rematerializeCompressedRefs(TR::SymbolReference * &, TR::TreeTop *, TR::Node*, int32_t, TR::Node*, vcount_t, List<TR::Node> *);
-   void anchorRematNodesIfNeeded(TR::Node*, TR::TreeTop *, List<TR::Node> *);
-   void yankCompressedRefs(TR::TreeTop *, TR::Node *, int32_t, TR::Node *, vcount_t, vcount_t);
+    void lowerDualOperator(TR::Node *parent, int32_t childNumber, TR::TreeTop *treeTop);
 
-   void setUpForInstructionSelection();
+public:
+    bool collectSymRefs(TR::Node *node, TR_BitVector *symRefs, vcount_t secondVisitCount);
 
-   void insertEpilogueYieldPoints();
+    void moveUpArrayLengthStores(TR::TreeTop *insertionPoint);
 
-   void allocateLinkageRegisters();
+    void doInstructionSelection();
 
-   void fixUpProfiledInterfaceGuardTest();
+    void createReferenceReadBarrier(TR::TreeTop *treeTop, TR::Node *parent);
 
-   /**
-    * \brief
-    *      This query is used by both fixUpProfiledInterfaceGuardTest (a codegen level optimization) and virtual guard evaluators
-    *      to decide whether a NOP guard should be generated. It's used on all platforms and compilation phases so that the decision
-    *      of generating VG NOPs is made in a consistent way.
-    *
-    * \param node
-    *      the virtual guard node
-    *
-    * \return
-    *      true if a NOP virtual guard should be generated. Otherwise, false.
-   */
-   bool willGenerateNOPForVirtualGuard(TR::Node* node);
+    TR::list<TR_Pair<TR_ResolvedMethod, TR::Instruction> *> &getJNICallSites()
+    {
+        return _jniCallSites;
+    } // registerAssumptions()
 
-   void zeroOutAutoOnEdge(TR::SymbolReference * liveAutoSym, TR::Block *block, TR::Block *succBlock, TR::list<TR::Block*> *newBlocks, TR_ScratchList<TR::Node> *fsdStores);
+    // OSR, not code generator
+    void populateOSRBuffer();
 
-   TR::Linkage *createLinkageForCompilation();
+    void lowerCompressedRefs(TR::TreeTop *, TR::Node *, vcount_t, TR_BitVector *);
+    void compressedReferenceRematerialization(); // J9
+    void rematerializeCompressedRefs(TR::SymbolReference *&, TR::TreeTop *, TR::Node *, int32_t, TR::Node *, vcount_t,
+        List<TR::Node> *);
+    void anchorRematNodesIfNeeded(TR::Node *, TR::TreeTop *, List<TR::Node> *);
+    void yankCompressedRefs(TR::TreeTop *, TR::Node *, int32_t, TR::Node *, vcount_t, vcount_t);
 
-   bool enableAESInHardwareTransformations() {return false;}
+    void setUpForInstructionSelection();
 
-   bool isMethodInAtomicLongGroup(TR::RecognizedMethod rm);
-   bool arithmeticNeedsLiteralFromPool(TR::Node *node) { return false; }
+    void insertEpilogueYieldPoints();
 
-   // OSR
-   //
-   TR::TreeTop* genSymRefStoreToArray(TR::Node* refNode, TR::Node* arrayAddressNode, TR::Node* firstOffset,
-                                      TR::Node* symRefLoad, int32_t secondOffset,  TR::TreeTop* insertionPoint);
+    void allocateLinkageRegisters();
 
-   // --------------------------------------
-   // AOT Relocations
-   //
+    void fixUpProfiledInterfaceGuardTest();
+
+    /**
+     * \brief
+     *      This query is used by both fixUpProfiledInterfaceGuardTest (a codegen level optimization) and virtual guard
+     * evaluators to decide whether a NOP guard should be generated. It's used on all platforms and compilation phases
+     * so that the decision of generating VG NOPs is made in a consistent way.
+     *
+     * \param node
+     *      the virtual guard node
+     *
+     * \return
+     *      true if a NOP virtual guard should be generated. Otherwise, false.
+     */
+    bool willGenerateNOPForVirtualGuard(TR::Node *node);
+
+    void zeroOutAutoOnEdge(TR::SymbolReference *liveAutoSym, TR::Block *block, TR::Block *succBlock,
+        TR::list<TR::Block *> *newBlocks, TR_ScratchList<TR::Node> *fsdStores);
+
+    TR::Linkage *createLinkageForCompilation();
+
+    bool enableAESInHardwareTransformations() { return false; }
+
+    bool isMethodInAtomicLongGroup(TR::RecognizedMethod rm);
+
+    bool arithmeticNeedsLiteralFromPool(TR::Node *node) { return false; }
+
+    // OSR
+    //
+    TR::TreeTop *genSymRefStoreToArray(TR::Node *refNode, TR::Node *arrayAddressNode, TR::Node *firstOffset,
+        TR::Node *symRefLoad, int32_t secondOffset, TR::TreeTop *insertionPoint);
+
+    // --------------------------------------
+    // AOT Relocations
+    //
 #if defined(J9VM_OPT_JITSERVER)
-   void addExternalRelocation(TR::Relocation *r, const char *generatingFileName, uintptr_t generatingLineNumber, TR::Node *node, TR::ExternalRelocationPositionRequest where = TR::ExternalRelocationAtBack);
-   void addExternalRelocation(TR::Relocation *r, TR::RelocationDebugInfo *info, TR::ExternalRelocationPositionRequest where = TR::ExternalRelocationAtBack);
+    void addExternalRelocation(TR::Relocation *r, const char *generatingFileName, uintptr_t generatingLineNumber,
+        TR::Node *node, TR::ExternalRelocationPositionRequest where = TR::ExternalRelocationAtBack);
+    void addExternalRelocation(TR::Relocation *r, TR::RelocationDebugInfo *info,
+        TR::ExternalRelocationPositionRequest where = TR::ExternalRelocationAtBack);
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
-   void processRelocations();
+    void processRelocations();
 
-   //TR::ExternalRelocation
-   void addProjectSpecializedRelocation(uint8_t *location,
-                                          uint8_t *target,
-                                          uint8_t *target2,  //pass in NULL when no target2
-                                          TR_ExternalRelocationTargetKind kind,
-                                          const char *generatingFileName,
-                                          uintptr_t generatingLineNumber,
-                                          TR::Node *node);
-   //TR::ExternalOrderedPair32BitRelocation
-   void addProjectSpecializedPairRelocation(uint8_t *location1,
-                                          uint8_t *location2,
-                                          uint8_t *target,
-                                          TR_ExternalRelocationTargetKind kind,
-                                          const char *generatingFileName,
-                                          uintptr_t generatingLineNumber,
-                                          TR::Node *node);
-   //TR::BeforeBinaryEncodingExternalRelocation
-   void addProjectSpecializedRelocation(TR::Instruction *instr,
-                                          uint8_t *target,
-                                          uint8_t *target2,   //pass in NULL when no target2
-                                          TR_ExternalRelocationTargetKind kind,
-                                          const char *generatingFileName,
-                                          uintptr_t generatingLineNumber,
-                                          TR::Node *node);
+    // TR::ExternalRelocation
+    void addProjectSpecializedRelocation(uint8_t *location, uint8_t *target,
+        uint8_t *target2, // pass in NULL when no target2
+        TR_ExternalRelocationTargetKind kind, const char *generatingFileName, uintptr_t generatingLineNumber,
+        TR::Node *node);
+    // TR::ExternalOrderedPair32BitRelocation
+    void addProjectSpecializedPairRelocation(uint8_t *location1, uint8_t *location2, uint8_t *target,
+        TR_ExternalRelocationTargetKind kind, const char *generatingFileName, uintptr_t generatingLineNumber,
+        TR::Node *node);
+    // TR::BeforeBinaryEncodingExternalRelocation
+    void addProjectSpecializedRelocation(TR::Instruction *instr, uint8_t *target,
+        uint8_t *target2, // pass in NULL when no target2
+        TR_ExternalRelocationTargetKind kind, const char *generatingFileName, uintptr_t generatingLineNumber,
+        TR::Node *node);
 
-   bool needClassAndMethodPointerRelocations();
-   bool needRelocationsForLookupEvaluationData();
-   bool needRelocationsForStatics();
-   bool needRelocationsForHelpers();
-   bool needRelocationsForCurrentMethodPC();
-   bool needRelocationsForCurrentMethodStartPC();
+    bool needClassAndMethodPointerRelocations();
+    bool needRelocationsForLookupEvaluationData();
+    bool needRelocationsForStatics();
+    bool needRelocationsForHelpers();
+    bool needRelocationsForCurrentMethodPC();
+    bool needRelocationsForCurrentMethodStartPC();
 #if defined(J9VM_OPT_JITSERVER)
-   bool needRelocationsForBodyInfoData();
-   bool needRelocationsForPersistentInfoData();
+    bool needRelocationsForBodyInfoData();
+    bool needRelocationsForPersistentInfoData();
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
-   // ----------------------------------------
-   TR::Node *createOrFindClonedNode(TR::Node *node, int32_t numChildren);
+    // ----------------------------------------
+    TR::Node *createOrFindClonedNode(TR::Node *node, int32_t numChildren);
 
-   void jitAddUnresolvedAddressMaterializationToPatchOnClassRedefinition(void *firstInstruction);
+    void jitAddUnresolvedAddressMaterializationToPatchOnClassRedefinition(void *firstInstruction);
 
-   uint32_t getStackLimitOffset() {return _stackLimitOffsetInMetaData;}
-   uint32_t setStackLimitOffset(uint32_t o) {return (_stackLimitOffsetInMetaData = o);}
+    uint32_t getStackLimitOffset() { return _stackLimitOffsetInMetaData; }
 
-   bool alwaysGeneratesAKnownCleanSign(TR::Node *node) { return false; } // no virt
-   bool alwaysGeneratesAKnownPositiveCleanSign(TR::Node *node) { return false; } // no virt
-   TR_RawBCDSignCode alwaysGeneratedSign(TR::Node *node) { return raw_bcd_sign_unknown; } // no virt
+    uint32_t setStackLimitOffset(uint32_t o) { return (_stackLimitOffsetInMetaData = o); }
 
-   void swapChildrenIfNeeded(TR::Node *store, char *optDetails);
+    bool alwaysGeneratesAKnownCleanSign(TR::Node *node) { return false; } // no virt
 
-   TR::AutomaticSymbol *allocateVariableSizeSymbol(int32_t size);
-   TR::SymbolReference *allocateVariableSizeSymRef(int32_t byteLength);
-   void pendingFreeVariableSizeSymRef(TR::SymbolReference *sym);
-   void freeVariableSizeSymRef(TR::SymbolReference *sym, bool freeAddressTakenSymbol=false);
-   void freeAllVariableSizeSymRefs();
+    bool alwaysGeneratesAKnownPositiveCleanSign(TR::Node *node) { return false; } // no virt
 
-   TR::SymbolReference *getFreeVariableSizeSymRef(int byteLength);
-   void checkForUnfreedVariableSizeSymRefs();
+    TR_RawBCDSignCode alwaysGeneratedSign(TR::Node *node) { return raw_bcd_sign_unknown; } // no virt
 
-   bool allowGuardMerging();
-   void  registerAssumptions();
+    void swapChildrenIfNeeded(TR::Node *store, char *optDetails);
 
-   void jitAddPicToPatchOnClassUnload(void *classPointer, void *addressToBePatched);
-   void jitAdd32BitPicToPatchOnClassUnload(void *classPointer, void *addressToBePatched);
-   void jitAddPicToPatchOnClassRedefinition(void *classPointer, void *addressToBePatched, bool unresolved = false);
-   void jitAdd32BitPicToPatchOnClassRedefinition(void *classPointer, void *addressToBePatched, bool unresolved = false);
+    TR::AutomaticSymbol *allocateVariableSizeSymbol(int32_t size);
+    TR::SymbolReference *allocateVariableSizeSymRef(int32_t byteLength);
+    void pendingFreeVariableSizeSymRef(TR::SymbolReference *sym);
+    void freeVariableSizeSymRef(TR::SymbolReference *sym, bool freeAddressTakenSymbol = false);
+    void freeAllVariableSizeSymRefs();
 
-   void createHWPRecords();
+    TR::SymbolReference *getFreeVariableSizeSymRef(int byteLength);
+    void checkForUnfreedVariableSizeSymRefs();
 
-   void createStackAtlas();
+    bool allowGuardMerging();
+    void registerAssumptions();
 
-   // --------------------------------------------------------------------------
-   // GPU
-   //
-   static const int32_t GPUAlignment = 128;
-   uintptr_t objectLengthOffset();
-   uintptr_t objectHeaderInvariant();
+    void jitAddPicToPatchOnClassUnload(void *classPointer, void *addressToBePatched);
+    void jitAdd32BitPicToPatchOnClassUnload(void *classPointer, void *addressToBePatched);
+    void jitAddPicToPatchOnClassRedefinition(void *classPointer, void *addressToBePatched, bool unresolved = false);
+    void jitAdd32BitPicToPatchOnClassRedefinition(void *classPointer, void *addressToBePatched,
+        bool unresolved = false);
 
-  enum GPUScopeType
-      {
-      naturalLoopScope = 0,
-      singleKernelScope = 1
-      };
+    void createHWPRecords();
 
-   enum GPUResult
-      {
-      GPUSuccess = 0,
-      GPUNullCheck = 1,
-      GPUBndCheck = 2,
-      GPUDivException = 3,
-      GPUInvalidProgram = 4,
-      GPUHelperError = 5,
-      GPULaunchError = 6,
-      GPUBadDevicePointer = 7
-      };
+    void createStackAtlas();
 
-   enum GPUAccessKind {None = 0, ReadAccess= 1, WriteAccess = 2, ReadWriteAccesses = 3};
-   class gpuMapElement
-      {
-      public:
-      TR_ALLOC(TR_Memory::CodeGenerator); // dummy
+    // --------------------------------------------------------------------------
+    // GPU
+    //
+    static const int32_t GPUAlignment = 128;
+    uintptr_t objectLengthOffset();
+    uintptr_t objectHeaderInvariant();
 
-      gpuMapElement() : _node(NULL), _hostSymRef(NULL), _hostSymRefTemp(NULL), _devSymRef(NULL), _hoistAccess(false), _elementSize(-1), _parmSlot(-1), _accessKind(None), _lhsAddrExpr(NULL), _rhsAddrExpr(NULL) {}
+    enum GPUScopeType {
+        naturalLoopScope = 0,
+        singleKernelScope = 1
+    };
 
-      gpuMapElement(TR::Node *node, TR::SymbolReference *hostSymRef, int32_t elementSize, int32_t parmSlot)
-                    :
-                    _node(node), _hostSymRef(hostSymRef), _hostSymRefTemp(NULL), _devSymRef(NULL), _hoistAccess(false),
-                    _elementSize(elementSize), _parmSlot(parmSlot), _accessKind(None), _lhsAddrExpr(NULL), _rhsAddrExpr(NULL) {}
+    enum GPUResult {
+        GPUSuccess = 0,
+        GPUNullCheck = 1,
+        GPUBndCheck = 2,
+        GPUDivException = 3,
+        GPUInvalidProgram = 4,
+        GPUHelperError = 5,
+        GPULaunchError = 6,
+        GPUBadDevicePointer = 7
+    };
 
-      TR::Node          *_node;
-      TR::SymbolReference *_hostSymRef;
-      TR::SymbolReference *_hostSymRefTemp;
-      TR::SymbolReference *_devSymRef;
-      int32_t             _elementSize;
-      int32_t             _parmSlot;
-      uint32_t            _accessKind;
-      bool                _hoistAccess;
-      TR::Node          *_rhsAddrExpr;
-      TR::Node          *_lhsAddrExpr;
-      };
+    enum GPUAccessKind {
+        None = 0,
+        ReadAccess = 1,
+        WriteAccess = 2,
+        ReadWriteAccesses = 3
+    };
 
-   class gpuParameter
-      {
-      public:
-      TR_ALLOC(TR_Memory::CodeGenerator); // dummy
+    class gpuMapElement {
+    public:
+        TR_ALLOC(TR_Memory::CodeGenerator); // dummy
 
-      gpuParameter() : _hostSymRef(NULL), _parmSlot(-1) {}
+        gpuMapElement()
+            : _node(NULL)
+            , _hostSymRef(NULL)
+            , _hostSymRefTemp(NULL)
+            , _devSymRef(NULL)
+            , _hoistAccess(false)
+            , _elementSize(-1)
+            , _parmSlot(-1)
+            , _accessKind(None)
+            , _lhsAddrExpr(NULL)
+            , _rhsAddrExpr(NULL)
+        {}
 
-      gpuParameter(TR::SymbolReference *hostSymRef, int32_t parmSlot)
-                    : _hostSymRef(hostSymRef), _parmSlot(parmSlot) {}
+        gpuMapElement(TR::Node *node, TR::SymbolReference *hostSymRef, int32_t elementSize, int32_t parmSlot)
+            : _node(node)
+            , _hostSymRef(hostSymRef)
+            , _hostSymRefTemp(NULL)
+            , _devSymRef(NULL)
+            , _hoistAccess(false)
+            , _elementSize(elementSize)
+            , _parmSlot(parmSlot)
+            , _accessKind(None)
+            , _lhsAddrExpr(NULL)
+            , _rhsAddrExpr(NULL)
+        {}
 
-      TR::SymbolReference *_hostSymRef;
-      int32_t             _parmSlot;
-      };
+        TR::Node *_node;
+        TR::SymbolReference *_hostSymRef;
+        TR::SymbolReference *_hostSymRefTemp;
+        TR::SymbolReference *_devSymRef;
+        int32_t _elementSize;
+        int32_t _parmSlot;
+        uint32_t _accessKind;
+        bool _hoistAccess;
+        TR::Node *_rhsAddrExpr;
+        TR::Node *_lhsAddrExpr;
+    };
 
-   CS2::ArrayOf<gpuMapElement, TR::Allocator> _gpuSymbolMap;
+    class gpuParameter {
+    public:
+        TR_ALLOC(TR_Memory::CodeGenerator); // dummy
 
-   bool _gpuHasNullCheck;
-   bool _gpuHasBndCheck;
-   bool _gpuHasDivCheck;
+        gpuParameter()
+            : _hostSymRef(NULL)
+            , _parmSlot(-1)
+        {}
 
-   scount_t _gpuNodeCount;
-   TR::Block *_gpuCurrentBlock;
-   TR::DataTypes _gpuReturnType;
-   TR_Dominators *_gpuPostDominators;
-   TR::Block *_gpuStartBlock;
-   uint64_t _gpuNeedNullCheckArguments_vector;
-   bool _gpuCanUseReadOnlyCache;
-   bool _gpuUseOldLdgCalls;
+        gpuParameter(TR::SymbolReference *hostSymRef, int32_t parmSlot)
+            : _hostSymRef(hostSymRef)
+            , _parmSlot(parmSlot)
+        {}
 
-   TR_BitVector *getLiveMonitors() {return _liveMonitors;}
-   TR_BitVector *setLiveMonitors(TR_BitVector *v) {return (_liveMonitors = v);}
+        TR::SymbolReference *_hostSymRef;
+        int32_t _parmSlot;
+    };
 
-public:
-   /*
-    * \brief
-    *    Get the most abstract type the monitor may be operating on.
-    *
-    * \note
-    *    java.lang.Object is only returned when the monitor object is of type java.lang.Object but not any subclasses
-    */
-   TR_OpaqueClassBlock* getMonClass(TR::Node* monNode);
+    CS2::ArrayOf<gpuMapElement, TR::Allocator> _gpuSymbolMap;
 
-   /*
-    * \brief
-    *    Whether a monitor object is of value based class type or value type.
-    *    This API checks if value based or value type is enabled first.
-    *
-    * \return
-    *    TR_yes The monitor object is definitely value based class type or value type
-    *    TR_no The monitor object is definitely not value based class type or value type
-    *    TR_maybe It is unknown whether the monitor object is value based class type or value type
-    */
-   TR_YesNoMaybe isMonitorValueBasedOrValueType(TR::Node* monNode);
+    bool _gpuHasNullCheck;
+    bool _gpuHasBndCheck;
+    bool _gpuHasDivCheck;
 
-protected:
+    scount_t _gpuNodeCount;
+    TR::Block *_gpuCurrentBlock;
+    TR::DataTypes _gpuReturnType;
+    TR_Dominators *_gpuPostDominators;
+    TR::Block *_gpuStartBlock;
+    uint64_t _gpuNeedNullCheckArguments_vector;
+    bool _gpuCanUseReadOnlyCache;
+    bool _gpuUseOldLdgCalls;
 
-typedef TR::typed_allocator<std::pair<const ncount_t , TR_OpaqueClassBlock*>, TR::Region &> MonitorMapAllocator;
-typedef std::map<ncount_t , TR_OpaqueClassBlock *, std::less<ncount_t>, MonitorMapAllocator> MonitorTypeMap;
+    TR_BitVector *getLiveMonitors() { return _liveMonitors; }
 
-MonitorTypeMap _monitorMapping; // map global node index to monitor object class
-
-void addMonClass(TR::Node* monNode, TR_OpaqueClassBlock* clazz);
-
-private:
-
-   TR_HashTabInt _uncommonedNodes;               // uncommoned nodes keyed by the original nodes
-
-   TR::list<TR::Node*> _nodesSpineCheckedList;
-
-   TR::list<TR_Pair<TR_ResolvedMethod, TR::Instruction> *> _jniCallSites; // list of instrutions representing direct jni call sites
-
-   uint16_t changeParmLoadsToRegLoads(TR::Node*node, TR::Node **regLoads, TR_BitVector *globalRegsWithRegLoad, TR_BitVector &killedParms, vcount_t visitCount); // returns number of RegLoad nodes created
-
-   uint32_t _stackLimitOffsetInMetaData;
-
-   /*
-    * Scratch data for refined aliasing walk during
-    */
-   struct RefinedAliasWalkCollector
-      {
-      TR_PersistentMethodInfo *methodInfo;
-      bool killsEverything;
-      bool killsAddressStatics;
-      bool killsIntStatics;
-      bool killsNonIntPrimitiveStatics;
-      bool killsAddressFields;
-      bool killsIntFields;
-      bool killsNonIntPrimitiveFields;
-      bool killsAddressArrayShadows;
-      bool killsIntArrayShadows;
-      bool killsNonIntPrimitiveArrayShadows;
-      };
-
-   RefinedAliasWalkCollector _refinedAliasWalkCollector;
-
-   TR_BitVector *_liveMonitors;
-
-protected:
-
-   // isTemporaryBased storageReferences just have a symRef but some other routines expect a node so use the below to fill in this symRef on this node
-   TR::Node *_dummyTempStorageRefNode;
+    TR_BitVector *setLiveMonitors(TR_BitVector *v) { return (_liveMonitors = v); }
 
 public:
+    /*
+     * \brief
+     *    Get the most abstract type the monitor may be operating on.
+     *
+     * \note
+     *    java.lang.Object is only returned when the monitor object is of type java.lang.Object but not any subclasses
+     */
+    TR_OpaqueClassBlock *getMonClass(TR::Node *monNode);
 
-   bool getSupportsBigDecimalLongLookasideVersioning() { return _flags3.testAny(SupportsBigDecimalLongLookasideVersioning);}
-   void setSupportsBigDecimalLongLookasideVersioning() { _flags3.set(SupportsBigDecimalLongLookasideVersioning);}
+    /*
+     * \brief
+     *    Whether a monitor object is of value based class type or value type.
+     *    This API checks if value based or value type is enabled first.
+     *
+     * \return
+     *    TR_yes The monitor object is definitely value based class type or value type
+     *    TR_no The monitor object is definitely not value based class type or value type
+     *    TR_maybe It is unknown whether the monitor object is value based class type or value type
+     */
+    TR_YesNoMaybe isMonitorValueBasedOrValueType(TR::Node *monNode);
 
-   bool constLoadNeedsLiteralFromPool(TR::Node *node) { return false; }
+protected:
+    typedef TR::typed_allocator<std::pair<const ncount_t, TR_OpaqueClassBlock *>, TR::Region &> MonitorMapAllocator;
+    typedef std::map<ncount_t, TR_OpaqueClassBlock *, std::less<ncount_t>, MonitorMapAllocator> MonitorTypeMap;
 
-   // Java, likely Z
-   bool supportsTrapsInTMRegion() { return true; }
+    MonitorTypeMap _monitorMapping; // map global node index to monitor object class
 
-   // J9
-   int32_t getInternalPtrMapBit() { return 31;}
+    void addMonClass(TR::Node *monNode, TR_OpaqueClassBlock *clazz);
 
-   // --------------------------------------------------------------------------
-   // GPU
-   //
-   void generateGPU();
+private:
+    TR_HashTabInt _uncommonedNodes; // uncommoned nodes keyed by the original nodes
 
-   void dumpInvariant(CS2::ArrayOf<gpuParameter, TR::Allocator>::Cursor pit, NVVMIRBuffer &ir, bool isbufferalign);
+    TR::list<TR::Node *> _nodesSpineCheckedList;
 
-   GPUResult dumpNVVMIR(TR::TreeTop *firstTreeTop, TR::TreeTop *lastTreeTop, TR_RegionStructure *loop, SharedSparseBitVector *blocksinLoop, ListBase<TR::AutomaticSymbol> *autos, ListBase<TR::ParameterSymbol> *parms, bool staticMethod, char * &nvvmIR, TR::Node * &errorNode, int gpuPtxCount, bool* hasExceptionChecks);
+    TR::list<TR_Pair<TR_ResolvedMethod, TR::Instruction> *>
+        _jniCallSites; // list of instrutions representing direct jni call sites
 
-   GPUResult printNVVMIR(NVVMIRBuffer &ir, TR::Node * node, TR_RegionStructure *loop, TR_BitVector *targetBlocks, vcount_t visitCount, TR_SharedMemoryAnnotations *sharedMemory, int32_t &nextParmNum, TR::Node * &errorNode);
+    uint16_t changeParmLoadsToRegLoads(TR::Node *node, TR::Node **regLoads, TR_BitVector *globalRegsWithRegLoad,
+        TR_BitVector &killedParms, vcount_t visitCount); // returns number of RegLoad nodes created
 
-   void findExtraParms(TR::Node *node, int32_t &numExtraParms, TR_SharedMemoryAnnotations *sharedMemory, vcount_t visitCount);
+    uint32_t _stackLimitOffsetInMetaData;
 
-   bool handleRecognizedMethod(TR::Node *node, NVVMIRBuffer &ir, TR::Compilation *comp);
+    /*
+     * Scratch data for refined aliasing walk during
+     */
+    struct RefinedAliasWalkCollector {
+        TR_PersistentMethodInfo *methodInfo;
+        bool killsEverything;
+        bool killsAddressStatics;
+        bool killsIntStatics;
+        bool killsNonIntPrimitiveStatics;
+        bool killsAddressFields;
+        bool killsIntFields;
+        bool killsNonIntPrimitiveFields;
+        bool killsAddressArrayShadows;
+        bool killsIntArrayShadows;
+        bool killsNonIntPrimitiveArrayShadows;
+    };
 
-   bool handleRecognizedField(TR::Node *node, NVVMIRBuffer &ir);
+    RefinedAliasWalkCollector _refinedAliasWalkCollector;
 
-   void printArrayCopyNVVMIR(TR::Node *node, NVVMIRBuffer &ir, TR::Compilation *comp);
+    TR_BitVector *_liveMonitors;
 
+protected:
+    // isTemporaryBased storageReferences just have a symRef but some other routines expect a node so use the below to
+    // fill in this symRef on this node
+    TR::Node *_dummyTempStorageRefNode;
 
-   bool hasFixedFrameC_CallingConvention() {return _j9Flags.testAny(HasFixedFrameC_CallingConvention);}
-   void setHasFixedFrameC_CallingConvention() {_j9Flags.set(HasFixedFrameC_CallingConvention);}
+public:
+    bool getSupportsBigDecimalLongLookasideVersioning()
+    {
+        return _flags3.testAny(SupportsBigDecimalLongLookasideVersioning);
+    }
 
-   bool supportsJitMethodEntryAlignment();
+    void setSupportsBigDecimalLongLookasideVersioning() { _flags3.set(SupportsBigDecimalLongLookasideVersioning); }
 
-   /** \brief
-    *     Determines whether the code generator supports inlining of java/lang/Class.isAssignableFrom
-    */
-   bool supportsInliningOfIsAssignableFrom() { return false; } // no virt, default
+    bool constLoadNeedsLiteralFromPool(TR::Node *node) { return false; }
 
-   /** \brief
-    *     Determines whether the code generator must generate the switch to interpreter snippet in the preprologue.
-    */
-   bool mustGenerateSwitchToInterpreterPrePrologue();
+    // Java, likely Z
+    bool supportsTrapsInTMRegion() { return true; }
 
-   bool buildInterpreterEntryPoint() { return true; }
-   void generateCatchBlockBBStartPrologue(TR::Node *node, TR::Instruction *fenceInstruction);
-   bool supportsUnneededLabelRemoval() { return false; }
+    // J9
+    int32_t getInternalPtrMapBit() { return 31; }
 
-   // Determines whether high-resolution timer can be used to implement java/lang/System.currentTimeMillis()
-   bool getSupportsMaxPrecisionMilliTime() {return _j9Flags.testAny(SupportsMaxPrecisionMilliTime);}
-   void setSupportsMaxPrecisionMilliTime() {_j9Flags.set(SupportsMaxPrecisionMilliTime);}
-
-   /** \brief
-    *    Determines whether the code generator supports inlining of java/lang/String.toUpperCase() and toLowerCase()
-    */
-   bool getSupportsInlineStringCaseConversion() { return _j9Flags.testAny(SupportsInlineStringCaseConversion);}
-   /** \brief
-    *    The code generator supports inlining of java/lang/String.toUpperCase() and toLowerCase()
-    */
-   void setSupportsInlineStringCaseConversion() { _j9Flags.set(SupportsInlineStringCaseConversion);}
-
-   /** \brief
-    *    Determines whether the code generator supports inlining of java/lang/String.indexOf(int)
-    */
-   bool getSupportsInlineStringIndexOf() { return _j9Flags.testAny(SupportsInlineStringIndexOf);}
-
-   /** \brief
-    *    The code generator supports inlining of java/lang/String.indexOf(int)
-    */
-   void setSupportsInlineStringIndexOf() { _j9Flags.set(SupportsInlineStringIndexOf);}
-
-   /** \brief
-    *    Determines whether the code generator supports inlining of java/lang/String.indexOf(String)
-    */
-   bool getSupportsInlineStringIndexOfString() { return _j9Flags.testAny(SupportsInlineStringIndexOfString);}
-
-   /** \brief
-    *    The code generator supports inlining of java/lang/String.indexOf(String)
-    */
-   void setSupportsInlineStringIndexOfString() { _j9Flags.set(SupportsInlineStringIndexOfString);}
-
-   /** \brief
-   *    Determines whether the code generator supports inlining of java/lang/String.hashCode()
-   */
-   bool getSupportsInlineStringHashCode() { return _j9Flags.testAny(SupportsInlineStringHashCode); }
-
-   /** \brief
-   *    The code generator supports inlining of java/lang/String.hashCode()
-   */
-   void setSupportsInlineStringHashCode() { _j9Flags.set(SupportsInlineStringHashCode); }
-
-   /** \brief
-   *    Determines whether the code generator supports inlining of java/lang/StringCoding.countPositives
-   */
-   bool getSupportsInlineStringCodingCountPositives() { return _j9Flags.testAny(SupportsInlineStringCodingCountPositives); }
-
-   /** \brief
-   *    The code generator supports inlining of java/lang/StringCoding.countPositives
-   */
-   void setSupportsInlineStringCodingCountPositives() { _j9Flags.set(SupportsInlineStringCodingCountPositives); }
-
-   /** \brief
-   *    Determines whether the code generator supports inlining of java/lang/StringCoding.hasNegatives
-   */
-   bool getSupportsInlineStringCodingHasNegatives() { return _j9Flags.testAny(SupportsInlineStringCodingHasNegatives); }
-
-   /** \brief
-   *    The code generator supports inlining of java/lang/StringCoding.hasNegatives
-   */
-   void setSupportsInlineStringCodingHasNegatives() { _j9Flags.set(SupportsInlineStringCodingHasNegatives); }
-
-   /** \brief
-   *    Determines whether the code generator supports inlining of java/lang/StringLatin1.inflate
-   */
-   bool getSupportsInlineStringLatin1Inflate() { return _j9Flags.testAny(SupportsInlineStringLatin1Inflate); }
-
-   /** \brief
-   *    The code generator supports inlining of java/lang/StringLatin1.inflate
-   */
-   void setSupportsInlineStringLatin1Inflate() { _j9Flags.set(SupportsInlineStringLatin1Inflate); }
-
-   /** \brief
-   *    Determines whether the code generator supports inlining of java_util_concurrent_ConcurrentLinkedQueue_tm*
-   *    methods
-   */
-   bool getSupportsInlineConcurrentLinkedQueue() { return _j9Flags.testAny(SupportsInlineConcurrentLinkedQueue); }
-
-   /** \brief
-   *    The code generator supports inlining of java_util_concurrent_ConcurrentLinkedQueue_tm* methods
-   */
-   void setSupportsInlineConcurrentLinkedQueue() { _j9Flags.set(SupportsInlineConcurrentLinkedQueue); }
-
-   /** \brief
-	*   Determines whether the code generator supports inlining of sun/nio/cs/SingleByte$Decoder.decodeToLatin1Impl
-	*/
-   bool getSupportsInlineDecodeToLatin1Impl() { return _j9Flags.testAny(SupportsInlineDecodeToLatin1Impl); }
-
-   /** \brief
-	*   The code generator supports inlining of sun/nio/cs/SingleByte$Decoder.decodeToLatin1Impl
-	*/
-   void setSupportsInlineDecodeToLatin1Impl() { _j9Flags.set(SupportsInlineDecodeToLatin1Impl); }
-
-   /** \brief
-	*   Determines whether the code generator supports inlining of java/lang/StringCoding.encodeASCII
-	*/
-   bool getSupportsInlineEncodeASCII() { return _j9Flags.testAny(SupportsInlineEncodeASCII); }
-
-   /** \brief
-	*   The code generator supports inlining of java/lang/StringCoding.encodeASCII
-	*/
-   void setSupportsInlineEncodeASCII() { _j9Flags.set(SupportsInlineEncodeASCII); }
-
-   /** \brief
-   *   Determines whether the code generator supports inlining of jdk/internal/util/ArraysSupport.vectorizedMismatch
-   */
-   bool getSupportsInlineVectorizedMismatch() { return _j9Flags.testAny(SupportsInlineVectorizedMismatch); }
-
-   /** \brief
-   *   The code generator supports inlining of jdk/internal/util/ArraysSupport.vectorizedMismatch
-   */
-   void setSupportsInlineVectorizedMismatch() { _j9Flags.set(SupportsInlineVectorizedMismatch); }
-
-   /** \brief
-   *   Determines whether the code generator supports inlining of jdk/internal/util/ArraysSupport.vectorizedHashCode
-   */
-   bool getSupportsInlineVectorizedHashCode() { return _j9Flags.testAny(SupportsInlineVectorizedHashCode); }
-
-   /** \brief
-   *   The code generator supports inlining of jdk/internal/util/ArraysSupport.vectorizedHashCode
-   */
-   void setSupportsInlineVectorizedHashCode() { _j9Flags.set(SupportsInlineVectorizedHashCode); }
-
-   /** \brief
-   *   Determines whether the code generator supports inlining of java_lang_Math_max/min_F/D
-   */
-   bool getSupportsInlineMath_MaxMin_FD() { return _j9Flags.testAny(SupportsInlineMath_MaxMin_FD); }
-
-   /** \brief
-   *   The code generator supports inlining of java_lang_Math_max/min_F/D
-   */
-   void setSupportsInlineMath_MaxMin_FD() { _j9Flags.set(SupportsInlineMath_MaxMin_FD); }
-
-   /** \brief
-   *    Determines whether the code generator supports inlining of jdk/internal/misc/Unsafe.CompareAndSet[Object|Reference|Int|Long]
-   */
-   bool getSupportsInlineUnsafeCompareAndSet() { return _j9Flags.testAny(SupportsInlineUnsafeCompareAndSet); }
-
-   /** \brief
-   *    The code generator supports inlining of jdk/internal/misc/Unsafe.CompareAndSet[Object|Reference|Int|Long]
-   */
-   void setSupportsInlineUnsafeCompareAndSet() { _j9Flags.set(SupportsInlineUnsafeCompareAndSet); }
-
-   /** \brief
-   *    Determines whether the code generator supports inlining of jdk/internal/misc/Unsafe.CompareAndExchange[Object|Reference|Int|Long]
-   */
-   bool getSupportsInlineUnsafeCompareAndExchange() { return _j9Flags.testAny(SupportsInlineUnsafeCompareAndExchange); }
-
-   /** \brief
-   *    The code generator supports inlining of jdk/internal/misc/Unsafe.CompareAndExchange[Object|Reference|Int|Long]
-   */
-   void setSupportsInlineUnsafeCompareAndExchange() { _j9Flags.set(SupportsInlineUnsafeCompareAndExchange); }
-
-   /**
-    * \brief
-    *    The number of nodes between a monext and the next monent before
-    *    transforming a monitored region with transactional lock elision.
-    */
-   int32_t getMinimumNumberOfNodesBetweenMonitorsForTLE() { return 15; }
-
-   /**
-    * \brief Trim the size of code memory required by this method to match the
-    *        actual code length required, allowing the reclaimed memory to be
-    *        reused.  This is needed when the conservative length estimate
-    *        exceeds the actual memory requirement.
-    */
-   void trimCodeMemoryToActualSize();
-
-
-   /**
-    * \brief Request and reserve a CodeCache for use by this compilation.  Fail
-    *        the compilation appropriately if a CodeCache cannot be allocated.
-    */
-   void reserveCodeCache();
-
-
-   /**
-    * \brief Allocates code memory of the specified size in the specified area of
-    *        the code cache.  Fail the compilation on failure.
-    *
-    * \param[in]  warmCodeSizeInBytes : the number of bytes to allocate in the warm area
-    * \param[in]  coldCodeSizeInBytes : the number of bytes to allocate in the cold area
-    * \param[out] coldCode : address of the cold code (if allocated)
-    * \param[in]  isMethodHeaderNeeded : boolean indicating whether space for a
-    *                method header must be allocated
-    *
-    * \return address of the allocated warm code (if allocated)
-    */
-   uint8_t *allocateCodeMemoryInner(
-      uint32_t warmCodeSizeInBytes,
-      uint32_t coldCodeSizeInBytes,
-      uint8_t **coldCode,
-      bool isMethodHeaderNeeded);
-
-
-   /**
-    * \brief Store a poison value in an auto slot that should have gone dead.  Used for debugging.
-    *
-    * \param[in] currentBlock : block in which the auto slot appears
-    * \param[in] liveAutoSymRef : SymbolReference of auto slot to poison
-    *
-    * \return poisoned store node
-    */
-   TR::Node *generatePoisonNode(
-      TR::Block *currentBlock,
-      TR::SymbolReference *liveAutoSymRef);
-
-
-   /**
-    * \brief Determines whether VM Internal Natives is supported or not
-    */
-   bool supportVMInternalNatives();
-
-
-   /**
-    * \brief Determines whether the code generator supports stack allocations
-    */
-   bool supportsStackAllocations() { return false; }
-
-   /**
-    * \brief Initializes the Linkage Info word found before the interpreter entry point.
-    *
-    * \param[in] linkageInfo : pointer to the linkage info word
-    *
-    * \return Linkage Info word
-    */
-   uint32_t initializeLinkageInfo(void *linkageInfoPtr);
-
-   /**
-    * \brief Check if a profiled class is compatible with the call site
-    *
-    * \param[in] profiledClass : The J9Class obtained from profiling data
-    * \param[in] callSiteMethodClass : The J9Class from the J9Method of the call site target
-    *
-    * \return True if it can be determined that the profiled class is compatible, otherwise False
-    */
-   bool isProfiledClassAndCallSiteCompatible(TR_OpaqueClassBlock *profiledClass, TR_OpaqueClassBlock *callSiteMethodClass);
-
-   /** \brief
-   *    Determines whether the code generator supports inlining of java/lang/Integer.stringSize() or java/lang/Long.stringSize()
-   */
-   bool getSupportsIntegerStringSize() { return _j9Flags.testAny(SupportsIntegerStringSize); }
-
-   /** \brief
-   *    The code generator supports inlining of java/lang/Integer.stringSize() or java/lang/Long.stringSize()
-   */
-   void setSupportsIntegerStringSize() {_j9Flags.set(SupportsIntegerStringSize); }
-
-   /** \brief
-   *    Determines whether the code generator supports inlining of
-   *       - Integer.getChars,
-   *       - Long.getChars,
-   *       - StringUTF16.getChars(JI[B)I,
-   *       - StringUTF16.getChars(II[B)I
-   */
-   bool getSupportsIntegerToChars() { return _j9Flags.testAny(SupportsIntegerToChars); }
-
-   /** \brief
-   *    The code generator supports inlining of
-   *       - Integer.getChars,
-   *       - Long.getChars,
-   *       - StringUTF16.getChars(JI[B)I,
-   *       - StringUTF16.getChars(II[B)I
-   */
-   void setSupportsIntegerToChars() {_j9Flags.set(SupportsIntegerToChars); }
-
-   /**
-    * \brief Determine whether this code generator guarantees resolved direct
-    * dispatch under AOT with SVM.
-    *
-    * \return true if resolved direct dispatch is guaranteed, false otherwise
-    * \see TR_J9VMBase::isResolvedDirectDispatchGuaranteed
-    */
-   bool guaranteesResolvedDirectDispatchForSVM() { return false; } // safe default
-
-   /**
-    * \brief Determine whether this code generator guarantees resolved virtual
-    * dispatch under AOT with SVM.
-    *
-    * \return true if resolved virtual dispatch is guaranteed, false otherwise
-    * \see TR_J9VMBase::isResolvedVirtualDispatchGuaranteed
-    */
-   bool guaranteesResolvedVirtualDispatchForSVM() { return false; } // safe default
-
-   /** \brief
-   *    Determines if this method is saving all Non Volatile registers for the GC
-   */
-   bool getSavesNonVolatileGPRsForGC() { return _j9Flags.testAny(SavesNonVolatileGPRsForGC); }
-
-   /** \brief
-   *    Set the flag specifying that this method is saving all Non Volatile registers for the GC
-   */
-   void setSavesNonVolatileGPRsForGC() {_j9Flags.set(SavesNonVolatileGPRsForGC); }
-
-   /// Determine whether \c jitDispatchJ9Method is (supported and) enabled.
-   bool enableJitDispatchJ9Method();
-
-   /// Determine whether to stress the J2I path for \c jitDispatchJ9Method.
-   bool stressJitDispatchJ9MethodJ2I();
+    // --------------------------------------------------------------------------
+    // GPU
+    //
+    void generateGPU();
+
+    void dumpInvariant(CS2::ArrayOf<gpuParameter, TR::Allocator>::Cursor pit, NVVMIRBuffer &ir, bool isbufferalign);
+
+    GPUResult dumpNVVMIR(TR::TreeTop *firstTreeTop, TR::TreeTop *lastTreeTop, TR_RegionStructure *loop,
+        SharedSparseBitVector *blocksinLoop, ListBase<TR::AutomaticSymbol> *autos, ListBase<TR::ParameterSymbol> *parms,
+        bool staticMethod, char *&nvvmIR, TR::Node *&errorNode, int gpuPtxCount, bool *hasExceptionChecks);
+
+    GPUResult printNVVMIR(NVVMIRBuffer &ir, TR::Node *node, TR_RegionStructure *loop, TR_BitVector *targetBlocks,
+        vcount_t visitCount, TR_SharedMemoryAnnotations *sharedMemory, int32_t &nextParmNum, TR::Node *&errorNode);
+
+    void findExtraParms(TR::Node *node, int32_t &numExtraParms, TR_SharedMemoryAnnotations *sharedMemory,
+        vcount_t visitCount);
+
+    bool handleRecognizedMethod(TR::Node *node, NVVMIRBuffer &ir, TR::Compilation *comp);
+
+    bool handleRecognizedField(TR::Node *node, NVVMIRBuffer &ir);
+
+    void printArrayCopyNVVMIR(TR::Node *node, NVVMIRBuffer &ir, TR::Compilation *comp);
+
+    bool hasFixedFrameC_CallingConvention() { return _j9Flags.testAny(HasFixedFrameC_CallingConvention); }
+
+    void setHasFixedFrameC_CallingConvention() { _j9Flags.set(HasFixedFrameC_CallingConvention); }
+
+    bool supportsJitMethodEntryAlignment();
+
+    /** \brief
+     *     Determines whether the code generator supports inlining of java/lang/Class.isAssignableFrom
+     */
+    bool supportsInliningOfIsAssignableFrom() { return false; } // no virt, default
+
+    /** \brief
+     *     Determines whether the code generator must generate the switch to interpreter snippet in the preprologue.
+     */
+    bool mustGenerateSwitchToInterpreterPrePrologue();
+
+    bool buildInterpreterEntryPoint() { return true; }
+
+    void generateCatchBlockBBStartPrologue(TR::Node *node, TR::Instruction *fenceInstruction);
+
+    bool supportsUnneededLabelRemoval() { return false; }
+
+    // Determines whether high-resolution timer can be used to implement java/lang/System.currentTimeMillis()
+    bool getSupportsMaxPrecisionMilliTime() { return _j9Flags.testAny(SupportsMaxPrecisionMilliTime); }
+
+    void setSupportsMaxPrecisionMilliTime() { _j9Flags.set(SupportsMaxPrecisionMilliTime); }
+
+    /** \brief
+     *    Determines whether the code generator supports inlining of java/lang/String.toUpperCase() and toLowerCase()
+     */
+    bool getSupportsInlineStringCaseConversion() { return _j9Flags.testAny(SupportsInlineStringCaseConversion); }
+
+    /** \brief
+     *    The code generator supports inlining of java/lang/String.toUpperCase() and toLowerCase()
+     */
+    void setSupportsInlineStringCaseConversion() { _j9Flags.set(SupportsInlineStringCaseConversion); }
+
+    /** \brief
+     *    Determines whether the code generator supports inlining of java/lang/String.indexOf(int)
+     */
+    bool getSupportsInlineStringIndexOf() { return _j9Flags.testAny(SupportsInlineStringIndexOf); }
+
+    /** \brief
+     *    The code generator supports inlining of java/lang/String.indexOf(int)
+     */
+    void setSupportsInlineStringIndexOf() { _j9Flags.set(SupportsInlineStringIndexOf); }
+
+    /** \brief
+     *    Determines whether the code generator supports inlining of java/lang/String.indexOf(String)
+     */
+    bool getSupportsInlineStringIndexOfString() { return _j9Flags.testAny(SupportsInlineStringIndexOfString); }
+
+    /** \brief
+     *    The code generator supports inlining of java/lang/String.indexOf(String)
+     */
+    void setSupportsInlineStringIndexOfString() { _j9Flags.set(SupportsInlineStringIndexOfString); }
+
+    /** \brief
+     *    Determines whether the code generator supports inlining of java/lang/String.hashCode()
+     */
+    bool getSupportsInlineStringHashCode() { return _j9Flags.testAny(SupportsInlineStringHashCode); }
+
+    /** \brief
+     *    The code generator supports inlining of java/lang/String.hashCode()
+     */
+    void setSupportsInlineStringHashCode() { _j9Flags.set(SupportsInlineStringHashCode); }
+
+    /** \brief
+     *    Determines whether the code generator supports inlining of java/lang/StringCoding.countPositives
+     */
+    bool getSupportsInlineStringCodingCountPositives()
+    {
+        return _j9Flags.testAny(SupportsInlineStringCodingCountPositives);
+    }
+
+    /** \brief
+     *    The code generator supports inlining of java/lang/StringCoding.countPositives
+     */
+    void setSupportsInlineStringCodingCountPositives() { _j9Flags.set(SupportsInlineStringCodingCountPositives); }
+
+    /** \brief
+     *    Determines whether the code generator supports inlining of java/lang/StringCoding.hasNegatives
+     */
+    bool getSupportsInlineStringCodingHasNegatives()
+    {
+        return _j9Flags.testAny(SupportsInlineStringCodingHasNegatives);
+    }
+
+    /** \brief
+     *    The code generator supports inlining of java/lang/StringCoding.hasNegatives
+     */
+    void setSupportsInlineStringCodingHasNegatives() { _j9Flags.set(SupportsInlineStringCodingHasNegatives); }
+
+    /** \brief
+     *    Determines whether the code generator supports inlining of java/lang/StringLatin1.inflate
+     */
+    bool getSupportsInlineStringLatin1Inflate() { return _j9Flags.testAny(SupportsInlineStringLatin1Inflate); }
+
+    /** \brief
+     *    The code generator supports inlining of java/lang/StringLatin1.inflate
+     */
+    void setSupportsInlineStringLatin1Inflate() { _j9Flags.set(SupportsInlineStringLatin1Inflate); }
+
+    /** \brief
+     *    Determines whether the code generator supports inlining of java_util_concurrent_ConcurrentLinkedQueue_tm*
+     *    methods
+     */
+    bool getSupportsInlineConcurrentLinkedQueue() { return _j9Flags.testAny(SupportsInlineConcurrentLinkedQueue); }
+
+    /** \brief
+     *    The code generator supports inlining of java_util_concurrent_ConcurrentLinkedQueue_tm* methods
+     */
+    void setSupportsInlineConcurrentLinkedQueue() { _j9Flags.set(SupportsInlineConcurrentLinkedQueue); }
+
+    /** \brief
+     *   Determines whether the code generator supports inlining of sun/nio/cs/SingleByte$Decoder.decodeToLatin1Impl
+     */
+    bool getSupportsInlineDecodeToLatin1Impl() { return _j9Flags.testAny(SupportsInlineDecodeToLatin1Impl); }
+
+    /** \brief
+     *   The code generator supports inlining of sun/nio/cs/SingleByte$Decoder.decodeToLatin1Impl
+     */
+    void setSupportsInlineDecodeToLatin1Impl() { _j9Flags.set(SupportsInlineDecodeToLatin1Impl); }
+
+    /** \brief
+     *   Determines whether the code generator supports inlining of java/lang/StringCoding.encodeASCII
+     */
+    bool getSupportsInlineEncodeASCII() { return _j9Flags.testAny(SupportsInlineEncodeASCII); }
+
+    /** \brief
+     *   The code generator supports inlining of java/lang/StringCoding.encodeASCII
+     */
+    void setSupportsInlineEncodeASCII() { _j9Flags.set(SupportsInlineEncodeASCII); }
+
+    /** \brief
+     *   Determines whether the code generator supports inlining of jdk/internal/util/ArraysSupport.vectorizedMismatch
+     */
+    bool getSupportsInlineVectorizedMismatch() { return _j9Flags.testAny(SupportsInlineVectorizedMismatch); }
+
+    /** \brief
+     *   The code generator supports inlining of jdk/internal/util/ArraysSupport.vectorizedMismatch
+     */
+    void setSupportsInlineVectorizedMismatch() { _j9Flags.set(SupportsInlineVectorizedMismatch); }
+
+    /** \brief
+     *   Determines whether the code generator supports inlining of jdk/internal/util/ArraysSupport.vectorizedHashCode
+     */
+    bool getSupportsInlineVectorizedHashCode() { return _j9Flags.testAny(SupportsInlineVectorizedHashCode); }
+
+    /** \brief
+     *   The code generator supports inlining of jdk/internal/util/ArraysSupport.vectorizedHashCode
+     */
+    void setSupportsInlineVectorizedHashCode() { _j9Flags.set(SupportsInlineVectorizedHashCode); }
+
+    /** \brief
+     *   Determines whether the code generator supports inlining of java_lang_Math_max/min_F/D
+     */
+    bool getSupportsInlineMath_MaxMin_FD() { return _j9Flags.testAny(SupportsInlineMath_MaxMin_FD); }
+
+    /** \brief
+     *   The code generator supports inlining of java_lang_Math_max/min_F/D
+     */
+    void setSupportsInlineMath_MaxMin_FD() { _j9Flags.set(SupportsInlineMath_MaxMin_FD); }
+
+    /** \brief
+     *    Determines whether the code generator supports inlining of
+     * jdk/internal/misc/Unsafe.CompareAndSet[Object|Reference|Int|Long]
+     */
+    bool getSupportsInlineUnsafeCompareAndSet() { return _j9Flags.testAny(SupportsInlineUnsafeCompareAndSet); }
+
+    /** \brief
+     *    The code generator supports inlining of jdk/internal/misc/Unsafe.CompareAndSet[Object|Reference|Int|Long]
+     */
+    void setSupportsInlineUnsafeCompareAndSet() { _j9Flags.set(SupportsInlineUnsafeCompareAndSet); }
+
+    /** \brief
+     *    Determines whether the code generator supports inlining of
+     * jdk/internal/misc/Unsafe.CompareAndExchange[Object|Reference|Int|Long]
+     */
+    bool getSupportsInlineUnsafeCompareAndExchange()
+    {
+        return _j9Flags.testAny(SupportsInlineUnsafeCompareAndExchange);
+    }
+
+    /** \brief
+     *    The code generator supports inlining of jdk/internal/misc/Unsafe.CompareAndExchange[Object|Reference|Int|Long]
+     */
+    void setSupportsInlineUnsafeCompareAndExchange() { _j9Flags.set(SupportsInlineUnsafeCompareAndExchange); }
+
+    /**
+     * \brief
+     *    The number of nodes between a monext and the next monent before
+     *    transforming a monitored region with transactional lock elision.
+     */
+    int32_t getMinimumNumberOfNodesBetweenMonitorsForTLE() { return 15; }
+
+    /**
+     * \brief Trim the size of code memory required by this method to match the
+     *        actual code length required, allowing the reclaimed memory to be
+     *        reused.  This is needed when the conservative length estimate
+     *        exceeds the actual memory requirement.
+     */
+    void trimCodeMemoryToActualSize();
+
+    /**
+     * \brief Request and reserve a CodeCache for use by this compilation.  Fail
+     *        the compilation appropriately if a CodeCache cannot be allocated.
+     */
+    void reserveCodeCache();
+
+    /**
+     * \brief Allocates code memory of the specified size in the specified area of
+     *        the code cache.  Fail the compilation on failure.
+     *
+     * \param[in]  warmCodeSizeInBytes : the number of bytes to allocate in the warm area
+     * \param[in]  coldCodeSizeInBytes : the number of bytes to allocate in the cold area
+     * \param[out] coldCode : address of the cold code (if allocated)
+     * \param[in]  isMethodHeaderNeeded : boolean indicating whether space for a
+     *                method header must be allocated
+     *
+     * \return address of the allocated warm code (if allocated)
+     */
+    uint8_t *allocateCodeMemoryInner(uint32_t warmCodeSizeInBytes, uint32_t coldCodeSizeInBytes, uint8_t **coldCode,
+        bool isMethodHeaderNeeded);
+
+    /**
+     * \brief Store a poison value in an auto slot that should have gone dead.  Used for debugging.
+     *
+     * \param[in] currentBlock : block in which the auto slot appears
+     * \param[in] liveAutoSymRef : SymbolReference of auto slot to poison
+     *
+     * \return poisoned store node
+     */
+    TR::Node *generatePoisonNode(TR::Block *currentBlock, TR::SymbolReference *liveAutoSymRef);
+
+    /**
+     * \brief Determines whether VM Internal Natives is supported or not
+     */
+    bool supportVMInternalNatives();
+
+    /**
+     * \brief Determines whether the code generator supports stack allocations
+     */
+    bool supportsStackAllocations() { return false; }
+
+    /**
+     * \brief Initializes the Linkage Info word found before the interpreter entry point.
+     *
+     * \param[in] linkageInfo : pointer to the linkage info word
+     *
+     * \return Linkage Info word
+     */
+    uint32_t initializeLinkageInfo(void *linkageInfoPtr);
+
+    /**
+     * \brief Check if a profiled class is compatible with the call site
+     *
+     * \param[in] profiledClass : The J9Class obtained from profiling data
+     * \param[in] callSiteMethodClass : The J9Class from the J9Method of the call site target
+     *
+     * \return True if it can be determined that the profiled class is compatible, otherwise False
+     */
+    bool isProfiledClassAndCallSiteCompatible(TR_OpaqueClassBlock *profiledClass,
+        TR_OpaqueClassBlock *callSiteMethodClass);
+
+    /** \brief
+     *    Determines whether the code generator supports inlining of java/lang/Integer.stringSize() or
+     * java/lang/Long.stringSize()
+     */
+    bool getSupportsIntegerStringSize() { return _j9Flags.testAny(SupportsIntegerStringSize); }
+
+    /** \brief
+     *    The code generator supports inlining of java/lang/Integer.stringSize() or java/lang/Long.stringSize()
+     */
+    void setSupportsIntegerStringSize() { _j9Flags.set(SupportsIntegerStringSize); }
+
+    /** \brief
+     *    Determines whether the code generator supports inlining of
+     *       - Integer.getChars,
+     *       - Long.getChars,
+     *       - StringUTF16.getChars(JI[B)I,
+     *       - StringUTF16.getChars(II[B)I
+     */
+    bool getSupportsIntegerToChars() { return _j9Flags.testAny(SupportsIntegerToChars); }
+
+    /** \brief
+     *    The code generator supports inlining of
+     *       - Integer.getChars,
+     *       - Long.getChars,
+     *       - StringUTF16.getChars(JI[B)I,
+     *       - StringUTF16.getChars(II[B)I
+     */
+    void setSupportsIntegerToChars() { _j9Flags.set(SupportsIntegerToChars); }
+
+    /**
+     * \brief Determine whether this code generator guarantees resolved direct
+     * dispatch under AOT with SVM.
+     *
+     * \return true if resolved direct dispatch is guaranteed, false otherwise
+     * \see TR_J9VMBase::isResolvedDirectDispatchGuaranteed
+     */
+    bool guaranteesResolvedDirectDispatchForSVM() { return false; } // safe default
+
+    /**
+     * \brief Determine whether this code generator guarantees resolved virtual
+     * dispatch under AOT with SVM.
+     *
+     * \return true if resolved virtual dispatch is guaranteed, false otherwise
+     * \see TR_J9VMBase::isResolvedVirtualDispatchGuaranteed
+     */
+    bool guaranteesResolvedVirtualDispatchForSVM() { return false; } // safe default
+
+    /** \brief
+     *    Determines if this method is saving all Non Volatile registers for the GC
+     */
+    bool getSavesNonVolatileGPRsForGC() { return _j9Flags.testAny(SavesNonVolatileGPRsForGC); }
+
+    /** \brief
+     *    Set the flag specifying that this method is saving all Non Volatile registers for the GC
+     */
+    void setSavesNonVolatileGPRsForGC() { _j9Flags.set(SavesNonVolatileGPRsForGC); }
+
+    /// Determine whether \c jitDispatchJ9Method is (supported and) enabled.
+    bool enableJitDispatchJ9Method();
+
+    /// Determine whether to stress the J2I path for \c jitDispatchJ9Method.
+    bool stressJitDispatchJ9MethodJ2I();
 
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
-   void addInvokeBasicCallSite(TR::Node *callNode, TR::Instruction *instr)
-      {
-      addInvokeBasicCallSiteImpl(callNode, instr, NULL);
-      }
+    void addInvokeBasicCallSite(TR::Node *callNode, TR::Instruction *instr)
+    {
+        addInvokeBasicCallSiteImpl(callNode, instr, NULL);
+    }
 
-   void addInvokeBasicCallSite(TR::Node *callNode, uint8_t *retAddr)
-      {
-      addInvokeBasicCallSiteImpl(callNode, NULL, retAddr);
-      }
+    void addInvokeBasicCallSite(TR::Node *callNode, uint8_t *retAddr)
+    {
+        addInvokeBasicCallSiteImpl(callNode, NULL, retAddr);
+    }
 
-   struct InvokeBasicCallSite
-      {
-      TR::Instruction *_instr; // for call instruction from an evaluator
-      void *_retAddr; // for call instruction from a snippet
-      uint8_t _numArgSlots;
-      void *_j2iThunk; // for JITHelpers.dispatchVirtual()
-      };
+    struct InvokeBasicCallSite {
+        TR::Instruction *_instr; // for call instruction from an evaluator
+        void *_retAddr; // for call instruction from a snippet
+        uint8_t _numArgSlots;
+        void *_j2iThunk; // for JITHelpers.dispatchVirtual()
+    };
 
-   typedef TR::list<InvokeBasicCallSite, TR::Region&> InvokeBasicCallSiteList;
+    typedef TR::list<InvokeBasicCallSite, TR::Region &> InvokeBasicCallSiteList;
 
-   const InvokeBasicCallSiteList &invokeBasicCallSites()
-      {
-      return _invokeBasicCallSites;
-      }
+    const InvokeBasicCallSiteList &invokeBasicCallSites() { return _invokeBasicCallSites; }
 #endif
 
 private:
-
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
-   void addInvokeBasicCallSiteImpl(
-      TR::Node *callNode, TR::Instruction *instr, uint8_t *retAddr);
+    void addInvokeBasicCallSiteImpl(TR::Node *callNode, TR::Instruction *instr, uint8_t *retAddr);
 #endif
 
-   enum // Flags
-      {
-      HasFixedFrameC_CallingConvention                    = 0x00000001,
-      SupportsMaxPrecisionMilliTime                       = 0x00000002,
-      SupportsInlineStringCaseConversion                  = 0x00000004, /*! codegen inlining of Java string case conversion */
-      SupportsInlineStringIndexOf                         = 0x00000008, /*! codegen inlining of Java string index of */
-      SupportsInlineStringHashCode                        = 0x00000010, /*! codegen inlining of Java string hash code */
-      SupportsInlineConcurrentLinkedQueue                 = 0x00000020,
-      SupportsBigDecimalLongLookasideVersioning           = 0x00000040,
-      SupportsInlineStringLatin1Inflate                   = 0x00000080, /*! codegen inlining of Java StringLatin1.inflate */
-      SupportsIntegerStringSize                           = 0x00000100,
-      SupportsIntegerToChars                              = 0x00000200,
-      SupportsInlineEncodeASCII                           = 0x00000400,
-      SavesNonVolatileGPRsForGC                           = 0x00000800,
-      SupportsInlineVectorizedMismatch                    = 0x00001000,
-      SupportsInlineVectorizedHashCode                    = 0x00002000,
-      SupportsInlineStringCodingHasNegatives              = 0x00004000,
-      SupportsInlineStringCodingCountPositives            = 0x00008000,
-      SupportsInlineMath_MaxMin_FD                        = 0x00010000,
-      SupportsInlineUnsafeCompareAndSet                   = 0x00020000,
-      SupportsInlineUnsafeCompareAndExchange              = 0x00040000,
-      SupportsInlineStringIndexOfString                   = 0x00080000, /*! codegen inlining of Java string index of string */
-      SupportsInlineDecodeToLatin1Impl                    = 0x00100000,
-      };
+    enum // Flags
+    {
+        HasFixedFrameC_CallingConvention = 0x00000001,
+        SupportsMaxPrecisionMilliTime = 0x00000002,
+        SupportsInlineStringCaseConversion = 0x00000004, /*! codegen inlining of Java string case conversion */
+        SupportsInlineStringIndexOf = 0x00000008, /*! codegen inlining of Java string index of */
+        SupportsInlineStringHashCode = 0x00000010, /*! codegen inlining of Java string hash code */
+        SupportsInlineConcurrentLinkedQueue = 0x00000020,
+        SupportsBigDecimalLongLookasideVersioning = 0x00000040,
+        SupportsInlineStringLatin1Inflate = 0x00000080, /*! codegen inlining of Java StringLatin1.inflate */
+        SupportsIntegerStringSize = 0x00000100,
+        SupportsIntegerToChars = 0x00000200,
+        SupportsInlineEncodeASCII = 0x00000400,
+        SavesNonVolatileGPRsForGC = 0x00000800,
+        SupportsInlineVectorizedMismatch = 0x00001000,
+        SupportsInlineVectorizedHashCode = 0x00002000,
+        SupportsInlineStringCodingHasNegatives = 0x00004000,
+        SupportsInlineStringCodingCountPositives = 0x00008000,
+        SupportsInlineMath_MaxMin_FD = 0x00010000,
+        SupportsInlineUnsafeCompareAndSet = 0x00020000,
+        SupportsInlineUnsafeCompareAndExchange = 0x00040000,
+        SupportsInlineStringIndexOfString = 0x00080000, /*! codegen inlining of Java string index of string */
+        SupportsInlineDecodeToLatin1Impl = 0x00100000,
+    };
 
-   flags32_t _j9Flags;
+    flags32_t _j9Flags;
 
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
-   InvokeBasicCallSiteList _invokeBasicCallSites;
+    InvokeBasicCallSiteList _invokeBasicCallSites;
 #endif
-   };
-}
+};
+} // namespace J9
 
 #endif

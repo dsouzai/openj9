@@ -26,25 +26,30 @@
 #if defined(TR_TARGET_32BIT)
 
 #include "x/i386/codegen/IA32SystemLinkage.hpp"
+
 namespace TR {
 class CodeGenerator;
 }
 
-#define INCOMPLETELINKAGE  "This class is only used to generate call-out sequence but no call-in sequence, so it is not used as a complete linkage."
+#define INCOMPLETELINKAGE                                                                                             \
+    "This class is only used to generate call-out sequence but no call-in sequence, so it is not used as a complete " \
+    "linkage."
 
 namespace TR {
 
-class IA32J9SystemLinkage : public TR::IA32SystemLinkage
-   {
+class IA32J9SystemLinkage : public TR::IA32SystemLinkage {
 public:
-   IA32J9SystemLinkage(TR::CodeGenerator *cg);
-protected:
-   virtual TR::Register *buildDirectDispatch(TR::Node *callNode, bool spillFPRegs);
-   virtual TR::Register *buildVolatileAndReturnDependencies(TR::Node *callNode, TR::RegisterDependencyConditions *deps);
-   virtual int32_t buildParametersOnCStack(TR::Node *callNode, int firstParamIndex, bool passVMThread = false, bool wrapAddress = false);
-   };
+    IA32J9SystemLinkage(TR::CodeGenerator *cg);
 
-}
+protected:
+    virtual TR::Register *buildDirectDispatch(TR::Node *callNode, bool spillFPRegs);
+    virtual TR::Register *buildVolatileAndReturnDependencies(TR::Node *callNode,
+        TR::RegisterDependencyConditions *deps);
+    virtual int32_t buildParametersOnCStack(TR::Node *callNode, int firstParamIndex, bool passVMThread = false,
+        bool wrapAddress = false);
+};
+
+} // namespace TR
 
 #endif
 

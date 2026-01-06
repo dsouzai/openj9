@@ -28,10 +28,11 @@
  */
 #ifndef J9_VMENV_CONNECTOR
 #define J9_VMENV_CONNECTOR
+
 namespace J9 {
 class VMEnv;
 typedef J9::VMEnv VMEnvConnector;
-}
+} // namespace J9
 #endif
 
 #include "env/OMRVMEnv.hpp"
@@ -42,87 +43,86 @@ typedef J9::VMEnv VMEnvConnector;
 struct OMR_VMThread;
 class TR_J9VMBase;
 class TR_FrontEnd;
+
 namespace TR {
 class Compilation;
 }
 
-namespace J9
-{
+namespace J9 {
 
-class OMR_EXTENSIBLE VMEnv : public OMR::VMEnvConnector
-   {
+class OMR_EXTENSIBLE VMEnv : public OMR::VMEnvConnector {
 public:
+    int64_t maxHeapSizeInBytes();
 
-   int64_t maxHeapSizeInBytes();
+    uintptr_t thisThreadGetPendingExceptionOffset();
 
-   uintptr_t thisThreadGetPendingExceptionOffset();
+    bool hasResumableTrapHandler(TR::Compilation *comp);
+    bool hasResumableTrapHandler(OMR_VMThread *omrVMThread);
 
-   bool hasResumableTrapHandler(TR::Compilation *comp);
-   bool hasResumableTrapHandler(OMR_VMThread *omrVMThread);
+    using OMR::VMEnvConnector::getUSecClock;
+    uint64_t getUSecClock(TR::Compilation *comp);
+    uint64_t getUSecClock(OMR_VMThread *omrVMThread);
 
-   using OMR::VMEnvConnector::getUSecClock;
-   uint64_t getUSecClock(TR::Compilation *comp);
-   uint64_t getUSecClock(OMR_VMThread *omrVMThread);
+    uint64_t getHighResClock(TR::Compilation *comp);
+    uint64_t getHighResClock(OMR_VMThread *omrVMThread);
 
-   uint64_t getHighResClock(TR::Compilation *comp);
-   uint64_t getHighResClock(OMR_VMThread *omrVMThread);
+    uint64_t getHighResClockResolution(TR::Compilation *comp);
+    uint64_t getHighResClockResolution(OMR_VMThread *omrVMThread);
+    static uint64_t getHighResClockResolution(TR_FrontEnd *fej9);
+    uint64_t getHighResClockResolution();
 
-   uint64_t getHighResClockResolution(TR::Compilation *comp);
-   uint64_t getHighResClockResolution(OMR_VMThread *omrVMThread);
-   static uint64_t getHighResClockResolution(TR_FrontEnd *fej9);
-   uint64_t getHighResClockResolution();
+    bool hasAccess(OMR_VMThread *omrVMThread);
+    bool hasAccess(J9VMThread *j9VMThread);
+    bool hasAccess(TR::Compilation *comp);
 
-   bool hasAccess(OMR_VMThread *omrVMThread);
-   bool hasAccess(J9VMThread *j9VMThread);
-   bool hasAccess(TR::Compilation *comp);
+    bool acquireVMAccessIfNeeded(OMR_VMThread *omrVMThread);
+    bool acquireVMAccessIfNeeded(TR_J9VMBase *fej9);
+    bool acquireVMAccessIfNeeded(TR::Compilation *comp);
 
-   bool acquireVMAccessIfNeeded(OMR_VMThread *omrVMThread);
-   bool acquireVMAccessIfNeeded(TR_J9VMBase *fej9);
-   bool acquireVMAccessIfNeeded(TR::Compilation *comp);
+    bool tryToAcquireAccess(TR::Compilation *, bool *);
+    bool tryToAcquireAccess(OMR_VMThread *, bool *);
 
-   bool tryToAcquireAccess(TR::Compilation *, bool *);
-   bool tryToAcquireAccess(OMR_VMThread *, bool *);
+    void releaseVMAccessIfNeeded(TR::Compilation *comp, bool haveAcquiredVMAccess);
+    void releaseVMAccessIfNeeded(OMR_VMThread *, bool haveAcquiredVMAccess);
+    void releaseVMAccessIfNeeded(TR_J9VMBase *, bool haveAcquiredVMAccess);
 
-   void releaseVMAccessIfNeeded(TR::Compilation *comp, bool haveAcquiredVMAccess);
-   void releaseVMAccessIfNeeded(OMR_VMThread *, bool haveAcquiredVMAccess);
-   void releaseVMAccessIfNeeded(TR_J9VMBase *, bool haveAcquiredVMAccess);
+    void releaseAccess(TR::Compilation *comp);
+    void releaseAccess(OMR_VMThread *omrVMThread);
+    void releaseAccess(TR_J9VMBase *fej9);
 
-   void releaseAccess(TR::Compilation *comp);
-   void releaseAccess(OMR_VMThread *omrVMThread);
-   void releaseAccess(TR_J9VMBase *fej9);
+    J9VMThread *J9VMThreadFromOMRVMThread(OMR_VMThread *omrVMThread)
+    {
+        return (J9VMThread *)omrVMThread->_language_vmthread;
+    }
 
-   J9VMThread *J9VMThreadFromOMRVMThread(OMR_VMThread *omrVMThread)
-      {
-      return (J9VMThread *)omrVMThread->_language_vmthread;
-      }
+    bool canMethodEnterEventBeHooked(TR::Compilation *comp);
+    bool canMethodExitEventBeHooked(TR::Compilation *comp);
+    bool isSelectiveMethodEnterExitEnabled(TR::Compilation *comp);
 
-   bool canMethodEnterEventBeHooked(TR::Compilation *comp);
-   bool canMethodExitEventBeHooked(TR::Compilation *comp);
-   bool isSelectiveMethodEnterExitEnabled(TR::Compilation *comp);
+    uintptr_t getOverflowSafeAllocSize(TR::Compilation *comp);
 
-   uintptr_t getOverflowSafeAllocSize(TR::Compilation *comp);
+    int64_t cpuTimeSpentInCompilationThread(TR::Compilation *comp);
 
-   int64_t cpuTimeSpentInCompilationThread(TR::Compilation *comp);
+    // On-stack replacement
+    //
+    uintptr_t OSRFrameHeaderSizeInBytes(TR::Compilation *comp);
+    uintptr_t OSRFrameSizeInBytes(TR::Compilation *comp, TR_OpaqueMethodBlock *method);
+    bool ensureOSRBufferSize(TR::Compilation *comp, uintptr_t osrFrameSizeInBytes,
+        uintptr_t osrScratchBufferSizeInBytes, uintptr_t osrStackFrameSizeInBytes);
+    uintptr_t thisThreadGetOSRReturnAddressOffset(TR::Compilation *comp);
 
-   // On-stack replacement
-   //
-   uintptr_t OSRFrameHeaderSizeInBytes(TR::Compilation *comp);
-   uintptr_t OSRFrameSizeInBytes(TR::Compilation *comp, TR_OpaqueMethodBlock* method);
-   bool ensureOSRBufferSize(TR::Compilation *comp, uintptr_t osrFrameSizeInBytes, uintptr_t osrScratchBufferSizeInBytes, uintptr_t osrStackFrameSizeInBytes);
-   uintptr_t thisThreadGetOSRReturnAddressOffset(TR::Compilation *comp);
+    uintptr_t thisThreadGetGSIntermediateResultOffset(TR::Compilation *comp);
+    uintptr_t thisThreadGetConcurrentScavengeActiveByteAddressOffset(TR::Compilation *comp);
+    uintptr_t thisThreadGetEvacuateBaseAddressOffset(TR::Compilation *comp);
+    uintptr_t thisThreadGetEvacuateTopAddressOffset(TR::Compilation *comp);
+    uintptr_t thisThreadGetGSOperandAddressOffset(TR::Compilation *comp);
+    uintptr_t thisThreadGetGSHandlerAddressOffset(TR::Compilation *comp);
+    size_t getInterpreterVTableOffset();
 
-   uintptr_t thisThreadGetGSIntermediateResultOffset(TR::Compilation *comp);
-   uintptr_t thisThreadGetConcurrentScavengeActiveByteAddressOffset(TR::Compilation *comp);
-   uintptr_t thisThreadGetEvacuateBaseAddressOffset(TR::Compilation *comp);
-   uintptr_t thisThreadGetEvacuateTopAddressOffset(TR::Compilation *comp);
-   uintptr_t thisThreadGetGSOperandAddressOffset(TR::Compilation *comp);
-   uintptr_t thisThreadGetGSHandlerAddressOffset(TR::Compilation *comp);
-   size_t getInterpreterVTableOffset();
-   
-   bool isVMInStartupPhase(J9JITConfig *jitConfig);
-   bool isVMInStartupPhase(TR::Compilation *comp);
-   };
+    bool isVMInStartupPhase(J9JITConfig *jitConfig);
+    bool isVMInStartupPhase(TR::Compilation *comp);
+};
 
-}
+} // namespace J9
 
 #endif

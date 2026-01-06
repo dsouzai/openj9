@@ -35,6 +35,7 @@
 
 class TR_J9VMBase;
 class TR_ResolvedMethod;
+
 namespace TR {
 class CompilationInfo;
 }
@@ -42,7 +43,10 @@ class CompilationInfo;
 namespace TR {
 class CompilationInfoPerThread;
 }
-namespace JITServer { class ServerStream; }
+
+namespace JITServer {
+class ServerStream;
+}
 class JITServerNoSCCAOTDeserializer;
 #endif
 
@@ -93,791 +97,1019 @@ struct J9SharedDataDescriptor;
  *
  * See CompositeCache.cpp for more details.
  */
-class TR_J9SharedCache : public TR_SharedCache
-   {
+class TR_J9SharedCache : public TR_SharedCache {
 public:
-   TR_ALLOC_SPECIALIZED(TR_Memory::SharedCache)
+    TR_ALLOC_SPECIALIZED(TR_Memory::SharedCache)
 
-   TR_J9SharedCache(TR_J9VMBase *fe);
-   TR_J9VMBase *fe() { return _fe; }
-   virtual bool isHint(TR_ResolvedMethod *, TR_SharedCacheHint, uint16_t *dataField = NULL);
-   virtual bool isHint(J9Method *, TR_SharedCacheHint, uint16_t *dataField = NULL);
-   virtual uint16_t getAllEnabledHints(J9Method *method);
-   virtual void addHint(J9Method *, TR_SharedCacheHint);
-   virtual void addHint(TR_ResolvedMethod *, TR_SharedCacheHint);
-   virtual bool isMostlyFull();
+    TR_J9SharedCache(TR_J9VMBase *fe);
 
-   static void validateAOTHeader(J9JITConfig *jitConfig, J9VMThread *vmThread, TR::CompilationInfo *compInfo);
+    TR_J9VMBase *fe() { return _fe; }
+
+    virtual bool isHint(TR_ResolvedMethod *, TR_SharedCacheHint, uint16_t *dataField = NULL);
+    virtual bool isHint(J9Method *, TR_SharedCacheHint, uint16_t *dataField = NULL);
+    virtual uint16_t getAllEnabledHints(J9Method *method);
+    virtual void addHint(J9Method *, TR_SharedCacheHint);
+    virtual void addHint(TR_ResolvedMethod *, TR_SharedCacheHint);
+    virtual bool isMostlyFull();
+
+    static void validateAOTHeader(J9JITConfig *jitConfig, J9VMThread *vmThread, TR::CompilationInfo *compInfo);
 
 #if defined(LINUX)
-   /**
-    * \brief Returns whether SCC disclaiming is enabled.
-    *
-    * This function returns a boolean that represents whether SCC disclaiming is enabled or not.
-    * SCC disclaiming may be enabled or disabled via an option, and if enabled, may later be
-    * disabled due to an error.
-    *
-    * \return True if SCC disclaiming is enabled, false otherwise.
-    */
-   virtual bool isDisclaimEnabled() { return _disclaimEnabled; }
+    /**
+     * \brief Returns whether SCC disclaiming is enabled.
+     *
+     * This function returns a boolean that represents whether SCC disclaiming is enabled or not.
+     * SCC disclaiming may be enabled or disabled via an option, and if enabled, may later be
+     * disabled due to an error.
+     *
+     * \return True if SCC disclaiming is enabled, false otherwise.
+     */
+    virtual bool isDisclaimEnabled() { return _disclaimEnabled; }
 
-   /**
-    * \brief Disclaims SCC memory pages, causing them to be paged out of the resident set.
-    *
-    * This function causes the occupied parts of the SCC to be disclaimed. For each layer
-    * the ROM class area which starts at the beginning of the layer and extends forward,
-    * and the metadata area which starts at the end of the layer and extends backwards,
-    * are both disclaimed, causing the underlying memory pages to be paged out of the
-    * resident set.
-    *
-    * This function does nothing if SCC disclaiming is disabled.
-    *
-    * \return The number of areas disclaimed.
-    */
-   virtual int32_t disclaimSharedCaches();
+    /**
+     * \brief Disclaims SCC memory pages, causing them to be paged out of the resident set.
+     *
+     * This function causes the occupied parts of the SCC to be disclaimed. For each layer
+     * the ROM class area which starts at the beginning of the layer and extends forward,
+     * and the metadata area which starts at the end of the layer and extends backwards,
+     * are both disclaimed, causing the underlying memory pages to be paged out of the
+     * resident set.
+     *
+     * This function does nothing if SCC disclaiming is disabled.
+     *
+     * \return The number of areas disclaimed.
+     */
+    virtual int32_t disclaimSharedCaches();
 #endif
 
-   /**
-    * \brief Converts a shared cache offset, calculated from the end of the SCC, into the
-    *        metadata section of the SCC into a pointer.
-    *
-    * The pointer returned from this function should be considered opaque by the consumers of this API,
-    * as some subclasses (like TR_J9DeserializerSharedCache) might not return, say, an actual (uintptr *) class chain
-    * given an offset that is ostensibly to such a chain.
-    *
-    * \param[in] offset The offset to convert.
-    * \return A pointer. Raises a fatal assertion before returning NULL if the offset is invalid.
-    */
-   virtual void *pointerFromOffsetInSharedCache(uintptr_t offset);
+    /**
+     * \brief Converts a shared cache offset, calculated from the end of the SCC, into the
+     *        metadata section of the SCC into a pointer.
+     *
+     * The pointer returned from this function should be considered opaque by the consumers of this API,
+     * as some subclasses (like TR_J9DeserializerSharedCache) might not return, say, an actual (uintptr *) class chain
+     * given an offset that is ostensibly to such a chain.
+     *
+     * \param[in] offset The offset to convert.
+     * \return A pointer. Raises a fatal assertion before returning NULL if the offset is invalid.
+     */
+    virtual void *pointerFromOffsetInSharedCache(uintptr_t offset);
 
-   /**
-    * \brief Converts a pointer into the metadata section of the SCC into an offset, calculated
-    *        from the end of the SCC.
-    *
-    * \param[in] ptr The pointer to convert.
-    * \return An offset. Raises a fatal assertion before returning 0 if the pointer is invalid.
-    */
-   virtual uintptr_t offsetInSharedCacheFromPointer(void *ptr);
+    /**
+     * \brief Converts a pointer into the metadata section of the SCC into an offset, calculated
+     *        from the end of the SCC.
+     *
+     * \param[in] ptr The pointer to convert.
+     * \return An offset. Raises a fatal assertion before returning 0 if the pointer is invalid.
+     */
+    virtual uintptr_t offsetInSharedCacheFromPointer(void *ptr);
 
-   /**
-    * \brief Converts an offset into the ROMClass section into a J9ROMClass *.
-    *
-    * \param[in] offset The offset to convert.
-    * \return A J9ROMClass *. Raises a fatal assertion before returning NULL if the offset is invalid.
-    */
-   virtual J9ROMClass *romClassFromOffsetInSharedCache(uintptr_t offset);
+    /**
+     * \brief Converts an offset into the ROMClass section into a J9ROMClass *.
+     *
+     * \param[in] offset The offset to convert.
+     * \return A J9ROMClass *. Raises a fatal assertion before returning NULL if the offset is invalid.
+     */
+    virtual J9ROMClass *romClassFromOffsetInSharedCache(uintptr_t offset);
 
-   /**
-    * \brief Converts a J9ROMClass * pointer into the SCC into an offset.
-    *
-    * \param[in] romClass The J9ROMClass * to convert
-    * \return An offset. Raises a fatal assertion before returning 0 if the pointer is invalid.
-    */
-   virtual uintptr_t offsetInSharedCacheFromROMClass(J9ROMClass *romClass);
+    /**
+     * \brief Converts a J9ROMClass * pointer into the SCC into an offset.
+     *
+     * \param[in] romClass The J9ROMClass * to convert
+     * \return An offset. Raises a fatal assertion before returning 0 if the pointer is invalid.
+     */
+    virtual uintptr_t offsetInSharedCacheFromROMClass(J9ROMClass *romClass);
 
-   /**
-    * \brief Converts an offset into the ROMClass section into a J9ROMMethod *.
-    *
-    * \param[in] offset The offset to convert
-    * \return A J9ROMMethod *. Raises a fatal assertion before returning NULL if the offset is invalid.
-    */
-   virtual J9ROMMethod *romMethodFromOffsetInSharedCache(uintptr_t offset);
+    /**
+     * \brief Converts an offset into the ROMClass section into a J9ROMMethod *.
+     *
+     * \param[in] offset The offset to convert
+     * \return A J9ROMMethod *. Raises a fatal assertion before returning NULL if the offset is invalid.
+     */
+    virtual J9ROMMethod *romMethodFromOffsetInSharedCache(uintptr_t offset);
 
-   /**
-    * \brief Converts a J9ROMMethod * pointer into the SCC into an offset.
-    *
-    * \param[in] romMethod The J9ROMMethod * to convert
-    * \return An offset. Raises a fatal assertion before returning INVALID_ROM_METHOD_OFFSET if the pointer is invalid.
-    */
-   virtual uintptr_t offsetInSharedCacheFromROMMethod(J9ROMMethod *romMethod);
+    /**
+     * \brief Converts a J9ROMMethod * pointer into the SCC into an offset.
+     *
+     * \param[in] romMethod The J9ROMMethod * to convert
+     * \return An offset. Raises a fatal assertion before returning INVALID_ROM_METHOD_OFFSET if the pointer is invalid.
+     */
+    virtual uintptr_t offsetInSharedCacheFromROMMethod(J9ROMMethod *romMethod);
 
-   /**
-    * \brief Converts an offset into the ROMClass section into a pointer.
-    *
-    * \param[in] offset The offset to convert
-    * \return A pointer. Raises a fatal assertion before returning NULL if the offset is invalid.
-    */
-   virtual void *ptrToROMClassesSectionFromOffsetInSharedCache(uintptr_t offset);
+    /**
+     * \brief Converts an offset into the ROMClass section into a pointer.
+     *
+     * \param[in] offset The offset to convert
+     * \return A pointer. Raises a fatal assertion before returning NULL if the offset is invalid.
+     */
+    virtual void *ptrToROMClassesSectionFromOffsetInSharedCache(uintptr_t offset);
 
-   /**
-    * \brief Converts a pointer into the ROM Classes section of the SCC into an offset.
-    *
-    * \param[in] ptr The pointer to convert
-    * \return  An offset. Raises a fatal assertion before returning 0 if the pointer is invalid.
-    */
-   virtual uintptr_t offsetInSharedCacheFromPtrToROMClassesSection(void *ptr);
+    /**
+     * \brief Converts a pointer into the ROM Classes section of the SCC into an offset.
+     *
+     * \param[in] ptr The pointer to convert
+     * \return  An offset. Raises a fatal assertion before returning 0 if the pointer is invalid.
+     */
+    virtual uintptr_t offsetInSharedCacheFromPtrToROMClassesSection(void *ptr);
 
+    virtual void persistIprofileInfo(TR::ResolvedMethodSymbol *, TR::Compilation *comp);
+    virtual void persistIprofileInfo(TR::ResolvedMethodSymbol *, TR_ResolvedMethod *, TR::Compilation *comp);
 
-   virtual void persistIprofileInfo(TR::ResolvedMethodSymbol *, TR::Compilation *comp);
-   virtual void persistIprofileInfo(TR::ResolvedMethodSymbol *, TR_ResolvedMethod*, TR::Compilation *comp);
+    static const uint32_t maxClassChainLength = 32;
 
-   static const uint32_t maxClassChainLength = 32;
+    virtual bool canRememberClass(TR_OpaqueClassBlock *classPtr)
+    {
+        return rememberClass((J9Class *)classPtr, NULL, false) != TR_SharedCache::INVALID_CLASS_CHAIN_OFFSET;
+    }
 
-   virtual bool canRememberClass(TR_OpaqueClassBlock *classPtr)
-      {
-      return rememberClass((J9Class *)classPtr, NULL, false) != TR_SharedCache::INVALID_CLASS_CHAIN_OFFSET;
-      }
+    virtual uintptr_t rememberClass(TR_OpaqueClassBlock *classPtr,
+        const AOTCacheClassChainRecord **classChainRecord = NULL)
+    {
+        return rememberClass((J9Class *)classPtr, classChainRecord, true);
+    }
 
-   virtual uintptr_t rememberClass(TR_OpaqueClassBlock *classPtr,
-                                    const AOTCacheClassChainRecord **classChainRecord = NULL)
-      {
-      return rememberClass((J9Class *)classPtr, classChainRecord, true);
-      }
+    virtual uintptr_t rememberClass(J9Class *clazz, const AOTCacheClassChainRecord **classChainRecord = NULL,
+        bool create = true);
 
-   virtual uintptr_t rememberClass(J9Class *clazz, const AOTCacheClassChainRecord **classChainRecord = NULL,
-                                    bool create = true);
+    virtual UDATA rememberDebugCounterName(const char *name);
+    virtual const char *getDebugCounterName(UDATA offset);
 
-   virtual UDATA rememberDebugCounterName(const char *name);
-   virtual const char *getDebugCounterName(UDATA offset);
+    virtual bool classMatchesCachedVersion(J9Class *clazz, UDATA *chainData = NULL);
 
-   virtual bool classMatchesCachedVersion(J9Class *clazz, UDATA *chainData=NULL);
-   virtual bool classMatchesCachedVersion(TR_OpaqueClassBlock *classPtr, UDATA *chainData=NULL)
-      {
-      return classMatchesCachedVersion((J9Class *) classPtr, chainData);
-      }
+    virtual bool classMatchesCachedVersion(TR_OpaqueClassBlock *classPtr, UDATA *chainData = NULL)
+    {
+        return classMatchesCachedVersion((J9Class *)classPtr, chainData);
+    }
 
-   /**
-    * \brief Converts a pointer to a class chain associated to a class loader in the SCC into a J9ClassLoader,
-    *        if it can be found in the running JVM.
-    *
-    * \param[in] chainData The pointer to convert, which should have come from pointerFromOffsetInSharedCache().
-    * \return A pointer. Raises a fatal assertion before returning NULL if the pointer is invalid.
-    */
-   virtual void *lookupClassLoaderAssociatedWithClassChain(void *chainData);
-   virtual TR_OpaqueClassBlock *lookupClassFromChainAndLoader(uintptr_t *chainData, void *classLoader,
-                                                              TR::Compilation *comp);
+    /**
+     * \brief Converts a pointer to a class chain associated to a class loader in the SCC into a J9ClassLoader,
+     *        if it can be found in the running JVM.
+     *
+     * \param[in] chainData The pointer to convert, which should have come from pointerFromOffsetInSharedCache().
+     * \return A pointer. Raises a fatal assertion before returning NULL if the pointer is invalid.
+     */
+    virtual void *lookupClassLoaderAssociatedWithClassChain(void *chainData);
+    virtual TR_OpaqueClassBlock *lookupClassFromChainAndLoader(uintptr_t *chainData, void *classLoader,
+        TR::Compilation *comp);
 
-   /**
-    * \brief Checks whether the specified pointer points into the metadata section
-    *        of the shared cache.
-    *
-    * \param[in] ptr The pointer to check.
-    * \param[out] cacheOffset If ptr points into the shared cache and this parameter
-    *             is not NULL the result of converting ptr into an offset will be
-    *             returned here. If ptr does not point into the shared cache this
-    *             parameter is ignored. The offset is calculated from the end of
-    *             the SCC.
-    * \return True if the pointer points into the shared cache, false otherwise.
-    */
-   virtual bool isPointerInSharedCache(void *ptr, uintptr_t *cacheOffset = NULL);
+    /**
+     * \brief Checks whether the specified pointer points into the metadata section
+     *        of the shared cache.
+     *
+     * \param[in] ptr The pointer to check.
+     * \param[out] cacheOffset If ptr points into the shared cache and this parameter
+     *             is not NULL the result of converting ptr into an offset will be
+     *             returned here. If ptr does not point into the shared cache this
+     *             parameter is ignored. The offset is calculated from the end of
+     *             the SCC.
+     * \return True if the pointer points into the shared cache, false otherwise.
+     */
+    virtual bool isPointerInSharedCache(void *ptr, uintptr_t *cacheOffset = NULL);
 
-   /**
-    * \brief Checks whether the specified offset, calculated from the end of the SCC,
-    *        is within the metadata section of the shared cache.
-    *
-    * \param[in] offset The offset to check.
-    * \param[out] ptr If offset is within the shared cache and this parameter is not
-    *             NULL the result of converting offset into a pointer will be returned
-    *             here. If offset is not within the shared cache this parameter is ignored.
-    * \return True if the offset is within the shared cache, false otherwise.
-    */
-   virtual bool isOffsetInSharedCache(uintptr_t encoded_offset, void *ptr = NULL);
+    /**
+     * \brief Checks whether the specified offset, calculated from the end of the SCC,
+     *        is within the metadata section of the shared cache.
+     *
+     * \param[in] offset The offset to check.
+     * \param[out] ptr If offset is within the shared cache and this parameter is not
+     *             NULL the result of converting offset into a pointer will be returned
+     *             here. If offset is not within the shared cache this parameter is ignored.
+     * \return True if the offset is within the shared cache, false otherwise.
+     */
+    virtual bool isOffsetInSharedCache(uintptr_t encoded_offset, void *ptr = NULL);
 
-   /**
-    * \brief Checks whether the J9ROMClass underlying the given class exists in the SCC
-    *
-    * \param[in] clazz The J9Class * to check
-    * \param[out] cacheOffset If the J9ROMClass associated to the J9Class is in the SCC and this parameter
-    *             is not NULL the result of converting romClass into an offset will
-    *             be returned here. If it does not point into the SCC, this
-    *             parameter is ignored.
-    * \return True if romClass points into the SCC, false otherwise.
-    */
-   virtual bool isClassInSharedCache(TR_OpaqueClassBlock *clazz, uintptr_t *cacheOffset = NULL);
-   virtual bool isClassInSharedCache(J9Class *clazz, uintptr_t *cacheOffset = NULL)
-      { return isClassInSharedCache(reinterpret_cast<TR_OpaqueClassBlock *>(clazz), cacheOffset); }
+    /**
+     * \brief Checks whether the J9ROMClass underlying the given class exists in the SCC
+     *
+     * \param[in] clazz The J9Class * to check
+     * \param[out] cacheOffset If the J9ROMClass associated to the J9Class is in the SCC and this parameter
+     *             is not NULL the result of converting romClass into an offset will
+     *             be returned here. If it does not point into the SCC, this
+     *             parameter is ignored.
+     * \return True if romClass points into the SCC, false otherwise.
+     */
+    virtual bool isClassInSharedCache(TR_OpaqueClassBlock *clazz, uintptr_t *cacheOffset = NULL);
 
-   /**
-    * \brief Checks whether the specified J9ROMClass exists in the SCC
-    *
-    * \param[in] romClass The J9ROMClass * to check
-    * \param[out] cacheOffset If the J9ROMClass is in the SCC and this parameter
-    *             is not NULL the result of converting romClass into an offset will
-    *             be returned here. If romClass does not point into the SCC, this
-    *             parameter is ignored.
-    * \return True if romClass points into the SCC, false otherwise.
-    */
-   virtual bool isROMClassInSharedCache(J9ROMClass *romClass, uintptr_t *cacheOffset = NULL);
+    virtual bool isClassInSharedCache(J9Class *clazz, uintptr_t *cacheOffset = NULL)
+    {
+        return isClassInSharedCache(reinterpret_cast<TR_OpaqueClassBlock *>(clazz), cacheOffset);
+    }
 
-   /**
-    * \brief Checks whether the specified offset is within the ROMClass section
-    *        of the shared cache.
-    *
-    * \param[in] offset The offset to check
-    * \param[out] romClass If offset is within the shared cache and this parameter is not
-    *             NULL the result of converting offset into a J9ROMClass * will be returned
-    *             here. If offset is not within the shared cache this parameter is ignored.
-    * \return True if the offset is within the shared cache, false otherwise.
-    */
-   virtual bool isROMClassOffsetInSharedCache(uintptr_t offset, J9ROMClass **romClassPtr = NULL);
+    /**
+     * \brief Checks whether the specified J9ROMClass exists in the SCC
+     *
+     * \param[in] romClass The J9ROMClass * to check
+     * \param[out] cacheOffset If the J9ROMClass is in the SCC and this parameter
+     *             is not NULL the result of converting romClass into an offset will
+     *             be returned here. If romClass does not point into the SCC, this
+     *             parameter is ignored.
+     * \return True if romClass points into the SCC, false otherwise.
+     */
+    virtual bool isROMClassInSharedCache(J9ROMClass *romClass, uintptr_t *cacheOffset = NULL);
 
-   /**
-    * \brief Checks whether the persisent representation of a J9Method exists in the SCC
-    *
-    * \param[in] method The J9Method * to check
-    * \param[in] definingClass The defining class of method. Unused in the base J9SharedCache implementation of this method.
-    * \param[out] cacheOffset If the J9ROMMethod of the J9Method is in the SCC and this parameter
-    *             is not NULL the result of converting that J9ROMMethod into an offset will
-    *             be returned here. If it is not in the SCC, this parameter is ignored.
-    * \return True if the J9Method's romMethod exists in the SCC, false otherwise.
-    */
-   virtual bool isMethodInSharedCache(TR_OpaqueMethodBlock *method, TR_OpaqueClassBlock *definingClass, uintptr_t *cacheOffset = NULL);
+    /**
+     * \brief Checks whether the specified offset is within the ROMClass section
+     *        of the shared cache.
+     *
+     * \param[in] offset The offset to check
+     * \param[out] romClass If offset is within the shared cache and this parameter is not
+     *             NULL the result of converting offset into a J9ROMClass * will be returned
+     *             here. If offset is not within the shared cache this parameter is ignored.
+     * \return True if the offset is within the shared cache, false otherwise.
+     */
+    virtual bool isROMClassOffsetInSharedCache(uintptr_t offset, J9ROMClass **romClassPtr = NULL);
 
-   /**
-    * \brief Checks whether the specified J9ROMMethod exists in the SCC
-    *
-    * \param[in] romMethod The J9ROMMethod * to check
-    * \param[out] cacheOffset If the J9ROMMethod is in the SCC and this parameter
-    *             is not NULL the result of converting romMethod into an offset will
-    *             be returned here. If romMethod does not point into the SCC, this
-    *             parameter is ignored.
-    * \return True if romMethod points into the SCC, false otherwise.
-    */
-   virtual bool isROMMethodInSharedCache(J9ROMMethod *romMethod, uintptr_t *cacheOffset = NULL);
+    /**
+     * \brief Checks whether the persisent representation of a J9Method exists in the SCC
+     *
+     * \param[in] method The J9Method * to check
+     * \param[in] definingClass The defining class of method. Unused in the base J9SharedCache implementation of this
+     * method. \param[out] cacheOffset If the J9ROMMethod of the J9Method is in the SCC and this parameter is not NULL
+     * the result of converting that J9ROMMethod into an offset will be returned here. If it is not in the SCC, this
+     * parameter is ignored. \return True if the J9Method's romMethod exists in the SCC, false otherwise.
+     */
+    virtual bool isMethodInSharedCache(TR_OpaqueMethodBlock *method, TR_OpaqueClassBlock *definingClass,
+        uintptr_t *cacheOffset = NULL);
 
-   /**
-    * \brief Checks whether the specified offset is within the ROMClass section
-    *        of the shared cache.
-    * \param[in] offset The offset to check
-    * \param[out] romMethodPtr If offset is within the shared cache and this parameter is not
-    *             NULL the result of converting offset into a J9ROMMethod * will be returned
-    *             here. If offset is not within the shared cache this parameter is ignored.
-    * \return True if the offset is within the shared cache, false otherwise.
-    */
-   virtual bool isROMMethodOffsetInSharedCache(uintptr_t offset, J9ROMMethod **romMethodPtr = NULL);
+    /**
+     * \brief Checks whether the specified J9ROMMethod exists in the SCC
+     *
+     * \param[in] romMethod The J9ROMMethod * to check
+     * \param[out] cacheOffset If the J9ROMMethod is in the SCC and this parameter
+     *             is not NULL the result of converting romMethod into an offset will
+     *             be returned here. If romMethod does not point into the SCC, this
+     *             parameter is ignored.
+     * \return True if romMethod points into the SCC, false otherwise.
+     */
+    virtual bool isROMMethodInSharedCache(J9ROMMethod *romMethod, uintptr_t *cacheOffset = NULL);
 
-   /**
-    * \brief Checks whether the specified pointer points into the ROMClass section
-    *        of the shared cache.
-    *
-    * \param[in] ptr The pointer to check
-    * \param[out] cacheOffset If ptr points into the shared cache and this parameter
-    *             is not NULL the result of converting ptr into an offset will be
-    *             returned here. If ptr does not point into the shared cache this
-    *             parameter is ignored.
-    * \return True if the pointer points into the shared cache, false otherwise.
-    */
-   virtual bool isPtrToROMClassesSectionInSharedCache(void *ptr, uintptr_t *cacheOffset = NULL);
+    /**
+     * \brief Checks whether the specified offset is within the ROMClass section
+     *        of the shared cache.
+     * \param[in] offset The offset to check
+     * \param[out] romMethodPtr If offset is within the shared cache and this parameter is not
+     *             NULL the result of converting offset into a J9ROMMethod * will be returned
+     *             here. If offset is not within the shared cache this parameter is ignored.
+     * \return True if the offset is within the shared cache, false otherwise.
+     */
+    virtual bool isROMMethodOffsetInSharedCache(uintptr_t offset, J9ROMMethod **romMethodPtr = NULL);
 
-   /**
-    * \brief Checks whether the specified offset is within the ROMClass section
-    *        of the shared cache.
-    *
-    * \param[in] offset The offset to check.
-    * \param[out] ptr If offset is within the shared cache and this parameter is not
-    *             NULL the result of converting offset into a pointer will be returned
-    *             here. If offset is not within the shared cache this parameter is ignored.
-    * \return True if the offset is within the shared cache, false otherwise.
-    */
-   virtual bool isOffsetOfPtrToROMClassesSectionInSharedCache(uintptr_t offset, void **ptr = NULL);
+    /**
+     * \brief Checks whether the specified pointer points into the ROMClass section
+     *        of the shared cache.
+     *
+     * \param[in] ptr The pointer to check
+     * \param[out] cacheOffset If ptr points into the shared cache and this parameter
+     *             is not NULL the result of converting ptr into an offset will be
+     *             returned here. If ptr does not point into the shared cache this
+     *             parameter is ignored.
+     * \return True if the pointer points into the shared cache, false otherwise.
+     */
+    virtual bool isPtrToROMClassesSectionInSharedCache(void *ptr, uintptr_t *cacheOffset = NULL);
 
-   J9ROMClass *startingROMClassOfClassChain(UDATA *classChain);
-   uintptr_t startingROMClassOffsetOfClassChain(void *chain);
+    /**
+     * \brief Checks whether the specified offset is within the ROMClass section
+     *        of the shared cache.
+     *
+     * \param[in] offset The offset to check.
+     * \param[out] ptr If offset is within the shared cache and this parameter is not
+     *             NULL the result of converting offset into a pointer will be returned
+     *             here. If offset is not within the shared cache this parameter is ignored.
+     * \return True if the offset is within the shared cache, false otherwise.
+     */
+    virtual bool isOffsetOfPtrToROMClassesSectionInSharedCache(uintptr_t offset, void **ptr = NULL);
 
-   virtual uintptr_t getClassChainOffsetIdentifyingLoader(TR_OpaqueClassBlock *clazz, uintptr_t **classChain = NULL);
+    J9ROMClass *startingROMClassOfClassChain(UDATA *classChain);
+    uintptr_t startingROMClassOffsetOfClassChain(void *chain);
+
+    virtual uintptr_t getClassChainOffsetIdentifyingLoader(TR_OpaqueClassBlock *clazz, uintptr_t **classChain = NULL);
 
 #if defined(J9VM_OPT_JITSERVER)
-   /**
+    /**
      * \brief Finds the offset in SCC of the class chain identifying the class loader of the given class.
      *        This is very similar to getClassChainOffsetIdentifyingLoader
      *        except that it will not fail the compilation if the offset is not valid.
      * \return Returns the offset of the class chain that identifies given class or 0 is such offset is not valid.
-    */
-   uintptr_t getClassChainOffsetIdentifyingLoaderNoFail(TR_OpaqueClassBlock *clazz, uintptr_t **classChain = NULL);
+     */
+    uintptr_t getClassChainOffsetIdentifyingLoaderNoFail(TR_OpaqueClassBlock *clazz, uintptr_t **classChain = NULL);
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
-   uintptr_t getClassChainOffsetIdentifyingLoaderNoThrow(TR_OpaqueClassBlock *clazz);
-
-   /**
-    * \brief Store the given well-known classes object in the SCC
-    *
-    * A word of caution: there is an important difference in the encoding of a well-known classes object
-    * (the classChainOffsets parameter to this function) compared to a class chain. A class chain is a
-    * (uintptr_t *classChain) value whose first element is the total size of classChain in bytes, with
-    * subsequent elements being offsets to ROM classes. A well-known classes object is a
-    * (uintptr_t *classChainOffsets) value whose first element is the number of subsequent elements,
-    * with subsequent elements being offsets to class chains.
-    *
-    * \param[in] vmThread VM thread
-    * \param[in] classChainOffsets The well-known classes object
-    * \param[in] classChainOffsetsSize The number of elements in classChainOffsets
-    * \param[in] includedClasses An encoding of the well-known classes object, where the ith bit is set
-    *                            exactly when the well-known class at index i of the names[] array of
-    *                            TR::SymbolValidationManager::populateWellKnownClasses() is included in
-    *                            the object.
-    * \return Returns a pointer to the data stored in the local SCC, or NULL if the data could not be stored.
-    */
-   virtual const void *storeWellKnownClasses(J9VMThread *vmThread, uintptr_t *classChainOffsets, size_t classChainOffsetsSize, unsigned int includedClasses);
-   virtual const void *storeSharedData(J9VMThread *vmThread, const char *key, const J9SharedDataDescriptor *descriptor);
-
-   /**
-    * \brief Fill the given buffer with the SCC key for the well-known classes object with the given
-    *        includedClasses
-    *
-    * \param[out] buffer The buffer to fill with the SCC key
-    * \param[out] size The size of buffer
-    * \param[in] includedClasses An encoding of the well-known classes object, where the ith bit is set
-    *                            exactly when the well-known class at index i of the names[] array of
-    *                            TR::SymbolValidationManager::populateWellKnownClasses() is included in
-    *                            the object.
-    */
-   static void buildWellKnownClassesSCCKey(char *buffer, size_t size, unsigned int includedClasses);
+    uintptr_t getClassChainOffsetIdentifyingLoaderNoThrow(TR_OpaqueClassBlock *clazz);
 
     /**
-    * \brief Store the dependencies of an AOT method in the SCC
-    *
-    * The dependencies of an AOT method are encoded as an array of uintptr_t
-    * values. The first entry is the number of entries after the first, the
-    * number of dependencies in the array. The subsequent entries are encoded
-    * offsets to the class chains of classes that need to be loaded or
-    * initialized before the compiled body can be loaded. If the class must be
-    * initialized, the entry will be the offset itself (which necessarily has a
-    * set low bit), and if the class only needs to be loaded it will be the
-    * offset with the low bit cleared.
-    *
-    * \param[in] vmThread VM thread
-    * \param[in] methodDependencies The dependencies of the AOT compilation
-    * \param[in] methodDependenciesSize The number of elements in methodDependencies
-    * \return Pointer to the method dependencies in the local SCC, or INVALID_CLASS_CHAIN_OFFSET if the method
-    *         dependencies could not be stored
-    */
-   virtual const void *storeAOTMethodDependencies(J9VMThread *vmThread, TR_OpaqueMethodBlock *method, TR_OpaqueClassBlock *definingClass,
-                                                  uintptr_t *methodDependencies, size_t methodDependenciesSize);
+     * \brief Store the given well-known classes object in the SCC
+     *
+     * A word of caution: there is an important difference in the encoding of a well-known classes object
+     * (the classChainOffsets parameter to this function) compared to a class chain. A class chain is a
+     * (uintptr_t *classChain) value whose first element is the total size of classChain in bytes, with
+     * subsequent elements being offsets to ROM classes. A well-known classes object is a
+     * (uintptr_t *classChainOffsets) value whose first element is the number of subsequent elements,
+     * with subsequent elements being offsets to class chains.
+     *
+     * \param[in] vmThread VM thread
+     * \param[in] classChainOffsets The well-known classes object
+     * \param[in] classChainOffsetsSize The number of elements in classChainOffsets
+     * \param[in] includedClasses An encoding of the well-known classes object, where the ith bit is set
+     *                            exactly when the well-known class at index i of the names[] array of
+     *                            TR::SymbolValidationManager::populateWellKnownClasses() is included in
+     *                            the object.
+     * \return Returns a pointer to the data stored in the local SCC, or NULL if the data could not be stored.
+     */
+    virtual const void *storeWellKnownClasses(J9VMThread *vmThread, uintptr_t *classChainOffsets,
+        size_t classChainOffsetsSize, unsigned int includedClasses);
+    virtual const void *storeSharedData(J9VMThread *vmThread, const char *key,
+        const J9SharedDataDescriptor *descriptor);
 
     /**
-    * \brief Check if the given method has a compiled body in the SCC that tracked its dependencies
-    *
-    * This method also returns the dependencies of the method if they were
-    * stored in the local SCC. Note that if the method has zero dependencies
-    * then we skip storing the dependency chain in the SCC entirely. If this is
-    * the case, methodHasAOTBodyWithDependencies will return true and also
-    * return NULL through methodDependencies.
-    *
-    * \param[in] vmThread VM thread
-    * \param[in] method J9ROMMethod to check
-    * \param[out] methodDependencies The dependencies of compiled body associated to method if they were stored in the SCC
-    * \return Whether or not the method has a body in the SCC that was compiled with dependency tracking
-    */
-   virtual bool methodHasAOTBodyWithDependencies(J9VMThread *vmThread, J9ROMMethod *method, const uintptr_t * &methodDependencies);
+     * \brief Fill the given buffer with the SCC key for the well-known classes object with the given
+     *        includedClasses
+     *
+     * \param[out] buffer The buffer to fill with the SCC key
+     * \param[out] size The size of buffer
+     * \param[in] includedClasses An encoding of the well-known classes object, where the ith bit is set
+     *                            exactly when the well-known class at index i of the names[] array of
+     *                            TR::SymbolValidationManager::populateWellKnownClasses() is included in
+     *                            the object.
+     */
+    static void buildWellKnownClassesSCCKey(char *buffer, size_t size, unsigned int includedClasses);
 
-   enum TR_J9SharedCacheDisabledReason
-      {
-      UNINITIALIZED,
-      NOT_DISABLED,
-      AOT_DISABLED,
-      AOT_HEADER_INVALID,
-      AOT_HEADER_FAILED_TO_ALLOCATE,
-      J9_SHARED_CACHE_FAILED_TO_ALLOCATE,
-      SHARED_CACHE_STORE_ERROR,
-      SHARED_CACHE_FULL,
-      // The following are probably equivalent to SHARED_CACHE_FULL -
-      // they could have failed because of no space but no error code is returned.
-      SHARED_CACHE_CLASS_CHAIN_STORE_FAILED,
-      AOT_HEADER_STORE_FAILED,
-      AOT_HEADER_VALIDATION_DELAYED
-      };
+    /**
+     * \brief Store the dependencies of an AOT method in the SCC
+     *
+     * The dependencies of an AOT method are encoded as an array of uintptr_t
+     * values. The first entry is the number of entries after the first, the
+     * number of dependencies in the array. The subsequent entries are encoded
+     * offsets to the class chains of classes that need to be loaded or
+     * initialized before the compiled body can be loaded. If the class must be
+     * initialized, the entry will be the offset itself (which necessarily has a
+     * set low bit), and if the class only needs to be loaded it will be the
+     * offset with the low bit cleared.
+     *
+     * \param[in] vmThread VM thread
+     * \param[in] methodDependencies The dependencies of the AOT compilation
+     * \param[in] methodDependenciesSize The number of elements in methodDependencies
+     * \return Pointer to the method dependencies in the local SCC, or INVALID_CLASS_CHAIN_OFFSET if the method
+     *         dependencies could not be stored
+     */
+    virtual const void *storeAOTMethodDependencies(J9VMThread *vmThread, TR_OpaqueMethodBlock *method,
+        TR_OpaqueClassBlock *definingClass, uintptr_t *methodDependencies, size_t methodDependenciesSize);
 
-   static void setSharedCacheDisabledReason(TR_J9SharedCacheDisabledReason state) { _sharedCacheState = state; }
-   static TR_J9SharedCacheDisabledReason getSharedCacheDisabledReason() { return _sharedCacheState; }
-   static TR_YesNoMaybe isSharedCacheDisabledBecauseFull(TR::CompilationInfo *compInfo);
-   static void setStoreSharedDataFailedLength(UDATA length) {_storeSharedDataFailedLength = length; }
+    /**
+     * \brief Check if the given method has a compiled body in the SCC that tracked its dependencies
+     *
+     * This method also returns the dependencies of the method if they were
+     * stored in the local SCC. Note that if the method has zero dependencies
+     * then we skip storing the dependency chain in the SCC entirely. If this is
+     * the case, methodHasAOTBodyWithDependencies will return true and also
+     * return NULL through methodDependencies.
+     *
+     * \param[in] vmThread VM thread
+     * \param[in] method J9ROMMethod to check
+     * \param[out] methodDependencies The dependencies of compiled body associated to method if they were stored in the
+     * SCC \return Whether or not the method has a body in the SCC that was compiled with dependency tracking
+     */
+    virtual bool methodHasAOTBodyWithDependencies(J9VMThread *vmThread, J9ROMMethod *method,
+        const uintptr_t *&methodDependencies);
+
+    enum TR_J9SharedCacheDisabledReason {
+        UNINITIALIZED,
+        NOT_DISABLED,
+        AOT_DISABLED,
+        AOT_HEADER_INVALID,
+        AOT_HEADER_FAILED_TO_ALLOCATE,
+        J9_SHARED_CACHE_FAILED_TO_ALLOCATE,
+        SHARED_CACHE_STORE_ERROR,
+        SHARED_CACHE_FULL,
+        // The following are probably equivalent to SHARED_CACHE_FULL -
+        // they could have failed because of no space but no error code is returned.
+        SHARED_CACHE_CLASS_CHAIN_STORE_FAILED,
+        AOT_HEADER_STORE_FAILED,
+        AOT_HEADER_VALIDATION_DELAYED
+    };
+
+    static void setSharedCacheDisabledReason(TR_J9SharedCacheDisabledReason state) { _sharedCacheState = state; }
+
+    static TR_J9SharedCacheDisabledReason getSharedCacheDisabledReason() { return _sharedCacheState; }
+
+    static TR_YesNoMaybe isSharedCacheDisabledBecauseFull(TR::CompilationInfo *compInfo);
+
+    static void setStoreSharedDataFailedLength(UDATA length) { _storeSharedDataFailedLength = length; }
 
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-   static void setAOTHeaderValidationDelayed() { _aotHeaderValidationDelayed = true; }
-   static void resetAOTHeaderValidationDelayed() { _aotHeaderValidationDelayed = false; }
-   static bool aotHeaderValidationDelayed() { return _aotHeaderValidationDelayed; }
+    static void setAOTHeaderValidationDelayed() { _aotHeaderValidationDelayed = true; }
+
+    static void resetAOTHeaderValidationDelayed() { _aotHeaderValidationDelayed = false; }
+
+    static bool aotHeaderValidationDelayed() { return _aotHeaderValidationDelayed; }
 #endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
 
-   virtual J9SharedClassCacheDescriptor *getCacheDescriptorList();
+    virtual J9SharedClassCacheDescriptor *getCacheDescriptorList();
 
-   J9SharedClassConfig *sharedCacheConfig() { return _sharedCacheConfig; }
+    J9SharedClassConfig *sharedCacheConfig() { return _sharedCacheConfig; }
 
 protected:
-   static bool disclaim(const uint8_t *start, const uint8_t *end, UDATA pageSize, bool trace);
+    static bool disclaim(const uint8_t *start, const uint8_t *end, UDATA pageSize, bool trace);
 
-   /**
-    * \brief Helper method; used to check if a pointer is within the SCC
-    *
-    * \param[in] cacheDesc the J9SharedClassCacheDescriptor for the cache
-    * \param[in] ptr The pointer to check
-    * \return True if ptr is within the SCC, false otherwise
-    */
-   static bool isPointerInCache(const J9SharedClassCacheDescriptor *cacheDesc, void *ptr);
+    /**
+     * \brief Helper method; used to check if a pointer is within the SCC
+     *
+     * \param[in] cacheDesc the J9SharedClassCacheDescriptor for the cache
+     * \param[in] ptr The pointer to check
+     * \return True if ptr is within the SCC, false otherwise
+     */
+    static bool isPointerInCache(const J9SharedClassCacheDescriptor *cacheDesc, void *ptr);
 
-   /**
-    * \brief Helper method; used to check if an offset is within the SCC
-    *
-    * \param[in] cacheDesc the J9SharedClassCacheDescriptor for the cache
-    * \param[in] offset the offset to check
-    * \return True if offset is within the SCC, false otherwise
-    */
-   static bool isOffsetInCache(const J9SharedClassCacheDescriptor *cacheDesc, uintptr_t offset);
+    /**
+     * \brief Helper method; used to check if an offset is within the SCC
+     *
+     * \param[in] cacheDesc the J9SharedClassCacheDescriptor for the cache
+     * \param[in] offset the offset to check
+     * \return True if offset is within the SCC, false otherwise
+     */
+    static bool isOffsetInCache(const J9SharedClassCacheDescriptor *cacheDesc, uintptr_t offset);
 
-   static inline bool isOffsetFromStart(uintptr_t offset) { return ((offset & OFFSET_FROM_END) != OFFSET_FROM_END); }
-   static inline bool isOffsetFromEnd(uintptr_t offset) { return ((offset & OFFSET_FROM_END) == OFFSET_FROM_END); }
-   static inline uintptr_t encodeOffsetFromStart(uintptr_t offset) { return (offset << 1); }
-   static inline uintptr_t decodeOffsetFromStart(uintptr_t offset) { return (offset >> 1); }
-   static inline uintptr_t encodeOffsetFromEnd(uintptr_t offset) { return ((offset << 1) | OFFSET_FROM_END); }
-   static inline uintptr_t decodeOffsetFromEnd(uintptr_t offset) { return (offset >> 1); }
+    static inline bool isOffsetFromStart(uintptr_t offset) { return ((offset & OFFSET_FROM_END) != OFFSET_FROM_END); }
 
-   /**
-    * \brief Checks whether the specified pointer points into the ROMClass section
-    *        of the shared cache.
-    *
-    * \param[in] romStructure The pointer to check
-    * \param[out] cacheOffset If romStructure points into the shared cache and this parameter
-    *             is not NULL the result of converting romStructure into an offset will be
-    *             returned here. If romStructure does not point into the shared cache this
-    *             parameter is ignored.
-    * \return True if the pointer points into the shared cache, false otherwise.
-    */
-   bool isROMStructureInSharedCache(void *romStructure, uintptr_t *cacheOffset = NULL);
+    static inline bool isOffsetFromEnd(uintptr_t offset) { return ((offset & OFFSET_FROM_END) == OFFSET_FROM_END); }
 
-   /**
-    * \brief Fill the given buffer of size at least dependencyKeyBufferLength with the method dependency key
-    *        corresponding to the given ROM method offset.
-    *
-    * \param[in] offset The offset to the ROM method
-    * \param[out] buffer The buffer to fill with the SCC key
-    * \param[out] keyLength The length of the resulting key, including NULL terminator.
-    */
-   void buildAOTMethodDependenciesKey(uintptr_t offset, char *buffer, size_t &keyLength);
+    static inline uintptr_t encodeOffsetFromStart(uintptr_t offset) { return (offset << 1); }
+
+    static inline uintptr_t decodeOffsetFromStart(uintptr_t offset) { return (offset >> 1); }
+
+    static inline uintptr_t encodeOffsetFromEnd(uintptr_t offset) { return ((offset << 1) | OFFSET_FROM_END); }
+
+    static inline uintptr_t decodeOffsetFromEnd(uintptr_t offset) { return (offset >> 1); }
+
+    /**
+     * \brief Checks whether the specified pointer points into the ROMClass section
+     *        of the shared cache.
+     *
+     * \param[in] romStructure The pointer to check
+     * \param[out] cacheOffset If romStructure points into the shared cache and this parameter
+     *             is not NULL the result of converting romStructure into an offset will be
+     *             returned here. If romStructure does not point into the shared cache this
+     *             parameter is ignored.
+     * \return True if the pointer points into the shared cache, false otherwise.
+     */
+    bool isROMStructureInSharedCache(void *romStructure, uintptr_t *cacheOffset = NULL);
+
+    /**
+     * \brief Fill the given buffer of size at least dependencyKeyBufferLength with the method dependency key
+     *        corresponding to the given ROM method offset.
+     *
+     * \param[in] offset The offset to the ROM method
+     * \param[out] buffer The buffer to fill with the SCC key
+     * \param[out] keyLength The length of the resulting key, including NULL terminator.
+     */
+    void buildAOTMethodDependenciesKey(uintptr_t offset, char *buffer, size_t &keyLength);
 
 private:
-   // This class is intended to be a POD; keep it simple.
-   struct SCCHint
-      {
-      SCCHint() : flags(0), data(0) {}
-      void clear() { flags = 0; data = 0; }
-      uint16_t flags;
-      uint16_t data;
-      };
+    // This class is intended to be a POD; keep it simple.
+    struct SCCHint {
+        SCCHint()
+            : flags(0)
+            , data(0)
+        {}
 
-   static const uintptr_t OFFSET_FROM_END = 0x1;
+        void clear()
+        {
+            flags = 0;
+            data = 0;
+        }
 
-   J9JITConfig *jitConfig() { return _jitConfig; }
-   J9JavaVM *javaVM() { return _javaVM; }
+        uint16_t flags;
+        uint16_t data;
+    };
 
-   TR_AOTStats *aotStats() { return _aotStats; }
+    static const uintptr_t OFFSET_FROM_END = 0x1;
 
-   void log(const char *format, ...);
+    J9JITConfig *jitConfig() { return _jitConfig; }
 
-   SCCHint getHint(J9VMThread * vmThread, J9Method *method);
+    J9JavaVM *javaVM() { return _javaVM; }
 
-   void convertUnsignedOffsetToASCII(UDATA offset, char *myBuffer);
-   void createClassKey(UDATA classOffsetInCache, char *key, uint32_t & keyLength);
+    TR_AOTStats *aotStats() { return _aotStats; }
 
-   bool writeClassToChain(J9ROMClass *romClass, UDATA * & chainPtr);
-   bool writeClassesToChain(J9Class *clazz, int32_t numSuperclasses, UDATA * & chainPtr);
-   bool writeInterfacesToChain(J9Class *clazz, UDATA * & chainPtr);
-   bool fillInClassChain(J9Class *clazz, UDATA *chainData, uint32_t chainLength,
-                         uint32_t numSuperclasses, uint32_t numInterfaces);
+    void log(const char *format, ...);
 
-   bool romclassMatchesCachedVersion(J9ROMClass *romClass, UDATA * & chainPtr, UDATA *chainEnd);
-   UDATA *findChainForClass(J9Class *clazz, const char *key, uint32_t keyLength);
+    SCCHint getHint(J9VMThread *vmThread, J9Method *method);
 
-   /**
-    * \brief Helper Method; Converts an offset into the ROMClass section into a pointer.
-    *
-    * \param offset The offset to convert
-    * \return A pointer. Raises a fatal assertion before returning NULL if the offset is invalid.
-    */
-   void *romStructureFromOffsetInSharedCache(uintptr_t offset);
+    void convertUnsignedOffsetToASCII(UDATA offset, char *myBuffer);
+    void createClassKey(UDATA classOffsetInCache, char *key, uint32_t &keyLength);
 
-   /**
-    * \brief Converts a pointer into the ROMClass section of the SCC into an offset.
-    *
-    * \param[in] romStructure The pointer to convert.
-    * \return An offset. Raises a fatal assertion before returning 0 if the pointer is invalid.
-    */
-   uintptr_t offsetInSharedcacheFromROMStructure(void *romStructure);
+    bool writeClassToChain(J9ROMClass *romClass, UDATA *&chainPtr);
+    bool writeClassesToChain(J9Class *clazz, int32_t numSuperclasses, UDATA *&chainPtr);
+    bool writeInterfacesToChain(J9Class *clazz, UDATA *&chainPtr);
+    bool fillInClassChain(J9Class *clazz, UDATA *chainData, uint32_t chainLength, uint32_t numSuperclasses,
+        uint32_t numInterfaces);
 
-   /**
-    * \brief Checks whether the specified offset is within the ROMClass section
-    *        of the shared cache.
-    *
-    * \param[in] offset The offset to check.
-    * \param[out] romStructurePtr If offset is within the shared cache and this parameter is not
-    *             NULL the result of converting offset into a pointer will be returned
-    *             here. If offset is not within the shared cache this parameter is ignored.
-    * \return True if the offset is within the shared cache, false otherwise.
-    */
-   bool isROMStructureOffsetInSharedCache(uintptr_t encoded_offset, void **romStructurePtr = NULL);
+    bool romclassMatchesCachedVersion(J9ROMClass *romClass, UDATA *&chainPtr, UDATA *chainEnd);
+    UDATA *findChainForClass(J9Class *clazz, const char *key, uint32_t keyLength);
 
-   /**
-    * \brief Validates the provided class chain. This method modifies the chainPtr arg.
-    *
-    * \param[in] romClass The J9ROMClass of the class whose chain is to be validated
-    * \param[in] clazz The TR_OpaqueClassBlock of the class whose chain is to be validated
-    * \param[in,out] chainPtr Pointer to the start of the class chain passed by reference
-    * \param[in] chainEnd Pointer to the end of the class chain
-    * \return true if validation succeeded, false otherwise.
-    */
-   bool validateClassChain(J9ROMClass *romClass, TR_OpaqueClassBlock *clazz, UDATA * & chainPtr, UDATA *chainEnd);
+    /**
+     * \brief Helper Method; Converts an offset into the ROMClass section into a pointer.
+     *
+     * \param offset The offset to convert
+     * \return A pointer. Raises a fatal assertion before returning NULL if the offset is invalid.
+     */
+    void *romStructureFromOffsetInSharedCache(uintptr_t offset);
 
-   /**
-    * \brief Validates the super classes portion of the class chain. This method modifies the chainPtr arg.
-    *
-    * \param[in] clazz The TR_OpaqueClassBlock of the class whose chain is to be validated
-    * \param[in,out] chainPtr Pointer to the start of super classes portion of the class chain passed by reference
-    * \param[in] chainEnd Pointer to the end of the class chain
-    * \return true if validation succeeded, false otherwise.
-    */
-   bool validateSuperClassesInClassChain(TR_OpaqueClassBlock *clazz, UDATA * & chainPtr, UDATA *chainEnd);
+    /**
+     * \brief Converts a pointer into the ROMClass section of the SCC into an offset.
+     *
+     * \param[in] romStructure The pointer to convert.
+     * \return An offset. Raises a fatal assertion before returning 0 if the pointer is invalid.
+     */
+    uintptr_t offsetInSharedcacheFromROMStructure(void *romStructure);
 
-   /**
-    * \brief Validates the interfaces portion of the class chain. This method modifies the chainPtr arg.
-    *
-    * \param[in] clazz The TR_OpaqueClassBlock of the class whose chain is to be validated
-    * \param[in,out] chainPtr Pointer to the start of interfaces portion of the class chain passed by reference
-    * \param[in] chainEnd Pointer to the end of the class chain
-    * \return true if validation succeeded, false otherwise.
-    */
-   bool validateInterfacesInClassChain(TR_OpaqueClassBlock *clazz, UDATA * & chainPtr, UDATA *chainEnd);
+    /**
+     * \brief Checks whether the specified offset is within the ROMClass section
+     *        of the shared cache.
+     *
+     * \param[in] offset The offset to check.
+     * \param[out] romStructurePtr If offset is within the shared cache and this parameter is not
+     *             NULL the result of converting offset into a pointer will be returned
+     *             here. If offset is not within the shared cache this parameter is ignored.
+     * \return True if the offset is within the shared cache, false otherwise.
+     */
+    bool isROMStructureOffsetInSharedCache(uintptr_t encoded_offset, void **romStructurePtr = NULL);
 
-   /**
-    * \brief Helper method; used to check if a pointer is within the metadata section of the SCC
-    * \param[in] cacheDesc the J9SharedClassCacheDescriptor for the cache
-    * \param[in] ptr The pointer to check
-    * \return True if ptr is within the metadata section of the SCC, false otherwise
-    */
-   virtual bool isPointerInMetadataSectionInCache(const J9SharedClassCacheDescriptor *cacheDesc, void *ptr);
+    /**
+     * \brief Validates the provided class chain. This method modifies the chainPtr arg.
+     *
+     * \param[in] romClass The J9ROMClass of the class whose chain is to be validated
+     * \param[in] clazz The TR_OpaqueClassBlock of the class whose chain is to be validated
+     * \param[in,out] chainPtr Pointer to the start of the class chain passed by reference
+     * \param[in] chainEnd Pointer to the end of the class chain
+     * \return true if validation succeeded, false otherwise.
+     */
+    bool validateClassChain(J9ROMClass *romClass, TR_OpaqueClassBlock *clazz, UDATA *&chainPtr, UDATA *chainEnd);
 
-   /**
-    * \brief Helper method; used to check if an offset is within the metadata section of the SCC
-    *
-    * \param[in] cacheDesc the J9SharedClassCacheDescriptor for the cache
-    * \param[in] offset the offset to check
-    * \return True if offset is within the metadata section of the SCC, false otherwise
-    */
-   virtual bool isOffsetInMetadataSectionInCache(const J9SharedClassCacheDescriptor *cacheDesc, uintptr_t offset);
+    /**
+     * \brief Validates the super classes portion of the class chain. This method modifies the chainPtr arg.
+     *
+     * \param[in] clazz The TR_OpaqueClassBlock of the class whose chain is to be validated
+     * \param[in,out] chainPtr Pointer to the start of super classes portion of the class chain passed by reference
+     * \param[in] chainEnd Pointer to the end of the class chain
+     * \return true if validation succeeded, false otherwise.
+     */
+    bool validateSuperClassesInClassChain(TR_OpaqueClassBlock *clazz, UDATA *&chainPtr, UDATA *chainEnd);
 
-   /**
-    * \brief Helper method; used to check if a pointer is within the ROMClass section of the SCC
-    * \param[in] cacheDesc the J9SharedClassCacheDescriptor for the cache
-    * \param[in] ptr The pointer to check
-    * \return True if ptr is within the ROMClass section of the SCC, false otherwise
-    */
-   virtual bool isPointerInROMClassesSectionInCache(const J9SharedClassCacheDescriptor *cacheDesc, void *ptr);
+    /**
+     * \brief Validates the interfaces portion of the class chain. This method modifies the chainPtr arg.
+     *
+     * \param[in] clazz The TR_OpaqueClassBlock of the class whose chain is to be validated
+     * \param[in,out] chainPtr Pointer to the start of interfaces portion of the class chain passed by reference
+     * \param[in] chainEnd Pointer to the end of the class chain
+     * \return true if validation succeeded, false otherwise.
+     */
+    bool validateInterfacesInClassChain(TR_OpaqueClassBlock *clazz, UDATA *&chainPtr, UDATA *chainEnd);
 
-   /**
-    * \brief Helper method; used to check if an offset is within the ROMClass section of the SCC
-    *
-    * \param[in] cacheDesc the J9SharedClassCacheDescriptor for the cache
-    * \param[in] offset the offset to check
-    * \return True if offset is within the ROMClass section of the SCC, false otherwise
-    */
-   virtual bool isOffsetinROMClassesSectionInCache(const J9SharedClassCacheDescriptor *cacheDesc, uintptr_t offset);
+    /**
+     * \brief Helper method; used to check if a pointer is within the metadata section of the SCC
+     * \param[in] cacheDesc the J9SharedClassCacheDescriptor for the cache
+     * \param[in] ptr The pointer to check
+     * \return True if ptr is within the metadata section of the SCC, false otherwise
+     */
+    virtual bool isPointerInMetadataSectionInCache(const J9SharedClassCacheDescriptor *cacheDesc, void *ptr);
 
-   /**
-    * \brief Gets the cached result of a prior class chain validation
-    *
-    * \param[in] clazz The class to be validated
-    *
-    * \return The cached CCVResult; CCVResult::notYetValidated if result does not exist.
-    */
-   const CCVResult getCachedCCVResult(TR_OpaqueClassBlock *clazz);
+    /**
+     * \brief Helper method; used to check if an offset is within the metadata section of the SCC
+     *
+     * \param[in] cacheDesc the J9SharedClassCacheDescriptor for the cache
+     * \param[in] offset the offset to check
+     * \return True if offset is within the metadata section of the SCC, false otherwise
+     */
+    virtual bool isOffsetInMetadataSectionInCache(const J9SharedClassCacheDescriptor *cacheDesc, uintptr_t offset);
 
-   /**
-    * \brief Caches the result of a class chain validation
-    *
-    * \param[in] clazz The class to be validated
-    * \param[in] result The result represented as a CCVResult
-    *
-    * \return The result of the insertion
-    */
-   bool cacheCCVResult(TR_OpaqueClassBlock *clazz, CCVResult result);
+    /**
+     * \brief Helper method; used to check if a pointer is within the ROMClass section of the SCC
+     * \param[in] cacheDesc the J9SharedClassCacheDescriptor for the cache
+     * \param[in] ptr The pointer to check
+     * \return True if ptr is within the ROMClass section of the SCC, false otherwise
+     */
+    virtual bool isPointerInROMClassesSectionInCache(const J9SharedClassCacheDescriptor *cacheDesc, void *ptr);
 
-   uint16_t _initialHintSCount;
-   uint16_t _hintsEnabledMask;
+    /**
+     * \brief Helper method; used to check if an offset is within the ROMClass section of the SCC
+     *
+     * \param[in] cacheDesc the J9SharedClassCacheDescriptor for the cache
+     * \param[in] offset the offset to check
+     * \return True if offset is within the ROMClass section of the SCC, false otherwise
+     */
+    virtual bool isOffsetinROMClassesSectionInCache(const J9SharedClassCacheDescriptor *cacheDesc, uintptr_t offset);
 
-   J9JavaVM *_javaVM;
-   J9JITConfig *_jitConfig;
-   TR_J9VMBase *_fe;
-   TR::CompilationInfo *_compInfo;
+    /**
+     * \brief Gets the cached result of a prior class chain validation
+     *
+     * \param[in] clazz The class to be validated
+     *
+     * \return The cached CCVResult; CCVResult::notYetValidated if result does not exist.
+     */
+    const CCVResult getCachedCCVResult(TR_OpaqueClassBlock *clazz);
 
-   TR_AOTStats *_aotStats;
-   J9SharedClassConfig *_sharedCacheConfig;
-   UDATA _numDigitsForCacheOffsets;
+    /**
+     * \brief Caches the result of a class chain validation
+     *
+     * \param[in] clazz The class to be validated
+     * \param[in] result The result represented as a CCVResult
+     *
+     * \return The result of the insertion
+     */
+    bool cacheCCVResult(TR_OpaqueClassBlock *clazz, CCVResult result);
 
-   uint32_t _logLevel;
-   bool _verboseHints;
+    uint16_t _initialHintSCount;
+    uint16_t _hintsEnabledMask;
+
+    J9JavaVM *_javaVM;
+    J9JITConfig *_jitConfig;
+    TR_J9VMBase *_fe;
+    TR::CompilationInfo *_compInfo;
+
+    TR_AOTStats *_aotStats;
+    J9SharedClassConfig *_sharedCacheConfig;
+    UDATA _numDigitsForCacheOffsets;
+
+    uint32_t _logLevel;
+    bool _verboseHints;
 
 #if defined(LINUX)
-   bool _disclaimEnabled;
+    bool _disclaimEnabled;
 #endif
 
-   static TR_J9SharedCacheDisabledReason _sharedCacheState;
-   static TR_YesNoMaybe                  _sharedCacheDisabledBecauseFull;
-   static UDATA                          _storeSharedDataFailedLength;
+    static TR_J9SharedCacheDisabledReason _sharedCacheState;
+    static TR_YesNoMaybe _sharedCacheDisabledBecauseFull;
+    static UDATA _storeSharedDataFailedLength;
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-   static bool                           _aotHeaderValidationDelayed;
+    static bool _aotHeaderValidationDelayed;
 #endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
-   };
-
+};
 
 #if defined(J9VM_OPT_JITSERVER)
 /**
-* \class TR_J9JITServerSharedCache
-* \brief Class used by JITServer for querying client-side SharedCache information
-*
-* This class is an extension of the TR_J9SharedCache class which overrides a number
-* of TR_J9SharedCache's APIs. TR_J9JITServerSharedCache is used by JITServer and
-* the overridden APIs mostly send remote messages to JITClient to query information from
-* the TR_J9SharedCache on the client. The information is needed for JITServer to
-* compile code that is compatible with the client-side VM. To minimize the
-* number of remote messages as a way to optimize JITServer performance, a
-* lot of client-side TR_J9SharedCache information are cached on JITServer.
-*/
+ * \class TR_J9JITServerSharedCache
+ * \brief Class used by JITServer for querying client-side SharedCache information
+ *
+ * This class is an extension of the TR_J9SharedCache class which overrides a number
+ * of TR_J9SharedCache's APIs. TR_J9JITServerSharedCache is used by JITServer and
+ * the overridden APIs mostly send remote messages to JITClient to query information from
+ * the TR_J9SharedCache on the client. The information is needed for JITServer to
+ * compile code that is compatible with the client-side VM. To minimize the
+ * number of remote messages as a way to optimize JITServer performance, a
+ * lot of client-side TR_J9SharedCache information are cached on JITServer.
+ */
 
-class TR_J9JITServerSharedCache : public TR_J9SharedCache
-   {
+class TR_J9JITServerSharedCache : public TR_J9SharedCache {
 public:
-   TR_ALLOC(TR_Memory::SharedCache)
+    TR_ALLOC(TR_Memory::SharedCache)
 
-   TR_J9JITServerSharedCache(TR_J9VMBase *fe);
+    TR_J9JITServerSharedCache(TR_J9VMBase *fe);
 
-   virtual bool isHint(TR_ResolvedMethod *, TR_SharedCacheHint, uint16_t *dataField = NULL) override { TR_ASSERT_FATAL(false, "called"); return false;}
-   virtual bool isHint(J9Method *, TR_SharedCacheHint, uint16_t *dataField = NULL) override { TR_ASSERT_FATAL(false, "called"); return false;}
-   virtual uint16_t getAllEnabledHints(J9Method *method) override { TR_ASSERT_FATAL(false, "called"); return 0;}
-   virtual void addHint(J9Method *, TR_SharedCacheHint) override;
-   virtual bool isMostlyFull() override { TR_ASSERT_FATAL(false, "called"); return false;}
+    virtual bool isHint(TR_ResolvedMethod *, TR_SharedCacheHint, uint16_t *dataField = NULL) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
 
-   virtual uintptr_t rememberClass(J9Class *clazz, const AOTCacheClassChainRecord **classChainRecord = NULL,
-                                   bool create = true) override;
+    virtual bool isHint(J9Method *, TR_SharedCacheHint, uint16_t *dataField = NULL) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
 
-   virtual UDATA rememberDebugCounterName(const char *name) override { TR_ASSERT_FATAL(false, "called"); return 0;}
-   virtual const char *getDebugCounterName(UDATA offset) override { TR_ASSERT_FATAL(false, "called"); return NULL;}
+    virtual uint16_t getAllEnabledHints(J9Method *method) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return 0;
+    }
 
-   virtual bool isClassInSharedCache(TR_OpaqueClassBlock *clazz, uintptr_t *cacheOffset = NULL) override;
-   virtual bool isMethodInSharedCache(TR_OpaqueMethodBlock *method, TR_OpaqueClassBlock *definingClass, uintptr_t *cacheOffset = NULL) override;
-   virtual bool isROMMethodInSharedCache(J9ROMMethod *romMethod, uintptr_t *cacheOffset = NULL) override { TR_ASSERT_FATAL(false, "called"); return false; }
-   virtual uintptr_t offsetInSharedCacheFromROMMethod(J9ROMMethod *romMethod) override { TR_ASSERT_FATAL(false, "called"); return TR_SharedCache::INVALID_ROM_METHOD_OFFSET; }
+    virtual void addHint(J9Method *, TR_SharedCacheHint) override;
 
-   virtual bool classMatchesCachedVersion(J9Class *clazz, UDATA *chainData=NULL) override { TR_ASSERT_FATAL(false, "called"); return false;}
+    virtual bool isMostlyFull() override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
 
-   virtual void *lookupClassLoaderAssociatedWithClassChain(void *chainData) override
-      { TR_ASSERT_FATAL(false, "called"); return NULL; }
-   virtual TR_OpaqueClassBlock *lookupClassFromChainAndLoader(uintptr_t *chainData, void *classLoader,
-                                                              TR::Compilation *comp) override
-      { TR_ASSERT_FATAL(false, "called"); return NULL;}
+    virtual uintptr_t rememberClass(J9Class *clazz, const AOTCacheClassChainRecord **classChainRecord = NULL,
+        bool create = true) override;
 
-   static void setSharedCacheDisabledReason(TR_J9SharedCacheDisabledReason state) { TR_ASSERT_FATAL(false, "called"); }
-   static TR_J9SharedCacheDisabledReason getSharedCacheDisabledReason() { TR_ASSERT_FATAL(false, "called"); return TR_J9SharedCache::TR_J9SharedCacheDisabledReason::UNINITIALIZED;}
-   static TR_YesNoMaybe isSharedCacheDisabledBecauseFull(TR::CompilationInfo *compInfo) { TR_ASSERT_FATAL(false, "called"); return TR_no;}
-   static void setStoreSharedDataFailedLength(UDATA length) { TR_ASSERT_FATAL(false, "called"); }
+    virtual UDATA rememberDebugCounterName(const char *name) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return 0;
+    }
 
-   virtual bool methodHasAOTBodyWithDependencies(J9VMThread *vmThread, J9ROMMethod *method, const uintptr_t * &methodDependencies) override
-      { TR_ASSERT_FATAL(false, "called"); return false; }
+    virtual const char *getDebugCounterName(UDATA offset) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return NULL;
+    }
 
-   virtual uintptr_t getClassChainOffsetIdentifyingLoader(TR_OpaqueClassBlock *clazz, uintptr_t **classChain = NULL) override;
+    virtual bool isClassInSharedCache(TR_OpaqueClassBlock *clazz, uintptr_t *cacheOffset = NULL) override;
+    virtual bool isMethodInSharedCache(TR_OpaqueMethodBlock *method, TR_OpaqueClassBlock *definingClass,
+        uintptr_t *cacheOffset = NULL) override;
 
-   virtual J9SharedClassCacheDescriptor *getCacheDescriptorList() override;
+    virtual bool isROMMethodInSharedCache(J9ROMMethod *romMethod, uintptr_t *cacheOffset = NULL) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
 
-   void setStream(JITServer::ServerStream *stream) { _stream = stream; }
-   void setCompInfoPT(TR::CompilationInfoPerThread *compInfoPT) { _compInfoPT = compInfoPT; }
-   virtual const void *storeSharedData(J9VMThread *vmThread, const char *key, const J9SharedDataDescriptor *descriptor) override;
+    virtual uintptr_t offsetInSharedCacheFromROMMethod(J9ROMMethod *romMethod) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return TR_SharedCache::INVALID_ROM_METHOD_OFFSET;
+    }
+
+    virtual bool classMatchesCachedVersion(J9Class *clazz, UDATA *chainData = NULL) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
+
+    virtual void *lookupClassLoaderAssociatedWithClassChain(void *chainData) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return NULL;
+    }
+
+    virtual TR_OpaqueClassBlock *lookupClassFromChainAndLoader(uintptr_t *chainData, void *classLoader,
+        TR::Compilation *comp) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return NULL;
+    }
+
+    static void setSharedCacheDisabledReason(TR_J9SharedCacheDisabledReason state) { TR_ASSERT_FATAL(false, "called"); }
+
+    static TR_J9SharedCacheDisabledReason getSharedCacheDisabledReason()
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return TR_J9SharedCache::TR_J9SharedCacheDisabledReason::UNINITIALIZED;
+    }
+
+    static TR_YesNoMaybe isSharedCacheDisabledBecauseFull(TR::CompilationInfo *compInfo)
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return TR_no;
+    }
+
+    static void setStoreSharedDataFailedLength(UDATA length) { TR_ASSERT_FATAL(false, "called"); }
+
+    virtual bool methodHasAOTBodyWithDependencies(J9VMThread *vmThread, J9ROMMethod *method,
+        const uintptr_t *&methodDependencies) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
+
+    virtual uintptr_t getClassChainOffsetIdentifyingLoader(TR_OpaqueClassBlock *clazz,
+        uintptr_t **classChain = NULL) override;
+
+    virtual J9SharedClassCacheDescriptor *getCacheDescriptorList() override;
+
+    void setStream(JITServer::ServerStream *stream) { _stream = stream; }
+
+    void setCompInfoPT(TR::CompilationInfoPerThread *compInfoPT) { _compInfoPT = compInfoPT; }
+
+    virtual const void *storeSharedData(J9VMThread *vmThread, const char *key,
+        const J9SharedDataDescriptor *descriptor) override;
 
 private:
+    virtual bool isPointerInMetadataSectionInCache(const J9SharedClassCacheDescriptor *cacheDesc, void *ptr) override
+    {
+        return isPointerInCache(cacheDesc, ptr);
+    }
 
-   virtual bool isPointerInMetadataSectionInCache(const J9SharedClassCacheDescriptor *cacheDesc, void *ptr) override
-      {
-      return isPointerInCache(cacheDesc, ptr);
-      }
-   virtual bool isOffsetInMetadataSectionInCache(const J9SharedClassCacheDescriptor *cacheDesc, uintptr_t offset) override
-      {
-      return (isOffsetFromEnd(offset) && isOffsetInCache(cacheDesc, offset));
-      }
-   virtual bool isPointerInROMClassesSectionInCache(const J9SharedClassCacheDescriptor *cacheDesc, void *ptr) override
-      {
-      return isPointerInCache(cacheDesc, ptr);
-      }
-   virtual bool isOffsetinROMClassesSectionInCache(const J9SharedClassCacheDescriptor *cacheDesc, uintptr_t offset) override
-      {
-      return (isOffsetFromStart(offset) && isOffsetInCache(cacheDesc, offset));
-      }
+    virtual bool isOffsetInMetadataSectionInCache(const J9SharedClassCacheDescriptor *cacheDesc,
+        uintptr_t offset) override
+    {
+        return (isOffsetFromEnd(offset) && isOffsetInCache(cacheDesc, offset));
+    }
 
-   JITServer::ServerStream *_stream;
-   TR::CompilationInfoPerThread *_compInfoPT;
-   };
+    virtual bool isPointerInROMClassesSectionInCache(const J9SharedClassCacheDescriptor *cacheDesc, void *ptr) override
+    {
+        return isPointerInCache(cacheDesc, ptr);
+    }
+
+    virtual bool isOffsetinROMClassesSectionInCache(const J9SharedClassCacheDescriptor *cacheDesc,
+        uintptr_t offset) override
+    {
+        return (isOffsetFromStart(offset) && isOffsetInCache(cacheDesc, offset));
+    }
+
+    JITServer::ServerStream *_stream;
+    TR::CompilationInfoPerThread *_compInfoPT;
+};
 
 /**
-* \class TR_J9DeserializerSharedCache
-* \brief Class used by a JITServer client for querying the deserializer during AOT cache loads
-*
-* This class is an extension of the TR_J9SharedCache class which overrides a number
-* of TR_J9SharedCache's APIs. TR_J9DeserializerSharedCache is used by a client of a JITServer
-* when relocating a method received from the JITServer's AOT cache. It ignores any local shared cache
-* that may exist, and instead will query the JITServerNoSCCAOTDeserializer during relocation, fetching the
-* deserializer's cached information.
-*
-* The offsets used by this class are different from those of the other TR_J9SharedCache classes and their derivatives;
-* they are the idAndType of the AOTSerializationRecord records maintained by a JITServer's AOT cache, and don't
-* correspond to any storage location of the entities that the offsets refer to.
-*/
-class TR_J9DeserializerSharedCache : public TR_J9SharedCache
-   {
+ * \class TR_J9DeserializerSharedCache
+ * \brief Class used by a JITServer client for querying the deserializer during AOT cache loads
+ *
+ * This class is an extension of the TR_J9SharedCache class which overrides a number
+ * of TR_J9SharedCache's APIs. TR_J9DeserializerSharedCache is used by a client of a JITServer
+ * when relocating a method received from the JITServer's AOT cache. It ignores any local shared cache
+ * that may exist, and instead will query the JITServerNoSCCAOTDeserializer during relocation, fetching the
+ * deserializer's cached information.
+ *
+ * The offsets used by this class are different from those of the other TR_J9SharedCache classes and their derivatives;
+ * they are the idAndType of the AOTSerializationRecord records maintained by a JITServer's AOT cache, and don't
+ * correspond to any storage location of the entities that the offsets refer to.
+ */
+class TR_J9DeserializerSharedCache : public TR_J9SharedCache {
 public:
-   TR_ALLOC(TR_Memory::SharedCache)
+    TR_ALLOC(TR_Memory::SharedCache)
 
-   TR_J9DeserializerSharedCache(TR_J9VMBase *fe, JITServerNoSCCAOTDeserializer *deserializer, TR::CompilationInfoPerThread *compInfoPT);
+    TR_J9DeserializerSharedCache(TR_J9VMBase *fe, JITServerNoSCCAOTDeserializer *deserializer,
+        TR::CompilationInfoPerThread *compInfoPT);
 
-   virtual void *pointerFromOffsetInSharedCache(uintptr_t offset) override;
-   virtual void *lookupClassLoaderAssociatedWithClassChain(void *chainData) override;
-   virtual J9ROMClass *romClassFromOffsetInSharedCache(uintptr_t offset) override;
-   virtual J9ROMMethod *romMethodFromOffsetInSharedCache(uintptr_t offset) override;
-   virtual bool classMatchesCachedVersion(J9Class *clazz, UDATA *chainData=NULL) override;
-   virtual TR_OpaqueClassBlock *lookupClassFromChainAndLoader(uintptr_t *chainData, void *classLoader,
-                                                              TR::Compilation *comp) override;
+    virtual void *pointerFromOffsetInSharedCache(uintptr_t offset) override;
+    virtual void *lookupClassLoaderAssociatedWithClassChain(void *chainData) override;
+    virtual J9ROMClass *romClassFromOffsetInSharedCache(uintptr_t offset) override;
+    virtual J9ROMMethod *romMethodFromOffsetInSharedCache(uintptr_t offset) override;
+    virtual bool classMatchesCachedVersion(J9Class *clazz, UDATA *chainData = NULL) override;
+    virtual TR_OpaqueClassBlock *lookupClassFromChainAndLoader(uintptr_t *chainData, void *classLoader,
+        TR::Compilation *comp) override;
 
-   virtual bool isHint(TR_ResolvedMethod *, TR_SharedCacheHint, uint16_t *dataField = NULL) override { TR_ASSERT_FATAL(false, "called"); return false; }
-   virtual bool isHint(J9Method *, TR_SharedCacheHint, uint16_t *dataField = NULL) override { TR_ASSERT_FATAL(false, "called"); return false; }
-   virtual uint16_t getAllEnabledHints(J9Method *method) override { TR_ASSERT_FATAL(false, "called"); return 0; }
-   virtual void addHint(J9Method *, TR_SharedCacheHint) override { TR_ASSERT_FATAL(false, "called"); }
-   virtual void addHint(TR_ResolvedMethod *, TR_SharedCacheHint) override { TR_ASSERT_FATAL(false, "called"); }
-   virtual bool isMostlyFull() override { TR_ASSERT_FATAL(false, "called"); return false; }
+    virtual bool isHint(TR_ResolvedMethod *, TR_SharedCacheHint, uint16_t *dataField = NULL) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
 
-   virtual uintptr_t offsetInSharedCacheFromPointer(void *ptr) override { TR_ASSERT_FATAL(false, "called"); return 0; }
-   virtual uintptr_t offsetInSharedCacheFromROMClass(J9ROMClass *romClass) override { TR_ASSERT_FATAL(false, "called"); return 0; }
-   virtual uintptr_t offsetInSharedCacheFromROMMethod(J9ROMMethod *romMethod) override { TR_ASSERT_FATAL(false, "called"); return 0; }
-   virtual void *ptrToROMClassesSectionFromOffsetInSharedCache(uintptr_t offset) override { TR_ASSERT_FATAL(false, "called"); return NULL; }
-   virtual uintptr_t offsetInSharedCacheFromPtrToROMClassesSection(void *ptr) override { TR_ASSERT_FATAL(false, "called"); return 0; }
+    virtual bool isHint(J9Method *, TR_SharedCacheHint, uint16_t *dataField = NULL) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
 
-   virtual void persistIprofileInfo(TR::ResolvedMethodSymbol *, TR::Compilation *comp) override { TR_ASSERT_FATAL(false, "called"); }
-   virtual void persistIprofileInfo(TR::ResolvedMethodSymbol *, TR_ResolvedMethod*, TR::Compilation *comp) override { TR_ASSERT_FATAL(false, "called"); }
+    virtual uint16_t getAllEnabledHints(J9Method *method) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return 0;
+    }
 
-   virtual bool canRememberClass(TR_OpaqueClassBlock *classPtr) override { TR_ASSERT_FATAL(false, "called"); return false; }
-   virtual uintptr_t rememberClass(TR_OpaqueClassBlock *classPtr,
-                                   const AOTCacheClassChainRecord **classChainRecord = NULL) override
-      { TR_ASSERT_FATAL(false, "called"); return TR_SharedCache::INVALID_CLASS_CHAIN_OFFSET; }
+    virtual void addHint(J9Method *, TR_SharedCacheHint) override { TR_ASSERT_FATAL(false, "called"); }
 
-   virtual uintptr_t rememberClass(J9Class *clazz, const AOTCacheClassChainRecord **classChainRecord = NULL,
-                                   bool create = true) override
-      { TR_ASSERT_FATAL(false, "called"); return TR_SharedCache::INVALID_CLASS_CHAIN_OFFSET; }
+    virtual void addHint(TR_ResolvedMethod *, TR_SharedCacheHint) override { TR_ASSERT_FATAL(false, "called"); }
 
-   virtual UDATA rememberDebugCounterName(const char *name) override { TR_ASSERT_FATAL(false, "called"); return 0; }
-   virtual const char *getDebugCounterName(UDATA offset) override { TR_ASSERT_FATAL(false, "called"); return NULL; }
+    virtual bool isMostlyFull() override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
 
-   virtual bool isPointerInSharedCache(void *ptr, uintptr_t *cacheOffset = NULL) override { TR_ASSERT_FATAL(false, "called"); return false; }
-   virtual bool isOffsetInSharedCache(uintptr_t encoded_offset, void *ptr = NULL) override { TR_ASSERT_FATAL(false, "called"); return false; }
-   virtual bool isROMClassInSharedCache(J9ROMClass *romClass, uintptr_t *cacheOffset = NULL) override { TR_ASSERT_FATAL(false, "called"); return false; }
-   virtual bool isROMClassOffsetInSharedCache(uintptr_t offset, J9ROMClass **romClassPtr = NULL) override { TR_ASSERT_FATAL(false, "called"); return false; }
-   virtual bool isROMMethodInSharedCache(J9ROMMethod *romMethod, uintptr_t *cacheOffset = NULL) override { TR_ASSERT_FATAL(false, "called"); return false; }
-   virtual bool isROMMethodOffsetInSharedCache(uintptr_t offset, J9ROMMethod **romMethodPtr = NULL) override { TR_ASSERT_FATAL(false, "called"); return false; }
-   virtual bool isPtrToROMClassesSectionInSharedCache(void *ptr, uintptr_t *cacheOffset = NULL) override { TR_ASSERT_FATAL(false, "called"); return false; }
-   virtual bool isOffsetOfPtrToROMClassesSectionInSharedCache(uintptr_t offset, void **ptr = NULL) override { TR_ASSERT_FATAL(false, "called"); return false; }
-   virtual uintptr_t getClassChainOffsetIdentifyingLoader(TR_OpaqueClassBlock *clazz, uintptr_t **classChain = NULL) override { TR_ASSERT_FATAL(false, "called"); return 0; }
-   virtual const void *storeSharedData(J9VMThread *vmThread, const char *key, const J9SharedDataDescriptor *descriptor) override { TR_ASSERT_FATAL(false, "called"); return NULL; }
+    virtual uintptr_t offsetInSharedCacheFromPointer(void *ptr) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return 0;
+    }
 
-   virtual bool methodHasAOTBodyWithDependencies(J9VMThread *vmThread, J9ROMMethod *method, const uintptr_t * &methodDependencies) override
-      { TR_ASSERT_FATAL(false, "called"); return false; }
+    virtual uintptr_t offsetInSharedCacheFromROMClass(J9ROMClass *romClass) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return 0;
+    }
 
-   virtual J9SharedClassCacheDescriptor *getCacheDescriptorList() override { TR_ASSERT_FATAL(false, "called"); return NULL; }
+    virtual uintptr_t offsetInSharedCacheFromROMMethod(J9ROMMethod *romMethod) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return 0;
+    }
+
+    virtual void *ptrToROMClassesSectionFromOffsetInSharedCache(uintptr_t offset) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return NULL;
+    }
+
+    virtual uintptr_t offsetInSharedCacheFromPtrToROMClassesSection(void *ptr) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return 0;
+    }
+
+    virtual void persistIprofileInfo(TR::ResolvedMethodSymbol *, TR::Compilation *comp) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+    }
+
+    virtual void persistIprofileInfo(TR::ResolvedMethodSymbol *, TR_ResolvedMethod *, TR::Compilation *comp) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+    }
+
+    virtual bool canRememberClass(TR_OpaqueClassBlock *classPtr) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
+
+    virtual uintptr_t rememberClass(TR_OpaqueClassBlock *classPtr,
+        const AOTCacheClassChainRecord **classChainRecord = NULL) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return TR_SharedCache::INVALID_CLASS_CHAIN_OFFSET;
+    }
+
+    virtual uintptr_t rememberClass(J9Class *clazz, const AOTCacheClassChainRecord **classChainRecord = NULL,
+        bool create = true) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return TR_SharedCache::INVALID_CLASS_CHAIN_OFFSET;
+    }
+
+    virtual UDATA rememberDebugCounterName(const char *name) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return 0;
+    }
+
+    virtual const char *getDebugCounterName(UDATA offset) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return NULL;
+    }
+
+    virtual bool isPointerInSharedCache(void *ptr, uintptr_t *cacheOffset = NULL) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
+
+    virtual bool isOffsetInSharedCache(uintptr_t encoded_offset, void *ptr = NULL) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
+
+    virtual bool isROMClassInSharedCache(J9ROMClass *romClass, uintptr_t *cacheOffset = NULL) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
+
+    virtual bool isROMClassOffsetInSharedCache(uintptr_t offset, J9ROMClass **romClassPtr = NULL) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
+
+    virtual bool isROMMethodInSharedCache(J9ROMMethod *romMethod, uintptr_t *cacheOffset = NULL) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
+
+    virtual bool isROMMethodOffsetInSharedCache(uintptr_t offset, J9ROMMethod **romMethodPtr = NULL) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
+
+    virtual bool isPtrToROMClassesSectionInSharedCache(void *ptr, uintptr_t *cacheOffset = NULL) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
+
+    virtual bool isOffsetOfPtrToROMClassesSectionInSharedCache(uintptr_t offset, void **ptr = NULL) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
+
+    virtual uintptr_t getClassChainOffsetIdentifyingLoader(TR_OpaqueClassBlock *clazz,
+        uintptr_t **classChain = NULL) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return 0;
+    }
+
+    virtual const void *storeSharedData(J9VMThread *vmThread, const char *key,
+        const J9SharedDataDescriptor *descriptor) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return NULL;
+    }
+
+    virtual bool methodHasAOTBodyWithDependencies(J9VMThread *vmThread, J9ROMMethod *method,
+        const uintptr_t *&methodDependencies) override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return false;
+    }
+
+    virtual J9SharedClassCacheDescriptor *getCacheDescriptorList() override
+    {
+        TR_ASSERT_FATAL(false, "called");
+        return NULL;
+    }
 
 private:
-   JITServerNoSCCAOTDeserializer *_deserializer;
-   TR::CompilationInfoPerThread *_compInfoPT;
-   };
+    JITServerNoSCCAOTDeserializer *_deserializer;
+    TR::CompilationInfoPerThread *_compInfoPT;
+};
 
 #endif /* defined(J9VM_OPT_JITSERVER) */
 

@@ -30,69 +30,50 @@ namespace TR {
 class CodeGenerator;
 class Instruction;
 class Register;
-}
+} // namespace TR
 
-namespace J9
-{
+namespace J9 { namespace ARM {
 
-namespace ARM
-{
+class PrivateLinkage : public J9::PrivateLinkage {
+    static TR::ARMLinkageProperties properties;
 
-class PrivateLinkage : public J9::PrivateLinkage
-   {
-   static TR::ARMLinkageProperties properties;
+public:
+    PrivateLinkage(TR::CodeGenerator *cg);
 
-   public:
+    virtual uint32_t getRightToLeft();
+    virtual void mapStack(TR::ResolvedMethodSymbol *method);
+    virtual void mapSingleAutomatic(TR::AutomaticSymbol *p, uint32_t &stackIndex);
+    virtual void initARMRealRegisterLinkage();
+    virtual void setParameterLinkageRegisterIndex(TR::ResolvedMethodSymbol *method);
 
-   PrivateLinkage(TR::CodeGenerator *cg);
+    virtual TR::MemoryReference *getOutgoingArgumentMemRef(int32_t totalParmAreaSize, int32_t argOffset,
+        TR::Register *argReg, TR::InstOpCode::Mnemonic opCode, TR::ARMMemoryArgument &memArg);
 
-   virtual uint32_t getRightToLeft();
-   virtual void mapStack(TR::ResolvedMethodSymbol *method);
-   virtual void mapSingleAutomatic(TR::AutomaticSymbol *p, uint32_t &stackIndex);
-   virtual void initARMRealRegisterLinkage();
-   virtual void setParameterLinkageRegisterIndex(TR::ResolvedMethodSymbol *method);
+    virtual TR::ARMLinkageProperties &getProperties();
 
-   virtual TR::MemoryReference *getOutgoingArgumentMemRef(int32_t               totalParmAreaSize,
-                                                            int32_t               argOffset,
-                                                            TR::Register          *argReg,
-                                                            TR::InstOpCode::Mnemonic         opCode,
-                                                            TR::ARMMemoryArgument &memArg);
+    virtual void createPrologue(TR::Instruction *cursor);
+    virtual void createEpilogue(TR::Instruction *cursor);
 
-   virtual TR::ARMLinkageProperties& getProperties();
+    virtual int32_t buildArgs(TR::Node *callNode, TR::RegisterDependencyConditions *dependencies, TR::Register *&vftReg,
+        bool isVirtual);
 
-   virtual void createPrologue(TR::Instruction *cursor);
-   virtual void createEpilogue(TR::Instruction *cursor);
+    virtual void buildVirtualDispatch(TR::Node *callNode, TR::RegisterDependencyConditions *dependencies,
+        TR::RegisterDependencyConditions *postDeps, TR::Register *vftReg, uint32_t sizeOfArguments);
 
-   virtual int32_t buildArgs(TR::Node                            *callNode,
-                             TR::RegisterDependencyConditions *dependencies,
-                             TR::Register* &vftReg,
-                             bool                                isVirtual);
+    virtual TR::Register *buildDirectDispatch(TR::Node *callNode);
+    virtual TR::Register *buildIndirectDispatch(TR::Node *callNode);
+};
 
-   virtual void buildVirtualDispatch(TR::Node *callNode,
-                        TR::RegisterDependencyConditions *dependencies,
-                        TR::RegisterDependencyConditions *postDeps,
-                        TR::Register                     *vftReg,
-                        uint32_t                         sizeOfArguments);
+class HelperLinkage : public PrivateLinkage {
+public:
+    HelperLinkage(TR::CodeGenerator *codeGen)
+        : PrivateLinkage(codeGen)
+    {}
 
-   virtual TR::Register *buildDirectDispatch(TR::Node *callNode);
-   virtual TR::Register *buildIndirectDispatch(TR::Node *callNode);
-   };
+    virtual int32_t buildArgs(TR::Node *callNode, TR::RegisterDependencyConditions *dependencies, TR::Register *&vftReg,
+        bool isVirtual);
+};
 
-
-class HelperLinkage : public PrivateLinkage
-   {
-   public:
-
-   HelperLinkage(TR::CodeGenerator *codeGen) : PrivateLinkage(codeGen) {}
-
-   virtual int32_t buildArgs(TR::Node                            *callNode,
-                             TR::RegisterDependencyConditions *dependencies,
-                             TR::Register* &vftReg,
-                             bool                                isVirtual);
-   };
-
-}
-
-}
+}} // namespace J9::ARM
 
 #endif

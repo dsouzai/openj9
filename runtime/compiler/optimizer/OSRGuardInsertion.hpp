@@ -32,30 +32,30 @@ namespace TR {
 class Block;
 }
 
-class TR_OSRGuardInsertion : public TR::Optimization
-   {
-   public:
-   TR_OSRGuardInsertion(TR::OptimizationManager *manager)
-      : TR::Optimization(manager)
-      {}
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_OSRGuardInsertion(manager);
-      }
+class TR_OSRGuardInsertion : public TR::Optimization {
+public:
+    TR_OSRGuardInsertion(TR::OptimizationManager *manager)
+        : TR::Optimization(manager)
+    {}
 
-   virtual int32_t perform();
-   virtual const char * optDetailString() const throw();
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_OSRGuardInsertion(manager);
+    }
 
-   private:
-   static const uint32_t defaultRematBlockLimit = 3;
+    virtual int32_t perform();
+    virtual const char *optDetailString() const throw();
 
-   void removeHCRGuards(TR_BitVector &fearGeneratingNodes, TR_HCRGuardAnalysis* guardAnalysis);
-   void removeRedundantPotentialOSRPointHelperCalls(TR_HCRGuardAnalysis* guardAnalysis);
-   void cleanUpPotentialOSRPointHelperCalls();
-   int32_t insertOSRGuards(TR_BitVector &fearGeneratingNodes);
-   void performRemat(TR::TreeTop *osrPoint, TR::TreeTop *osrGuard, TR::TreeTop *rematDest);
-   void generateTriggeringRecompilationTrees(TR::TreeTop *osrGuard, TR_PersistentMethodInfo::InfoBits reason);
-   void collectFearFromOSRFearPointHelperCalls(TR_BitVector &fearGeneratingNodes, TR_HCRGuardAnalysis* guardAnalysis);
-   void cleanUpOSRFearPoints();
-   };
+private:
+    static const uint32_t defaultRematBlockLimit = 3;
+
+    void removeHCRGuards(TR_BitVector &fearGeneratingNodes, TR_HCRGuardAnalysis *guardAnalysis);
+    void removeRedundantPotentialOSRPointHelperCalls(TR_HCRGuardAnalysis *guardAnalysis);
+    void cleanUpPotentialOSRPointHelperCalls();
+    int32_t insertOSRGuards(TR_BitVector &fearGeneratingNodes);
+    void performRemat(TR::TreeTop *osrPoint, TR::TreeTop *osrGuard, TR::TreeTop *rematDest);
+    void generateTriggeringRecompilationTrees(TR::TreeTop *osrGuard, TR_PersistentMethodInfo::InfoBits reason);
+    void collectFearFromOSRFearPointHelperCalls(TR_BitVector &fearGeneratingNodes, TR_HCRGuardAnalysis *guardAnalysis);
+    void cleanUpOSRFearPoints();
+};
 #endif

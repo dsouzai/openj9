@@ -31,137 +31,108 @@
 #include "codegen/Linkage_inlines.hpp"
 #include "il/Node_inlines.hpp"
 
-void
-J9::X86::I386::CodeGenerator::initialize()
-   {
-   self()->J9::X86::CodeGenerator::initialize();
-   }
+void J9::X86::I386::CodeGenerator::initialize() { self()->J9::X86::CodeGenerator::initialize(); }
 
+TR::Linkage *J9::X86::I386::CodeGenerator::createLinkage(TR_LinkageConventions lc)
+{
+    TR::Compilation *comp = self()->comp();
+    TR::Linkage *linkage = NULL;
 
-TR::Linkage *
-J9::X86::I386::CodeGenerator::createLinkage(TR_LinkageConventions lc)
-   {
-   TR::Compilation *comp = self()->comp();
-   TR::Linkage *linkage = NULL;
+    switch (lc) {
+        case TR_CHelper:
+            linkage = new (self()->trHeapMemory()) J9::X86::HelperLinkage(self());
+            break;
+        case TR_Helper:
+        case TR_Private: {
+            J9::X86::PrivateLinkage *p = NULL;
+            p = new (self()->trHeapMemory()) J9::X86::I386::PrivateLinkage(self());
+            p->IPicParameters.roundedSizeOfSlot = 6 + 2 + 5 + 2 + 1;
+            p->IPicParameters.defaultNumberOfSlots = 2;
+            p->IPicParameters.defaultSlotAddress = -1;
+            p->VPicParameters.roundedSizeOfSlot = 6 + 2 + 5 + 2 + 1;
+            p->VPicParameters.defaultNumberOfSlots = 1;
+            p->VPicParameters.defaultSlotAddress = -1;
+            linkage = p;
+        } break;
 
-   switch (lc)
-      {
-      case TR_CHelper:
-         linkage = new (self()->trHeapMemory()) J9::X86::HelperLinkage(self());
-         break;
-      case TR_Helper:
-      case TR_Private:
-         {
-         J9::X86::PrivateLinkage *p = NULL;
-         p = new (self()->trHeapMemory()) J9::X86::I386::PrivateLinkage(self());
-         p->IPicParameters.roundedSizeOfSlot = 6+2+5+2+1;
-         p->IPicParameters.defaultNumberOfSlots = 2;
-         p->IPicParameters.defaultSlotAddress = -1;
-         p->VPicParameters.roundedSizeOfSlot = 6+2+5+2+1;
-         p->VPicParameters.defaultNumberOfSlots = 1;
-         p->VPicParameters.defaultSlotAddress = -1;
-         linkage = p;
-         }
-         break;
-
-      case TR_J9JNILinkage:
-         if (comp->target().isWindows() || comp->target().isLinux())
-            {
-            linkage = new (self()->trHeapMemory()) J9::X86::I386::JNILinkage(self());
+        case TR_J9JNILinkage:
+            if (comp->target().isWindows() || comp->target().isLinux()) {
+                linkage = new (self()->trHeapMemory()) J9::X86::I386::JNILinkage(self());
+            } else {
+                TR_ASSERT(0, "linkage not supported: %d\n", lc);
+                linkage = NULL;
             }
-         else
-            {
-            TR_ASSERT(0, "linkage not supported: %d\n", lc);
-            linkage = NULL;
+            break;
+
+        case TR_System:
+            if (comp->target().isWindows() || comp->target().isLinux()) {
+                linkage = new (self()->trHeapMemory()) TR::IA32J9SystemLinkage(self());
+            } else {
+                TR_ASSERT(0, "linkage not supported: %d\n", lc);
+                linkage = NULL;
             }
-         break;
+            break;
 
-      case TR_System:
-         if (comp->target().isWindows() || comp->target().isLinux())
-            {
-            linkage = new (self()->trHeapMemory()) TR::IA32J9SystemLinkage(self());
-            }
-         else
-            {
-            TR_ASSERT(0, "linkage not supported: %d\n", lc);
-            linkage = NULL;
-            }
-         break;
+        default:
+            TR_ASSERT(0, "\nTestarossa error: Illegal linkage convention %d\n", lc);
+    }
 
-      default :
-         TR_ASSERT(0, "\nTestarossa error: Illegal linkage convention %d\n", lc);
-      }
+    self()->setLinkage(lc, linkage);
+    return linkage;
+}
 
-   self()->setLinkage(lc, linkage);
-   return linkage;
-   }
+void J9::X86::I386::CodeGenerator::lowerTreesPreTreeTopVisit(TR::TreeTop *tt, vcount_t visitCount)
+{
+    J9::X86::CodeGenerator::lowerTreesPreTreeTopVisit(tt, visitCount);
 
+    TR::Node *node = tt->getNode();
 
-void
-J9::X86::I386::CodeGenerator::lowerTreesPreTreeTopVisit(TR::TreeTop *tt, vcount_t visitCount)
-   {
-   J9::X86::CodeGenerator::lowerTreesPreTreeTopVisit(tt, visitCount);
+    // On IA32 there are a reduced number of registers available on system
+    // linkage dispatch sequences, so some kinds of expressions can't be
+    // evaluated at that point.  We must extract them into their own treetops
+    // to satisfy the required register dependencies.
+    //
+    if (node->getOpCodeValue() == TR::treetop) {
+        TR::Node *child = node->getFirstChild();
 
-   TR::Node *node = tt->getNode();
+        if ((child->getOpCode().isCall() && child->getSymbol()->getMethodSymbol()
+                && (child->isPreparedForDirectJNI()
+                    || child->getSymbol()->getMethodSymbol()->isSystemLinkageDispatch()))) {
+            self()->setRemoveRegisterHogsInLowerTreesWalk();
+        }
+    }
+}
 
-   // On IA32 there are a reduced number of registers available on system
-   // linkage dispatch sequences, so some kinds of expressions can't be
-   // evaluated at that point.  We must extract them into their own treetops
-   // to satisfy the required register dependencies.
-   //
-   if (node->getOpCodeValue() == TR::treetop)
-      {
-      TR::Node *child = node->getFirstChild();
+void J9::X86::I386::CodeGenerator::lowerTreesPostTreeTopVisit(TR::TreeTop *tt, vcount_t visitCount)
+{
+    J9::X86::CodeGenerator::lowerTreesPostTreeTopVisit(tt, visitCount);
 
-      if ((child->getOpCode().isCall() && child->getSymbol()->getMethodSymbol() &&
-          (child->isPreparedForDirectJNI() ||
-           child->getSymbol()->getMethodSymbol()->isSystemLinkageDispatch())))
-         {
-         self()->setRemoveRegisterHogsInLowerTreesWalk();
-         }
-      }
+    TR::Node *node = tt->getNode();
 
-   }
+    // On IA32 there are a reduced number of registers available on system
+    // linkage dispatch sequences, so some kinds of expressions can't be
+    // evaluated at that point.  We must extract them into their own treetops
+    // to satisfy the required register dependencies.
+    //
+    if (node->getOpCodeValue() == TR::treetop) {
+        TR::Node *child = node->getFirstChild();
 
+        if ((child->getOpCode().isCall() && child->getSymbol()->getMethodSymbol()
+                && (child->isPreparedForDirectJNI()
+                    || child->getSymbol()->getMethodSymbol()->isSystemLinkageDispatch()))) {
+            self()->resetRemoveRegisterHogsInLowerTreesWalk();
+        }
+    }
+}
 
-void
-J9::X86::I386::CodeGenerator::lowerTreesPostTreeTopVisit(TR::TreeTop *tt, vcount_t visitCount)
-   {
-   J9::X86::CodeGenerator::lowerTreesPostTreeTopVisit(tt, visitCount);
+void J9::X86::I386::CodeGenerator::lowerTreesPreChildrenVisit(TR::Node *parent, TR::TreeTop *treeTop,
+    vcount_t visitCount)
+{
+    J9::X86::CodeGenerator::lowerTreesPreChildrenVisit(parent, treeTop, visitCount);
+}
 
-   TR::Node *node = tt->getNode();
-
-   // On IA32 there are a reduced number of registers available on system
-   // linkage dispatch sequences, so some kinds of expressions can't be
-   // evaluated at that point.  We must extract them into their own treetops
-   // to satisfy the required register dependencies.
-   //
-   if (node->getOpCodeValue() == TR::treetop)
-      {
-      TR::Node *child = node->getFirstChild();
-
-      if ((child->getOpCode().isCall() && child->getSymbol()->getMethodSymbol() &&
-          (child->isPreparedForDirectJNI() ||
-           child->getSymbol()->getMethodSymbol()->isSystemLinkageDispatch())))
-         {
-         self()->resetRemoveRegisterHogsInLowerTreesWalk();
-         }
-      }
-
-   }
-
-
-void
-J9::X86::I386::CodeGenerator::lowerTreesPreChildrenVisit(TR::Node * parent, TR::TreeTop * treeTop, vcount_t visitCount)
-   {
-   J9::X86::CodeGenerator::lowerTreesPreChildrenVisit(parent, treeTop, visitCount);
-
-   }
-
-
-void
-J9::X86::I386::CodeGenerator::lowerTreesPostChildrenVisit(TR::Node * parent, TR::TreeTop * treeTop, vcount_t visitCount)
-   {
-   J9::X86::CodeGenerator::lowerTreesPostChildrenVisit(parent, treeTop, visitCount);
-
-   }
+void J9::X86::I386::CodeGenerator::lowerTreesPostChildrenVisit(TR::Node *parent, TR::TreeTop *treeTop,
+    vcount_t visitCount)
+{
+    J9::X86::CodeGenerator::lowerTreesPostChildrenVisit(parent, treeTop, visitCount);
+}

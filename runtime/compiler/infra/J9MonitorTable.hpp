@@ -25,12 +25,12 @@
 
 #ifndef TRJ9_MONITORTABLE_CONNECTOR
 #define TRJ9_MONITORTABLE_CONNECTOR
+
 namespace J9 {
 class MonitorTable;
 typedef MonitorTable MonitorTableConnector;
-}
+} // namespace J9
 #endif
-
 
 #include "infra/OMRMonitorTable.hpp"
 #include "infra/Link.hpp"
@@ -40,64 +40,65 @@ typedef MonitorTable MonitorTableConnector;
 struct J9PortLibrary;
 struct J9JavaVM;
 struct J9VMThread;
+
 namespace TR {
 class MonitorTable;
 }
 
-namespace J9
-{
+namespace J9 {
 
-class OMR_EXTENSIBLE MonitorTable : public OMR::MonitorTableConnector
-   {
-   public:
+class OMR_EXTENSIBLE MonitorTable : public OMR::MonitorTableConnector {
+public:
+    void *operator new(size_t size, void *p) { return p; }
 
-   void *operator new(size_t size, void *p) {return p;}
+    static TR::MonitorTable *init(J9PortLibrary *portLib, J9JavaVM *javaVM);
 
-   static TR::MonitorTable *init(J9PortLibrary *portLib, J9JavaVM *javaVM);
+    void free();
 
-   void free();
+    J9::RWMonitor *getClassUnloadMonitor() { return &_classUnloadMonitor; }
 
-   J9::RWMonitor *getClassUnloadMonitor() { return &_classUnloadMonitor; }
-   TR::Monitor *getClassTableMutex() { return &_classTableMutex; }
-   TR::Monitor *getIProfilerPersistenceMonitor() { return &_iprofilerPersistenceMonitor; }
-   void removeAndDestroy(TR::Monitor *monitor);
+    TR::Monitor *getClassTableMutex() { return &_classTableMutex; }
 
-   bool isThreadInSafeMonitorState(J9VMThread *vmThread);
-   TR::Monitor *monitorHeldByCurrentThread();
-   int32_t readAcquireClassUnloadMonitor(int32_t compThreadIndex);
-   int32_t readReleaseClassUnloadMonitor(int32_t compThreadIndex);
-   int32_t getClassUnloadMonitorHoldCount(int32_t i) const { return _classUnloadMonitorHolders[i]; }
+    TR::Monitor *getIProfilerPersistenceMonitor() { return &_iprofilerPersistenceMonitor; }
 
-   bool allocInitClassUnloadMonitorHolders(uint32_t allowedTotalCompThreads);
+    void removeAndDestroy(TR::Monitor *monitor);
 
-   private:
+    bool isThreadInSafeMonitorState(J9VMThread *vmThread);
+    TR::Monitor *monitorHeldByCurrentThread();
+    int32_t readAcquireClassUnloadMonitor(int32_t compThreadIndex);
+    int32_t readReleaseClassUnloadMonitor(int32_t compThreadIndex);
 
-   friend class TR::Monitor;
-   friend class J9::Monitor;
-   friend class J9::RWMonitor;
-   friend class TR::MonitorTable;
+    int32_t getClassUnloadMonitorHoldCount(int32_t i) const { return _classUnloadMonitorHolders[i]; }
 
-   TR::Monitor *create(const char *name);
-   void insert(TR::Monitor *monitor);
+    bool allocInitClassUnloadMonitorHolders(uint32_t allowedTotalCompThreads);
 
-   J9PortLibrary *_portLib;
-   TR_LinkHead0<TR::Monitor> _monitors;
+private:
+    friend class TR::Monitor;
+    friend class J9::Monitor;
+    friend class J9::RWMonitor;
+    friend class TR::MonitorTable;
 
-   TR::Monitor _tableMonitor;
-   TR::Monitor _j9ScratchMemoryPoolMonitor;
-   J9::RWMonitor _classUnloadMonitor;
-   TR::Monitor _classTableMutex;  // JavaVM's class table mutex
-   TR::Monitor _iprofilerPersistenceMonitor;
+    TR::Monitor *create(const char *name);
+    void insert(TR::Monitor *monitor);
 
-   // To detect which thread has locked the classUnloadMonitor we will keep an array of integers
-   // Each entry corresponds to a determined compilation thread. This way we avoid any
-   // concurrency issues. Each number represents how many times the compilation thread has entered
-   // the classUnloadmonitor. Normally it should not be more than 1
-   //
-   int32_t *_classUnloadMonitorHolders;
-   uint32_t _numCompThreads;
-   };
+    J9PortLibrary *_portLib;
+    TR_LinkHead0<TR::Monitor> _monitors;
 
-}
+    TR::Monitor _tableMonitor;
+    TR::Monitor _j9ScratchMemoryPoolMonitor;
+    J9::RWMonitor _classUnloadMonitor;
+    TR::Monitor _classTableMutex; // JavaVM's class table mutex
+    TR::Monitor _iprofilerPersistenceMonitor;
+
+    // To detect which thread has locked the classUnloadMonitor we will keep an array of integers
+    // Each entry corresponds to a determined compilation thread. This way we avoid any
+    // concurrency issues. Each number represents how many times the compilation thread has entered
+    // the classUnloadmonitor. Normally it should not be more than 1
+    //
+    int32_t *_classUnloadMonitorHolders;
+    uint32_t _numCompThreads;
+};
+
+} // namespace J9
 
 #endif

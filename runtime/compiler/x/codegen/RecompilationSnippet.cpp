@@ -42,80 +42,58 @@
 #include "ras/Logger.hpp"
 #include "runtime/CodeCacheManager.hpp"
 
-TR::X86RecompilationSnippet::X86RecompilationSnippet(
-      TR::LabelSymbol *lab,
-      TR::Node *node,
-      TR::CodeGenerator *cg)
-   : TR::Snippet(cg, node, lab, true)
-   {
-   setDestination(cg->symRefTab()->findOrCreateRuntimeHelper(cg->comp()->target().is64Bit()? TR_AMD64countingRecompileMethod : TR_IA32countingRecompileMethod));
-   }
+TR::X86RecompilationSnippet::X86RecompilationSnippet(TR::LabelSymbol *lab, TR::Node *node, TR::CodeGenerator *cg)
+    : TR::Snippet(cg, node, lab, true)
+{
+    setDestination(cg->symRefTab()->findOrCreateRuntimeHelper(
+        cg->comp()->target().is64Bit() ? TR_AMD64countingRecompileMethod : TR_IA32countingRecompileMethod));
+}
 
-uint32_t TR::X86RecompilationSnippet::getLength(int32_t estimatedSnippetStart)
-   {
-   return 9;
-   }
+uint32_t TR::X86RecompilationSnippet::getLength(int32_t estimatedSnippetStart) { return 9; }
 
-void
-TR_Debug::print(OMR::Logger *log, TR::X86RecompilationSnippet *snippet)
-   {
-   TR::MethodSymbol *recompileSym = snippet->getDestination()->getSymbol()->castToMethodSymbol();
+void TR_Debug::print(OMR::Logger *log, TR::X86RecompilationSnippet *snippet)
+{
+    TR::MethodSymbol *recompileSym = snippet->getDestination()->getSymbol()->castToMethodSymbol();
 
-   uint8_t *bufferPos = snippet->getSnippetLabel()->getCodeLocation();
+    uint8_t *bufferPos = snippet->getSnippetLabel()->getCodeLocation();
 
-   printSnippetLabel(log, snippet->getSnippetLabel(), bufferPos, getName(snippet), getName(snippet->getDestination()));
+    printSnippetLabel(log, snippet->getSnippetLabel(), bufferPos, getName(snippet), getName(snippet->getDestination()));
 
-   printPrefix(log, NULL, bufferPos, 5);
-   log->printf("call\t%s \t\t%s Helper Address = " POINTER_PRINTF_FORMAT,
-                 getName(snippet->getDestination()),
-                 commentString(),
-                 recompileSym->getMethodAddress());
-   bufferPos += 5;
+    printPrefix(log, NULL, bufferPos, 5);
+    log->printf("call\t%s \t\t%s Helper Address = " POINTER_PRINTF_FORMAT, getName(snippet->getDestination()),
+        commentString(), recompileSym->getMethodAddress());
+    bufferPos += 5;
 
-   printPrefix(log, NULL, bufferPos, 4);
-   log->printf("%s  \t%s%08x%s\t\t%s Offset to startPC",
-                 ddString(),
-                 hexPrefixString(),
-                 _cg->getCodeStart() - bufferPos,
-                 hexSuffixString(),
-                 commentString());
-   bufferPos += 4;
-   }
-
-
+    printPrefix(log, NULL, bufferPos, 4);
+    log->printf("%s  \t%s%08x%s\t\t%s Offset to startPC", ddString(), hexPrefixString(),
+        _cg->getCodeStart() - bufferPos, hexSuffixString(), commentString());
+    bufferPos += 4;
+}
 
 uint8_t *TR::X86RecompilationSnippet::emitSnippetBody()
-   {
+{
+    uint8_t *buffer = cg()->getBinaryBufferCursor();
+    getSnippetLabel()->setCodeLocation(buffer);
 
-   uint8_t *buffer = cg()->getBinaryBufferCursor();
-   getSnippetLabel()->setCodeLocation(buffer);
+    intptr_t helperAddress = (intptr_t)_destination->getMethodAddress();
+    *buffer = 0xe8; // CallImm4
+    if (cg()->directCallRequiresTrampoline(helperAddress, reinterpret_cast<intptr_t>(buffer++))) {
+        helperAddress = TR::CodeCacheManager::instance()->findHelperTrampoline(_destination->getReferenceNumber(),
+            (void *)buffer);
+        TR_ASSERT(IS_32BIT_RIP(helperAddress, buffer + 4), "Local helper trampoline should be reachable directly.\n");
+    }
+    *(int32_t *)buffer = ((uint8_t *)helperAddress - buffer) - 4;
+    cg()->addExternalRelocation(TR::ExternalRelocation::create(buffer, (uint8_t *)_destination, TR_HelperAddress, cg()),
+        __FILE__, __LINE__, getNode());
+    buffer += 4;
 
-   intptr_t helperAddress = (intptr_t)_destination->getMethodAddress();
-   *buffer = 0xe8; // CallImm4
-   if (cg()->directCallRequiresTrampoline(helperAddress, reinterpret_cast<intptr_t>(buffer++)))
-      {
-      helperAddress = TR::CodeCacheManager::instance()->findHelperTrampoline(_destination->getReferenceNumber(), (void *)buffer);
-      TR_ASSERT(IS_32BIT_RIP(helperAddress, buffer+4), "Local helper trampoline should be reachable directly.\n");
-      }
-   *(int32_t *)buffer = ((uint8_t*)helperAddress - buffer) - 4;
-   cg()->addExternalRelocation(
-      TR::ExternalRelocation::create(
-         buffer,
-         (uint8_t *)_destination,
-         TR_HelperAddress,
-         cg()),
-      __FILE__,
-      __LINE__,
-      getNode());
-   buffer += 4;
+    uint8_t *bufferBase = buffer;
 
-   uint8_t *bufferBase = buffer;
+    // Offset to the start of the method.  This is the instruction that must be
+    // patched when the new code is built.
+    //
+    *(uint32_t *)buffer = (uint32_t)(cg()->getCodeStart() - bufferBase);
+    buffer += 4;
 
-   // Offset to the start of the method.  This is the instruction that must be
-   // patched when the new code is built.
-   //
-   *(uint32_t *)buffer = (uint32_t)(cg()->getCodeStart() - bufferBase);
-   buffer += 4;
-
-   return buffer;
-   }
+    return buffer;
+}

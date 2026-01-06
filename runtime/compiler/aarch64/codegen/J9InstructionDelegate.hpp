@@ -27,10 +27,14 @@
  */
 #ifndef J9_INSTRUCTIONDELEGATE_CONNECTOR
 #define J9_INSTRUCTIONDELEGATE_CONNECTOR
+
 namespace J9 {
-namespace ARM64 { class InstructionDelegate; }
-typedef J9::ARM64::InstructionDelegate InstructionDelegateConnector;
+namespace ARM64 {
+class InstructionDelegate;
 }
+
+typedef J9::ARM64::InstructionDelegate InstructionDelegateConnector;
+} // namespace J9
 #else
 #error J9::ARM64::InstructionDelegate expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -42,48 +46,38 @@ namespace TR {
 class ARM64ImmSymInstruction;
 class ARM64Trg1MemInstruction;
 class ARM64MemInstruction;
-}
+} // namespace TR
 
-namespace J9
-{
+namespace J9 { namespace ARM64 {
 
-namespace ARM64
-{
-
-class OMR_EXTENSIBLE InstructionDelegate : public J9::InstructionDelegate
-   {
+class OMR_EXTENSIBLE InstructionDelegate : public J9::InstructionDelegate {
 protected:
-
-   InstructionDelegate() {}
+    InstructionDelegate() {}
 
 public:
+    /**
+     * @brief Sets the return address to CallSnippet for Label target
+     * @param[in] cg : CodeGenerator
+     * @param[in] ins : instruction associated with CallSnippet
+     * @param[in] cursor : instruction cursor
+     */
+    static void encodeBranchToLabel(TR::CodeGenerator *cg, TR::ARM64ImmSymInstruction *ins, uint8_t *cursor);
 
-   /**
-    * @brief Sets the return address to CallSnippet for Label target
-    * @param[in] cg : CodeGenerator
-    * @param[in] ins : instruction associated with CallSnippet
-    * @param[in] cursor : instruction cursor
-    */
-   static void encodeBranchToLabel(TR::CodeGenerator *cg, TR::ARM64ImmSymInstruction *ins, uint8_t *cursor);
+    /**
+     * @brief Determines if this instruction will throw an implicit null pointer exception and sets appropriate flags
+     * @param[in] cg    : CodeGenerator
+     * @param[in] instr : instruction with memory reference
+     */
+    static void setupImplicitNullPointerException(TR::CodeGenerator *cg, TR::ARM64Trg1MemInstruction *instr);
 
-   /**
-    * @brief Determines if this instruction will throw an implicit null pointer exception and sets appropriate flags
-    * @param[in] cg    : CodeGenerator
-    * @param[in] instr : instruction with memory reference
-    */
-   static void setupImplicitNullPointerException(TR::CodeGenerator *cg, TR::ARM64Trg1MemInstruction *instr);
+    /**
+     * @brief Determines if this instruction will throw an implicit null pointer exception and sets appropriate flags
+     * @param[in] cg    : CodeGenerator
+     * @param[in] instr : instruction with memory reference
+     */
+    static void setupImplicitNullPointerException(TR::CodeGenerator *cg, TR::ARM64MemInstruction *instr);
+};
 
-   /**
-    * @brief Determines if this instruction will throw an implicit null pointer exception and sets appropriate flags
-    * @param[in] cg    : CodeGenerator
-    * @param[in] instr : instruction with memory reference
-    */
-   static void setupImplicitNullPointerException(TR::CodeGenerator *cg, TR::ARM64MemInstruction *instr);
-
-   };
-
-}
-
-}
+}} // namespace J9::ARM64
 
 #endif

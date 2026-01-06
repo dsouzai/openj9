@@ -30,20 +30,19 @@
 #include "optimizer/Optimization.hpp"
 #include "optimizer/OptimizationManager.hpp"
 
-class TR_AllocationSinking : public TR::Optimization
-   {
-   public:
+class TR_AllocationSinking : public TR::Optimization {
+public:
+    TR_AllocationSinking(TR::OptimizationManager *manager)
+        : TR::Optimization(manager)
+    {}
 
-   TR_AllocationSinking(TR::OptimizationManager *manager)
-       : TR::Optimization(manager)
-       {}
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_AllocationSinking(manager);
-      }
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_AllocationSinking(manager);
+    }
 
-   virtual int32_t perform();
-   virtual const char * optDetailString() const throw();
-   };
+    virtual int32_t perform();
+    virtual const char *optDetailString() const throw();
+};
 
 #endif

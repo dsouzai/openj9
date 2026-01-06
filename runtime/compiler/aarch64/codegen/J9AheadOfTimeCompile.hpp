@@ -25,10 +25,14 @@
 
 #ifndef J9_AHEADOFTIMECOMPILE_CONNECTOR
 #define J9_AHEADOFTIMECOMPILE_CONNECTOR
+
 namespace J9 {
-namespace ARM64 { class AheadOfTimeCompile; }
-typedef J9::ARM64::AheadOfTimeCompile AheadOfTimeCompileConnector;
+namespace ARM64 {
+class AheadOfTimeCompile;
 }
+
+typedef J9::ARM64::AheadOfTimeCompile AheadOfTimeCompileConnector;
+} // namespace J9
 #endif // J9_AHEADOFTIMECOMPILE_CONNECTOR
 
 #include "compiler/codegen/J9AheadOfTimeCompile.hpp"
@@ -40,40 +44,32 @@ namespace TR {
 class CodeGenerator;
 }
 
-namespace J9
-{
+namespace J9 { namespace ARM64 {
 
-namespace ARM64
-{
+class OMR_EXTENSIBLE AheadOfTimeCompile : public J9::AheadOfTimeCompile {
+public:
+    /**
+     * @brief Constructor
+     */
+    AheadOfTimeCompile(TR::CodeGenerator *cg);
 
-class OMR_EXTENSIBLE AheadOfTimeCompile : public J9::AheadOfTimeCompile
-   {
-   public:
+    /**
+     * @brief Processes relocations
+     */
+    virtual void processRelocations();
 
-   /**
-    * @brief Constructor
-    */
-   AheadOfTimeCompile(TR::CodeGenerator *cg);
+    /**
+     * @brief Refer to J9::AheadOfTimeCompile::initializePlatformSpecificAOTRelocationHeader
+     */
+    bool initializePlatformSpecificAOTRelocationHeader(TR::IteratedExternalRelocation *relocation,
+        TR_RelocationTarget *reloTarget, TR_RelocationRecord *reloRecord, uint8_t targetKind);
 
-   /**
-    * @brief Processes relocations
-    */
-   virtual void processRelocations();
+    static bool classAddressUsesReloRecordInfo() { return false; }
 
+private:
+    TR::CodeGenerator *_cg;
+};
 
-   /**
-    * @brief Refer to J9::AheadOfTimeCompile::initializePlatformSpecificAOTRelocationHeader
-    */
-   bool initializePlatformSpecificAOTRelocationHeader(TR::IteratedExternalRelocation *relocation, TR_RelocationTarget *reloTarget, TR_RelocationRecord *reloRecord, uint8_t targetKind);
-
-   static bool classAddressUsesReloRecordInfo() { return false; }
-
-   private:
-   TR::CodeGenerator *_cg;
-   };
-
-} // ARM64
-
-} // J9
+}} // namespace J9::ARM64
 
 #endif
