@@ -88,7 +88,7 @@ static void getLocalsMap (J9StackWalkState * walkState, J9ROMClass * romClass, J
 static UDATA allocateCache (J9StackWalkState * walkState);
 static void dropToCurrentFrame (J9StackWalkState * walkState);
 
-/* The minimum number of stack slots that a stack frame can occupy */
+/*  The minimum number of stack slots that a stack frame can occupy */
 #define J9_STACKWALK_MIN_FRAME_SLOTS (OMR_MIN(sizeof(J9JITFrame), sizeof(J9SFStackFrame)) / sizeof(UDATA))
 
 static VMINLINE UDATA

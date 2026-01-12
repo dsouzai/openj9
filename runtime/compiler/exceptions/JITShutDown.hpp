@@ -30,7 +30,7 @@
 namespace J9 {
 
 /**
- * JIT Shutdown exception type.
+ *  JIT Shutdown exception type.
  *
  * Thrown to terminate a compile during the JIT Shutdown phase.
  */
