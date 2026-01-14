@@ -37,7 +37,7 @@ timestamps {
                                 url: "${gitConfig.getUrl()}"]]
                         ]
                     stage('Pull Infra') {
-                        sh "buildenv/jenkins/clang_format/pullInfra.sh"
+                        sh "bash buildenv/jenkins/clang_format/pullInfra.sh"
                     }
                     stage('Docker Build') {
                         dir('buildenv/jenkins/clang_format') {
@@ -45,10 +45,10 @@ timestamps {
                         }
                     }
                     stage('Format Check') {
-                        sh "buildenv/jenkins/clang_format/clangFormatCheck.sh"
+                        sh "bash buildenv/jenkins/clang_format/clangFormatCheck.sh"
                     }
                     stage('Cleanup Infra') {
-                        sh "buildenv/jenkins/clang_format/cleanupInfra.sh"
+                        sh "bash buildenv/jenkins/clang_format/cleanupInfra.sh"
                     }
                 } finally {
                     cleanWs()
