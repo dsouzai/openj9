@@ -21,6 +21,6 @@
 # SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0 OR GPL-2.0-only WITH OpenJDK-assembly-exception-1.0
 ###############################################################################
 
-wget https://raw.githubusercontent.com/eclipse-openj9/openj9-omr/refs/heads/master/compiler/.clang-format -P runtime/compiler/
-wget https://raw.githubusercontent.com/eclipse-openj9/openj9-omr/refs/heads/master/buildenv/jenkins/clang_format/Dockerfile -P buildenv/jenkins/clang_format/
-wget https://raw.githubusercontent.com/eclipse-openj9/openj9-omr/refs/heads/master/buildenv/jenkins/clang_format/clang-format-wrapper.sh -P buildenv/jenkins/clang_format/
+wget https://raw.githubusercontent.com/eclipse-openj9/openj9-omr/refs/heads/openj9/compiler/.clang-format -P runtime/compiler/
+wget https://raw.githubusercontent.com/eclipse-openj9/openj9-omr/refs/heads/openj9/buildenv/jenkins/clang_format/Dockerfile -P buildenv/jenkins/clang_format/
+wget https://raw.githubusercontent.com/eclipse-openj9/openj9-omr/refs/heads/openj9/buildenv/jenkins/clang_format/clang-format-wrapper.sh -P buildenv/jenkins/clang_format/
