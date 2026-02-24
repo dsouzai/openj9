@@ -49,1552 +49,1517 @@
 #include "p/codegen/StackCheckFailureSnippet.hpp"
 
 J9::Power::JNILinkage::JNILinkage(TR::CodeGenerator *cg)
-   : J9::Power::PrivateLinkage(cg)
-   {
-   //Copy out SystemLinkage properties. Assumes no objects in TR::PPCLinkageProperties.
-   TR::Linkage *sysLinkage = cg->getLinkage(TR_System);
-   const TR::PPCLinkageProperties& sysLinkageProperties = sysLinkage->getProperties();
+    : J9::Power::PrivateLinkage(cg)
+{
+    // Copy out SystemLinkage properties. Assumes no objects in TR::PPCLinkageProperties.
+    TR::Linkage *sysLinkage = cg->getLinkage(TR_System);
+    const TR::PPCLinkageProperties &sysLinkageProperties = sysLinkage->getProperties();
 
-   _properties = sysLinkageProperties;
+    _properties = sysLinkageProperties;
 
-   //Set preservedRegisterMapForGC to PrivateLinkage properties.
-   TR::Linkage *privateLinkage = cg->getLinkage(TR_Private);
-   const TR::PPCLinkageProperties& privateLinkageProperties = privateLinkage->getProperties();
+    // Set preservedRegisterMapForGC to PrivateLinkage properties.
+    TR::Linkage *privateLinkage = cg->getLinkage(TR_Private);
+    const TR::PPCLinkageProperties &privateLinkageProperties = privateLinkage->getProperties();
 
-   _properties._preservedRegisterMapForGC = privateLinkageProperties.getPreservedRegisterMapForGC();
+    _properties._preservedRegisterMapForGC = privateLinkageProperties.getPreservedRegisterMapForGC();
 
-   // TODO: JNI linkage should inherit from system linkage to avoid having to do this copying
-   setOffsetToFirstParm(sysLinkage->getOffsetToFirstParm());
-   }
+    // TODO: JNI linkage should inherit from system linkage to avoid having to do this copying
+    setOffsetToFirstParm(sysLinkage->getOffsetToFirstParm());
+}
 
-int32_t J9::Power::JNILinkage::buildArgs(TR::Node *callNode,
-                             TR::RegisterDependencyConditions *dependencies,
-                             const TR::PPCLinkageProperties &properties)
-   {
-   TR_ASSERT(0, "Should call J9::Power::JNILinkage::buildJNIArgs instead.");
-   return 0;
-   }
+int32_t J9::Power::JNILinkage::buildArgs(TR::Node *callNode, TR::RegisterDependencyConditions *dependencies,
+    const TR::PPCLinkageProperties &properties)
+{
+    TR_ASSERT(0, "Should call J9::Power::JNILinkage::buildJNIArgs instead.");
+    return 0;
+}
 
-TR::Register *J9::Power::JNILinkage::buildIndirectDispatch(TR::Node  *callNode)
-   {
-   TR_ASSERT(0, "Calling J9::Power::JNILinkage::buildIndirectDispatch does not make sense.");
-   return NULL;
-   }
+TR::Register *J9::Power::JNILinkage::buildIndirectDispatch(TR::Node *callNode)
+{
+    TR_ASSERT(0, "Calling J9::Power::JNILinkage::buildIndirectDispatch does not make sense.");
+    return NULL;
+}
 
-void         J9::Power::JNILinkage::buildVirtualDispatch(TR::Node   *callNode,
-                                                    TR::RegisterDependencyConditions *dependencies,
-                                                    uint32_t                           sizeOfArguments)
-   {
-   TR_ASSERT(0, "Calling J9::Power::JNILinkage::buildVirtualDispatch does not make sense.");
-   }
+void J9::Power::JNILinkage::buildVirtualDispatch(TR::Node *callNode, TR::RegisterDependencyConditions *dependencies,
+    uint32_t sizeOfArguments)
+{
+    TR_ASSERT(0, "Calling J9::Power::JNILinkage::buildVirtualDispatch does not make sense.");
+}
 
-const TR::PPCLinkageProperties& J9::Power::JNILinkage::getProperties()
-   {
-   return _properties;
-   }
+const TR::PPCLinkageProperties &J9::Power::JNILinkage::getProperties() { return _properties; }
 
 TR::Register *J9::Power::JNILinkage::buildDirectDispatch(TR::Node *callNode)
-   {
-   bool aix_style_linkage = (comp()->target().isAIX() || (comp()->target().is64Bit() && comp()->target().isLinux()));
-   TR::LabelSymbol           *returnLabel = generateLabelSymbol(cg());
-   TR::SymbolReference      *callSymRef = callNode->getSymbolReference();
-   TR::MethodSymbol         *callSymbol = callSymRef->getSymbol()->castToMethodSymbol();
-   TR::SymbolReference      *gpuHelperSymRef;
+{
+    bool aix_style_linkage = (comp()->target().isAIX() || (comp()->target().is64Bit() && comp()->target().isLinux()));
+    TR::LabelSymbol *returnLabel = generateLabelSymbol(cg());
+    TR::SymbolReference *callSymRef = callNode->getSymbolReference();
+    TR::MethodSymbol *callSymbol = callSymRef->getSymbol()->castToMethodSymbol();
+    TR::SymbolReference *gpuHelperSymRef;
 
-   TR::ResolvedMethodSymbol *resolvedMethodSymbol;
-   TR_ResolvedMethod       *resolvedMethod;
-   bool dropVMAccess;
-   bool isJNIGCPoint;
-   bool killNonVolatileGPRs;
-   bool checkExceptions;
-   bool createJNIFrame;
-   bool tearDownJNIFrame;
-   bool wrapRefs;
-   bool passReceiver;
-   bool passThread;
-   uintptr_t targetAddress;
+    TR::ResolvedMethodSymbol *resolvedMethodSymbol;
+    TR_ResolvedMethod *resolvedMethod;
+    bool dropVMAccess;
+    bool isJNIGCPoint;
+    bool killNonVolatileGPRs;
+    bool checkExceptions;
+    bool createJNIFrame;
+    bool tearDownJNIFrame;
+    bool wrapRefs;
+    bool passReceiver;
+    bool passThread;
+    uintptr_t targetAddress;
 
-   bool crc32m1 = (callSymbol->getRecognizedMethod() == TR::java_util_zip_CRC32_update);
-   bool crc32m2 =
+    bool crc32m1 = (callSymbol->getRecognizedMethod() == TR::java_util_zip_CRC32_update);
+    bool crc32m2 =
 #if JAVA_SPEC_VERSION >= 9
-                  (callSymbol->getRecognizedMethod() == TR::java_util_zip_CRC32_updateBytes0)
+        (callSymbol->getRecognizedMethod() == TR::java_util_zip_CRC32_updateBytes0)
 #else
-                  (callSymbol->getRecognizedMethod() == TR::java_util_zip_CRC32_updateBytes)
+        (callSymbol->getRecognizedMethod() == TR::java_util_zip_CRC32_updateBytes)
 #endif
-                  ;
-   bool crc32m3 =
+        ;
+    bool crc32m3 =
 #if JAVA_SPEC_VERSION >= 9
-                  (callSymbol->getRecognizedMethod() == TR::java_util_zip_CRC32_updateByteBuffer0)
+        (callSymbol->getRecognizedMethod() == TR::java_util_zip_CRC32_updateByteBuffer0)
 #else
-                  (callSymbol->getRecognizedMethod() == TR::java_util_zip_CRC32_updateByteBuffer)
+        (callSymbol->getRecognizedMethod() == TR::java_util_zip_CRC32_updateByteBuffer)
 #endif
-                  ;
+        ;
 
-   // TODO: How to handle discontiguous array?
-   // The specialCaseJNI shortcut will mangle register dependencies and use system/C dispatch.
-   // The addresses of the optimized helpers in the server process will not necessarily
-   // match the client-side addresses, so we can't take this shortcut in JITServer mode.
-   bool specialCaseJNI = (crc32m1 || crc32m2 || crc32m3) && !comp()->requiresSpineChecks() && !TR::Compiler->om.isOffHeapAllocationEnabled();
+    // TODO: How to handle discontiguous array?
+    // The specialCaseJNI shortcut will mangle register dependencies and use system/C dispatch.
+    // The addresses of the optimized helpers in the server process will not necessarily
+    // match the client-side addresses, so we can't take this shortcut in JITServer mode.
+    bool specialCaseJNI = (crc32m1 || crc32m2 || crc32m3) && !comp()->requiresSpineChecks()
+        && !TR::Compiler->om.isOffHeapAllocationEnabled();
 
 #ifdef J9VM_OPT_JITSERVER
-   specialCaseJNI = specialCaseJNI && !comp()->isOutOfProcessCompilation();
+    specialCaseJNI = specialCaseJNI && !comp()->isOutOfProcessCompilation();
 #endif
 
-   bool isGPUHelper = callSymbol->isHelper() && (callSymRef->getReferenceNumber() == TR_estimateGPU ||
-                                                 callSymRef->getReferenceNumber() == TR_getStateGPU ||
-                                                 callSymRef->getReferenceNumber() == TR_regionEntryGPU ||
-                                                 callSymRef->getReferenceNumber() == TR_allocateGPUKernelParms ||
-                                                 callSymRef->getReferenceNumber() == TR_copyToGPU ||
-                                                 callSymRef->getReferenceNumber() == TR_launchGPUKernel ||
-                                                 callSymRef->getReferenceNumber() == TR_copyFromGPU ||
-                                                 callSymRef->getReferenceNumber() == TR_invalidateGPU ||
-                                                 callSymRef->getReferenceNumber() == TR_regionExitGPU ||
-                                                 callSymRef->getReferenceNumber() == TR_flushGPU);
+    bool isGPUHelper = callSymbol->isHelper()
+        && (callSymRef->getReferenceNumber() == TR_estimateGPU || callSymRef->getReferenceNumber() == TR_getStateGPU
+            || callSymRef->getReferenceNumber() == TR_regionEntryGPU
+            || callSymRef->getReferenceNumber() == TR_allocateGPUKernelParms
+            || callSymRef->getReferenceNumber() == TR_copyToGPU
+            || callSymRef->getReferenceNumber() == TR_launchGPUKernel
+            || callSymRef->getReferenceNumber() == TR_copyFromGPU
+            || callSymRef->getReferenceNumber() == TR_invalidateGPU
+            || callSymRef->getReferenceNumber() == TR_regionExitGPU || callSymRef->getReferenceNumber() == TR_flushGPU);
 
+    static bool keepVMDuringGPUHelper = feGetEnv("TR_KeepVMDuringGPUHelper") ? true : false;
 
-   static bool keepVMDuringGPUHelper = feGetEnv("TR_KeepVMDuringGPUHelper") ? true : false;
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(fe());
+    if (!isGPUHelper) {
+        resolvedMethodSymbol = callNode->getSymbol()->castToResolvedMethodSymbol();
+        resolvedMethod = resolvedMethodSymbol->getResolvedMethod();
+        dropVMAccess = !fej9->jniRetainVMAccess(resolvedMethod);
+        isJNIGCPoint = !fej9->jniNoGCPoint(resolvedMethod);
+        killNonVolatileGPRs = isJNIGCPoint;
+        checkExceptions = !fej9->jniNoExceptionsThrown(resolvedMethod);
+        createJNIFrame = !fej9->jniNoNativeMethodFrame(resolvedMethod);
+        tearDownJNIFrame = !fej9->jniNoSpecialTeardown(resolvedMethod);
+        wrapRefs = !fej9->jniDoNotWrapObjects(resolvedMethod);
+        passReceiver = !fej9->jniDoNotPassReceiver(resolvedMethod);
+        passThread = !fej9->jniDoNotPassThread(resolvedMethod);
+        targetAddress = (uintptr_t)resolvedMethod->startAddressForJNIMethod(comp());
+    } else {
+        gpuHelperSymRef = comp()->getSymRefTab()->methodSymRefFromName(comp()->getMethodSymbol(),
+            "com/ibm/jit/JITHelpers", "GPUHelper", "()V", TR::MethodSymbol::Static);
+        resolvedMethodSymbol = gpuHelperSymRef->getSymbol()->castToResolvedMethodSymbol();
+        resolvedMethod = resolvedMethodSymbol->getResolvedMethod();
 
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(fe());
-   if (!isGPUHelper)
-      {
-      resolvedMethodSymbol = callNode->getSymbol()->castToResolvedMethodSymbol();
-      resolvedMethod = resolvedMethodSymbol->getResolvedMethod();
-      dropVMAccess = !fej9->jniRetainVMAccess(resolvedMethod);
-      isJNIGCPoint = !fej9->jniNoGCPoint(resolvedMethod);
-      killNonVolatileGPRs = isJNIGCPoint;
-      checkExceptions = !fej9->jniNoExceptionsThrown(resolvedMethod);
-      createJNIFrame = !fej9->jniNoNativeMethodFrame(resolvedMethod);
-      tearDownJNIFrame = !fej9->jniNoSpecialTeardown(resolvedMethod);
-      wrapRefs = !fej9->jniDoNotWrapObjects(resolvedMethod);
-      passReceiver = !fej9->jniDoNotPassReceiver(resolvedMethod);
-      passThread = !fej9->jniDoNotPassThread(resolvedMethod);
-      targetAddress = (uintptr_t)resolvedMethod->startAddressForJNIMethod(comp());
-      }
-   else
-      {
-      gpuHelperSymRef = comp()->getSymRefTab()->methodSymRefFromName(comp()->getMethodSymbol(), "com/ibm/jit/JITHelpers", "GPUHelper", "()V", TR::MethodSymbol::Static);
-      resolvedMethodSymbol = gpuHelperSymRef->getSymbol()->castToResolvedMethodSymbol();
-      resolvedMethod = resolvedMethodSymbol->getResolvedMethod();
+        if (keepVMDuringGPUHelper
+            || (callSymRef->getReferenceNumber() == TR_copyToGPU || callSymRef->getReferenceNumber() == TR_copyFromGPU)
+            || callSymRef->getReferenceNumber() == TR_regionExitGPU || callSymRef->getReferenceNumber() == TR_flushGPU)
+            dropVMAccess = false; // TR_copyToGPU, TR_copyFromGPU, TR_regionExitGPU, TR_flushGPU (and all others if
+                                  // keepVMDuringGPUHelper is true)
+        else
+            dropVMAccess = true; // TR_regionEntryGPU, TR_launchGPUKernel, TR_estimateGPU, TR_allocateGPUKernelParms,
+                                 // (only if keepVMDuringGPUHelper is false)
 
-      if (keepVMDuringGPUHelper || (callSymRef->getReferenceNumber() == TR_copyToGPU || callSymRef->getReferenceNumber() == TR_copyFromGPU) || callSymRef->getReferenceNumber() == TR_regionExitGPU || callSymRef->getReferenceNumber() == TR_flushGPU)
-         dropVMAccess = false; //TR_copyToGPU, TR_copyFromGPU, TR_regionExitGPU, TR_flushGPU (and all others if keepVMDuringGPUHelper is true)
-      else
-         dropVMAccess = true; //TR_regionEntryGPU, TR_launchGPUKernel, TR_estimateGPU, TR_allocateGPUKernelParms, (only if keepVMDuringGPUHelper is false)
+        isJNIGCPoint = true;
+        killNonVolatileGPRs = isJNIGCPoint;
+        checkExceptions = false;
+        createJNIFrame = true;
+        tearDownJNIFrame = true;
+        wrapRefs = false; // unused for this code path
+        passReceiver = true;
+        passThread = false;
+        targetAddress = (uintptr_t)callSymbol->getMethodAddress();
+    }
 
-      isJNIGCPoint = true;
-      killNonVolatileGPRs = isJNIGCPoint;
-      checkExceptions = false;
-      createJNIFrame = true;
-      tearDownJNIFrame = true;
-      wrapRefs = false; //unused for this code path
-      passReceiver = true;
-      passThread = false;
-      targetAddress = (uintptr_t)callSymbol->getMethodAddress();
-      }
+    if (!isGPUHelper
+        && (callSymbol->isPureFunction() || resolvedMethodSymbol->canDirectNativeCall() || specialCaseJNI)) {
+        dropVMAccess = false;
+        killNonVolatileGPRs = false;
+        isJNIGCPoint = false;
+        checkExceptions = false;
+        createJNIFrame = false;
+        tearDownJNIFrame = false;
+        if (specialCaseJNI) {
+            wrapRefs = false;
+            passReceiver = false;
+            passThread = false;
+        }
+    }
 
-   if (!isGPUHelper && (callSymbol->isPureFunction() || resolvedMethodSymbol->canDirectNativeCall() || specialCaseJNI))
-      {
-      dropVMAccess = false;
-      killNonVolatileGPRs = false;
-      isJNIGCPoint = false;
-      checkExceptions = false;
-      createJNIFrame = false;
-      tearDownJNIFrame = false;
-      if (specialCaseJNI)
-         {
-         wrapRefs = false;
-         passReceiver = false;
-         passThread = false;
-         }
-      }
+    TR::Instruction *gcPoint;
+    TR::Register *returnRegister = NULL;
+    TR::RealRegister *stackPtr = cg()->getStackPointerRegister();
+    TR::RealRegister *metaReg = cg()->getMethodMetaDataRegister();
+    TR::Register *gr2Reg, *gr30Reg, *gr31Reg;
+    int32_t argSize;
+    intptr_t aValue;
 
-   TR::Instruction  *gcPoint;
-   TR::Register        *returnRegister = NULL;
-   TR::RealRegister *stackPtr = cg()->getStackPointerRegister();
-   TR::RealRegister *metaReg = cg()->getMethodMetaDataRegister();
-   TR::Register        *gr2Reg, *gr30Reg, *gr31Reg;
-   int32_t             argSize;
-   intptr_t           aValue;
+    TR::RegisterDependencyConditions *deps
+        = new (trHeapMemory()) TR::RegisterDependencyConditions(104, 104, trMemory());
+    const TR::PPCLinkageProperties &jniLinkageProperties = getProperties();
 
-   TR::RegisterDependencyConditions *deps = new (trHeapMemory()) TR::RegisterDependencyConditions(104,104, trMemory());
-   const TR::PPCLinkageProperties& jniLinkageProperties = getProperties();
+    if (killNonVolatileGPRs || dropVMAccess || checkExceptions || tearDownJNIFrame) {
+        gr30Reg = cg()->allocateRegister();
+        gr31Reg = cg()->allocateRegister();
+        TR::addDependency(deps, gr30Reg, TR::RealRegister::gr30, TR_GPR, cg());
+        TR::addDependency(deps, gr31Reg, TR::RealRegister::gr31, TR_GPR, cg());
+    }
 
-   if (killNonVolatileGPRs || dropVMAccess || checkExceptions || tearDownJNIFrame)
-      {
-      gr30Reg = cg()->allocateRegister();
-      gr31Reg = cg()->allocateRegister();
-      TR::addDependency(deps, gr30Reg, TR::RealRegister::gr30, TR_GPR, cg());
-      TR::addDependency(deps, gr31Reg, TR::RealRegister::gr31, TR_GPR, cg());
-      }
-
-   if (killNonVolatileGPRs)
-      {
-      // We need to kill all the non-volatiles so that they'll be in a stack frame in case
-      // gc needs to find them.
-      cg()->setSavesNonVolatileGPRsForGC();
-      if (comp()->target().is64Bit())
-         {
-         if (comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_P10))
+    if (killNonVolatileGPRs) {
+        // We need to kill all the non-volatiles so that they'll be in a stack frame in case
+        // gc needs to find them.
+        cg()->setSavesNonVolatileGPRsForGC();
+        if (comp()->target().is64Bit()) {
+            if (comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_P10))
+                TR::addDependency(deps, NULL, TR::RealRegister::gr16, TR_GPR, cg());
+        } else {
+            // gr15 and gr16 are reserved in 64-bit, normal non-volatile in 32-bit
+            TR::addDependency(deps, NULL, TR::RealRegister::gr15, TR_GPR, cg());
             TR::addDependency(deps, NULL, TR::RealRegister::gr16, TR_GPR, cg());
-         }
-      else
-         {
-         // gr15 and gr16 are reserved in 64-bit, normal non-volatile in 32-bit
-         TR::addDependency(deps, NULL, TR::RealRegister::gr15, TR_GPR, cg());
-         TR::addDependency(deps, NULL, TR::RealRegister::gr16, TR_GPR, cg());
-         }
-      TR::addDependency(deps, NULL, TR::RealRegister::gr17, TR_GPR, cg());
-      TR::addDependency(deps, NULL, TR::RealRegister::gr18, TR_GPR, cg());
-      TR::addDependency(deps, NULL, TR::RealRegister::gr19, TR_GPR, cg());
-      TR::addDependency(deps, NULL, TR::RealRegister::gr20, TR_GPR, cg());
-      TR::addDependency(deps, NULL, TR::RealRegister::gr21, TR_GPR, cg());
-      TR::addDependency(deps, NULL, TR::RealRegister::gr22, TR_GPR, cg());
-      TR::addDependency(deps, NULL, TR::RealRegister::gr23, TR_GPR, cg());
-      TR::addDependency(deps, NULL, TR::RealRegister::gr24, TR_GPR, cg());
-      TR::addDependency(deps, NULL, TR::RealRegister::gr25, TR_GPR, cg());
-      TR::addDependency(deps, NULL, TR::RealRegister::gr26, TR_GPR, cg());
-      TR::addDependency(deps, NULL, TR::RealRegister::gr27, TR_GPR, cg());
+        }
+        TR::addDependency(deps, NULL, TR::RealRegister::gr17, TR_GPR, cg());
+        TR::addDependency(deps, NULL, TR::RealRegister::gr18, TR_GPR, cg());
+        TR::addDependency(deps, NULL, TR::RealRegister::gr19, TR_GPR, cg());
+        TR::addDependency(deps, NULL, TR::RealRegister::gr20, TR_GPR, cg());
+        TR::addDependency(deps, NULL, TR::RealRegister::gr21, TR_GPR, cg());
+        TR::addDependency(deps, NULL, TR::RealRegister::gr22, TR_GPR, cg());
+        TR::addDependency(deps, NULL, TR::RealRegister::gr23, TR_GPR, cg());
+        TR::addDependency(deps, NULL, TR::RealRegister::gr24, TR_GPR, cg());
+        TR::addDependency(deps, NULL, TR::RealRegister::gr25, TR_GPR, cg());
+        TR::addDependency(deps, NULL, TR::RealRegister::gr26, TR_GPR, cg());
+        TR::addDependency(deps, NULL, TR::RealRegister::gr27, TR_GPR, cg());
 #ifndef J9VM_INTERP_ATOMIC_FREE_JNI
-      if (!dropVMAccess)
+        if (!dropVMAccess)
 #endif /* J9VM_INTERP_ATOMIC_FREE_JNI */
-         {
-         TR::addDependency(deps, NULL, TR::RealRegister::gr28, TR_GPR, cg());
-         TR::addDependency(deps, NULL, TR::RealRegister::gr29, TR_GPR, cg());
-         }
-      }
+        {
+            TR::addDependency(deps, NULL, TR::RealRegister::gr28, TR_GPR, cg());
+            TR::addDependency(deps, NULL, TR::RealRegister::gr29, TR_GPR, cg());
+        }
+    }
 
-   cg()->machine()->setLinkRegisterKilled(true);
-   cg()->setHasCall();
+    cg()->machine()->setLinkRegisterKilled(true);
+    cg()->setHasCall();
 
-   argSize = buildJNIArgs(callNode, deps, jniLinkageProperties, specialCaseJNI?false:true, passReceiver, passThread);
+    argSize
+        = buildJNIArgs(callNode, deps, jniLinkageProperties, specialCaseJNI ? false : true, passReceiver, passThread);
 
-   if (aix_style_linkage)
-      {
-      if (specialCaseJNI)
-         gr2Reg = deps->searchPreConditionRegister(TR::RealRegister::gr2);
-      else
-         {
-         gr2Reg = cg()->allocateRegister();
-         TR::addDependency(deps, gr2Reg, TR::RealRegister::gr2, TR_GPR, cg());
-         }
-      }
+    if (aix_style_linkage) {
+        if (specialCaseJNI)
+            gr2Reg = deps->searchPreConditionRegister(TR::RealRegister::gr2);
+        else {
+            gr2Reg = cg()->allocateRegister();
+            TR::addDependency(deps, gr2Reg, TR::RealRegister::gr2, TR_GPR, cg());
+        }
+    }
 
-   if (specialCaseJNI)
-      {
-      // No argument change is needed
-      if (crc32m1)
-         {
-         targetAddress = (uintptr_t)crc32_oneByte;
-         }
+    if (specialCaseJNI) {
+        // No argument change is needed
+        if (crc32m1) {
+            targetAddress = (uintptr_t)crc32_oneByte;
+        }
 
-      // Argument changes are needed
-      if (crc32m2 || crc32m3)
-         {
-         targetAddress = (uintptr_t)((comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_P8) && comp()->target().cpu.supportsFeature(OMR_FEATURE_PPC_HAS_VSX))?crc32_vpmsum:crc32_no_vpmsum);
+        // Argument changes are needed
+        if (crc32m2 || crc32m3) {
+            targetAddress = (uintptr_t)((comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_P8)
+                                            && comp()->target().cpu.supportsFeature(OMR_FEATURE_PPC_HAS_VSX))
+                    ? crc32_vpmsum
+                    : crc32_no_vpmsum);
 
-         // Assuming pre/postCondition have the same index, we use preCondition to map
-         OMR::RegisterDependencyMap map(deps->getPreConditions()->getRegisterDependency(0), deps->getAddCursorForPre());
-         for (int32_t cnt=0; cnt < deps->getAddCursorForPre(); cnt++)
-            map.addDependency(deps->getPreConditions()->getRegisterDependency(cnt), cnt);
+            // Assuming pre/postCondition have the same index, we use preCondition to map
+            OMR::RegisterDependencyMap map(deps->getPreConditions()->getRegisterDependency(0),
+                deps->getAddCursorForPre());
+            for (int32_t cnt = 0; cnt < deps->getAddCursorForPre(); cnt++)
+                map.addDependency(deps->getPreConditions()->getRegisterDependency(cnt), cnt);
 
-         TR::Register *addrArg, *posArg, *lenArg, *wasteArg;
-         if (crc32m2)
-            {
-            addrArg = map.getSourceWithTarget(TR::RealRegister::gr4);
-            posArg = map.getSourceWithTarget(TR::RealRegister::gr5);
-            lenArg = map.getSourceWithTarget(TR::RealRegister::gr6);
+            TR::Register *addrArg, *posArg, *lenArg, *wasteArg;
+            if (crc32m2) {
+                addrArg = map.getSourceWithTarget(TR::RealRegister::gr4);
+                posArg = map.getSourceWithTarget(TR::RealRegister::gr5);
+                lenArg = map.getSourceWithTarget(TR::RealRegister::gr6);
 
-            generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::addi2, callNode, addrArg, addrArg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes());
+                generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::addi2, callNode, addrArg, addrArg,
+                    TR::Compiler->om.contiguousArrayHeaderSizeInBytes());
             }
 
-         if (crc32m3)
-            {
-            addrArg = map.getSourceWithTarget(comp()->target().is64Bit()?(TR::RealRegister::gr4):(TR::RealRegister::gr5));
-            posArg = map.getSourceWithTarget(comp()->target().is64Bit()?(TR::RealRegister::gr5):(TR::RealRegister::gr6));
-            lenArg = map.getSourceWithTarget(comp()->target().is64Bit()?(TR::RealRegister::gr6):(TR::RealRegister::gr7));
-            if (!comp()->target().is64Bit())
-               wasteArg = map.getSourceWithTarget(TR::RealRegister::gr4);
+            if (crc32m3) {
+                addrArg = map.getSourceWithTarget(
+                    comp()->target().is64Bit() ? (TR::RealRegister::gr4) : (TR::RealRegister::gr5));
+                posArg = map.getSourceWithTarget(
+                    comp()->target().is64Bit() ? (TR::RealRegister::gr5) : (TR::RealRegister::gr6));
+                lenArg = map.getSourceWithTarget(
+                    comp()->target().is64Bit() ? (TR::RealRegister::gr6) : (TR::RealRegister::gr7));
+                if (!comp()->target().is64Bit())
+                    wasteArg = map.getSourceWithTarget(TR::RealRegister::gr4);
             }
-         generateTrg1Src2Instruction(cg(), TR::InstOpCode::add, callNode, addrArg, addrArg, posArg);
+            generateTrg1Src2Instruction(cg(), TR::InstOpCode::add, callNode, addrArg, addrArg, posArg);
 
-         if (crc32m2 || crc32m3)
-            {
-            /* Passing zero for the castagnoli parameter of crc32_vpmsum helper. Here we are re-using
-             * posArg in gr6 after the buffer address has been calculated.
-             */
-            generateTrg1ImmInstruction(cg(), TR::InstOpCode::li, callNode, posArg, 0);
-            }
-
-         deps->getPreConditions()->setDependencyInfo(map.getTargetIndex(TR::RealRegister::gr4), addrArg, TR::RealRegister::gr4, UsesDependentRegister);
-         deps->getPostConditions()->setDependencyInfo(map.getTargetIndex(TR::RealRegister::gr4), addrArg, TR::RealRegister::gr4, UsesDependentRegister);
-
-         deps->getPreConditions()->setDependencyInfo(map.getTargetIndex(TR::RealRegister::gr5), lenArg, TR::RealRegister::gr5, UsesDependentRegister);
-         deps->getPostConditions()->setDependencyInfo(map.getTargetIndex(TR::RealRegister::gr5), lenArg, TR::RealRegister::gr5, UsesDependentRegister);
-
-         deps->getPreConditions()->setDependencyInfo(map.getTargetIndex(TR::RealRegister::gr6), posArg, TR::RealRegister::gr6, UsesDependentRegister);
-         deps->getPostConditions()->setDependencyInfo(map.getTargetIndex(TR::RealRegister::gr6), posArg, TR::RealRegister::gr6, UsesDependentRegister);
-
-         if (crc32m3 && !comp()->target().is64Bit())
-            {
-            deps->getPreConditions()->setDependencyInfo(map.getTargetIndex(TR::RealRegister::gr7), wasteArg, TR::RealRegister::gr7, UsesDependentRegister);
-            deps->getPostConditions()->setDependencyInfo(map.getTargetIndex(TR::RealRegister::gr7), wasteArg, TR::RealRegister::gr7, UsesDependentRegister);
-            }
-         }
-
-      if (comp()->compileRelocatableCode())
-         {
-         TR_RuntimeHelper CRChelperId;
-         if (crc32m1)
-            CRChelperId = TR_PPCcrc32_oneByte;
-         else
-            CRChelperId = (targetAddress == (uintptr_t)crc32_vpmsum)? TR_PPCcrc32_vpmsum : TR_PPCcrc32_no_vpmsum;
-
-
-         TR::SymbolReference * specialCRCSymRef = (comp())->getSymRefTab()->findOrCreateRuntimeHelper(CRChelperId,false,false,false);
-         TR::LabelSymbol *specialCRCSnippetLabel = cg()->lookUpSnippet(TR::Snippet::IsHelperCall, specialCRCSymRef);
-         TR::Register *gr12Reg = deps->searchPreConditionRegister(TR::RealRegister::gr12);
-
-         if (specialCRCSnippetLabel == NULL)
-            {
-            specialCRCSnippetLabel = generateLabelSymbol(cg());
-            cg()->addSnippet(new (cg()->trHeapMemory()) TR::PPCHelperCallSnippet(cg(), callNode, specialCRCSnippetLabel, specialCRCSymRef));
+            if (crc32m2 || crc32m3) {
+                /* Passing zero for the castagnoli parameter of crc32_vpmsum helper. Here we are re-using
+                 * posArg in gr6 after the buffer address has been calculated.
+                 */
+                generateTrg1ImmInstruction(cg(), TR::InstOpCode::li, callNode, posArg, 0);
             }
 
-         callNode->setSymbolReference(specialCRCSymRef);
-         if(comp()->target().isLinux() && comp()->target().is64Bit() && comp()->target().cpu.isLittleEndian())
-            {
-            if (!comp()->getOption(TR_DisableTOC) && !comp()->compilePortableCode())
-               {
-               int32_t helperOffset = (callNode->getSymbolReference()->getReferenceNumber() - 1)*sizeof(intptr_t);
-               generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, gr12Reg,
-                                          TR::MemoryReference::createWithDisplacement(cg(), cg()->getTOCBaseRegister(), helperOffset, TR::Compiler->om.sizeofReferenceAddress()));
+            deps->getPreConditions()->setDependencyInfo(map.getTargetIndex(TR::RealRegister::gr4), addrArg,
+                TR::RealRegister::gr4, UsesDependentRegister);
+            deps->getPostConditions()->setDependencyInfo(map.getTargetIndex(TR::RealRegister::gr4), addrArg,
+                TR::RealRegister::gr4, UsesDependentRegister);
 
-               }
-               else
-               {
-               loadAddressConstant(cg(), callNode, (int64_t)runtimeHelperValue((TR_RuntimeHelper)specialCRCSymRef->getReferenceNumber()),
-                                   gr12Reg, NULL, false, TR_AbsoluteHelperAddress);
-               }
+            deps->getPreConditions()->setDependencyInfo(map.getTargetIndex(TR::RealRegister::gr5), lenArg,
+                TR::RealRegister::gr5, UsesDependentRegister);
+            deps->getPostConditions()->setDependencyInfo(map.getTargetIndex(TR::RealRegister::gr5), lenArg,
+                TR::RealRegister::gr5, UsesDependentRegister);
+
+            deps->getPreConditions()->setDependencyInfo(map.getTargetIndex(TR::RealRegister::gr6), posArg,
+                TR::RealRegister::gr6, UsesDependentRegister);
+            deps->getPostConditions()->setDependencyInfo(map.getTargetIndex(TR::RealRegister::gr6), posArg,
+                TR::RealRegister::gr6, UsesDependentRegister);
+
+            if (crc32m3 && !comp()->target().is64Bit()) {
+                deps->getPreConditions()->setDependencyInfo(map.getTargetIndex(TR::RealRegister::gr7), wasteArg,
+                    TR::RealRegister::gr7, UsesDependentRegister);
+                deps->getPostConditions()->setDependencyInfo(map.getTargetIndex(TR::RealRegister::gr7), wasteArg,
+                    TR::RealRegister::gr7, UsesDependentRegister);
             }
-         else if (comp()->target().isAIX() || (comp()->target().isLinux() && comp()->target().is64Bit()))
-            {
-            generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, gr2Reg,
-                                       TR::MemoryReference::createWithDisplacement(cg(), cg()->getMethodMetaDataRegister(), offsetof(J9VMThread, jitTOC), TR::Compiler->om.sizeofReferenceAddress()));
+        }
+
+        if (comp()->compileRelocatableCode()) {
+            TR_RuntimeHelper CRChelperId;
+            if (crc32m1)
+                CRChelperId = TR_PPCcrc32_oneByte;
+            else
+                CRChelperId = (targetAddress == (uintptr_t)crc32_vpmsum) ? TR_PPCcrc32_vpmsum : TR_PPCcrc32_no_vpmsum;
+
+            TR::SymbolReference *specialCRCSymRef
+                = (comp())->getSymRefTab()->findOrCreateRuntimeHelper(CRChelperId, false, false, false);
+            TR::LabelSymbol *specialCRCSnippetLabel = cg()->lookUpSnippet(TR::Snippet::IsHelperCall, specialCRCSymRef);
+            TR::Register *gr12Reg = deps->searchPreConditionRegister(TR::RealRegister::gr12);
+
+            if (specialCRCSnippetLabel == NULL) {
+                specialCRCSnippetLabel = generateLabelSymbol(cg());
+                cg()->addSnippet(new (cg()->trHeapMemory())
+                        TR::PPCHelperCallSnippet(cg(), callNode, specialCRCSnippetLabel, specialCRCSymRef));
+            }
+
+            callNode->setSymbolReference(specialCRCSymRef);
+            if (comp()->target().isLinux() && comp()->target().is64Bit() && comp()->target().cpu.isLittleEndian()) {
+                if (!comp()->getOption(TR_DisableTOC) && !comp()->compilePortableCode()) {
+                    int32_t helperOffset
+                        = (callNode->getSymbolReference()->getReferenceNumber() - 1) * sizeof(intptr_t);
+                    generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, gr12Reg,
+                        TR::MemoryReference::createWithDisplacement(cg(), cg()->getTOCBaseRegister(), helperOffset,
+                            TR::Compiler->om.sizeofReferenceAddress()));
+
+                } else {
+                    loadAddressConstant(cg(), callNode,
+                        (int64_t)runtimeHelperValue((TR_RuntimeHelper)specialCRCSymRef->getReferenceNumber()), gr12Reg,
+                        NULL, false, TR_AbsoluteHelperAddress);
+                }
+            } else if (comp()->target().isAIX() || (comp()->target().isLinux() && comp()->target().is64Bit())) {
+                generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, gr2Reg,
+                    TR::MemoryReference::createWithDisplacement(cg(), cg()->getMethodMetaDataRegister(),
+                        offsetof(J9VMThread, jitTOC), TR::Compiler->om.sizeofReferenceAddress()));
             }
 
             generateDepLabelInstruction(cg(), TR::InstOpCode::bl, callNode, specialCRCSnippetLabel, deps);
-         }
-      }
+        }
+    }
 
-   TR::Register *gr0Reg = deps->searchPreConditionRegister(TR::RealRegister::gr0);
-   TR::Register *gr3Reg = deps->searchPreConditionRegister(TR::RealRegister::gr3);
-   TR::Register *gr11Reg = deps->searchPreConditionRegister(TR::RealRegister::gr11);
-   TR::Register *gr12Reg = deps->searchPreConditionRegister(TR::RealRegister::gr12);
-   TR::Register *cr0Reg = deps->searchPreConditionRegister(TR::RealRegister::cr0);
-   TR::Register *lowReg = NULL, *highReg;
+    TR::Register *gr0Reg = deps->searchPreConditionRegister(TR::RealRegister::gr0);
+    TR::Register *gr3Reg = deps->searchPreConditionRegister(TR::RealRegister::gr3);
+    TR::Register *gr11Reg = deps->searchPreConditionRegister(TR::RealRegister::gr11);
+    TR::Register *gr12Reg = deps->searchPreConditionRegister(TR::RealRegister::gr12);
+    TR::Register *cr0Reg = deps->searchPreConditionRegister(TR::RealRegister::cr0);
+    TR::Register *lowReg = NULL, *highReg;
 
-   switch (callNode->getOpCodeValue())
-      {
-      case TR::icall:
-      case TR::acall:
-         if (callNode->getDataType() == TR::Address)
-            {
-            if (!gr3Reg)
-               {
-               gr3Reg = cg()->allocateRegister();
-               returnRegister = cg()->allocateCollectedReferenceRegister();
-               deps->addPreCondition(gr3Reg, TR::RealRegister::gr3);
-               deps->addPostCondition(returnRegister, TR::RealRegister::gr3);
-               }
-            else
-               {
-               returnRegister = deps->searchPostConditionRegister(TR::RealRegister::gr3);
-               }
+    switch (callNode->getOpCodeValue()) {
+        case TR::icall:
+        case TR::acall:
+            if (callNode->getDataType() == TR::Address) {
+                if (!gr3Reg) {
+                    gr3Reg = cg()->allocateRegister();
+                    returnRegister = cg()->allocateCollectedReferenceRegister();
+                    deps->addPreCondition(gr3Reg, TR::RealRegister::gr3);
+                    deps->addPostCondition(returnRegister, TR::RealRegister::gr3);
+                } else {
+                    returnRegister = deps->searchPostConditionRegister(TR::RealRegister::gr3);
+                }
+            } else {
+                if (!gr3Reg) {
+                    gr3Reg = cg()->allocateRegister();
+                    returnRegister = gr3Reg;
+                    TR::addDependency(deps, gr3Reg, TR::RealRegister::gr3, TR_GPR, cg());
+                } else {
+                    returnRegister = deps->searchPostConditionRegister(TR::RealRegister::gr3);
+                }
             }
-         else
-            {
-            if (!gr3Reg)
-               {
-               gr3Reg = cg()->allocateRegister();
-               returnRegister = gr3Reg;
-               TR::addDependency(deps, gr3Reg, TR::RealRegister::gr3, TR_GPR, cg());
-               }
-            else
-               {
-               returnRegister = deps->searchPostConditionRegister(TR::RealRegister::gr3);
-               }
+            break;
+        case TR::lcall:
+            if (comp()->target().is64Bit()) {
+                if (!gr3Reg) {
+                    gr3Reg = cg()->allocateRegister();
+                    returnRegister = gr3Reg;
+                    TR::addDependency(deps, gr3Reg, TR::RealRegister::gr3, TR_GPR, cg());
+                } else {
+                    returnRegister = deps->searchPostConditionRegister(TR::RealRegister::gr3);
+                }
+            } else {
+                if (!gr3Reg) {
+                    gr3Reg = cg()->allocateRegister();
+                    TR::addDependency(deps, gr3Reg, TR::RealRegister::gr3, TR_GPR, cg());
+                    highReg = gr3Reg;
+                } else {
+                    highReg = deps->searchPostConditionRegister(TR::RealRegister::gr3);
+                }
+                lowReg = deps->searchPostConditionRegister(TR::RealRegister::gr4);
+                returnRegister = cg()->allocateRegisterPair(lowReg, highReg);
             }
-         break;
-      case TR::lcall:
-         if (comp()->target().is64Bit())
-            {
-            if (!gr3Reg)
-               {
-               gr3Reg = cg()->allocateRegister();
-               returnRegister = gr3Reg;
-               TR::addDependency(deps, gr3Reg, TR::RealRegister::gr3, TR_GPR, cg());
-               }
-            else
-               {
-               returnRegister = deps->searchPostConditionRegister(TR::RealRegister::gr3);
-               }
+            break;
+        case TR::fcall:
+        case TR::dcall:
+            returnRegister = deps->searchPostConditionRegister(jniLinkageProperties.getFloatReturnRegister());
+            if (!gr3Reg) {
+                gr3Reg = cg()->allocateRegister();
+                TR::addDependency(deps, gr3Reg, TR::RealRegister::gr3, TR_GPR, cg());
             }
-         else
-            {
-            if (!gr3Reg)
-               {
-               gr3Reg = cg()->allocateRegister();
-               TR::addDependency(deps, gr3Reg, TR::RealRegister::gr3, TR_GPR, cg());
-               highReg = gr3Reg;
-               }
-            else
-               {
-               highReg = deps->searchPostConditionRegister(TR::RealRegister::gr3);
-               }
-            lowReg = deps->searchPostConditionRegister(TR::RealRegister::gr4);
-            returnRegister = cg()->allocateRegisterPair(lowReg, highReg);
+            break;
+        case TR::call:
+            if (!gr3Reg) {
+                gr3Reg = cg()->allocateRegister();
+                TR::addDependency(deps, gr3Reg, TR::RealRegister::gr3, TR_GPR, cg());
             }
-         break;
-      case TR::fcall:
-      case TR::dcall:
-         returnRegister = deps->searchPostConditionRegister(jniLinkageProperties.getFloatReturnRegister());
-         if (!gr3Reg)
-            {
-            gr3Reg = cg()->allocateRegister();
-            TR::addDependency(deps, gr3Reg, TR::RealRegister::gr3, TR_GPR, cg());
+            returnRegister = NULL;
+            break;
+        default:
+            if (!gr3Reg) {
+                gr3Reg = cg()->allocateRegister();
+                TR::addDependency(deps, gr3Reg, TR::RealRegister::gr3, TR_GPR, cg());
             }
-         break;
-      case TR::call:
-         if (!gr3Reg)
-            {
-            gr3Reg = cg()->allocateRegister();
-            TR::addDependency(deps, gr3Reg, TR::RealRegister::gr3, TR_GPR, cg());
-            }
-         returnRegister = NULL;
-         break;
-      default:
-         if (!gr3Reg)
-            {
-            gr3Reg = cg()->allocateRegister();
-            TR::addDependency(deps, gr3Reg, TR::RealRegister::gr3, TR_GPR, cg());
-            }
-         returnRegister = NULL;
-         TR_ASSERT( false, "Unknown direct call Opcode.");
-      }
+            returnRegister = NULL;
+            TR_ASSERT(false, "Unknown direct call Opcode.");
+    }
 
-   if (createJNIFrame)
-      {
-      // push tag bits (savedA0)
-      int32_t tagBits = fej9->constJNICallOutFrameSpecialTag();
-      // if the current method is simply a wrapper for the JNI call, hide the call-out stack frame
-      if (resolvedMethod == comp()->getCurrentMethod())
-         tagBits |= fej9->constJNICallOutFrameInvisibleTag();
+    if (createJNIFrame) {
+        // push tag bits (savedA0)
+        int32_t tagBits = fej9->constJNICallOutFrameSpecialTag();
+        // if the current method is simply a wrapper for the JNI call, hide the call-out stack frame
+        if (resolvedMethod == comp()->getCurrentMethod())
+            tagBits |= fej9->constJNICallOutFrameInvisibleTag();
 #if JAVA_SPEC_VERSION >= 19
-      /*
-       * For virtual threads, increment callOutCount. It is safe and most efficient to
-       * do this unconditionally. No need to check for overflow.
-       */
-      generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, gr11Reg, TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetCallOutCountOffset(), TR::Compiler->om.sizeofReferenceAddress()));
-      generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::addi, callNode, gr11Reg, gr11Reg, 1);
-      generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_st, callNode, TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetCallOutCountOffset(), TR::Compiler->om.sizeofReferenceAddress()), gr11Reg);
-#endif //JAVA_SPEC_VERSION >= 19
-      loadConstant(cg(), callNode, tagBits, gr11Reg);
-      loadConstant(cg(), callNode, 0, gr12Reg);
+        /*
+         * For virtual threads, increment callOutCount. It is safe and most efficient to
+         * do this unconditionally. No need to check for overflow.
+         */
+        generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, gr11Reg,
+            TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetCallOutCountOffset(),
+                TR::Compiler->om.sizeofReferenceAddress()));
+        generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::addi, callNode, gr11Reg, gr11Reg, 1);
+        generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_st, callNode,
+            TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetCallOutCountOffset(),
+                TR::Compiler->om.sizeofReferenceAddress()),
+            gr11Reg);
+#endif // JAVA_SPEC_VERSION >= 19
+        loadConstant(cg(), callNode, tagBits, gr11Reg);
+        loadConstant(cg(), callNode, 0, gr12Reg);
 
-      generateMemSrc1Instruction(cg(),TR::InstOpCode::Op_stu, callNode, TR::MemoryReference::createWithDisplacement(cg(), stackPtr, -TR::Compiler->om.sizeofReferenceAddress(), TR::Compiler->om.sizeofReferenceAddress()), gr11Reg);
+        generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_stu, callNode,
+            TR::MemoryReference::createWithDisplacement(cg(), stackPtr, -TR::Compiler->om.sizeofReferenceAddress(),
+                TR::Compiler->om.sizeofReferenceAddress()),
+            gr11Reg);
 
-      // skip savedPC slot (unused) and push return address (savedCP)
-      cg()->fixedLoadLabelAddressIntoReg(callNode, gr11Reg, returnLabel);
-      generateMemSrc1Instruction(cg(),TR::InstOpCode::Op_stu, callNode, TR::MemoryReference::createWithDisplacement(cg(), stackPtr, -2*TR::Compiler->om.sizeofReferenceAddress(), TR::Compiler->om.sizeofReferenceAddress()), gr11Reg);
+        // skip savedPC slot (unused) and push return address (savedCP)
+        cg()->fixedLoadLabelAddressIntoReg(callNode, gr11Reg, returnLabel);
+        generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_stu, callNode,
+            TR::MemoryReference::createWithDisplacement(cg(), stackPtr, -2 * TR::Compiler->om.sizeofReferenceAddress(),
+                TR::Compiler->om.sizeofReferenceAddress()),
+            gr11Reg);
 
-      // begin: mask out the magic bit that indicates JIT frames below
-      generateMemSrc1Instruction(cg(),TR::InstOpCode::Op_st, callNode, TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetJavaFrameFlagsOffset(), TR::Compiler->om.sizeofReferenceAddress()), gr12Reg);
+        // begin: mask out the magic bit that indicates JIT frames below
+        generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_st, callNode,
+            TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetJavaFrameFlagsOffset(),
+                TR::Compiler->om.sizeofReferenceAddress()),
+            gr12Reg);
 
-      // push flags: use lis instead of lis/ori pair since this is a constant. Save one instr
-      aValue = fej9->constJNICallOutFrameFlags();
-      TR_ASSERT_FATAL((aValue & ~0x7FFF0000) == 0, "Length assumption broken.");
-      generateTrg1ImmInstruction(cg(), TR::InstOpCode::lis, callNode, gr11Reg, aValue>>16);
-      generateMemSrc1Instruction(cg(),TR::InstOpCode::Op_stu, callNode, TR::MemoryReference::createWithDisplacement(cg(), stackPtr, -TR::Compiler->om.sizeofReferenceAddress(), TR::Compiler->om.sizeofReferenceAddress()),gr11Reg);
+        // push flags: use lis instead of lis/ori pair since this is a constant. Save one instr
+        aValue = fej9->constJNICallOutFrameFlags();
+        TR_ASSERT_FATAL((aValue & ~0x7FFF0000) == 0, "Length assumption broken.");
+        generateTrg1ImmInstruction(cg(), TR::InstOpCode::lis, callNode, gr11Reg, aValue >> 16);
+        generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_stu, callNode,
+            TR::MemoryReference::createWithDisplacement(cg(), stackPtr, -TR::Compiler->om.sizeofReferenceAddress(),
+                TR::Compiler->om.sizeofReferenceAddress()),
+            gr11Reg);
 
-      // push the RAM method for the native
-      aValue = (uintptr_t)resolvedMethod->resolvedMethodAddress();
-      // use loadAddressConstantFixed - fixed instruction count 2 32-bit, or 5 64-bit
-      // loadAddressRAM needs a resolved method symbol so the gpuHelper SumRef is passed in instead of
-      // the callSymRef which does not have a resolved method symbol
-      if (isGPUHelper)
-         callNode->setSymbolReference(gpuHelperSymRef);
-      loadAddressRAM(cg(), callNode, aValue, gr11Reg);
-      if (isGPUHelper)
-         callNode->setSymbolReference(callSymRef); //change back to callSymRef afterwards
-      generateMemSrc1Instruction(cg(),TR::InstOpCode::Op_stu, callNode, TR::MemoryReference::createWithDisplacement(cg(), stackPtr, -TR::Compiler->om.sizeofReferenceAddress(), TR::Compiler->om.sizeofReferenceAddress()),gr11Reg);
+        // push the RAM method for the native
+        aValue = (uintptr_t)resolvedMethod->resolvedMethodAddress();
+        // use loadAddressConstantFixed - fixed instruction count 2 32-bit, or 5 64-bit
+        // loadAddressRAM needs a resolved method symbol so the gpuHelper SumRef is passed in instead of
+        // the callSymRef which does not have a resolved method symbol
+        if (isGPUHelper)
+            callNode->setSymbolReference(gpuHelperSymRef);
+        loadAddressRAM(cg(), callNode, aValue, gr11Reg);
+        if (isGPUHelper)
+            callNode->setSymbolReference(callSymRef); // change back to callSymRef afterwards
+        generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_stu, callNode,
+            TR::MemoryReference::createWithDisplacement(cg(), stackPtr, -TR::Compiler->om.sizeofReferenceAddress(),
+                TR::Compiler->om.sizeofReferenceAddress()),
+            gr11Reg);
 
-      // store out jsp
-      generateMemSrc1Instruction(cg(),TR::InstOpCode::Op_st, callNode, TR::MemoryReference::createWithDisplacement(cg(), metaReg,fej9->thisThreadGetJavaSPOffset(), TR::Compiler->om.sizeofReferenceAddress()), stackPtr);
+        // store out jsp
+        generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_st, callNode,
+            TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetJavaSPOffset(),
+                TR::Compiler->om.sizeofReferenceAddress()),
+            stackPtr);
 
-      // store out pc and literals values indicating the callout frame
-      aValue = fej9->constJNICallOutFrameType();
-      TR_ASSERT(aValue>=LOWER_IMMED && aValue<=UPPER_IMMED, "Length assumption broken.");
-      loadConstant(cg(), callNode, (int32_t)aValue, gr11Reg);
-      generateMemSrc1Instruction(cg(),TR::InstOpCode::Op_st, callNode, TR::MemoryReference::createWithDisplacement(cg(), metaReg,fej9->thisThreadGetJavaPCOffset(), TR::Compiler->om.sizeofReferenceAddress()), gr11Reg);
+        // store out pc and literals values indicating the callout frame
+        aValue = fej9->constJNICallOutFrameType();
+        TR_ASSERT(aValue >= LOWER_IMMED && aValue <= UPPER_IMMED, "Length assumption broken.");
+        loadConstant(cg(), callNode, (int32_t)aValue, gr11Reg);
+        generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_st, callNode,
+            TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetJavaPCOffset(),
+                TR::Compiler->om.sizeofReferenceAddress()),
+            gr11Reg);
 
-      generateMemSrc1Instruction(cg(),TR::InstOpCode::Op_st, callNode, TR::MemoryReference::createWithDisplacement(cg(), metaReg,fej9->thisThreadGetJavaLiteralsOffset(), TR::Compiler->om.sizeofReferenceAddress()), gr12Reg);
-      }
+        generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_st, callNode,
+            TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetJavaLiteralsOffset(),
+                TR::Compiler->om.sizeofReferenceAddress()),
+            gr12Reg);
+    }
 
-   if (passThread)
-      generateTrg1Src1Instruction(cg(), TR::InstOpCode::mr, callNode, gr3Reg, metaReg);
+    if (passThread)
+        generateTrg1Src1Instruction(cg(), TR::InstOpCode::mr, callNode, gr3Reg, metaReg);
 
-   // Change if VMAccessLength if this code changes
-   if (dropVMAccess)
-      {
-      // At this point: arguments for the native routine are all in place already, i.e., if there are
-      //                more than 32Byte worth of arguments, some of them are on the stack. However,
-      //                we potentially go out to call a helper before jumping to the native. There is
-      //                no definite guarantee that the helper call will not trash the stack area concerned.
-      //                But GAC did make sure it is safe with the current helper implementation. If this
-      //                condition changes in the future, we will need some heroic measure to fix it.
-      //                Furthermore, this potential call should not touch FP argument registers. ***
+    // Change if VMAccessLength if this code changes
+    if (dropVMAccess) {
+        // At this point: arguments for the native routine are all in place already, i.e., if there are
+        //                more than 32Byte worth of arguments, some of them are on the stack. However,
+        //                we potentially go out to call a helper before jumping to the native. There is
+        //                no definite guarantee that the helper call will not trash the stack area concerned.
+        //                But GAC did make sure it is safe with the current helper implementation. If this
+        //                condition changes in the future, we will need some heroic measure to fix it.
+        //                Furthermore, this potential call should not touch FP argument registers. ***
 #ifdef J9VM_INTERP_ATOMIC_FREE_JNI
-      releaseVMAccessAtomicFree(callNode, deps, metaReg, cr0Reg, gr30Reg, gr31Reg);
+        releaseVMAccessAtomicFree(callNode, deps, metaReg, cr0Reg, gr30Reg, gr31Reg);
 #else
-      releaseVMAccess(callNode, deps, metaReg, gr12Reg, gr30Reg, gr31Reg);
+        releaseVMAccess(callNode, deps, metaReg, gr12Reg, gr30Reg, gr31Reg);
 #endif /* J9VM_INTERP_ATOMIC_FREE_JNI */
-      }
+    }
 
-   if (!specialCaseJNI || !comp()->compileRelocatableCode())
-      {
-      // get the address of the function descriptor
-      // use loadAddressConstantFixed - fixed instruction count 2 32-bit, or 5 64-bit
-      TR::Instruction *current = cg()->getAppendInstruction();
-      if (isGPUHelper)
-         loadConstant(cg(), callNode, (int64_t)targetAddress, gr12Reg);
-      else
-         loadAddressJNI(cg(), callNode, targetAddress, gr12Reg);
-      cg()->getJNICallSites().push_front(new (trHeapMemory()) TR_Pair<TR_ResolvedMethod, TR::Instruction>(resolvedMethod, current->getNext())); // the first instruction generated by loadAddressC...
+    if (!specialCaseJNI || !comp()->compileRelocatableCode()) {
+        // get the address of the function descriptor
+        // use loadAddressConstantFixed - fixed instruction count 2 32-bit, or 5 64-bit
+        TR::Instruction *current = cg()->getAppendInstruction();
+        if (isGPUHelper)
+            loadConstant(cg(), callNode, (int64_t)targetAddress, gr12Reg);
+        else
+            loadAddressJNI(cg(), callNode, targetAddress, gr12Reg);
+        cg()->getJNICallSites().push_front(new (trHeapMemory()) TR_Pair<TR_ResolvedMethod, TR::Instruction>(
+            resolvedMethod, current->getNext())); // the first instruction generated by loadAddressC...
 
-      if (aix_style_linkage &&
-         !(comp()->target().is64Bit() && comp()->target().isLinux() && comp()->target().cpu.isLittleEndian()))
-         {
-         // get the target address
-         generateTrg1MemInstruction(cg(),TR::InstOpCode::Op_load, callNode, gr0Reg, TR::MemoryReference::createWithDisplacement(cg(), gr12Reg, 0, TR::Compiler->om.sizeofReferenceAddress()));
-         // put the target address into the count register
-         generateSrc1Instruction(cg(), TR::InstOpCode::mtctr, callNode, gr0Reg);
-         // load the toc register
-         generateTrg1MemInstruction(cg(),TR::InstOpCode::Op_load, callNode, gr2Reg, TR::MemoryReference::createWithDisplacement(cg(), gr12Reg, TR::Compiler->om.sizeofReferenceAddress(), TR::Compiler->om.sizeofReferenceAddress()));
-         // load the environment register
-         generateTrg1MemInstruction(cg(),TR::InstOpCode::Op_load, callNode, gr11Reg, TR::MemoryReference::createWithDisplacement(cg(), gr12Reg, 2*TR::Compiler->om.sizeofReferenceAddress(), TR::Compiler->om.sizeofReferenceAddress()));
-         }
-      else
-         {
-         // put the target address into the count register
-         generateSrc1Instruction(cg(), TR::InstOpCode::mtctr, callNode, gr12Reg);
-         }
+        if (aix_style_linkage
+            && !(comp()->target().is64Bit() && comp()->target().isLinux() && comp()->target().cpu.isLittleEndian())) {
+            // get the target address
+            generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, gr0Reg,
+                TR::MemoryReference::createWithDisplacement(cg(), gr12Reg, 0,
+                    TR::Compiler->om.sizeofReferenceAddress()));
+            // put the target address into the count register
+            generateSrc1Instruction(cg(), TR::InstOpCode::mtctr, callNode, gr0Reg);
+            // load the toc register
+            generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, gr2Reg,
+                TR::MemoryReference::createWithDisplacement(cg(), gr12Reg, TR::Compiler->om.sizeofReferenceAddress(),
+                    TR::Compiler->om.sizeofReferenceAddress()));
+            // load the environment register
+            generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, gr11Reg,
+                TR::MemoryReference::createWithDisplacement(cg(), gr12Reg,
+                    2 * TR::Compiler->om.sizeofReferenceAddress(), TR::Compiler->om.sizeofReferenceAddress()));
+        } else {
+            // put the target address into the count register
+            generateSrc1Instruction(cg(), TR::InstOpCode::mtctr, callNode, gr12Reg);
+        }
 
-      // call the JNI function
-      if (isJNIGCPoint)
-         {
-         gcPoint = generateInstruction(cg(), TR::InstOpCode::bctrl, callNode);
-         gcPoint->PPCNeedsGCMap(jniLinkageProperties.getPreservedRegisterMapForGC());
-         }
-      else
-         {
-         generateInstruction(cg(), TR::InstOpCode::bctrl, callNode);
-         }
-      generateDepLabelInstruction(cg(), TR::InstOpCode::label, callNode, returnLabel, deps);
-   }
+        // call the JNI function
+        if (isJNIGCPoint) {
+            gcPoint = generateInstruction(cg(), TR::InstOpCode::bctrl, callNode);
+            gcPoint->PPCNeedsGCMap(jniLinkageProperties.getPreservedRegisterMapForGC());
+        } else {
+            generateInstruction(cg(), TR::InstOpCode::bctrl, callNode);
+        }
+        generateDepLabelInstruction(cg(), TR::InstOpCode::label, callNode, returnLabel, deps);
+    }
 
-   if (dropVMAccess)
-      {
-      // Again, we have dependency on the fact that:
-      //    1) this potential call will not trash the in-register return values
-      //    2) we know GPRs are ok, since OTI saves GPRs before use
-      //    3) FPRs are not so sure, pending GAC's verification ***
+    if (dropVMAccess) {
+        // Again, we have dependency on the fact that:
+        //    1) this potential call will not trash the in-register return values
+        //    2) we know GPRs are ok, since OTI saves GPRs before use
+        //    3) FPRs are not so sure, pending GAC's verification ***
 #ifdef J9VM_INTERP_ATOMIC_FREE_JNI
-      acquireVMAccessAtomicFree(callNode, deps, metaReg, cr0Reg, gr30Reg, gr31Reg);
+        acquireVMAccessAtomicFree(callNode, deps, metaReg, cr0Reg, gr30Reg, gr31Reg);
 #else
-      acquireVMAccess(callNode, deps, metaReg, gr12Reg, gr30Reg, gr31Reg);
+        acquireVMAccess(callNode, deps, metaReg, gr12Reg, gr30Reg, gr31Reg);
 #endif /* J9VM_INTERP_ATOMIC_FREE_JNI */
-      }
+    }
 
-   // jni methods may not return a full register in some cases so need to get the declared
-   // type so that we sign and zero extend the narrower integer return types properly
-   TR::LabelSymbol *tempLabel = generateLabelSymbol(cg());
-   if (!isGPUHelper)
-      {
-      switch (resolvedMethod->returnType())
-         {
-         case TR::Address:
-            if (wrapRefs)
-               {
-               // Unwrap the returned object if non-null
-               generateTrg1Src1ImmInstruction(cg(),TR::InstOpCode::Op_cmpi, callNode, cr0Reg, returnRegister, 0);
-               generateConditionalBranchInstruction(cg(), TR::InstOpCode::beq, callNode, tempLabel, cr0Reg);
-               generateTrg1MemInstruction(cg(),TR::InstOpCode::Op_load, callNode, returnRegister, TR::MemoryReference::createWithDisplacement(cg(), returnRegister, 0, TR::Compiler->om.sizeofReferenceAddress()));
-               generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, tempLabel);
-               }
-            break;
-         case TR::Int8:
-            if (comp()->getSymRefTab()->isReturnTypeBool(callSymRef))
-            {
-                // For bool return type, must check whether value return by
-                // JNI is zero (false) or non-zero (true) to yield Java result
-                generateTrg1Src1ImmInstruction(cg(),TR::InstOpCode::Op_cmpi, callNode, cr0Reg, returnRegister, 0);
-                generateTrg1ImmInstruction(cg(), TR::InstOpCode::li, callNode, returnRegister, 1);
-                generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, callNode, tempLabel, cr0Reg);
-                generateTrg1ImmInstruction(cg(), TR::InstOpCode::li, callNode, returnRegister, 0);
-                generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, tempLabel);
-            }
-            else if (resolvedMethod->returnTypeIsUnsigned())
-               generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::andi_r, callNode, returnRegister, returnRegister, 0xff);
-            else
-               generateTrg1Src1Instruction(cg(), TR::InstOpCode::extsb, callNode, returnRegister, returnRegister);
-            break;
-         case TR::Int16:
-            if (resolvedMethod->returnTypeIsUnsigned())
-               generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::andi_r, callNode, returnRegister, returnRegister, 0xffff);
-            else
-               generateTrg1Src1Instruction(cg(), TR::InstOpCode::extsh, callNode, returnRegister, returnRegister);
-            break;
-         }
-      }
+    // jni methods may not return a full register in some cases so need to get the declared
+    // type so that we sign and zero extend the narrower integer return types properly
+    TR::LabelSymbol *tempLabel = generateLabelSymbol(cg());
+    if (!isGPUHelper) {
+        switch (resolvedMethod->returnType()) {
+            case TR::Address:
+                if (wrapRefs) {
+                    // Unwrap the returned object if non-null
+                    generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::Op_cmpi, callNode, cr0Reg, returnRegister, 0);
+                    generateConditionalBranchInstruction(cg(), TR::InstOpCode::beq, callNode, tempLabel, cr0Reg);
+                    generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, returnRegister,
+                        TR::MemoryReference::createWithDisplacement(cg(), returnRegister, 0,
+                            TR::Compiler->om.sizeofReferenceAddress()));
+                    generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, tempLabel);
+                }
+                break;
+            case TR::Int8:
+                if (comp()->getSymRefTab()->isReturnTypeBool(callSymRef)) {
+                    // For bool return type, must check whether value return by
+                    // JNI is zero (false) or non-zero (true) to yield Java result
+                    generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::Op_cmpi, callNode, cr0Reg, returnRegister, 0);
+                    generateTrg1ImmInstruction(cg(), TR::InstOpCode::li, callNode, returnRegister, 1);
+                    generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, callNode, tempLabel, cr0Reg);
+                    generateTrg1ImmInstruction(cg(), TR::InstOpCode::li, callNode, returnRegister, 0);
+                    generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, tempLabel);
+                } else if (resolvedMethod->returnTypeIsUnsigned())
+                    generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::andi_r, callNode, returnRegister,
+                        returnRegister, 0xff);
+                else
+                    generateTrg1Src1Instruction(cg(), TR::InstOpCode::extsb, callNode, returnRegister, returnRegister);
+                break;
+            case TR::Int16:
+                if (resolvedMethod->returnTypeIsUnsigned())
+                    generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::andi_r, callNode, returnRegister,
+                        returnRegister, 0xffff);
+                else
+                    generateTrg1Src1Instruction(cg(), TR::InstOpCode::extsh, callNode, returnRegister, returnRegister);
+                break;
+        }
+    }
 
-   if (createJNIFrame)
-      {
+    if (createJNIFrame) {
 #if JAVA_SPEC_VERSION >= 19
-      /*
-       * For virtual threads, decrement callOutCount. It is safe and most efficient to
-       * do this unconditionally. No need to check for underflow.
-       */
-      generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, gr12Reg, TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetCallOutCountOffset(), TR::Compiler->om.sizeofReferenceAddress()));
-      generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::addi, callNode, gr12Reg, gr12Reg, -1);
-      generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_st, callNode, TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetCallOutCountOffset(), TR::Compiler->om.sizeofReferenceAddress()), gr12Reg);
-#endif //JAVA_SPEC_VERSION >= 19
-      // restore stack pointer: need to deal with growable stack -- stack may already be moved.
-      generateTrg1MemInstruction(cg(),TR::InstOpCode::Op_load, callNode, gr12Reg, TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetJavaLiteralsOffset(), TR::Compiler->om.sizeofReferenceAddress()));
-      generateTrg1MemInstruction(cg(),TR::InstOpCode::Op_load, callNode, stackPtr, TR::MemoryReference::createWithDisplacement(cg(), metaReg,fej9->thisThreadGetJavaSPOffset(), TR::Compiler->om.sizeofReferenceAddress()));
-      generateTrg1Src2Instruction(cg(), TR::InstOpCode::add, callNode, stackPtr, gr12Reg, stackPtr);
+        /*
+         * For virtual threads, decrement callOutCount. It is safe and most efficient to
+         * do this unconditionally. No need to check for underflow.
+         */
+        generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, gr12Reg,
+            TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetCallOutCountOffset(),
+                TR::Compiler->om.sizeofReferenceAddress()));
+        generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::addi, callNode, gr12Reg, gr12Reg, -1);
+        generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_st, callNode,
+            TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetCallOutCountOffset(),
+                TR::Compiler->om.sizeofReferenceAddress()),
+            gr12Reg);
+#endif // JAVA_SPEC_VERSION >= 19
+       // restore stack pointer: need to deal with growable stack -- stack may already be moved.
+        generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, gr12Reg,
+            TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetJavaLiteralsOffset(),
+                TR::Compiler->om.sizeofReferenceAddress()));
+        generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, stackPtr,
+            TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetJavaSPOffset(),
+                TR::Compiler->om.sizeofReferenceAddress()));
+        generateTrg1Src2Instruction(cg(), TR::InstOpCode::add, callNode, stackPtr, gr12Reg, stackPtr);
 
-      if (tearDownJNIFrame)
-         {
-         // must check to see if the ref pool was used and clean them up if so--or we
-         // leave a bunch of pinned garbage behind that screws up the gc quality forever
-         // Again, depend on that this call will not trash return register values, especially FPRs.
-         //        Pending GAC's verification. ***
-         uint32_t            flagValue = fej9->constJNIReferenceFrameAllocatedFlags();
-         TR::LabelSymbol      *refPoolRestartLabel = generateLabelSymbol(cg());
-         TR::SymbolReference *collapseSymRef = cg()->getSymRefTab()->findOrCreateRuntimeHelper(TR_PPCcollapseJNIReferenceFrame);
+        if (tearDownJNIFrame) {
+            // must check to see if the ref pool was used and clean them up if so--or we
+            // leave a bunch of pinned garbage behind that screws up the gc quality forever
+            // Again, depend on that this call will not trash return register values, especially FPRs.
+            //        Pending GAC's verification. ***
+            uint32_t flagValue = fej9->constJNIReferenceFrameAllocatedFlags();
+            TR::LabelSymbol *refPoolRestartLabel = generateLabelSymbol(cg());
+            TR::SymbolReference *collapseSymRef
+                = cg()->getSymRefTab()->findOrCreateRuntimeHelper(TR_PPCcollapseJNIReferenceFrame);
 
-         generateTrg1MemInstruction(cg(),TR::InstOpCode::Op_load, callNode, gr30Reg, TR::MemoryReference::createWithDisplacement(cg(), stackPtr, fej9->constJNICallOutFrameFlagsOffset(), TR::Compiler->om.sizeofReferenceAddress()));
-         simplifyANDRegImm(callNode, gr31Reg, gr30Reg, flagValue, cg());
-         generateTrg1Src1ImmInstruction(cg(),TR::InstOpCode::Op_cmpi, callNode, cr0Reg, gr31Reg, 0);
-         generateConditionalBranchInstruction(cg(), TR::InstOpCode::beq, callNode, refPoolRestartLabel, cr0Reg);
-         generateDepImmSymInstruction(cg(), TR::InstOpCode::bl, callNode, (uintptr_t)collapseSymRef->getMethodAddress(), new (trHeapMemory()) TR::RegisterDependencyConditions(0,0, trMemory()), collapseSymRef, NULL);
-         generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, refPoolRestartLabel);
-         }
+            generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, gr30Reg,
+                TR::MemoryReference::createWithDisplacement(cg(), stackPtr, fej9->constJNICallOutFrameFlagsOffset(),
+                    TR::Compiler->om.sizeofReferenceAddress()));
+            simplifyANDRegImm(callNode, gr31Reg, gr30Reg, flagValue, cg());
+            generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::Op_cmpi, callNode, cr0Reg, gr31Reg, 0);
+            generateConditionalBranchInstruction(cg(), TR::InstOpCode::beq, callNode, refPoolRestartLabel, cr0Reg);
+            generateDepImmSymInstruction(cg(), TR::InstOpCode::bl, callNode,
+                (uintptr_t)collapseSymRef->getMethodAddress(),
+                new (trHeapMemory()) TR::RegisterDependencyConditions(0, 0, trMemory()), collapseSymRef, NULL);
+            generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, refPoolRestartLabel);
+        }
 
-      // Restore the JIT frame
-      generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::addi2, callNode, stackPtr, stackPtr, 5*TR::Compiler->om.sizeofReferenceAddress());
-      }
+        // Restore the JIT frame
+        generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::addi2, callNode, stackPtr, stackPtr,
+            5 * TR::Compiler->om.sizeofReferenceAddress());
+    }
 
-   if (checkExceptions)
-      {
-      generateTrg1MemInstruction(cg(),TR::InstOpCode::Op_load, callNode, gr31Reg, TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetCurrentExceptionOffset(), TR::Compiler->om.sizeofReferenceAddress()));
-      generateTrg1Src1ImmInstruction(cg(),TR::InstOpCode::Op_cmpi, callNode, cr0Reg, gr31Reg, 0);
+    if (checkExceptions) {
+        generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, gr31Reg,
+            TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetCurrentExceptionOffset(),
+                TR::Compiler->om.sizeofReferenceAddress()));
+        generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::Op_cmpi, callNode, cr0Reg, gr31Reg, 0);
 
-      TR::SymbolReference *throwSymRef = comp()->getSymRefTab()->findOrCreateThrowCurrentExceptionSymbolRef(comp()->getJittedMethodSymbol());
-      TR::LabelSymbol *exceptionSnippetLabel = cg()->lookUpSnippet(TR::Snippet::IsHelperCall, throwSymRef);
-      if (exceptionSnippetLabel == NULL)
-         {
-         exceptionSnippetLabel = generateLabelSymbol(cg());
-         cg()->addSnippet(new (trHeapMemory()) TR::PPCHelperCallSnippet(cg(), callNode, exceptionSnippetLabel, throwSymRef));
-         }
-      gcPoint = generateConditionalBranchInstruction(cg(), TR::InstOpCode::bnel, callNode, exceptionSnippetLabel, cr0Reg);
-      gcPoint->PPCNeedsGCMap(0x10000000);
-      }
+        TR::SymbolReference *throwSymRef
+            = comp()->getSymRefTab()->findOrCreateThrowCurrentExceptionSymbolRef(comp()->getJittedMethodSymbol());
+        TR::LabelSymbol *exceptionSnippetLabel = cg()->lookUpSnippet(TR::Snippet::IsHelperCall, throwSymRef);
+        if (exceptionSnippetLabel == NULL) {
+            exceptionSnippetLabel = generateLabelSymbol(cg());
+            cg()->addSnippet(
+                new (trHeapMemory()) TR::PPCHelperCallSnippet(cg(), callNode, exceptionSnippetLabel, throwSymRef));
+        }
+        gcPoint
+            = generateConditionalBranchInstruction(cg(), TR::InstOpCode::bnel, callNode, exceptionSnippetLabel, cr0Reg);
+        gcPoint->PPCNeedsGCMap(0x10000000);
+    }
 
-   TR::LabelSymbol *depLabel = generateLabelSymbol(cg());
-   generateDepLabelInstruction(cg(), TR::InstOpCode::label, callNode, depLabel, deps->cloneAndFix(cg()));
+    TR::LabelSymbol *depLabel = generateLabelSymbol(cg());
+    generateDepLabelInstruction(cg(), TR::InstOpCode::label, callNode, depLabel, deps->cloneAndFix(cg()));
 
-   callNode->setRegister(returnRegister);
+    callNode->setRegister(returnRegister);
 
-   cg()->freeAndResetTransientLongs();
-   deps->stopUsingDepRegs(cg(), lowReg == NULL ? returnRegister : highReg, lowReg);
+    cg()->freeAndResetTransientLongs();
+    deps->stopUsingDepRegs(cg(), lowReg == NULL ? returnRegister : highReg, lowReg);
 
-   return returnRegister;
-   }
+    return returnRegister;
+}
 
 // tempReg0 to tempReg2 are temporary registers
-void J9::Power::JNILinkage::releaseVMAccess(TR::Node* callNode, TR::RegisterDependencyConditions* deps, TR::RealRegister* metaReg, TR::Register* tempReg0, TR::Register* tempReg1, TR::Register* tempReg2)
-   {
-   // Release vm access - use hardware registers because of the control flow
-   TR::Instruction  *gcPoint;
-   const TR::PPCLinkageProperties &properties = getProperties();
+void J9::Power::JNILinkage::releaseVMAccess(TR::Node *callNode, TR::RegisterDependencyConditions *deps,
+    TR::RealRegister *metaReg, TR::Register *tempReg0, TR::Register *tempReg1, TR::Register *tempReg2)
+{
+    // Release vm access - use hardware registers because of the control flow
+    TR::Instruction *gcPoint;
+    const TR::PPCLinkageProperties &properties = getProperties();
 
-   TR::Register *gr28Reg = cg()->allocateRegister();
-   TR::Register *gr29Reg = cg()->allocateRegister();
-   TR::Register *cr0Reg = deps->searchPreConditionRegister(TR::RealRegister::cr0);
+    TR::Register *gr28Reg = cg()->allocateRegister();
+    TR::Register *gr29Reg = cg()->allocateRegister();
+    TR::Register *cr0Reg = deps->searchPreConditionRegister(TR::RealRegister::cr0);
 
-   TR::addDependency(deps, gr28Reg, TR::RealRegister::gr28, TR_GPR, cg());
-   TR::addDependency(deps, gr29Reg, TR::RealRegister::gr29, TR_GPR, cg());
+    TR::addDependency(deps, gr28Reg, TR::RealRegister::gr28, TR_GPR, cg());
+    TR::addDependency(deps, gr29Reg, TR::RealRegister::gr29, TR_GPR, cg());
 
-   intptr_t aValue;
+    intptr_t aValue;
 
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(fe());
-   aValue = fej9->constReleaseVMAccessOutOfLineMask();
-   TR_ASSERT(aValue<=0x7fffffff, "Value assumption broken.");
-   // use loadIntConstantFixed - fixed instruction count 2 with int32_t argument
-   cg()->loadIntConstantFixed(callNode, (int32_t) aValue, tempReg1);
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(fe());
+    aValue = fej9->constReleaseVMAccessOutOfLineMask();
+    TR_ASSERT(aValue <= 0x7fffffff, "Value assumption broken.");
+    // use loadIntConstantFixed - fixed instruction count 2 with int32_t argument
+    cg()->loadIntConstantFixed(callNode, (int32_t)aValue, tempReg1);
 
-   aValue = fej9->constReleaseVMAccessMask();
-   // use loadAddressConstantFixed - fixed instruction count 2 32-bit, or 5 64-bit
-   cg()->loadAddressConstantFixed(callNode, aValue, tempReg0, NULL, NULL, -1, false);
-   generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::addi2, callNode, gr28Reg, metaReg,
-                                              fej9->thisThreadGetPublicFlagsOffset());
-   generateInstruction(cg(), TR::InstOpCode::lwsync, callNode); // This is necessary for the fast path but redundant for the slow path
-   TR::LabelSymbol *loopHead = generateLabelSymbol(cg());
-   generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, loopHead);
-   generateTrg1MemInstruction(cg(),TR::InstOpCode::Op_larx, callNode, tempReg2, TR::MemoryReference::createWithIndexReg(cg(), NULL, gr28Reg, TR::Compiler->om.sizeofReferenceAddress()));
-   generateTrg1Src2Instruction(cg(), TR::InstOpCode::and_r, callNode, gr29Reg, tempReg2, tempReg1);
-   generateTrg1Src2Instruction(cg(), TR::InstOpCode::AND, callNode, tempReg2, tempReg2, tempReg0);
+    aValue = fej9->constReleaseVMAccessMask();
+    // use loadAddressConstantFixed - fixed instruction count 2 32-bit, or 5 64-bit
+    cg()->loadAddressConstantFixed(callNode, aValue, tempReg0, NULL, NULL, -1, false);
+    generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::addi2, callNode, gr28Reg, metaReg,
+        fej9->thisThreadGetPublicFlagsOffset());
+    generateInstruction(cg(), TR::InstOpCode::lwsync,
+        callNode); // This is necessary for the fast path but redundant for the slow path
+    TR::LabelSymbol *loopHead = generateLabelSymbol(cg());
+    generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, loopHead);
+    generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_larx, callNode, tempReg2,
+        TR::MemoryReference::createWithIndexReg(cg(), NULL, gr28Reg, TR::Compiler->om.sizeofReferenceAddress()));
+    generateTrg1Src2Instruction(cg(), TR::InstOpCode::and_r, callNode, gr29Reg, tempReg2, tempReg1);
+    generateTrg1Src2Instruction(cg(), TR::InstOpCode::AND, callNode, tempReg2, tempReg2, tempReg0);
 
-   TR::LabelSymbol *longReleaseLabel = generateLabelSymbol(cg());
-   TR::LabelSymbol *longReleaseSnippetLabel;
-   TR::LabelSymbol *doneLabel = generateLabelSymbol(cg());
-   TR::SymbolReference *relVMSymRef = comp()->getSymRefTab()->findOrCreateReleaseVMAccessSymbolRef(comp()->getJittedMethodSymbol());
-   longReleaseSnippetLabel = cg()->lookUpSnippet(TR::Snippet::IsHelperCall, relVMSymRef);
-   if (longReleaseSnippetLabel == NULL)
-      {
-      longReleaseSnippetLabel = generateLabelSymbol(cg());
-      cg()->addSnippet(new (trHeapMemory()) TR::PPCHelperCallSnippet(cg(), callNode, longReleaseSnippetLabel, relVMSymRef));
-      }
+    TR::LabelSymbol *longReleaseLabel = generateLabelSymbol(cg());
+    TR::LabelSymbol *longReleaseSnippetLabel;
+    TR::LabelSymbol *doneLabel = generateLabelSymbol(cg());
+    TR::SymbolReference *relVMSymRef
+        = comp()->getSymRefTab()->findOrCreateReleaseVMAccessSymbolRef(comp()->getJittedMethodSymbol());
+    longReleaseSnippetLabel = cg()->lookUpSnippet(TR::Snippet::IsHelperCall, relVMSymRef);
+    if (longReleaseSnippetLabel == NULL) {
+        longReleaseSnippetLabel = generateLabelSymbol(cg());
+        cg()->addSnippet(
+            new (trHeapMemory()) TR::PPCHelperCallSnippet(cg(), callNode, longReleaseSnippetLabel, relVMSymRef));
+    }
 
-   generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, callNode, longReleaseLabel, cr0Reg);
-   generateMemSrc1Instruction(cg(),TR::InstOpCode::Op_stcx_r, callNode, TR::MemoryReference::createWithIndexReg(cg(), NULL, gr28Reg, TR::Compiler->om.sizeofReferenceAddress()), tempReg2);
+    generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, callNode, longReleaseLabel, cr0Reg);
+    generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_stcx_r, callNode,
+        TR::MemoryReference::createWithIndexReg(cg(), NULL, gr28Reg, TR::Compiler->om.sizeofReferenceAddress()),
+        tempReg2);
 
-   if (comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_GP))
-      // use PPC AS branch hint
-      generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, PPCOpProp_BranchUnlikely, callNode, loopHead, cr0Reg);
-   else
-      generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, callNode, loopHead, cr0Reg);
+    if (comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_GP))
+        // use PPC AS branch hint
+        generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, PPCOpProp_BranchUnlikely, callNode, loopHead,
+            cr0Reg);
+    else
+        generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, callNode, loopHead, cr0Reg);
 
-   generateLabelInstruction(cg(), TR::InstOpCode::b, callNode, doneLabel);
-   generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, longReleaseLabel);
-   gcPoint = generateLabelInstruction(cg(), TR::InstOpCode::bl, callNode, longReleaseSnippetLabel);
-   gcPoint->PPCNeedsGCMap(~(properties.getPreservedRegisterMapForGC()));
-   generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, doneLabel);
-   // end of release vm access (spin lock)
-   }
+    generateLabelInstruction(cg(), TR::InstOpCode::b, callNode, doneLabel);
+    generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, longReleaseLabel);
+    gcPoint = generateLabelInstruction(cg(), TR::InstOpCode::bl, callNode, longReleaseSnippetLabel);
+    gcPoint->PPCNeedsGCMap(~(properties.getPreservedRegisterMapForGC()));
+    generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, doneLabel);
+    // end of release vm access (spin lock)
+}
 
 // tempReg0 to tempReg2 are temporary registers
-void J9::Power::JNILinkage::acquireVMAccess(TR::Node* callNode, TR::RegisterDependencyConditions* deps, TR::RealRegister* metaReg, TR::Register* tempReg0, TR::Register* tempReg1, TR::Register* tempReg2)
-   {
-   // Acquire VM Access
-   TR::Instruction  *gcPoint;
+void J9::Power::JNILinkage::acquireVMAccess(TR::Node *callNode, TR::RegisterDependencyConditions *deps,
+    TR::RealRegister *metaReg, TR::Register *tempReg0, TR::Register *tempReg1, TR::Register *tempReg2)
+{
+    // Acquire VM Access
+    TR::Instruction *gcPoint;
 
-   TR::Register *cr0Reg = deps->searchPreConditionRegister(TR::RealRegister::cr0);
+    TR::Register *cr0Reg = deps->searchPreConditionRegister(TR::RealRegister::cr0);
 
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(fe());
-   loadConstant(cg(), callNode, (int32_t)fej9->constAcquireVMAccessOutOfLineMask(), tempReg1);
-   generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::addi2, callNode, tempReg0, metaReg,
-                                              fej9->thisThreadGetPublicFlagsOffset());
-   TR::LabelSymbol *loopHead2 = generateLabelSymbol(cg());
-   generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, loopHead2);
-   generateTrg1MemInstruction(cg(),TR::InstOpCode::Op_larx, PPCOpProp_LoadReserveExclusiveAccess, callNode, tempReg2, TR::MemoryReference::createWithIndexReg(cg(), NULL, tempReg0, TR::Compiler->om.sizeofReferenceAddress()));
-   generateTrg1Src1ImmInstruction(cg(),TR::InstOpCode::Op_cmpi, callNode, cr0Reg, tempReg2, 0);
-   TR::LabelSymbol *longReacquireLabel = generateLabelSymbol(cg());
-   TR::LabelSymbol *longReacquireSnippetLabel;
-   TR::LabelSymbol *doneLabel2 = generateLabelSymbol(cg());
-   TR::SymbolReference *acqVMSymRef = comp()->getSymRefTab()->findOrCreateAcquireVMAccessSymbolRef(comp()->getJittedMethodSymbol());
-   longReacquireSnippetLabel = cg()->lookUpSnippet(TR::Snippet::IsHelperCall, acqVMSymRef);
-   if (longReacquireSnippetLabel == NULL)
-      {
-      longReacquireSnippetLabel = generateLabelSymbol(cg());
-      cg()->addSnippet(new (trHeapMemory()) TR::PPCHelperCallSnippet(cg(), callNode, longReacquireSnippetLabel, acqVMSymRef));
-      }
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(fe());
+    loadConstant(cg(), callNode, (int32_t)fej9->constAcquireVMAccessOutOfLineMask(), tempReg1);
+    generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::addi2, callNode, tempReg0, metaReg,
+        fej9->thisThreadGetPublicFlagsOffset());
+    TR::LabelSymbol *loopHead2 = generateLabelSymbol(cg());
+    generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, loopHead2);
+    generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_larx, PPCOpProp_LoadReserveExclusiveAccess, callNode, tempReg2,
+        TR::MemoryReference::createWithIndexReg(cg(), NULL, tempReg0, TR::Compiler->om.sizeofReferenceAddress()));
+    generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::Op_cmpi, callNode, cr0Reg, tempReg2, 0);
+    TR::LabelSymbol *longReacquireLabel = generateLabelSymbol(cg());
+    TR::LabelSymbol *longReacquireSnippetLabel;
+    TR::LabelSymbol *doneLabel2 = generateLabelSymbol(cg());
+    TR::SymbolReference *acqVMSymRef
+        = comp()->getSymRefTab()->findOrCreateAcquireVMAccessSymbolRef(comp()->getJittedMethodSymbol());
+    longReacquireSnippetLabel = cg()->lookUpSnippet(TR::Snippet::IsHelperCall, acqVMSymRef);
+    if (longReacquireSnippetLabel == NULL) {
+        longReacquireSnippetLabel = generateLabelSymbol(cg());
+        cg()->addSnippet(
+            new (trHeapMemory()) TR::PPCHelperCallSnippet(cg(), callNode, longReacquireSnippetLabel, acqVMSymRef));
+    }
 
-   generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, callNode, longReacquireLabel, cr0Reg);
-   generateMemSrc1Instruction(cg(),TR::InstOpCode::Op_stcx_r, callNode, TR::MemoryReference::createWithIndexReg(cg(), NULL, tempReg0, TR::Compiler->om.sizeofReferenceAddress()), tempReg1);
+    generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, callNode, longReacquireLabel, cr0Reg);
+    generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_stcx_r, callNode,
+        TR::MemoryReference::createWithIndexReg(cg(), NULL, tempReg0, TR::Compiler->om.sizeofReferenceAddress()),
+        tempReg1);
 
-   if (comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_GP))
-      // use PPC AS branch hint
-      generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, PPCOpProp_BranchUnlikely, callNode, loopHead2, cr0Reg);
-   else
-      generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, callNode, loopHead2, cr0Reg);
+    if (comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_GP))
+        // use PPC AS branch hint
+        generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, PPCOpProp_BranchUnlikely, callNode, loopHead2,
+            cr0Reg);
+    else
+        generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, callNode, loopHead2, cr0Reg);
 
-   generateInstruction(cg(), TR::InstOpCode::isync, callNode);
-   generateLabelInstruction(cg(), TR::InstOpCode::b, callNode, doneLabel2);
-   generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, longReacquireLabel);
-   gcPoint = generateLabelInstruction(cg(), TR::InstOpCode::bl, callNode, longReacquireSnippetLabel);
-   gcPoint->PPCNeedsGCMap(0x00000000);
-   generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, doneLabel2);
-   // end of reacquire VM Access
-   }
+    generateInstruction(cg(), TR::InstOpCode::isync, callNode);
+    generateLabelInstruction(cg(), TR::InstOpCode::b, callNode, doneLabel2);
+    generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, longReacquireLabel);
+    gcPoint = generateLabelInstruction(cg(), TR::InstOpCode::bl, callNode, longReacquireSnippetLabel);
+    gcPoint->PPCNeedsGCMap(0x00000000);
+    generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, doneLabel2);
+    // end of reacquire VM Access
+}
 
 #ifdef J9VM_INTERP_ATOMIC_FREE_JNI
-void J9::Power::JNILinkage::releaseVMAccessAtomicFree(TR::Node* callNode, TR::RegisterDependencyConditions* deps, TR::RealRegister* metaReg, TR::Register* cr0Reg, TR::Register* tempReg1, TR::Register* tempReg2)
-   {
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)fe();
+void J9::Power::JNILinkage::releaseVMAccessAtomicFree(TR::Node *callNode, TR::RegisterDependencyConditions *deps,
+    TR::RealRegister *metaReg, TR::Register *cr0Reg, TR::Register *tempReg1, TR::Register *tempReg2)
+{
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)fe();
 
 #if !defined(J9VM_INTERP_ATOMIC_FREE_JNI_USES_FLUSH)
-   generateInstruction(cg(), TR::InstOpCode::lwsync, callNode);
+    generateInstruction(cg(), TR::InstOpCode::lwsync, callNode);
 #endif /* !J9VM_INTERP_ATOMIC_FREE_JNI_USES_FLUSH */
-   generateTrg1ImmInstruction(cg(), TR::InstOpCode::li, callNode, tempReg1, 1);
-   generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_st, callNode, TR::MemoryReference::createWithDisplacement(cg(), metaReg, (int32_t)offsetof(struct J9VMThread, inNative), TR::Compiler->om.sizeofReferenceAddress()), tempReg1);
+    generateTrg1ImmInstruction(cg(), TR::InstOpCode::li, callNode, tempReg1, 1);
+    generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_st, callNode,
+        TR::MemoryReference::createWithDisplacement(cg(), metaReg, (int32_t)offsetof(struct J9VMThread, inNative),
+            TR::Compiler->om.sizeofReferenceAddress()),
+        tempReg1);
 #if !defined(J9VM_INTERP_ATOMIC_FREE_JNI_USES_FLUSH)
-	generateInstruction(cg(), TR::InstOpCode::sync, callNode);
+    generateInstruction(cg(), TR::InstOpCode::sync, callNode);
 #endif /* !J9VM_INTERP_ATOMIC_FREE_JNI_USES_FLUSH */
-   generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, tempReg1, TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetPublicFlagsOffset(), TR::Compiler->om.sizeofReferenceAddress()));
-   TR_ASSERT_FATAL(J9_PUBLIC_FLAGS_VM_ACCESS >= LOWER_IMMED && J9_PUBLIC_FLAGS_VM_ACCESS <= UPPER_IMMED, "VM access bit must be immediate");
-   generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::Op_cmpli, callNode, cr0Reg, tempReg1, J9_PUBLIC_FLAGS_VM_ACCESS);
+    generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, tempReg1,
+        TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetPublicFlagsOffset(),
+            TR::Compiler->om.sizeofReferenceAddress()));
+    TR_ASSERT_FATAL(J9_PUBLIC_FLAGS_VM_ACCESS >= LOWER_IMMED && J9_PUBLIC_FLAGS_VM_ACCESS <= UPPER_IMMED,
+        "VM access bit must be immediate");
+    generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::Op_cmpli, callNode, cr0Reg, tempReg1,
+        J9_PUBLIC_FLAGS_VM_ACCESS);
 
-   TR::SymbolReference *jitReleaseVMAccessSymRef = comp()->getSymRefTab()->findOrCreateReleaseVMAccessSymbolRef(comp()->getJittedMethodSymbol());
-   TR::LabelSymbol *releaseVMAccessSnippetLabel = cg()->lookUpSnippet(TR::Snippet::IsHelperCall, jitReleaseVMAccessSymRef);
-   if (!releaseVMAccessSnippetLabel)
-      {
-      releaseVMAccessSnippetLabel = generateLabelSymbol(cg());
-      cg()->addSnippet(new (trHeapMemory()) TR::PPCHelperCallSnippet(cg(), callNode, releaseVMAccessSnippetLabel, jitReleaseVMAccessSymRef));
-      }
+    TR::SymbolReference *jitReleaseVMAccessSymRef
+        = comp()->getSymRefTab()->findOrCreateReleaseVMAccessSymbolRef(comp()->getJittedMethodSymbol());
+    TR::LabelSymbol *releaseVMAccessSnippetLabel
+        = cg()->lookUpSnippet(TR::Snippet::IsHelperCall, jitReleaseVMAccessSymRef);
+    if (!releaseVMAccessSnippetLabel) {
+        releaseVMAccessSnippetLabel = generateLabelSymbol(cg());
+        cg()->addSnippet(new (trHeapMemory())
+                TR::PPCHelperCallSnippet(cg(), callNode, releaseVMAccessSnippetLabel, jitReleaseVMAccessSymRef));
+    }
 
-   if (comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_GP))
-      generateConditionalBranchInstruction(cg(), TR::InstOpCode::bnel, PPCOpProp_BranchUnlikely, callNode, releaseVMAccessSnippetLabel, cr0Reg);
-   else
-      generateConditionalBranchInstruction(cg(), TR::InstOpCode::bnel, callNode, releaseVMAccessSnippetLabel, cr0Reg);
-   }
+    if (comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_GP))
+        generateConditionalBranchInstruction(cg(), TR::InstOpCode::bnel, PPCOpProp_BranchUnlikely, callNode,
+            releaseVMAccessSnippetLabel, cr0Reg);
+    else
+        generateConditionalBranchInstruction(cg(), TR::InstOpCode::bnel, callNode, releaseVMAccessSnippetLabel, cr0Reg);
+}
 
-void J9::Power::JNILinkage::acquireVMAccessAtomicFree(TR::Node* callNode, TR::RegisterDependencyConditions* deps, TR::RealRegister* metaReg, TR::Register* cr0Reg, TR::Register* tempReg1, TR::Register* tempReg2)
-   {
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)fe();
+void J9::Power::JNILinkage::acquireVMAccessAtomicFree(TR::Node *callNode, TR::RegisterDependencyConditions *deps,
+    TR::RealRegister *metaReg, TR::Register *cr0Reg, TR::Register *tempReg1, TR::Register *tempReg2)
+{
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)fe();
 
-   generateTrg1ImmInstruction(cg(), TR::InstOpCode::li, callNode, tempReg1, 0);
-   generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_st, callNode, TR::MemoryReference::createWithDisplacement(cg(), metaReg, (int32_t)offsetof(struct J9VMThread, inNative), TR::Compiler->om.sizeofReferenceAddress()), tempReg1);
+    generateTrg1ImmInstruction(cg(), TR::InstOpCode::li, callNode, tempReg1, 0);
+    generateMemSrc1Instruction(cg(), TR::InstOpCode::Op_st, callNode,
+        TR::MemoryReference::createWithDisplacement(cg(), metaReg, (int32_t)offsetof(struct J9VMThread, inNative),
+            TR::Compiler->om.sizeofReferenceAddress()),
+        tempReg1);
 #if !defined(J9VM_INTERP_ATOMIC_FREE_JNI_USES_FLUSH)
-   generateInstruction(cg(), TR::InstOpCode::sync, callNode);
+    generateInstruction(cg(), TR::InstOpCode::sync, callNode);
 #endif /* !J9VM_INTERP_ATOMIC_FREE_JNI_USES_FLUSH */
-   generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, tempReg1, TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetPublicFlagsOffset(), TR::Compiler->om.sizeofReferenceAddress()));
-   TR_ASSERT_FATAL(J9_PUBLIC_FLAGS_VM_ACCESS >= LOWER_IMMED && J9_PUBLIC_FLAGS_VM_ACCESS <= UPPER_IMMED, "VM access bit must be immediate");
-   generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::Op_cmpli, callNode, cr0Reg, tempReg1, J9_PUBLIC_FLAGS_VM_ACCESS);
+    generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, callNode, tempReg1,
+        TR::MemoryReference::createWithDisplacement(cg(), metaReg, fej9->thisThreadGetPublicFlagsOffset(),
+            TR::Compiler->om.sizeofReferenceAddress()));
+    TR_ASSERT_FATAL(J9_PUBLIC_FLAGS_VM_ACCESS >= LOWER_IMMED && J9_PUBLIC_FLAGS_VM_ACCESS <= UPPER_IMMED,
+        "VM access bit must be immediate");
+    generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::Op_cmpli, callNode, cr0Reg, tempReg1,
+        J9_PUBLIC_FLAGS_VM_ACCESS);
 
-   TR::SymbolReference *jitAcquireVMAccessSymRef = comp()->getSymRefTab()->findOrCreateAcquireVMAccessSymbolRef(comp()->getJittedMethodSymbol());
-   TR::LabelSymbol *acquireVMAccessSnippetLabel = cg()->lookUpSnippet(TR::Snippet::IsHelperCall, jitAcquireVMAccessSymRef);
-   if (!acquireVMAccessSnippetLabel)
-      {
-      acquireVMAccessSnippetLabel = generateLabelSymbol(cg());
-      cg()->addSnippet(new (trHeapMemory()) TR::PPCHelperCallSnippet(cg(), callNode, acquireVMAccessSnippetLabel, jitAcquireVMAccessSymRef));
-      }
+    TR::SymbolReference *jitAcquireVMAccessSymRef
+        = comp()->getSymRefTab()->findOrCreateAcquireVMAccessSymbolRef(comp()->getJittedMethodSymbol());
+    TR::LabelSymbol *acquireVMAccessSnippetLabel
+        = cg()->lookUpSnippet(TR::Snippet::IsHelperCall, jitAcquireVMAccessSymRef);
+    if (!acquireVMAccessSnippetLabel) {
+        acquireVMAccessSnippetLabel = generateLabelSymbol(cg());
+        cg()->addSnippet(new (trHeapMemory())
+                TR::PPCHelperCallSnippet(cg(), callNode, acquireVMAccessSnippetLabel, jitAcquireVMAccessSymRef));
+    }
 
-   if (comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_GP))
-      generateConditionalBranchInstruction(cg(), TR::InstOpCode::bnel, PPCOpProp_BranchUnlikely, callNode, acquireVMAccessSnippetLabel, cr0Reg);
-   else
-      generateConditionalBranchInstruction(cg(), TR::InstOpCode::bnel, callNode, acquireVMAccessSnippetLabel, cr0Reg);
-   }
+    if (comp()->target().cpu.isAtLeast(OMR_PROCESSOR_PPC_GP))
+        generateConditionalBranchInstruction(cg(), TR::InstOpCode::bnel, PPCOpProp_BranchUnlikely, callNode,
+            acquireVMAccessSnippetLabel, cr0Reg);
+    else
+        generateConditionalBranchInstruction(cg(), TR::InstOpCode::bnel, callNode, acquireVMAccessSnippetLabel, cr0Reg);
+}
 #endif /* J9VM_INTERP_ATOMIC_FREE_JNI */
 
-int32_t J9::Power::JNILinkage::buildJNIArgs(TR::Node *callNode,
-                                       TR::RegisterDependencyConditions *dependencies,
-                                       const TR::PPCLinkageProperties &properties,
-                                       bool isFastJNI,
-                                       bool passReceiver,
-                                       bool implicitEnvArg)
+int32_t J9::Power::JNILinkage::buildJNIArgs(TR::Node *callNode, TR::RegisterDependencyConditions *dependencies,
+    const TR::PPCLinkageProperties &properties, bool isFastJNI, bool passReceiver, bool implicitEnvArg)
 
-   {
-   //TODO: Temporary clone of PPCSystemLinkage::buildArgs. Both PPCSystemLinkage::buildArgs and
-   //this buildJNIArgs will be refactored for commonality.
+{
+    // TODO: Temporary clone of PPCSystemLinkage::buildArgs. Both PPCSystemLinkage::buildArgs and
+    // this buildJNIArgs will be refactored for commonality.
 
-   TR::PPCMemoryArgument *pushToMemory = NULL;
-   TR::Register       *tempRegister;
-   int32_t   argIndex = 0, memArgs = 0, i;
-   int32_t   argSize = 0;
-   uint32_t  numIntegerArgs = 0;
-   uint32_t  numFloatArgs = 0;
+    TR::PPCMemoryArgument *pushToMemory = NULL;
+    TR::Register *tempRegister;
+    int32_t argIndex = 0, memArgs = 0, i;
+    int32_t argSize = 0;
+    uint32_t numIntegerArgs = 0;
+    uint32_t numFloatArgs = 0;
 
-   TR::Node  *child;
-   void     *smark;
-   TR::DataType resType = callNode->getType();
-   TR_Array<TR::Register *> &tempLongRegisters = cg()->getTransientLongRegisters();
-   TR::Symbol * callSymbol = callNode->getSymbolReference()->getSymbol();
+    TR::Node *child;
+    void *smark;
+    TR::DataType resType = callNode->getType();
+    TR_Array<TR::Register *> &tempLongRegisters = cg()->getTransientLongRegisters();
+    TR::Symbol *callSymbol = callNode->getSymbolReference()->getSymbol();
 
-   uint32_t firstArgumentChild = callNode->getFirstArgumentIndex();
+    uint32_t firstArgumentChild = callNode->getFirstArgumentIndex();
 
-   bool aix_style_linkage = (comp()->target().isAIX() || (comp()->target().is64Bit() && comp()->target().isLinux()));
+    bool aix_style_linkage = (comp()->target().isAIX() || (comp()->target().is64Bit() && comp()->target().isLinux()));
 
-   if (isFastJNI)  // Account for extra parameters (env and obj)
-      {
-      if (implicitEnvArg)
-         numIntegerArgs += 1;
-      if (!passReceiver)
-         {
-         // Evaluate as usual if necessary, but don't actually pass it to the callee
-         TR::Node *firstArgChild = callNode->getChild(firstArgumentChild);
-         if (firstArgChild->getReferenceCount() > 1)
-            {
-            switch (firstArgChild->getDataType())
-               {
-               case TR::Int32:
-                  pushIntegerWordArg(firstArgChild);
-                  break;
-               case TR::Int64:
-                  pushLongArg(firstArgChild);
-                  break;
-               case TR::Address:
-                  pushAddressArg(firstArgChild);
-                  break;
-               default:
-                  TR_ASSERT( false, "Unexpected first child type");
-               }
-            }
-         else
-            cg()->recursivelyDecReferenceCount(firstArgChild);
-         firstArgumentChild += 1;
-         }
-      }
+    if (isFastJNI) // Account for extra parameters (env and obj)
+    {
+        if (implicitEnvArg)
+            numIntegerArgs += 1;
+        if (!passReceiver) {
+            // Evaluate as usual if necessary, but don't actually pass it to the callee
+            TR::Node *firstArgChild = callNode->getChild(firstArgumentChild);
+            if (firstArgChild->getReferenceCount() > 1) {
+                switch (firstArgChild->getDataType()) {
+                    case TR::Int32:
+                        pushIntegerWordArg(firstArgChild);
+                        break;
+                    case TR::Int64:
+                        pushLongArg(firstArgChild);
+                        break;
+                    case TR::Address:
+                        pushAddressArg(firstArgChild);
+                        break;
+                    default:
+                        TR_ASSERT(false, "Unexpected first child type");
+                }
+            } else
+                cg()->recursivelyDecReferenceCount(firstArgChild);
+            firstArgumentChild += 1;
+        }
+    }
 
-   /* Step 1 - figure out how many arguments are going to be spilled to memory i.e. not in registers */
-   for (i = firstArgumentChild; i < callNode->getNumChildren(); i++)
-      {
-      child = callNode->getChild(i);
-      switch (child->getDataType())
-         {
-         case TR::Int8:
-         case TR::Int16:
-         case TR::Int32:
-         case TR::Address:
-            if (numIntegerArgs >= properties.getNumIntArgRegs())
-               memArgs++;
-            numIntegerArgs++;
-            break;
-         case TR::Int64:
-            if (comp()->target().is64Bit())
-               {
-               if (numIntegerArgs >= properties.getNumIntArgRegs())
-                  memArgs++;
-               numIntegerArgs++;
-               }
-            else
-               {
-               if (aix_style_linkage)
-                  {
-                  if (numIntegerArgs == properties.getNumIntArgRegs()-1)
-                     memArgs++;
-                  else if (numIntegerArgs > properties.getNumIntArgRegs()-1)
-                     memArgs += 2;
-                  }
-               else
-                  {
-                  if (numIntegerArgs & 1)
-                     numIntegerArgs++;
-                  if (numIntegerArgs >= properties.getNumIntArgRegs())
-                     memArgs += 2;
-                  }
-               numIntegerArgs += 2;
-               }
-            break;
-         case TR::Float:
-            if (aix_style_linkage)
-               {
-               if (numIntegerArgs >= properties.getNumIntArgRegs())
-                  memArgs++;
-               numIntegerArgs++;
-               }
-            else
-               {
-               if (numFloatArgs >= properties.getNumFloatArgRegs())
-                  memArgs++;
-               }
-            numFloatArgs++;
-            break;
-         case TR::Double:
-            if (aix_style_linkage)
-               {
-               if (comp()->target().is64Bit())
-                  {
-                  if (numIntegerArgs >= properties.getNumIntArgRegs())
-                     memArgs++;
-                  numIntegerArgs++;
-                  }
-               else
-                  {
-                  if (numIntegerArgs >= properties.getNumIntArgRegs()-1)
-                     memArgs++;
-                  numIntegerArgs += 2;
-                  }
-               }
-            else
-               {
-               if (numFloatArgs >= properties.getNumFloatArgRegs())
-                  memArgs++;
-               }
-            numFloatArgs++;
-            break;
-         case TR::Aggregate:
-            {
-            size_t size = child->getSymbolReference()->getSymbol()->getSize();
-            size = (size + sizeof(uintptr_t) - 1) & (~(sizeof(uintptr_t) - 1)); // round up the size
-            size_t slots = size / sizeof(uintptr_t);
+    /* Step 1 - figure out how many arguments are going to be spilled to memory i.e. not in registers */
+    for (i = firstArgumentChild; i < callNode->getNumChildren(); i++) {
+        child = callNode->getChild(i);
+        switch (child->getDataType()) {
+            case TR::Int8:
+            case TR::Int16:
+            case TR::Int32:
+            case TR::Address:
+                if (numIntegerArgs >= properties.getNumIntArgRegs())
+                    memArgs++;
+                numIntegerArgs++;
+                break;
+            case TR::Int64:
+                if (comp()->target().is64Bit()) {
+                    if (numIntegerArgs >= properties.getNumIntArgRegs())
+                        memArgs++;
+                    numIntegerArgs++;
+                } else {
+                    if (aix_style_linkage) {
+                        if (numIntegerArgs == properties.getNumIntArgRegs() - 1)
+                            memArgs++;
+                        else if (numIntegerArgs > properties.getNumIntArgRegs() - 1)
+                            memArgs += 2;
+                    } else {
+                        if (numIntegerArgs & 1)
+                            numIntegerArgs++;
+                        if (numIntegerArgs >= properties.getNumIntArgRegs())
+                            memArgs += 2;
+                    }
+                    numIntegerArgs += 2;
+                }
+                break;
+            case TR::Float:
+                if (aix_style_linkage) {
+                    if (numIntegerArgs >= properties.getNumIntArgRegs())
+                        memArgs++;
+                    numIntegerArgs++;
+                } else {
+                    if (numFloatArgs >= properties.getNumFloatArgRegs())
+                        memArgs++;
+                }
+                numFloatArgs++;
+                break;
+            case TR::Double:
+                if (aix_style_linkage) {
+                    if (comp()->target().is64Bit()) {
+                        if (numIntegerArgs >= properties.getNumIntArgRegs())
+                            memArgs++;
+                        numIntegerArgs++;
+                    } else {
+                        if (numIntegerArgs >= properties.getNumIntArgRegs() - 1)
+                            memArgs++;
+                        numIntegerArgs += 2;
+                    }
+                } else {
+                    if (numFloatArgs >= properties.getNumFloatArgRegs())
+                        memArgs++;
+                }
+                numFloatArgs++;
+                break;
+            case TR::Aggregate: {
+                size_t size = child->getSymbolReference()->getSymbol()->getSize();
+                size = (size + sizeof(uintptr_t) - 1) & (~(sizeof(uintptr_t) - 1)); // round up the size
+                size_t slots = size / sizeof(uintptr_t);
 
-            if (numIntegerArgs >= properties.getNumIntArgRegs())
-               memArgs += slots;
-            else
-               memArgs += (properties.getNumIntArgRegs() - numIntegerArgs) > slots ? 0: slots - (properties.getNumIntArgRegs() - numIntegerArgs);
-            numIntegerArgs += slots;
-            }
-            break;
-         default:
-            if (child->getDataType().isVector() &&
-                child->getDataType().getVectorElementType() == TR::Double)
-               {
-               TR_ASSERT(false, "JNI dispatch: VectorDouble argument not expected");
-               break;
-               }
+                if (numIntegerArgs >= properties.getNumIntArgRegs())
+                    memArgs += slots;
+                else
+                    memArgs += (properties.getNumIntArgRegs() - numIntegerArgs) > slots
+                        ? 0
+                        : slots - (properties.getNumIntArgRegs() - numIntegerArgs);
+                numIntegerArgs += slots;
+            } break;
+            default:
+                if (child->getDataType().isVector() && child->getDataType().getVectorElementType() == TR::Double) {
+                    TR_ASSERT(false, "JNI dispatch: VectorDouble argument not expected");
+                    break;
+                }
 
-            TR_ASSERT(false, "Argument type %s is not supported\n", child->getDataType().toString());
-         }
-      }
+                TR_ASSERT(false, "Argument type %s is not supported\n", child->getDataType().toString());
+        }
+    }
 
-   // From here, down, any new stack allocations will expire / die when the function returns
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+    // From here, down, any new stack allocations will expire / die when the function returns
+    TR::StackMemoryRegion stackMemoryRegion(*trMemory());
 
-   /* End result of Step 1 - determined number of memory arguments! */
-   if (memArgs > 0)
-      {
-      pushToMemory = new (trStackMemory()) TR::PPCMemoryArgument[memArgs];
-      }
+    /* End result of Step 1 - determined number of memory arguments! */
+    if (memArgs > 0) {
+        pushToMemory = new (trStackMemory()) TR::PPCMemoryArgument[memArgs];
+    }
 
-   numIntegerArgs = 0;
-   numFloatArgs = 0;
+    numIntegerArgs = 0;
+    numFloatArgs = 0;
 
-   if (isFastJNI && implicitEnvArg)  // Account for extra parameter (env)
-      {
-      // first argument is JNIenv
-      numIntegerArgs += 1;
-      if (aix_style_linkage)
-         argSize += TR::Compiler->om.sizeofReferenceAddress();
-      }
+    if (isFastJNI && implicitEnvArg) // Account for extra parameter (env)
+    {
+        // first argument is JNIenv
+        numIntegerArgs += 1;
+        if (aix_style_linkage)
+            argSize += TR::Compiler->om.sizeofReferenceAddress();
+    }
 
-   for (i = firstArgumentChild; i < callNode->getNumChildren(); i++)
-      {
-      TR::MemoryReference *mref=NULL;
-      TR::Register        *argRegister;
-      bool                 checkSplit = true;
+    for (i = firstArgumentChild; i < callNode->getNumChildren(); i++) {
+        TR::MemoryReference *mref = NULL;
+        TR::Register *argRegister;
+        bool checkSplit = true;
 
-      child = callNode->getChild(i);
-      TR::DataType childType = child->getDataType();
+        child = callNode->getChild(i);
+        TR::DataType childType = child->getDataType();
 
-      switch (childType)
-         {
-         case TR::Int8:
-         case TR::Int16:
-         case TR::Int32:
-         case TR::Address: // have to do something for GC maps here
-            if (isFastJNI && childType==TR::Address)
-               {
-               argRegister = pushJNIReferenceArg(child);
-               checkSplit = false;
-               }
-            else
-               if (childType == TR::Address && !isFastJNI)
-                  argRegister = pushAddressArg(child);
-               else
-                  argRegister = pushIntegerWordArg(child);
+        switch (childType) {
+            case TR::Int8:
+            case TR::Int16:
+            case TR::Int32:
+            case TR::Address: // have to do something for GC maps here
+                if (isFastJNI && childType == TR::Address) {
+                    argRegister = pushJNIReferenceArg(child);
+                    checkSplit = false;
+                } else if (childType == TR::Address && !isFastJNI)
+                    argRegister = pushAddressArg(child);
+                else
+                    argRegister = pushIntegerWordArg(child);
 
-            if (numIntegerArgs < properties.getNumIntArgRegs())
-               {
-               // Sign extend non-64bit Integers on LinuxPPC64 as required by the ABI
-               // The AIX64 ABI also specifies this behaviour but we observed otherwise
-               // We can do this blindly in Java since there is no unsigned types
-               // WCode will have to do something better!
-               if (isFastJNI &&
-                   (comp()->target().isLinux() && comp()->target().is64Bit()) &&
-                   childType != TR::Address)
-                  generateTrg1Src1Instruction(cg(), TR::InstOpCode::extsw, callNode, argRegister, argRegister);
+                if (numIntegerArgs < properties.getNumIntArgRegs()) {
+                    // Sign extend non-64bit Integers on LinuxPPC64 as required by the ABI
+                    // The AIX64 ABI also specifies this behaviour but we observed otherwise
+                    // We can do this blindly in Java since there is no unsigned types
+                    // WCode will have to do something better!
+                    if (isFastJNI && (comp()->target().isLinux() && comp()->target().is64Bit())
+                        && childType != TR::Address)
+                        generateTrg1Src1Instruction(cg(), TR::InstOpCode::extsw, callNode, argRegister, argRegister);
 
-               if (checkSplit && !cg()->canClobberNodesRegister(child, 0))
-                  {
-                  if (argRegister->containsCollectedReference())
-                     tempRegister = cg()->allocateCollectedReferenceRegister();
-                  else
-                     tempRegister = cg()->allocateRegister();
-                  generateTrg1Src1Instruction(cg(), TR::InstOpCode::mr, callNode, tempRegister, argRegister);
-                  argRegister = tempRegister;
-                  }
-               if (numIntegerArgs == 0 &&
-                  (resType.isAddress() || resType.isInt32() || resType.isInt64()))
-                  {
-                  TR::Register *resultReg;
-                  if (resType.isAddress())
-                     resultReg = cg()->allocateCollectedReferenceRegister();
-                  else
-                     resultReg = cg()->allocateRegister();
-                  dependencies->addPreCondition(argRegister, TR::RealRegister::gr3);
-                  dependencies->addPostCondition(resultReg, TR::RealRegister::gr3);
-                  }
-               else if (comp()->target().is32Bit() && numIntegerArgs == 1 && resType.isInt64())
-                  {
-                  TR::Register *resultReg = cg()->allocateRegister();
-                  dependencies->addPreCondition(argRegister, TR::RealRegister::gr4);
-                  dependencies->addPostCondition(resultReg, TR::RealRegister::gr4);
-                  }
-               else
-                  {
-                  TR::addDependency(dependencies, argRegister, properties.getIntegerArgumentRegister(numIntegerArgs), TR_GPR, cg());
-                  }
-               }
-            else // numIntegerArgs >= properties.getNumIntArgRegs()
-               {
-               mref = getOutgoingArgumentMemRef(argSize, argRegister,TR::InstOpCode::Op_st, pushToMemory[argIndex++], TR::Compiler->om.sizeofReferenceAddress(), properties);
-
-               if (!aix_style_linkage)
-                  argSize += TR::Compiler->om.sizeofReferenceAddress();
-               }
-            numIntegerArgs++;
-            if (aix_style_linkage)
-               argSize += TR::Compiler->om.sizeofReferenceAddress();
-            break;
-         case TR::Int64:
-            argRegister = pushLongArg(child);
-            if (!aix_style_linkage)
-               {
-               if (numIntegerArgs & 1)
-                  {
-                  if (numIntegerArgs < properties.getNumIntArgRegs())
-                     TR::addDependency(dependencies, NULL, properties.getIntegerArgumentRegister(numIntegerArgs), TR_GPR, cg());
-                  numIntegerArgs++;
-                  }
-               }
-            if (numIntegerArgs < properties.getNumIntArgRegs())
-               {
-               if (!cg()->canClobberNodesRegister(child, 0))
-                  {
-                  if (comp()->target().is64Bit())
-                     {
-                     tempRegister = cg()->allocateRegister();
-                     generateTrg1Src1Instruction(cg(), TR::InstOpCode::mr, callNode, tempRegister, argRegister);
-                     argRegister = tempRegister;
-                     }
-                  else
-                     {
-                     tempRegister = cg()->allocateRegister();
-                     generateTrg1Src1Instruction(cg(), TR::InstOpCode::mr, callNode, tempRegister, argRegister->getRegisterPair()->getHighOrder());
-                     argRegister = cg()->allocateRegisterPair(argRegister->getRegisterPair()->getLowOrder(), tempRegister);
-                     tempLongRegisters.add(argRegister);
-                     }
-                  }
-               if (numIntegerArgs == 0 &&
-                   (resType.isAddress() || resType.isInt32() || resType.isInt64()))
-                  {
-                  TR::Register *resultReg;
-                  if (resType.isAddress())
-                     resultReg = cg()->allocateCollectedReferenceRegister();
-                  else
-                     resultReg = cg()->allocateRegister();
-                  if (comp()->target().is64Bit())
-                     dependencies->addPreCondition(argRegister, TR::RealRegister::gr3);
-                  else
-                     dependencies->addPreCondition(argRegister->getRegisterPair()->getHighOrder(), TR::RealRegister::gr3);
-                  dependencies->addPostCondition(resultReg, TR::RealRegister::gr3);
-                  }
-               else if (comp()->target().is32Bit() && numIntegerArgs == 1 && resType.isInt64())
-                  {
-                  TR::Register *resultReg = cg()->allocateRegister();
-                  dependencies->addPreCondition(argRegister, TR::RealRegister::gr4);
-                  dependencies->addPostCondition(resultReg, TR::RealRegister::gr4);
-                  }
-               else
-                  {
-                  if (comp()->target().is64Bit())
-                     TR::addDependency(dependencies, argRegister, properties.getIntegerArgumentRegister(numIntegerArgs), TR_GPR, cg());
-                  else
-                     TR::addDependency(dependencies, argRegister->getRegisterPair()->getHighOrder(), properties.getIntegerArgumentRegister(numIntegerArgs), TR_GPR, cg());
-                  }
-               if (comp()->target().is32Bit())
-                  {
-                  if (numIntegerArgs < properties.getNumIntArgRegs()-1)
-                     {
-                     if (!cg()->canClobberNodesRegister(child, 0))
-                        {
-                        TR::Register *over_lowReg = argRegister->getRegisterPair()->getLowOrder();
-                        tempRegister = cg()->allocateRegister();
-                        generateTrg1Src1Instruction(cg(), TR::InstOpCode::mr, callNode, tempRegister, over_lowReg);
-                        argRegister->getRegisterPair()->setLowOrder(tempRegister, cg());
-                        }
-                     if (numIntegerArgs == 0 && resType.isInt64())
-                        {
+                    if (checkSplit && !cg()->canClobberNodesRegister(child, 0)) {
+                        if (argRegister->containsCollectedReference())
+                            tempRegister = cg()->allocateCollectedReferenceRegister();
+                        else
+                            tempRegister = cg()->allocateRegister();
+                        generateTrg1Src1Instruction(cg(), TR::InstOpCode::mr, callNode, tempRegister, argRegister);
+                        argRegister = tempRegister;
+                    }
+                    if (numIntegerArgs == 0 && (resType.isAddress() || resType.isInt32() || resType.isInt64())) {
+                        TR::Register *resultReg;
+                        if (resType.isAddress())
+                            resultReg = cg()->allocateCollectedReferenceRegister();
+                        else
+                            resultReg = cg()->allocateRegister();
+                        dependencies->addPreCondition(argRegister, TR::RealRegister::gr3);
+                        dependencies->addPostCondition(resultReg, TR::RealRegister::gr3);
+                    } else if (comp()->target().is32Bit() && numIntegerArgs == 1 && resType.isInt64()) {
                         TR::Register *resultReg = cg()->allocateRegister();
-                        dependencies->addPreCondition(argRegister->getRegisterPair()->getLowOrder(), TR::RealRegister::gr4);
+                        dependencies->addPreCondition(argRegister, TR::RealRegister::gr4);
                         dependencies->addPostCondition(resultReg, TR::RealRegister::gr4);
+                    } else {
+                        TR::addDependency(dependencies, argRegister,
+                            properties.getIntegerArgumentRegister(numIntegerArgs), TR_GPR, cg());
+                    }
+                } else // numIntegerArgs >= properties.getNumIntArgRegs()
+                {
+                    mref = getOutgoingArgumentMemRef(argSize, argRegister, TR::InstOpCode::Op_st,
+                        pushToMemory[argIndex++], TR::Compiler->om.sizeofReferenceAddress(), properties);
+
+                    if (!aix_style_linkage)
+                        argSize += TR::Compiler->om.sizeofReferenceAddress();
+                }
+                numIntegerArgs++;
+                if (aix_style_linkage)
+                    argSize += TR::Compiler->om.sizeofReferenceAddress();
+                break;
+            case TR::Int64:
+                argRegister = pushLongArg(child);
+                if (!aix_style_linkage) {
+                    if (numIntegerArgs & 1) {
+                        if (numIntegerArgs < properties.getNumIntArgRegs())
+                            TR::addDependency(dependencies, NULL, properties.getIntegerArgumentRegister(numIntegerArgs),
+                                TR_GPR, cg());
+                        numIntegerArgs++;
+                    }
+                }
+                if (numIntegerArgs < properties.getNumIntArgRegs()) {
+                    if (!cg()->canClobberNodesRegister(child, 0)) {
+                        if (comp()->target().is64Bit()) {
+                            tempRegister = cg()->allocateRegister();
+                            generateTrg1Src1Instruction(cg(), TR::InstOpCode::mr, callNode, tempRegister, argRegister);
+                            argRegister = tempRegister;
+                        } else {
+                            tempRegister = cg()->allocateRegister();
+                            generateTrg1Src1Instruction(cg(), TR::InstOpCode::mr, callNode, tempRegister,
+                                argRegister->getRegisterPair()->getHighOrder());
+                            argRegister = cg()->allocateRegisterPair(argRegister->getRegisterPair()->getLowOrder(),
+                                tempRegister);
+                            tempLongRegisters.add(argRegister);
                         }
-                     else
-                        TR::addDependency(dependencies, argRegister->getRegisterPair()->getLowOrder(), properties.getIntegerArgumentRegister(numIntegerArgs+1), TR_GPR, cg());
-                     }
-                  else // numIntegerArgs == properties.getNumIntArgRegs()-1
-                     {
-                     mref = getOutgoingArgumentMemRef(argSize+4, argRegister->getRegisterPair()->getLowOrder(), TR::InstOpCode::stw, pushToMemory[argIndex++], 4, properties);
-                     }
-                  numIntegerArgs ++;
-                  }
-               }
-            else // numIntegerArgs >= properties.getNumIntArgRegs()
-               {
-               if (comp()->target().is64Bit())
-                  {
-                  mref = getOutgoingArgumentMemRef(argSize, argRegister, TR::InstOpCode::std, pushToMemory[argIndex++], TR::Compiler->om.sizeofReferenceAddress(), properties);
-                  }
-               else
-                  {
-                  if (!aix_style_linkage)
-                     argSize = (argSize + 4) & (~7);
-                  mref = getOutgoingArgumentMemRef(argSize, argRegister->getRegisterPair()->getHighOrder(), TR::InstOpCode::stw, pushToMemory[argIndex++], 4, properties);
-                  mref = getOutgoingArgumentMemRef(argSize+4, argRegister->getRegisterPair()->getLowOrder(), TR::InstOpCode::stw, pushToMemory[argIndex++], 4, properties);
-                  numIntegerArgs ++;
-                  if (!aix_style_linkage)
-                     argSize += 8;
-                  }
-               }
-            numIntegerArgs ++;
-            if (aix_style_linkage)
-               argSize += 8;
-            break;
-
-         case TR::Float:
-            argRegister = pushFloatArg(child);
-            for (int r = 0; r < ((childType == TR::Float) ? 1: 2); r++)
-            {
-            TR::Register * argReg;
-            if (childType == TR::Float)
-               argReg = argRegister;
-            else
-               argReg = (r == 0) ? argRegister->getHighOrder() : argRegister->getLowOrder();
-
-            if (numFloatArgs < properties.getNumFloatArgRegs())
-               {
-               if (!cg()->canClobberNodesRegister(child, 0))
-                  {
-                  tempRegister = cg()->allocateRegister(TR_FPR);
-                  generateTrg1Src1Instruction(cg(), TR::InstOpCode::fmr, callNode, tempRegister, argReg);
-                  argReg = tempRegister;
-                  }
-               if (numFloatArgs == 0 && resType.isFloatingPoint())
-                  {
-                  TR::Register *resultReg;
-                  if (resType.getDataType() == TR::Float)
-                     resultReg = cg()->allocateSinglePrecisionRegister();
-                  else
-                     resultReg = cg()->allocateRegister(TR_FPR);
-
-                  dependencies->addPreCondition(argReg, (r == 0) ? TR::RealRegister::fp1 : TR::RealRegister::fp2);
-                  dependencies->addPostCondition(resultReg, (r == 0) ? TR::RealRegister::fp1 : TR::RealRegister::fp2);
-                  }
-               else
-                  TR::addDependency(dependencies, argReg, properties.getFloatArgumentRegister(numFloatArgs), TR_FPR, cg());
-               }
-            else if (!aix_style_linkage)
-               // numFloatArgs >= properties.getNumFloatArgRegs()
-               {
-               mref = getOutgoingArgumentMemRef(argSize, argReg, TR::InstOpCode::stfs, pushToMemory[argIndex++], 4, properties);
-               argSize += 4;
-               }
-
-            if (aix_style_linkage)
-               {
-               if (numIntegerArgs < properties.getNumIntArgRegs())
-                  {
-                  if (numIntegerArgs==0 && resType.isAddress())
-                     {
-                     TR::Register *aReg = cg()->allocateRegister();
-                     TR::Register *bReg = cg()->allocateCollectedReferenceRegister();
-                     dependencies->addPreCondition(aReg, TR::RealRegister::gr3);
-                     dependencies->addPostCondition(bReg, TR::RealRegister::gr3);
-                     }
-                  else
-                     TR::addDependency(dependencies, NULL, properties.getIntegerArgumentRegister(numIntegerArgs), TR_GPR, cg());
-                  }
-               else // numIntegerArgs >= properties.getNumIntArgRegs()
-                  {
-                  if (comp()->target().is64Bit() && comp()->target().isLinux())
-                     {
-                     mref = getOutgoingArgumentMemRef(argSize+4, argReg, TR::InstOpCode::stfs, pushToMemory[argIndex++], 4, properties);
-                     }
-                  else
-                     {
-                     mref = getOutgoingArgumentMemRef(argSize, argReg, TR::InstOpCode::stfs, pushToMemory[argIndex++], 4, properties);
-                     }
-                  }
-
-               numIntegerArgs++;
-               }
-            numFloatArgs++;
-            if (aix_style_linkage)
-               argSize += TR::Compiler->om.sizeofReferenceAddress();
-
-            }  // for loop
-            break;
-
-         case TR::Double:
-            argRegister = pushDoubleArg(child);
-            for (int r = 0; r < ((childType == TR::Double) ? 1: 2); r++)
-            {
-            TR::Register * argReg;
-            if (childType == TR::Double)
-               argReg = argRegister;
-            else
-               argReg = (r == 0) ? argRegister->getHighOrder() : argRegister->getLowOrder();
-
-            if (numFloatArgs < properties.getNumFloatArgRegs())
-               {
-               if (!cg()->canClobberNodesRegister(child, 0))
-                  {
-                  tempRegister = cg()->allocateRegister(TR_FPR);
-                  generateTrg1Src1Instruction(cg(), TR::InstOpCode::fmr, callNode, tempRegister, argReg);
-                  argReg = tempRegister;
-                  }
-               if (numFloatArgs == 0 && resType.isFloatingPoint())
-                  {
-                  TR::Register *resultReg;
-                  if (resType.getDataType() == TR::Float)
-                     resultReg = cg()->allocateSinglePrecisionRegister();
-                  else
-                     resultReg = cg()->allocateRegister(TR_FPR);
-                  dependencies->addPreCondition(argReg, (r==0) ? TR::RealRegister::fp1 : TR::RealRegister::fp2);
-                  dependencies->addPostCondition(resultReg, (r==0) ? TR::RealRegister::fp1 : TR::RealRegister::fp2);
-                  }
-               else
-                  TR::addDependency(dependencies, argReg, properties.getFloatArgumentRegister(numFloatArgs), TR_FPR, cg());
-               }
-            else if (!aix_style_linkage)
-               // numFloatArgs >= properties.getNumFloatArgRegs()
-               {
-               argSize = (argSize + 4) & (~7);
-               mref = getOutgoingArgumentMemRef(argSize, argReg, TR::InstOpCode::stfd, pushToMemory[argIndex++], 8, properties);
-               argSize += 8;
-               }
-
-            if (aix_style_linkage)
-               {
-               if (numIntegerArgs < properties.getNumIntArgRegs())
-                  {
-                  TR::MemoryReference *tempMR;
-
-                  if (numIntegerArgs==0 && resType.isAddress())
-                     {
-                     TR::Register *aReg = cg()->allocateRegister();
-                     TR::Register *bReg = cg()->allocateCollectedReferenceRegister();
-                     dependencies->addPreCondition(aReg, TR::RealRegister::gr3);
-                     dependencies->addPostCondition(bReg, TR::RealRegister::gr3);
-                     }
-                  else
-                     TR::addDependency(dependencies, NULL, properties.getIntegerArgumentRegister(numIntegerArgs), TR_GPR, cg());
-
-                  if (comp()->target().is32Bit())
-                     {
-                     if ((numIntegerArgs+1) < properties.getNumIntArgRegs())
-                        TR::addDependency(dependencies, NULL, properties.getIntegerArgumentRegister(numIntegerArgs+1), TR_GPR, cg());
-                     else
+                    }
+                    if (numIntegerArgs == 0 && (resType.isAddress() || resType.isInt32() || resType.isInt64())) {
+                        TR::Register *resultReg;
+                        if (resType.isAddress())
+                            resultReg = cg()->allocateCollectedReferenceRegister();
+                        else
+                            resultReg = cg()->allocateRegister();
+                        if (comp()->target().is64Bit())
+                            dependencies->addPreCondition(argRegister, TR::RealRegister::gr3);
+                        else
+                            dependencies->addPreCondition(argRegister->getRegisterPair()->getHighOrder(),
+                                TR::RealRegister::gr3);
+                        dependencies->addPostCondition(resultReg, TR::RealRegister::gr3);
+                    } else if (comp()->target().is32Bit() && numIntegerArgs == 1 && resType.isInt64()) {
+                        TR::Register *resultReg = cg()->allocateRegister();
+                        dependencies->addPreCondition(argRegister, TR::RealRegister::gr4);
+                        dependencies->addPostCondition(resultReg, TR::RealRegister::gr4);
+                    } else {
+                        if (comp()->target().is64Bit())
+                            TR::addDependency(dependencies, argRegister,
+                                properties.getIntegerArgumentRegister(numIntegerArgs), TR_GPR, cg());
+                        else
+                            TR::addDependency(dependencies, argRegister->getRegisterPair()->getHighOrder(),
+                                properties.getIntegerArgumentRegister(numIntegerArgs), TR_GPR, cg());
+                    }
+                    if (comp()->target().is32Bit()) {
+                        if (numIntegerArgs < properties.getNumIntArgRegs() - 1) {
+                            if (!cg()->canClobberNodesRegister(child, 0)) {
+                                TR::Register *over_lowReg = argRegister->getRegisterPair()->getLowOrder();
+                                tempRegister = cg()->allocateRegister();
+                                generateTrg1Src1Instruction(cg(), TR::InstOpCode::mr, callNode, tempRegister,
+                                    over_lowReg);
+                                argRegister->getRegisterPair()->setLowOrder(tempRegister, cg());
+                            }
+                            if (numIntegerArgs == 0 && resType.isInt64()) {
+                                TR::Register *resultReg = cg()->allocateRegister();
+                                dependencies->addPreCondition(argRegister->getRegisterPair()->getLowOrder(),
+                                    TR::RealRegister::gr4);
+                                dependencies->addPostCondition(resultReg, TR::RealRegister::gr4);
+                            } else
+                                TR::addDependency(dependencies, argRegister->getRegisterPair()->getLowOrder(),
+                                    properties.getIntegerArgumentRegister(numIntegerArgs + 1), TR_GPR, cg());
+                        } else // numIntegerArgs == properties.getNumIntArgRegs()-1
                         {
-                        mref = getOutgoingArgumentMemRef(argSize, argReg, TR::InstOpCode::stfd, pushToMemory[argIndex++], 8, properties);
+                            mref = getOutgoingArgumentMemRef(argSize + 4, argRegister->getRegisterPair()->getLowOrder(),
+                                TR::InstOpCode::stw, pushToMemory[argIndex++], 4, properties);
                         }
-                     }
-                  }
-               else // numIntegerArgs >= properties.getNumIntArgRegs()
-                  {
-                  mref = getOutgoingArgumentMemRef(argSize, argReg, TR::InstOpCode::stfd, pushToMemory[argIndex++], 8, properties);
-                  }
+                        numIntegerArgs++;
+                    }
+                } else // numIntegerArgs >= properties.getNumIntArgRegs()
+                {
+                    if (comp()->target().is64Bit()) {
+                        mref = getOutgoingArgumentMemRef(argSize, argRegister, TR::InstOpCode::std,
+                            pushToMemory[argIndex++], TR::Compiler->om.sizeofReferenceAddress(), properties);
+                    } else {
+                        if (!aix_style_linkage)
+                            argSize = (argSize + 4) & (~7);
+                        mref = getOutgoingArgumentMemRef(argSize, argRegister->getRegisterPair()->getHighOrder(),
+                            TR::InstOpCode::stw, pushToMemory[argIndex++], 4, properties);
+                        mref = getOutgoingArgumentMemRef(argSize + 4, argRegister->getRegisterPair()->getLowOrder(),
+                            TR::InstOpCode::stw, pushToMemory[argIndex++], 4, properties);
+                        numIntegerArgs++;
+                        if (!aix_style_linkage)
+                            argSize += 8;
+                    }
+                }
+                numIntegerArgs++;
+                if (aix_style_linkage)
+                    argSize += 8;
+                break;
 
-               numIntegerArgs += comp()->target().is64Bit()?1:2;
-               }
-            numFloatArgs++;
-            if (aix_style_linkage)
-               argSize += 8;
+            case TR::Float:
+                argRegister = pushFloatArg(child);
+                for (int r = 0; r < ((childType == TR::Float) ? 1 : 2); r++) {
+                    TR::Register *argReg;
+                    if (childType == TR::Float)
+                        argReg = argRegister;
+                    else
+                        argReg = (r == 0) ? argRegister->getHighOrder() : argRegister->getLowOrder();
 
-            }    // end of for loop
-            break;
+                    if (numFloatArgs < properties.getNumFloatArgRegs()) {
+                        if (!cg()->canClobberNodesRegister(child, 0)) {
+                            tempRegister = cg()->allocateRegister(TR_FPR);
+                            generateTrg1Src1Instruction(cg(), TR::InstOpCode::fmr, callNode, tempRegister, argReg);
+                            argReg = tempRegister;
+                        }
+                        if (numFloatArgs == 0 && resType.isFloatingPoint()) {
+                            TR::Register *resultReg;
+                            if (resType.getDataType() == TR::Float)
+                                resultReg = cg()->allocateSinglePrecisionRegister();
+                            else
+                                resultReg = cg()->allocateRegister(TR_FPR);
 
-         default:
-            if (childType.isVector() && childType.getVectorElementType() == TR::Double)
-               {
-               TR_ASSERT(false, "JNI dispatch: VectorDouble argument not expected");
-               break;
-               }
-         }
-      }
+                            dependencies->addPreCondition(argReg,
+                                (r == 0) ? TR::RealRegister::fp1 : TR::RealRegister::fp2);
+                            dependencies->addPostCondition(resultReg,
+                                (r == 0) ? TR::RealRegister::fp1 : TR::RealRegister::fp2);
+                        } else
+                            TR::addDependency(dependencies, argReg, properties.getFloatArgumentRegister(numFloatArgs),
+                                TR_FPR, cg());
+                    } else if (!aix_style_linkage)
+                    // numFloatArgs >= properties.getNumFloatArgRegs()
+                    {
+                        mref = getOutgoingArgumentMemRef(argSize, argReg, TR::InstOpCode::stfs,
+                            pushToMemory[argIndex++], 4, properties);
+                        argSize += 4;
+                    }
 
-   while (numIntegerArgs < properties.getNumIntArgRegs())
-      {
-      if (numIntegerArgs == 0 && resType.isAddress())
-         {
-         dependencies->addPreCondition(cg()->allocateRegister(), properties.getIntegerArgumentRegister(0));
-         dependencies->addPostCondition(cg()->allocateCollectedReferenceRegister(), properties.getIntegerArgumentRegister(0));
-         }
-      else
-         {
-         TR::addDependency(dependencies, NULL, properties.getIntegerArgumentRegister(numIntegerArgs), TR_GPR, cg());
-         }
-      numIntegerArgs++;
-      }
+                    if (aix_style_linkage) {
+                        if (numIntegerArgs < properties.getNumIntArgRegs()) {
+                            if (numIntegerArgs == 0 && resType.isAddress()) {
+                                TR::Register *aReg = cg()->allocateRegister();
+                                TR::Register *bReg = cg()->allocateCollectedReferenceRegister();
+                                dependencies->addPreCondition(aReg, TR::RealRegister::gr3);
+                                dependencies->addPostCondition(bReg, TR::RealRegister::gr3);
+                            } else
+                                TR::addDependency(dependencies, NULL,
+                                    properties.getIntegerArgumentRegister(numIntegerArgs), TR_GPR, cg());
+                        } else // numIntegerArgs >= properties.getNumIntArgRegs()
+                        {
+                            if (comp()->target().is64Bit() && comp()->target().isLinux()) {
+                                mref = getOutgoingArgumentMemRef(argSize + 4, argReg, TR::InstOpCode::stfs,
+                                    pushToMemory[argIndex++], 4, properties);
+                            } else {
+                                mref = getOutgoingArgumentMemRef(argSize, argReg, TR::InstOpCode::stfs,
+                                    pushToMemory[argIndex++], 4, properties);
+                            }
+                        }
 
-   TR_LiveRegisters *liveRegs;
-   bool liveVSXScalar, liveVSXVector, liveVMX;
+                        numIntegerArgs++;
+                    }
+                    numFloatArgs++;
+                    if (aix_style_linkage)
+                        argSize += TR::Compiler->om.sizeofReferenceAddress();
 
-   liveRegs = cg()->getLiveRegisters(TR_VSX_SCALAR);
-   liveVSXScalar = (!liveRegs || liveRegs->getNumberOfLiveRegisters() > 0);
-   liveRegs = cg()->getLiveRegisters(TR_VSX_VECTOR);
-   liveVSXVector = (!liveRegs || liveRegs->getNumberOfLiveRegisters() > 0);
-   liveRegs = cg()->getLiveRegisters(TR_VRF);
-   liveVMX = (!liveRegs || liveRegs->getNumberOfLiveRegisters() > 0);
+                } // for loop
+                break;
 
-   TR::addDependency(dependencies, NULL, TR::RealRegister::fp0, TR_FPR, cg());
-   TR::addDependency(dependencies, NULL, TR::RealRegister::gr0, TR_GPR, cg());
-   TR::addDependency(dependencies, NULL, TR::RealRegister::gr11, TR_GPR, cg());
-   TR::addDependency(dependencies, NULL, TR::RealRegister::gr12, TR_GPR, cg());
-   TR::addDependency(dependencies, NULL, TR::RealRegister::cr0, TR_CCR, cg());
-   TR::addDependency(dependencies, NULL, TR::RealRegister::cr1, TR_CCR, cg());
-   TR::addDependency(dependencies, NULL, TR::RealRegister::cr5, TR_CCR, cg());
-   TR::addDependency(dependencies, NULL, TR::RealRegister::cr6, TR_CCR, cg());
-   TR::addDependency(dependencies, NULL, TR::RealRegister::cr7, TR_CCR, cg());
-   if (!isFastJNI && aix_style_linkage)
-      TR::addDependency(dependencies, NULL, TR::RealRegister::gr2, TR_GPR, cg());
+            case TR::Double:
+                argRegister = pushDoubleArg(child);
+                for (int r = 0; r < ((childType == TR::Double) ? 1 : 2); r++) {
+                    TR::Register *argReg;
+                    if (childType == TR::Double)
+                        argReg = argRegister;
+                    else
+                        argReg = (r == 0) ? argRegister->getHighOrder() : argRegister->getLowOrder();
 
-   int32_t floatRegsUsed = (numFloatArgs>properties.getNumFloatArgRegs())?properties.getNumFloatArgRegs():numFloatArgs;
+                    if (numFloatArgs < properties.getNumFloatArgRegs()) {
+                        if (!cg()->canClobberNodesRegister(child, 0)) {
+                            tempRegister = cg()->allocateRegister(TR_FPR);
+                            generateTrg1Src1Instruction(cg(), TR::InstOpCode::fmr, callNode, tempRegister, argReg);
+                            argReg = tempRegister;
+                        }
+                        if (numFloatArgs == 0 && resType.isFloatingPoint()) {
+                            TR::Register *resultReg;
+                            if (resType.getDataType() == TR::Float)
+                                resultReg = cg()->allocateSinglePrecisionRegister();
+                            else
+                                resultReg = cg()->allocateRegister(TR_FPR);
+                            dependencies->addPreCondition(argReg,
+                                (r == 0) ? TR::RealRegister::fp1 : TR::RealRegister::fp2);
+                            dependencies->addPostCondition(resultReg,
+                                (r == 0) ? TR::RealRegister::fp1 : TR::RealRegister::fp2);
+                        } else
+                            TR::addDependency(dependencies, argReg, properties.getFloatArgumentRegister(numFloatArgs),
+                                TR_FPR, cg());
+                    } else if (!aix_style_linkage)
+                    // numFloatArgs >= properties.getNumFloatArgRegs()
+                    {
+                        argSize = (argSize + 4) & (~7);
+                        mref = getOutgoingArgumentMemRef(argSize, argReg, TR::InstOpCode::stfd,
+                            pushToMemory[argIndex++], 8, properties);
+                        argSize += 8;
+                    }
 
-   if (liveVMX || liveVSXScalar || liveVSXVector)
-      {
-      for (i=(TR::RealRegister::RegNum)((uint32_t)TR::RealRegister::LastFPR+1); i<=TR::RealRegister::LastVSR; i++)
-         {
-         // isFastJNI implying: no call back into Java, such that preserved is preserved
-         if (!properties.getPreserved((TR::RealRegister::RegNum)i) || !isFastJNI)
-            {
-            TR::addDependency(dependencies, NULL, (TR::RealRegister::RegNum)i, TR_VSX_SCALAR, cg());
+                    if (aix_style_linkage) {
+                        if (numIntegerArgs < properties.getNumIntArgRegs()) {
+                            TR::MemoryReference *tempMR;
+
+                            if (numIntegerArgs == 0 && resType.isAddress()) {
+                                TR::Register *aReg = cg()->allocateRegister();
+                                TR::Register *bReg = cg()->allocateCollectedReferenceRegister();
+                                dependencies->addPreCondition(aReg, TR::RealRegister::gr3);
+                                dependencies->addPostCondition(bReg, TR::RealRegister::gr3);
+                            } else
+                                TR::addDependency(dependencies, NULL,
+                                    properties.getIntegerArgumentRegister(numIntegerArgs), TR_GPR, cg());
+
+                            if (comp()->target().is32Bit()) {
+                                if ((numIntegerArgs + 1) < properties.getNumIntArgRegs())
+                                    TR::addDependency(dependencies, NULL,
+                                        properties.getIntegerArgumentRegister(numIntegerArgs + 1), TR_GPR, cg());
+                                else {
+                                    mref = getOutgoingArgumentMemRef(argSize, argReg, TR::InstOpCode::stfd,
+                                        pushToMemory[argIndex++], 8, properties);
+                                }
+                            }
+                        } else // numIntegerArgs >= properties.getNumIntArgRegs()
+                        {
+                            mref = getOutgoingArgumentMemRef(argSize, argReg, TR::InstOpCode::stfd,
+                                pushToMemory[argIndex++], 8, properties);
+                        }
+
+                        numIntegerArgs += comp()->target().is64Bit() ? 1 : 2;
+                    }
+                    numFloatArgs++;
+                    if (aix_style_linkage)
+                        argSize += 8;
+
+                } // end of for loop
+                break;
+
+            default:
+                if (childType.isVector() && childType.getVectorElementType() == TR::Double) {
+                    TR_ASSERT(false, "JNI dispatch: VectorDouble argument not expected");
+                    break;
+                }
+        }
+    }
+
+    while (numIntegerArgs < properties.getNumIntArgRegs()) {
+        if (numIntegerArgs == 0 && resType.isAddress()) {
+            dependencies->addPreCondition(cg()->allocateRegister(), properties.getIntegerArgumentRegister(0));
+            dependencies->addPostCondition(cg()->allocateCollectedReferenceRegister(),
+                properties.getIntegerArgumentRegister(0));
+        } else {
+            TR::addDependency(dependencies, NULL, properties.getIntegerArgumentRegister(numIntegerArgs), TR_GPR, cg());
+        }
+        numIntegerArgs++;
+    }
+
+    TR_LiveRegisters *liveRegs;
+    bool liveVSXScalar, liveVSXVector, liveVMX;
+
+    liveRegs = cg()->getLiveRegisters(TR_VSX_SCALAR);
+    liveVSXScalar = (!liveRegs || liveRegs->getNumberOfLiveRegisters() > 0);
+    liveRegs = cg()->getLiveRegisters(TR_VSX_VECTOR);
+    liveVSXVector = (!liveRegs || liveRegs->getNumberOfLiveRegisters() > 0);
+    liveRegs = cg()->getLiveRegisters(TR_VRF);
+    liveVMX = (!liveRegs || liveRegs->getNumberOfLiveRegisters() > 0);
+
+    TR::addDependency(dependencies, NULL, TR::RealRegister::fp0, TR_FPR, cg());
+    TR::addDependency(dependencies, NULL, TR::RealRegister::gr0, TR_GPR, cg());
+    TR::addDependency(dependencies, NULL, TR::RealRegister::gr11, TR_GPR, cg());
+    TR::addDependency(dependencies, NULL, TR::RealRegister::gr12, TR_GPR, cg());
+    TR::addDependency(dependencies, NULL, TR::RealRegister::cr0, TR_CCR, cg());
+    TR::addDependency(dependencies, NULL, TR::RealRegister::cr1, TR_CCR, cg());
+    TR::addDependency(dependencies, NULL, TR::RealRegister::cr5, TR_CCR, cg());
+    TR::addDependency(dependencies, NULL, TR::RealRegister::cr6, TR_CCR, cg());
+    TR::addDependency(dependencies, NULL, TR::RealRegister::cr7, TR_CCR, cg());
+    if (!isFastJNI && aix_style_linkage)
+        TR::addDependency(dependencies, NULL, TR::RealRegister::gr2, TR_GPR, cg());
+
+    int32_t floatRegsUsed
+        = (numFloatArgs > properties.getNumFloatArgRegs()) ? properties.getNumFloatArgRegs() : numFloatArgs;
+
+    if (liveVMX || liveVSXScalar || liveVSXVector) {
+        for (i = (TR::RealRegister::RegNum)((uint32_t)TR::RealRegister::LastFPR + 1); i <= TR::RealRegister::LastVSR;
+             i++) {
+            // isFastJNI implying: no call back into Java, such that preserved is preserved
+            if (!properties.getPreserved((TR::RealRegister::RegNum)i) || !isFastJNI) {
+                TR::addDependency(dependencies, NULL, (TR::RealRegister::RegNum)i, TR_VSX_SCALAR, cg());
             }
+        }
+    }
 
-         }
-      }
+    for (i = (TR::RealRegister::RegNum)((uint32_t)TR::RealRegister::fp0 + floatRegsUsed + 1);
+         i <= TR::RealRegister::LastFPR; i++) {
+        // isFastJNI implying: no call back into Java, such that preserved is preserved
+        // TODO: liveVSXVector is an overkill for assembler mode, really only vectors required
+        if (!properties.getPreserved((TR::RealRegister::RegNum)i) || liveVSXVector || (!isFastJNI)) {
+            TR::addDependency(dependencies, NULL, (TR::RealRegister::RegNum)i, TR_FPR, cg());
+        }
+    }
 
-   for (i=(TR::RealRegister::RegNum)((uint32_t)TR::RealRegister::fp0+floatRegsUsed+1); i<=TR::RealRegister::LastFPR; i++)
-      {
-      // isFastJNI implying: no call back into Java, such that preserved is preserved
-      // TODO: liveVSXVector is an overkill for assembler mode, really only vectors required
-      if (!properties.getPreserved((TR::RealRegister::RegNum)i) || liveVSXVector ||
-          (!isFastJNI))
-         {
-         TR::addDependency(dependencies, NULL, (TR::RealRegister::RegNum)i, TR_FPR, cg());
-         }
-      }
+    if (memArgs > 0) {
+        for (argIndex = 0; argIndex < memArgs; argIndex++) {
+            TR::Register *aReg = pushToMemory[argIndex].argRegister;
+            generateMemSrc1Instruction(cg(), pushToMemory[argIndex].opCode, callNode, pushToMemory[argIndex].argMemory,
+                aReg);
+            cg()->stopUsingRegister(aReg);
+        }
+    }
 
-   if (memArgs > 0)
-      {
-      for (argIndex=0; argIndex<memArgs; argIndex++)
-         {
-         TR::Register *aReg = pushToMemory[argIndex].argRegister;
-         generateMemSrc1Instruction(cg(), pushToMemory[argIndex].opCode, callNode, pushToMemory[argIndex].argMemory, aReg);
-         cg()->stopUsingRegister(aReg);
-         }
-      }
-
-   return argSize;
-   }
+    return argSize;
+}
 
 TR::Register *J9::Power::JNILinkage::pushJNIReferenceArg(TR::Node *child)
-   {
-   TR::Register *pushRegister;
-   bool         checkSplit = true;
+{
+    TR::Register *pushRegister;
+    bool checkSplit = true;
 
-   if (child->getOpCodeValue() == TR::loadaddr)
-      {
-      TR::SymbolReference * symRef = child->getSymbolReference();
-      TR::StaticSymbol *sym = symRef->getSymbol()->getStaticSymbol();
-      if (sym)
-         {
-         if (sym->isAddressOfClassObject())
-            {
-            pushRegister = pushAddressArg(child);
+    if (child->getOpCodeValue() == TR::loadaddr) {
+        TR::SymbolReference *symRef = child->getSymbolReference();
+        TR::StaticSymbol *sym = symRef->getSymbol()->getStaticSymbol();
+        if (sym) {
+            if (sym->isAddressOfClassObject()) {
+                pushRegister = pushAddressArg(child);
+            } else {
+                TR::Register *condReg = cg()->allocateRegister(TR_CCR);
+                TR::Register *addrReg = cg()->evaluate(child);
+                TR::MemoryReference *tmpMemRef = TR::MemoryReference::createWithDisplacement(cg(), addrReg, (int32_t)0,
+                    TR::Compiler->om.sizeofReferenceAddress());
+                TR::Register *whatReg = cg()->allocateCollectedReferenceRegister();
+                TR::LabelSymbol *nonNullLabel = generateLabelSymbol(cg());
+
+                checkSplit = false;
+                generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, child, whatReg, tmpMemRef);
+                if (!cg()->canClobberNodesRegister(child)) {
+                    // Since this is a static variable, it is non-collectable.
+                    TR::Register *tempRegister = cg()->allocateRegister();
+                    generateTrg1Src1Instruction(cg(), TR::InstOpCode::mr, child, tempRegister, addrReg);
+                    pushRegister = tempRegister;
+                } else
+                    pushRegister = addrReg;
+                generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::Op_cmpi, child, condReg, whatReg, 0);
+                generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, child, nonNullLabel, condReg);
+                generateTrg1ImmInstruction(cg(), TR::InstOpCode::li, child, pushRegister, 0);
+
+                TR::RegisterDependencyConditions *conditions
+                    = new (trHeapMemory()) TR::RegisterDependencyConditions(3, 3, trMemory());
+                TR::addDependency(conditions, pushRegister, TR::RealRegister::NoReg, TR_GPR, cg());
+                TR::addDependency(conditions, whatReg, TR::RealRegister::NoReg, TR_GPR, cg());
+                TR::addDependency(conditions, condReg, TR::RealRegister::NoReg, TR_CCR, cg());
+
+                generateDepLabelInstruction(cg(), TR::InstOpCode::label, child, nonNullLabel, conditions);
+                conditions->stopUsingDepRegs(cg(), pushRegister);
+                cg()->decReferenceCount(child);
             }
-         else
-            {
-            TR::Register *condReg = cg()->allocateRegister(TR_CCR);
-            TR::Register *addrReg = cg()->evaluate(child);
-            TR::MemoryReference *tmpMemRef = TR::MemoryReference::createWithDisplacement(cg(), addrReg, (int32_t)0, TR::Compiler->om.sizeofReferenceAddress());
-            TR::Register *whatReg = cg()->allocateCollectedReferenceRegister();
-            TR::LabelSymbol *nonNullLabel = generateLabelSymbol(cg());
+        } else // must be loadaddr of parm or local
+        {
+            if (child->pointsToNonNull()) {
+                pushRegister = pushAddressArg(child);
+            } else if (child->pointsToNull()) {
+                checkSplit = false;
+                pushRegister = cg()->allocateRegister();
+                loadConstant(cg(), child, 0, pushRegister);
+                cg()->decReferenceCount(child);
+            } else {
+                TR::Register *addrReg = cg()->evaluate(child);
+                TR::Register *condReg = cg()->allocateRegister(TR_CCR);
+                TR::Register *whatReg = cg()->allocateCollectedReferenceRegister();
+                TR::LabelSymbol *nonNullLabel = generateLabelSymbol(cg());
 
-            checkSplit = false;
-            generateTrg1MemInstruction(cg(),TR::InstOpCode::Op_load, child, whatReg, tmpMemRef);
-            if (!cg()->canClobberNodesRegister(child))
-               {
-               // Since this is a static variable, it is non-collectable.
-               TR::Register *tempRegister = cg()->allocateRegister();
-               generateTrg1Src1Instruction(cg(), TR::InstOpCode::mr, child, tempRegister, addrReg);
-               pushRegister = tempRegister;
-               }
-            else
-               pushRegister = addrReg;
-            generateTrg1Src1ImmInstruction(cg(),TR::InstOpCode::Op_cmpi, child, condReg, whatReg, 0);
-            generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, child, nonNullLabel, condReg);
-            generateTrg1ImmInstruction(cg(), TR::InstOpCode::li, child, pushRegister, 0);
+                checkSplit = false;
+                generateTrg1MemInstruction(cg(), TR::InstOpCode::Op_load, child, whatReg,
+                    TR::MemoryReference::createWithDisplacement(cg(), addrReg, (int32_t)0,
+                        TR::Compiler->om.sizeofReferenceAddress()));
+                if (!cg()->canClobberNodesRegister(child)) {
+                    // Since this points at a parm or local location, it is non-collectable.
+                    TR::Register *tempReg = cg()->allocateRegister();
+                    generateTrg1Src1Instruction(cg(), TR::InstOpCode::mr, child, tempReg, addrReg);
+                    pushRegister = tempReg;
+                } else
+                    pushRegister = addrReg;
+                generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::Op_cmpi, child, condReg, whatReg, 0);
+                generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, child, nonNullLabel, condReg);
+                generateTrg1ImmInstruction(cg(), TR::InstOpCode::li, child, pushRegister, 0);
 
-            TR::RegisterDependencyConditions *conditions = new (trHeapMemory()) TR::RegisterDependencyConditions(3, 3, trMemory());
-            TR::addDependency(conditions, pushRegister, TR::RealRegister::NoReg, TR_GPR, cg());
-            TR::addDependency(conditions, whatReg, TR::RealRegister::NoReg, TR_GPR, cg());
-            TR::addDependency(conditions, condReg, TR::RealRegister::NoReg, TR_CCR, cg());
+                TR::RegisterDependencyConditions *conditions
+                    = new (trHeapMemory()) TR::RegisterDependencyConditions(3, 3, trMemory());
+                TR::addDependency(conditions, pushRegister, TR::RealRegister::NoReg, TR_GPR, cg());
+                TR::addDependency(conditions, whatReg, TR::RealRegister::NoReg, TR_GPR, cg());
+                TR::addDependency(conditions, condReg, TR::RealRegister::NoReg, TR_CCR, cg());
 
-            generateDepLabelInstruction(cg(), TR::InstOpCode::label, child, nonNullLabel, conditions);
-            conditions->stopUsingDepRegs(cg(), pushRegister);
-            cg()->decReferenceCount(child);
+                generateDepLabelInstruction(cg(), TR::InstOpCode::label, child, nonNullLabel, conditions);
+                conditions->stopUsingDepRegs(cg(), pushRegister);
+                cg()->decReferenceCount(child);
             }
-         }
-      else // must be loadaddr of parm or local
-         {
-         if (child->pointsToNonNull())
-            {
-            pushRegister = pushAddressArg(child);
-            }
-         else if (child->pointsToNull())
-            {
-            checkSplit = false;
-            pushRegister = cg()->allocateRegister();
-            loadConstant(cg(), child, 0, pushRegister);
-            cg()->decReferenceCount(child);
-            }
-         else
-            {
-            TR::Register *addrReg = cg()->evaluate(child);
-            TR::Register *condReg = cg()->allocateRegister(TR_CCR);
-            TR::Register *whatReg = cg()->allocateCollectedReferenceRegister();
-            TR::LabelSymbol *nonNullLabel = generateLabelSymbol(cg());
+        }
+    } else {
+        pushRegister = pushAddressArg(child);
+    }
 
-            checkSplit = false;
-            generateTrg1MemInstruction(cg(),TR::InstOpCode::Op_load, child, whatReg, TR::MemoryReference::createWithDisplacement(cg(), addrReg, (int32_t)0, TR::Compiler->om.sizeofReferenceAddress()));
-            if (!cg()->canClobberNodesRegister(child))
-               {
-               // Since this points at a parm or local location, it is non-collectable.
-               TR::Register *tempReg = cg()->allocateRegister();
-               generateTrg1Src1Instruction(cg(), TR::InstOpCode::mr, child, tempReg, addrReg);
-               pushRegister = tempReg;
-               }
-            else
-               pushRegister = addrReg;
-            generateTrg1Src1ImmInstruction(cg(),TR::InstOpCode::Op_cmpi, child, condReg, whatReg, 0);
-            generateConditionalBranchInstruction(cg(), TR::InstOpCode::bne, child, nonNullLabel, condReg);
-            generateTrg1ImmInstruction(cg(), TR::InstOpCode::li, child, pushRegister, 0);
-
-            TR::RegisterDependencyConditions *conditions = new (trHeapMemory()) TR::RegisterDependencyConditions(3, 3, trMemory());
-            TR::addDependency(conditions, pushRegister, TR::RealRegister::NoReg, TR_GPR, cg());
-            TR::addDependency(conditions, whatReg, TR::RealRegister::NoReg, TR_GPR, cg());
-            TR::addDependency(conditions, condReg, TR::RealRegister::NoReg, TR_CCR, cg());
-
-            generateDepLabelInstruction(cg(), TR::InstOpCode::label, child, nonNullLabel, conditions);
-            conditions->stopUsingDepRegs(cg(), pushRegister);
-            cg()->decReferenceCount(child);
-            }
-         }
-      }
-   else
-      {
-      pushRegister = pushAddressArg(child);
-      }
-
-   if (checkSplit && !cg()->canClobberNodesRegister(child, 0))
-      {
-      TR::Register *tempReg = pushRegister->containsCollectedReference()?
-        cg()->allocateCollectedReferenceRegister():cg()->allocateRegister();
-      generateTrg1Src1Instruction(cg(), TR::InstOpCode::mr, child, tempReg, pushRegister);
-      pushRegister = tempReg;
-      }
-   return pushRegister;
-   }
+    if (checkSplit && !cg()->canClobberNodesRegister(child, 0)) {
+        TR::Register *tempReg = pushRegister->containsCollectedReference() ? cg()->allocateCollectedReferenceRegister()
+                                                                           : cg()->allocateRegister();
+        generateTrg1Src1Instruction(cg(), TR::InstOpCode::mr, child, tempReg, pushRegister);
+        pushRegister = tempReg;
+    }
+    return pushRegister;
+}

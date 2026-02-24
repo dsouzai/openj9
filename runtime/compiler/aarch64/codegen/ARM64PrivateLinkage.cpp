@@ -55,510 +55,431 @@
 #define MIN_PROFILED_CALL_FREQUENCY (.075f)
 #define MAX_PROFILED_CALL_FREQUENCY (.90f)
 
-uint32_t J9::ARM64::PrivateLinkage::_globalRegisterNumberToRealRegisterMap[] =
-   {
-   // GPRs
-   TR::RealRegister::x15,
-   TR::RealRegister::x14,
-   TR::RealRegister::x13,
-   TR::RealRegister::x12,
-   TR::RealRegister::x11,
-   TR::RealRegister::x10,
-   TR::RealRegister::x9,
-   TR::RealRegister::x8, // indirect result location register
+uint32_t J9::ARM64::PrivateLinkage::_globalRegisterNumberToRealRegisterMap[] = {
+    // GPRs
+    TR::RealRegister::x15, TR::RealRegister::x14, TR::RealRegister::x13, TR::RealRegister::x12, TR::RealRegister::x11,
+    TR::RealRegister::x10, TR::RealRegister::x9,
+    TR::RealRegister::x8, // indirect result location register
 #if !defined(OSX)
-   TR::RealRegister::x18, // platform register
+    TR::RealRegister::x18, // platform register
 #endif // !defined(OSX)
-   // callee-saved registers
-   TR::RealRegister::x28,
-   TR::RealRegister::x27,
-   TR::RealRegister::x26,
-   TR::RealRegister::x25,
-   TR::RealRegister::x24,
-   TR::RealRegister::x23,
-   TR::RealRegister::x22,
-   TR::RealRegister::x21,
-   // parameter registers
-   TR::RealRegister::x7,
-   TR::RealRegister::x6,
-   TR::RealRegister::x5,
-   TR::RealRegister::x4,
-   TR::RealRegister::x3,
-   TR::RealRegister::x2,
-   TR::RealRegister::x1,
-   TR::RealRegister::x0,
+    // callee-saved registers
+    TR::RealRegister::x28, TR::RealRegister::x27, TR::RealRegister::x26, TR::RealRegister::x25, TR::RealRegister::x24,
+    TR::RealRegister::x23, TR::RealRegister::x22, TR::RealRegister::x21,
+    // parameter registers
+    TR::RealRegister::x7, TR::RealRegister::x6, TR::RealRegister::x5, TR::RealRegister::x4, TR::RealRegister::x3,
+    TR::RealRegister::x2, TR::RealRegister::x1, TR::RealRegister::x0,
 
-   // FPRs
-   TR::RealRegister::v31,
-   TR::RealRegister::v30,
-   TR::RealRegister::v29,
-   TR::RealRegister::v28,
-   TR::RealRegister::v27,
-   TR::RealRegister::v26,
-   TR::RealRegister::v25,
-   TR::RealRegister::v24,
-   TR::RealRegister::v23,
-   TR::RealRegister::v22,
-   TR::RealRegister::v21,
-   TR::RealRegister::v20,
-   TR::RealRegister::v19,
-   TR::RealRegister::v18,
-   TR::RealRegister::v17,
-   TR::RealRegister::v16,
-   // callee-saved registers
-   TR::RealRegister::v15,
-   TR::RealRegister::v14,
-   TR::RealRegister::v13,
-   TR::RealRegister::v12,
-   TR::RealRegister::v11,
-   TR::RealRegister::v10,
-   TR::RealRegister::v9,
-   TR::RealRegister::v8,
-   // parameter registers
-   TR::RealRegister::v7,
-   TR::RealRegister::v6,
-   TR::RealRegister::v5,
-   TR::RealRegister::v4,
-   TR::RealRegister::v3,
-   TR::RealRegister::v2,
-   TR::RealRegister::v1,
-   TR::RealRegister::v0
-   };
+    // FPRs
+    TR::RealRegister::v31, TR::RealRegister::v30, TR::RealRegister::v29, TR::RealRegister::v28, TR::RealRegister::v27,
+    TR::RealRegister::v26, TR::RealRegister::v25, TR::RealRegister::v24, TR::RealRegister::v23, TR::RealRegister::v22,
+    TR::RealRegister::v21, TR::RealRegister::v20, TR::RealRegister::v19, TR::RealRegister::v18, TR::RealRegister::v17,
+    TR::RealRegister::v16,
+    // callee-saved registers
+    TR::RealRegister::v15, TR::RealRegister::v14, TR::RealRegister::v13, TR::RealRegister::v12, TR::RealRegister::v11,
+    TR::RealRegister::v10, TR::RealRegister::v9, TR::RealRegister::v8,
+    // parameter registers
+    TR::RealRegister::v7, TR::RealRegister::v6, TR::RealRegister::v5, TR::RealRegister::v4, TR::RealRegister::v3,
+    TR::RealRegister::v2, TR::RealRegister::v1, TR::RealRegister::v0
+};
 
 J9::ARM64::PrivateLinkage::PrivateLinkage(TR::CodeGenerator *cg)
-   : J9::PrivateLinkage(cg),
-   _interpretedMethodEntryPoint(NULL),
-   _jittedMethodEntryPoint(NULL)
-   {
-   int32_t i;
+    : J9::PrivateLinkage(cg)
+    , _interpretedMethodEntryPoint(NULL)
+    , _jittedMethodEntryPoint(NULL)
+{
+    int32_t i;
 
-   _properties._properties = 0;
+    _properties._properties = 0;
 
-   _properties._registerFlags[TR::RealRegister::NoReg] = 0;
-   _properties._registerFlags[TR::RealRegister::x0]    = IntegerArgument|IntegerReturn;
-   _properties._registerFlags[TR::RealRegister::x1]    = IntegerArgument;
-   _properties._registerFlags[TR::RealRegister::x2]    = IntegerArgument;
-   _properties._registerFlags[TR::RealRegister::x3]    = IntegerArgument;
-   _properties._registerFlags[TR::RealRegister::x4]    = IntegerArgument;
-   _properties._registerFlags[TR::RealRegister::x5]    = IntegerArgument;
-   _properties._registerFlags[TR::RealRegister::x6]    = IntegerArgument;
-   _properties._registerFlags[TR::RealRegister::x7]    = IntegerArgument;
+    _properties._registerFlags[TR::RealRegister::NoReg] = 0;
+    _properties._registerFlags[TR::RealRegister::x0] = IntegerArgument | IntegerReturn;
+    _properties._registerFlags[TR::RealRegister::x1] = IntegerArgument;
+    _properties._registerFlags[TR::RealRegister::x2] = IntegerArgument;
+    _properties._registerFlags[TR::RealRegister::x3] = IntegerArgument;
+    _properties._registerFlags[TR::RealRegister::x4] = IntegerArgument;
+    _properties._registerFlags[TR::RealRegister::x5] = IntegerArgument;
+    _properties._registerFlags[TR::RealRegister::x6] = IntegerArgument;
+    _properties._registerFlags[TR::RealRegister::x7] = IntegerArgument;
 
-   for (i = TR::RealRegister::x8; i <= TR::RealRegister::x15; i++)
-      _properties._registerFlags[i] = 0; // x8 - x15 volatile
+    for (i = TR::RealRegister::x8; i <= TR::RealRegister::x15; i++)
+        _properties._registerFlags[i] = 0; // x8 - x15 volatile
 
-   _properties._registerFlags[TR::RealRegister::x16]   = ARM64_Reserved; // IP0
-   _properties._registerFlags[TR::RealRegister::x17]   = ARM64_Reserved; // IP1
-
-#if defined(OSX)
-   _properties._registerFlags[TR::RealRegister::x18]   = ARM64_Reserved; // Platform register
-#else
-   _properties._registerFlags[TR::RealRegister::x18]   = 0;
-#endif // defined(OSX)
-
-   _properties._registerFlags[TR::RealRegister::x19]   = Preserved|ARM64_Reserved; // vmThread
-   _properties._registerFlags[TR::RealRegister::x20]   = Preserved|ARM64_Reserved; // Java SP
-
-   for (i = TR::RealRegister::x21; i <= TR::RealRegister::x28; i++)
-      _properties._registerFlags[i] = Preserved; // x21 - x28 Preserved
-
-   _properties._registerFlags[TR::RealRegister::x29]   = ARM64_Reserved; // FP
-   _properties._registerFlags[TR::RealRegister::lr]    = ARM64_Reserved; // LR
-   _properties._registerFlags[TR::RealRegister::sp]    = ARM64_Reserved;
-   _properties._registerFlags[TR::RealRegister::xzr]   = ARM64_Reserved;
-
-   _properties._registerFlags[TR::RealRegister::v0]    = FloatArgument|FloatReturn;
-   _properties._registerFlags[TR::RealRegister::v1]    = FloatArgument;
-   _properties._registerFlags[TR::RealRegister::v2]    = FloatArgument;
-   _properties._registerFlags[TR::RealRegister::v3]    = FloatArgument;
-   _properties._registerFlags[TR::RealRegister::v4]    = FloatArgument;
-   _properties._registerFlags[TR::RealRegister::v5]    = FloatArgument;
-   _properties._registerFlags[TR::RealRegister::v6]    = FloatArgument;
-   _properties._registerFlags[TR::RealRegister::v7]    = FloatArgument;
-
-   for (i = TR::RealRegister::v8; i <= TR::RealRegister::LastFPR; i++)
-      _properties._registerFlags[i] = 0; // v8 - v31 volatile
-
-   _properties._numIntegerArgumentRegisters  = 8;
-   _properties._firstIntegerArgumentRegister = 0;
-   _properties._numFloatArgumentRegisters    = 8;
-   _properties._firstFloatArgumentRegister   = 8;
-
-   _properties._argumentRegisters[0]  = TR::RealRegister::x0;
-   _properties._argumentRegisters[1]  = TR::RealRegister::x1;
-   _properties._argumentRegisters[2]  = TR::RealRegister::x2;
-   _properties._argumentRegisters[3]  = TR::RealRegister::x3;
-   _properties._argumentRegisters[4]  = TR::RealRegister::x4;
-   _properties._argumentRegisters[5]  = TR::RealRegister::x5;
-   _properties._argumentRegisters[6]  = TR::RealRegister::x6;
-   _properties._argumentRegisters[7]  = TR::RealRegister::x7;
-   _properties._argumentRegisters[8]  = TR::RealRegister::v0;
-   _properties._argumentRegisters[9]  = TR::RealRegister::v1;
-   _properties._argumentRegisters[10] = TR::RealRegister::v2;
-   _properties._argumentRegisters[11] = TR::RealRegister::v3;
-   _properties._argumentRegisters[12] = TR::RealRegister::v4;
-   _properties._argumentRegisters[13] = TR::RealRegister::v5;
-   _properties._argumentRegisters[14] = TR::RealRegister::v6;
-   _properties._argumentRegisters[15] = TR::RealRegister::v7;
-
-   std::copy(std::begin(_globalRegisterNumberToRealRegisterMap), std::end(_globalRegisterNumberToRealRegisterMap), std::begin(_properties._allocationOrder));
-
-   _properties._firstIntegerReturnRegister = 0;
-   _properties._firstFloatReturnRegister   = 1;
-
-   _properties._returnRegisters[0]  = TR::RealRegister::x0;
-   _properties._returnRegisters[1]  = TR::RealRegister::v0;
+    _properties._registerFlags[TR::RealRegister::x16] = ARM64_Reserved; // IP0
+    _properties._registerFlags[TR::RealRegister::x17] = ARM64_Reserved; // IP1
 
 #if defined(OSX)
-   _properties._numAllocatableIntegerRegisters = 24; // 0-15, 21-28
+    _properties._registerFlags[TR::RealRegister::x18] = ARM64_Reserved; // Platform register
 #else
-   _properties._numAllocatableIntegerRegisters = 25; // 0-15, 18, 21-28
+    _properties._registerFlags[TR::RealRegister::x18] = 0;
 #endif // defined(OSX)
-   _properties._numAllocatableFloatRegisters   = 32;
 
-   _properties._preservedRegisterMapForGC   = 0x1fe40000;
-   _properties._methodMetaDataRegister      = TR::RealRegister::x19;
-   _properties._stackPointerRegister        = TR::RealRegister::x20;
-   _properties._framePointerRegister        = TR::RealRegister::x29;
-   _properties._computedCallTargetRegister  = TR::RealRegister::x8;
-   _properties._vtableIndexArgumentRegister = TR::RealRegister::x9;
-   _properties._j9methodArgumentRegister    = TR::RealRegister::x0;
+    _properties._registerFlags[TR::RealRegister::x19] = Preserved | ARM64_Reserved; // vmThread
+    _properties._registerFlags[TR::RealRegister::x20] = Preserved | ARM64_Reserved; // Java SP
+
+    for (i = TR::RealRegister::x21; i <= TR::RealRegister::x28; i++)
+        _properties._registerFlags[i] = Preserved; // x21 - x28 Preserved
+
+    _properties._registerFlags[TR::RealRegister::x29] = ARM64_Reserved; // FP
+    _properties._registerFlags[TR::RealRegister::lr] = ARM64_Reserved; // LR
+    _properties._registerFlags[TR::RealRegister::sp] = ARM64_Reserved;
+    _properties._registerFlags[TR::RealRegister::xzr] = ARM64_Reserved;
+
+    _properties._registerFlags[TR::RealRegister::v0] = FloatArgument | FloatReturn;
+    _properties._registerFlags[TR::RealRegister::v1] = FloatArgument;
+    _properties._registerFlags[TR::RealRegister::v2] = FloatArgument;
+    _properties._registerFlags[TR::RealRegister::v3] = FloatArgument;
+    _properties._registerFlags[TR::RealRegister::v4] = FloatArgument;
+    _properties._registerFlags[TR::RealRegister::v5] = FloatArgument;
+    _properties._registerFlags[TR::RealRegister::v6] = FloatArgument;
+    _properties._registerFlags[TR::RealRegister::v7] = FloatArgument;
+
+    for (i = TR::RealRegister::v8; i <= TR::RealRegister::LastFPR; i++)
+        _properties._registerFlags[i] = 0; // v8 - v31 volatile
+
+    _properties._numIntegerArgumentRegisters = 8;
+    _properties._firstIntegerArgumentRegister = 0;
+    _properties._numFloatArgumentRegisters = 8;
+    _properties._firstFloatArgumentRegister = 8;
+
+    _properties._argumentRegisters[0] = TR::RealRegister::x0;
+    _properties._argumentRegisters[1] = TR::RealRegister::x1;
+    _properties._argumentRegisters[2] = TR::RealRegister::x2;
+    _properties._argumentRegisters[3] = TR::RealRegister::x3;
+    _properties._argumentRegisters[4] = TR::RealRegister::x4;
+    _properties._argumentRegisters[5] = TR::RealRegister::x5;
+    _properties._argumentRegisters[6] = TR::RealRegister::x6;
+    _properties._argumentRegisters[7] = TR::RealRegister::x7;
+    _properties._argumentRegisters[8] = TR::RealRegister::v0;
+    _properties._argumentRegisters[9] = TR::RealRegister::v1;
+    _properties._argumentRegisters[10] = TR::RealRegister::v2;
+    _properties._argumentRegisters[11] = TR::RealRegister::v3;
+    _properties._argumentRegisters[12] = TR::RealRegister::v4;
+    _properties._argumentRegisters[13] = TR::RealRegister::v5;
+    _properties._argumentRegisters[14] = TR::RealRegister::v6;
+    _properties._argumentRegisters[15] = TR::RealRegister::v7;
+
+    std::copy(std::begin(_globalRegisterNumberToRealRegisterMap), std::end(_globalRegisterNumberToRealRegisterMap),
+        std::begin(_properties._allocationOrder));
+
+    _properties._firstIntegerReturnRegister = 0;
+    _properties._firstFloatReturnRegister = 1;
+
+    _properties._returnRegisters[0] = TR::RealRegister::x0;
+    _properties._returnRegisters[1] = TR::RealRegister::v0;
 
 #if defined(OSX)
-   // Volatile GPR (0-15) + FPR (0-31) + VFT Reg
-   _properties._numberOfDependencyGPRegisters = 16 + 32 + 1;
+    _properties._numAllocatableIntegerRegisters = 24; // 0-15, 21-28
 #else
-   // Volatile GPR (0-15, 18) + FPR (0-31) + VFT Reg
-   _properties._numberOfDependencyGPRegisters = 17 + 32 + 1;
+    _properties._numAllocatableIntegerRegisters = 25; // 0-15, 18, 21-28
+#endif // defined(OSX)
+    _properties._numAllocatableFloatRegisters = 32;
+
+    _properties._preservedRegisterMapForGC = 0x1fe40000;
+    _properties._methodMetaDataRegister = TR::RealRegister::x19;
+    _properties._stackPointerRegister = TR::RealRegister::x20;
+    _properties._framePointerRegister = TR::RealRegister::x29;
+    _properties._computedCallTargetRegister = TR::RealRegister::x8;
+    _properties._vtableIndexArgumentRegister = TR::RealRegister::x9;
+    _properties._j9methodArgumentRegister = TR::RealRegister::x0;
+
+#if defined(OSX)
+    // Volatile GPR (0-15) + FPR (0-31) + VFT Reg
+    _properties._numberOfDependencyGPRegisters = 16 + 32 + 1;
+#else
+    // Volatile GPR (0-15, 18) + FPR (0-31) + VFT Reg
+    _properties._numberOfDependencyGPRegisters = 17 + 32 + 1;
 #endif // defined(OSX)
 
-   setOffsetToFirstParm(0);
-   _properties._offsetToFirstLocal            = -8;
-   }
+    setOffsetToFirstParm(0);
+    _properties._offsetToFirstLocal = -8;
+}
 
-TR::ARM64LinkageProperties& J9::ARM64::PrivateLinkage::getProperties()
-   {
-   return _properties;
-   }
+TR::ARM64LinkageProperties &J9::ARM64::PrivateLinkage::getProperties() { return _properties; }
 
-uint32_t J9::ARM64::PrivateLinkage::getRightToLeft()
-   {
-   return getProperties().getRightToLeft();
-   }
+uint32_t J9::ARM64::PrivateLinkage::getRightToLeft() { return getProperties().getRightToLeft(); }
 
-intptr_t
-J9::ARM64::PrivateLinkage::entryPointFromCompiledMethod()
-   {
-   return reinterpret_cast<intptr_t>(getJittedMethodEntryPoint()->getBinaryEncoding());
-   }
+intptr_t J9::ARM64::PrivateLinkage::entryPointFromCompiledMethod()
+{
+    return reinterpret_cast<intptr_t>(getJittedMethodEntryPoint()->getBinaryEncoding());
+}
 
-intptr_t
-J9::ARM64::PrivateLinkage::entryPointFromInterpretedMethod()
-   {
-   return reinterpret_cast<intptr_t>(getInterpretedMethodEntryPoint()->getBinaryEncoding());
-   }
+intptr_t J9::ARM64::PrivateLinkage::entryPointFromInterpretedMethod()
+{
+    return reinterpret_cast<intptr_t>(getInterpretedMethodEntryPoint()->getBinaryEncoding());
+}
 
 void J9::ARM64::PrivateLinkage::alignLocalReferences(uint32_t &stackIndex)
-   {
-   TR::Compilation *comp = self()->comp();
-   OMR::Logger *log = comp->log();
-   bool trace = comp->getOption(TR_TraceCG);
-   TR::GCStackAtlas *atlas = self()->cg()->getStackAtlas();
-   const int32_t localObjectAlignment = TR::Compiler->om.getObjectAlignmentInBytes();
-   const uint8_t pointerSize = TR::Compiler->om.sizeofReferenceAddress();
+{
+    TR::Compilation *comp = self()->comp();
+    OMR::Logger *log = comp->log();
+    bool trace = comp->getOption(TR_TraceCG);
+    TR::GCStackAtlas *atlas = self()->cg()->getStackAtlas();
+    const int32_t localObjectAlignment = TR::Compiler->om.getObjectAlignmentInBytes();
+    const uint8_t pointerSize = TR::Compiler->om.sizeofReferenceAddress();
 
-   if (comp->useCompressedPointers())
-      {
-      logprintf(trace, log, "\nLOCAL OBJECT ALIGNMENT: stack offset before alignment: %d,", stackIndex);
+    if (comp->useCompressedPointers()) {
+        logprintf(trace, log, "\nLOCAL OBJECT ALIGNMENT: stack offset before alignment: %d,", stackIndex);
 
-      // stackIndex in mapCompactedStack is calculated using only local reference sizes and does not include the padding
-      stackIndex -= pointerSize * atlas->getNumberOfPaddingSlots();
+        // stackIndex in mapCompactedStack is calculated using only local reference sizes and does not include the
+        // padding
+        stackIndex -= pointerSize * atlas->getNumberOfPaddingSlots();
 
-      logprintf(trace, log, " with padding: %d,", stackIndex);
+        logprintf(trace, log, " with padding: %d,", stackIndex);
 
-      // If there are any local objects we have to make sure they are aligned properly
-      // when compressed pointers are used.  Otherwise, pointer compression may clobber
-      // part of the pointer.
-      //
-      // Each auto's GC index will have already been aligned, so just the starting stack
-      // offset needs to be aligned.
-      //
-      uint32_t unalignedStackIndex = stackIndex;
-      stackIndex &= ~(localObjectAlignment - 1);
-      uint32_t paddingBytes = unalignedStackIndex - stackIndex;
-      if (paddingBytes > 0)
-         {
-         TR_ASSERT_FATAL((paddingBytes & (pointerSize - 1)) == 0, "Padding bytes should be a multiple of the slot/pointer size");
-         uint32_t paddingSlots = paddingBytes / pointerSize;
-         atlas->setNumberOfSlotsMapped(atlas->getNumberOfSlotsMapped() + paddingSlots);
-         }
-      }
-   }
+        // If there are any local objects we have to make sure they are aligned properly
+        // when compressed pointers are used.  Otherwise, pointer compression may clobber
+        // part of the pointer.
+        //
+        // Each auto's GC index will have already been aligned, so just the starting stack
+        // offset needs to be aligned.
+        //
+        uint32_t unalignedStackIndex = stackIndex;
+        stackIndex &= ~(localObjectAlignment - 1);
+        uint32_t paddingBytes = unalignedStackIndex - stackIndex;
+        if (paddingBytes > 0) {
+            TR_ASSERT_FATAL((paddingBytes & (pointerSize - 1)) == 0,
+                "Padding bytes should be a multiple of the slot/pointer size");
+            uint32_t paddingSlots = paddingBytes / pointerSize;
+            atlas->setNumberOfSlotsMapped(atlas->getNumberOfSlotsMapped() + paddingSlots);
+        }
+    }
+}
 
 void J9::ARM64::PrivateLinkage::mapStack(TR::ResolvedMethodSymbol *method)
-   {
-   if (self()->cg()->getLocalsIG() && self()->cg()->getSupportsCompactedLocals())
-      {
-      mapCompactedStack(method);
-      return;
-      }
+{
+    if (self()->cg()->getLocalsIG() && self()->cg()->getSupportsCompactedLocals()) {
+        mapCompactedStack(method);
+        return;
+    }
 
-   const TR::ARM64LinkageProperties& linkageProperties = getProperties();
-   int32_t firstLocalOffset = linkageProperties.getOffsetToFirstLocal();
-   uint32_t stackIndex = firstLocalOffset;
-   int32_t lowGCOffset = stackIndex;
+    const TR::ARM64LinkageProperties &linkageProperties = getProperties();
+    int32_t firstLocalOffset = linkageProperties.getOffsetToFirstLocal();
+    uint32_t stackIndex = firstLocalOffset;
+    int32_t lowGCOffset = stackIndex;
 
-   TR::GCStackAtlas *atlas = cg()->getStackAtlas();
+    TR::GCStackAtlas *atlas = cg()->getStackAtlas();
 
-   // Map all garbage collected references together so can concisely represent
-   // stack maps. They must be mapped so that the GC map index in each local
-   // symbol is honoured.
-   //
-   uint32_t numberOfLocalSlotsMapped = atlas->getNumberOfSlotsMapped() - atlas->getNumberOfParmSlotsMapped();
+    // Map all garbage collected references together so can concisely represent
+    // stack maps. They must be mapped so that the GC map index in each local
+    // symbol is honoured.
+    //
+    uint32_t numberOfLocalSlotsMapped = atlas->getNumberOfSlotsMapped() - atlas->getNumberOfParmSlotsMapped();
 
-   stackIndex -= numberOfLocalSlotsMapped * TR::Compiler->om.sizeofReferenceAddress();
+    stackIndex -= numberOfLocalSlotsMapped * TR::Compiler->om.sizeofReferenceAddress();
 
-   if (comp()->useCompressedPointers())
-      {
-      // If there are any local objects we have to make sure they are aligned properly
-      // when compressed pointers are used.  Otherwise, pointer compression may clobber
-      // part of the pointer.
-      //
-      // Each auto's GC index will have already been aligned, so just the starting stack
-      // offset needs to be aligned.
-      //
-      uint32_t unalignedStackIndex = stackIndex;
-      stackIndex &= ~(TR::Compiler->om.getObjectAlignmentInBytes() - 1);
-      uint32_t paddingBytes = unalignedStackIndex - stackIndex;
-      if (paddingBytes > 0)
-         {
-         TR_ASSERT((paddingBytes & (TR::Compiler->om.sizeofReferenceAddress() - 1)) == 0, "Padding bytes should be a multiple of the slot/pointer size");
-         uint32_t paddingSlots = paddingBytes / TR::Compiler->om.sizeofReferenceAddress();
-         atlas->setNumberOfSlotsMapped(atlas->getNumberOfSlotsMapped() + paddingSlots);
-         }
-      }
+    if (comp()->useCompressedPointers()) {
+        // If there are any local objects we have to make sure they are aligned properly
+        // when compressed pointers are used.  Otherwise, pointer compression may clobber
+        // part of the pointer.
+        //
+        // Each auto's GC index will have already been aligned, so just the starting stack
+        // offset needs to be aligned.
+        //
+        uint32_t unalignedStackIndex = stackIndex;
+        stackIndex &= ~(TR::Compiler->om.getObjectAlignmentInBytes() - 1);
+        uint32_t paddingBytes = unalignedStackIndex - stackIndex;
+        if (paddingBytes > 0) {
+            TR_ASSERT((paddingBytes & (TR::Compiler->om.sizeofReferenceAddress() - 1)) == 0,
+                "Padding bytes should be a multiple of the slot/pointer size");
+            uint32_t paddingSlots = paddingBytes / TR::Compiler->om.sizeofReferenceAddress();
+            atlas->setNumberOfSlotsMapped(atlas->getNumberOfSlotsMapped() + paddingSlots);
+        }
+    }
 
-   ListIterator<TR::AutomaticSymbol> automaticIterator(&method->getAutomaticList());
-   TR::AutomaticSymbol *localCursor;
-   int32_t firstLocalGCIndex = atlas->getNumberOfParmSlotsMapped();
+    ListIterator<TR::AutomaticSymbol> automaticIterator(&method->getAutomaticList());
+    TR::AutomaticSymbol *localCursor;
+    int32_t firstLocalGCIndex = atlas->getNumberOfParmSlotsMapped();
 
-   // Map local references to set the stack position correct according to the GC map index
-   //
-   for (localCursor = automaticIterator.getFirst(); localCursor; localCursor = automaticIterator.getNext())
-      {
-      if (localCursor->getGCMapIndex() >= 0)
-         {
-         localCursor->setOffset(stackIndex + TR::Compiler->om.sizeofReferenceAddress() * (localCursor->getGCMapIndex() - firstLocalGCIndex));
-         if (localCursor->getGCMapIndex() == atlas->getIndexOfFirstInternalPointer())
-            {
-            atlas->setOffsetOfFirstInternalPointer(localCursor->getOffset() - firstLocalOffset);
+    // Map local references to set the stack position correct according to the GC map index
+    //
+    for (localCursor = automaticIterator.getFirst(); localCursor; localCursor = automaticIterator.getNext()) {
+        if (localCursor->getGCMapIndex() >= 0) {
+            localCursor->setOffset(stackIndex
+                + TR::Compiler->om.sizeofReferenceAddress() * (localCursor->getGCMapIndex() - firstLocalGCIndex));
+            if (localCursor->getGCMapIndex() == atlas->getIndexOfFirstInternalPointer()) {
+                atlas->setOffsetOfFirstInternalPointer(localCursor->getOffset() - firstLocalOffset);
             }
-         }
-      }
+        }
+    }
 
-   method->setObjectTempSlots((lowGCOffset - stackIndex) / TR::Compiler->om.sizeofReferenceAddress());
-   lowGCOffset = stackIndex;
+    method->setObjectTempSlots((lowGCOffset - stackIndex) / TR::Compiler->om.sizeofReferenceAddress());
+    lowGCOffset = stackIndex;
 
-   // Now map the rest of the locals
-   //
-   automaticIterator.reset();
-   localCursor = automaticIterator.getFirst();
+    // Now map the rest of the locals
+    //
+    automaticIterator.reset();
+    localCursor = automaticIterator.getFirst();
 
-   while (localCursor != NULL)
-      {
-      if (localCursor->getGCMapIndex() < 0 &&
-          localCursor->getSize() < 8)
-         {
-         mapSingleAutomatic(localCursor, stackIndex);
-         }
+    while (localCursor != NULL) {
+        if (localCursor->getGCMapIndex() < 0 && localCursor->getSize() < 8) {
+            mapSingleAutomatic(localCursor, stackIndex);
+        }
 
-      localCursor = automaticIterator.getNext();
-      }
+        localCursor = automaticIterator.getNext();
+    }
 
-   automaticIterator.reset();
-   localCursor = automaticIterator.getFirst();
+    automaticIterator.reset();
+    localCursor = automaticIterator.getFirst();
 
-   while (localCursor != NULL)
-      {
-      if (localCursor->getGCMapIndex() < 0 &&
-          localCursor->getSize() == 8)
-         {
-         mapSingleAutomatic(localCursor, stackIndex);
-         }
+    while (localCursor != NULL) {
+        if (localCursor->getGCMapIndex() < 0 && localCursor->getSize() == 8) {
+            mapSingleAutomatic(localCursor, stackIndex);
+        }
 
-      localCursor = automaticIterator.getNext();
-      }
+        localCursor = automaticIterator.getNext();
+    }
 
-   automaticIterator.reset();
-   localCursor = automaticIterator.getFirst();
+    automaticIterator.reset();
+    localCursor = automaticIterator.getFirst();
 
-   while (localCursor != NULL)
-      {
-      if (localCursor->getGCMapIndex() < 0 &&
-          localCursor->getSize() > 8)
-         {
-         /* vectors and stack allocated objects */
-         mapSingleAutomatic(localCursor, stackIndex);
-         }
+    while (localCursor != NULL) {
+        if (localCursor->getGCMapIndex() < 0 && localCursor->getSize() > 8) {
+            /* vectors and stack allocated objects */
+            mapSingleAutomatic(localCursor, stackIndex);
+        }
 
-      localCursor = automaticIterator.getNext();
-      }
-   method->setLocalMappingCursor(stackIndex);
+        localCursor = automaticIterator.getNext();
+    }
+    method->setLocalMappingCursor(stackIndex);
 
-   mapIncomingParms(method);
+    mapIncomingParms(method);
 
-   atlas->setLocalBaseOffset(lowGCOffset - firstLocalOffset);
-   atlas->setParmBaseOffset(atlas->getParmBaseOffset() + getOffsetToFirstParm() - firstLocalOffset);
-   }
+    atlas->setLocalBaseOffset(lowGCOffset - firstLocalOffset);
+    atlas->setParmBaseOffset(atlas->getParmBaseOffset() + getOffsetToFirstParm() - firstLocalOffset);
+}
 
 void J9::ARM64::PrivateLinkage::mapSingleAutomatic(TR::AutomaticSymbol *p, uint32_t &stackIndex)
-   {
-   mapSingleAutomatic(p, p->getRoundedSize(), stackIndex);
-   }
+{
+    mapSingleAutomatic(p, p->getRoundedSize(), stackIndex);
+}
 
 void J9::ARM64::PrivateLinkage::mapSingleAutomatic(TR::AutomaticSymbol *p, uint32_t size, uint32_t &stackIndex)
-   {
-   stackIndex -= size;
-   if (p->isLocalObject() && (p->getGCMapIndex() == -1))
-      {
-      /*
-       * Align stack-allocated objects without GC map index to local object alignment boundary.
-       * Stack-allocated objects with GC map index are already aligned when GC map index was assigned.
-       */
-      int32_t roundup = TR::Compiler->om.getObjectAlignmentInBytes() - 1;
-      stackIndex &= (~roundup);
-      }
-   else if (size == 8)
-      {
-      stackIndex &= (~7);
-      }
-   else if (p->getDataType().isVector() || p->getDataType().isMask())
-      {
-      stackIndex &= (~15);
-      }
-   p->setOffset(stackIndex);
-   }
+{
+    stackIndex -= size;
+    if (p->isLocalObject() && (p->getGCMapIndex() == -1)) {
+        /*
+         * Align stack-allocated objects without GC map index to local object alignment boundary.
+         * Stack-allocated objects with GC map index are already aligned when GC map index was assigned.
+         */
+        int32_t roundup = TR::Compiler->om.getObjectAlignmentInBytes() - 1;
+        stackIndex &= (~roundup);
+    } else if (size == 8) {
+        stackIndex &= (~7);
+    } else if (p->getDataType().isVector() || p->getDataType().isMask()) {
+        stackIndex &= (~15);
+    }
+    p->setOffset(stackIndex);
+}
 
 static void lockRegister(TR::RealRegister *regToAssign)
-   {
-   regToAssign->setState(TR::RealRegister::Locked);
-   regToAssign->setAssignedRegister(regToAssign);
-   }
+{
+    regToAssign->setState(TR::RealRegister::Locked);
+    regToAssign->setAssignedRegister(regToAssign);
+}
 
 void J9::ARM64::PrivateLinkage::initARM64RealRegisterLinkage()
-   {
-   TR::Machine *machine = cg()->machine();
-   TR::RealRegister *reg;
-   int icount;
+{
+    TR::Machine *machine = cg()->machine();
+    TR::RealRegister *reg;
+    int icount;
 
-   reg = machine->getRealRegister(TR::RealRegister::RegNum::x16); // IP0
-   lockRegister(reg);
+    reg = machine->getRealRegister(TR::RealRegister::RegNum::x16); // IP0
+    lockRegister(reg);
 
-   reg = machine->getRealRegister(TR::RealRegister::RegNum::x17); // IP1
-   lockRegister(reg);
+    reg = machine->getRealRegister(TR::RealRegister::RegNum::x17); // IP1
+    lockRegister(reg);
 
 #if defined(OSX)
-   reg = machine->getRealRegister(TR::RealRegister::RegNum::x18); // Platform register
-   lockRegister(reg);
+    reg = machine->getRealRegister(TR::RealRegister::RegNum::x18); // Platform register
+    lockRegister(reg);
 #endif // defined(OSX)
 
-   reg = machine->getRealRegister(TR::RealRegister::RegNum::x19); // vmThread
-   lockRegister(reg);
+    reg = machine->getRealRegister(TR::RealRegister::RegNum::x19); // vmThread
+    lockRegister(reg);
 
-   reg = machine->getRealRegister(TR::RealRegister::RegNum::x20); // Java SP
-   lockRegister(reg);
+    reg = machine->getRealRegister(TR::RealRegister::RegNum::x20); // Java SP
+    lockRegister(reg);
 
-   reg = machine->getRealRegister(TR::RealRegister::RegNum::x29); // FP
-   lockRegister(reg);
+    reg = machine->getRealRegister(TR::RealRegister::RegNum::x29); // FP
+    lockRegister(reg);
 
-   reg = machine->getRealRegister(TR::RealRegister::RegNum::lr); // LR
-   lockRegister(reg);
+    reg = machine->getRealRegister(TR::RealRegister::RegNum::lr); // LR
+    lockRegister(reg);
 
-   reg = machine->getRealRegister(TR::RealRegister::RegNum::sp); // SP
-   lockRegister(reg);
+    reg = machine->getRealRegister(TR::RealRegister::RegNum::sp); // SP
+    lockRegister(reg);
 
-   // assign "maximum" weight to registers x0-x15
-   for (icount = TR::RealRegister::x0; icount <= TR::RealRegister::x15; icount++)
-      machine->getRealRegister((TR::RealRegister::RegNum)icount)->setWeight(0xf000);
+    // assign "maximum" weight to registers x0-x15
+    for (icount = TR::RealRegister::x0; icount <= TR::RealRegister::x15; icount++)
+        machine->getRealRegister((TR::RealRegister::RegNum)icount)->setWeight(0xf000);
 
-   // assign "maximum" weight to registers x21-x28
-   for (icount = TR::RealRegister::x21; icount <= TR::RealRegister::x28; icount++)
-      machine->getRealRegister((TR::RealRegister::RegNum)icount)->setWeight(0xf000);
+    // assign "maximum" weight to registers x21-x28
+    for (icount = TR::RealRegister::x21; icount <= TR::RealRegister::x28; icount++)
+        machine->getRealRegister((TR::RealRegister::RegNum)icount)->setWeight(0xf000);
 
-   // assign "maximum" weight to registers v0-v31
-   for (icount = TR::RealRegister::v0; icount <= TR::RealRegister::v31; icount++)
-      machine->getRealRegister((TR::RealRegister::RegNum)icount)->setWeight(0xf000);
-   }
+    // assign "maximum" weight to registers v0-v31
+    for (icount = TR::RealRegister::v0; icount <= TR::RealRegister::v31; icount++)
+        machine->getRealRegister((TR::RealRegister::RegNum)icount)->setWeight(0xf000);
+}
 
+void J9::ARM64::PrivateLinkage::setParameterLinkageRegisterIndex(TR::ResolvedMethodSymbol *method)
+{
+    ListIterator<TR::ParameterSymbol> paramIterator(&(method->getParameterList()));
+    TR::ParameterSymbol *paramCursor = paramIterator.getFirst();
+    int32_t numIntArgs = 0, numFloatArgs = 0;
+    const TR::ARM64LinkageProperties &properties = getProperties();
 
-void
-J9::ARM64::PrivateLinkage::setParameterLinkageRegisterIndex(TR::ResolvedMethodSymbol *method)
-   {
-   ListIterator<TR::ParameterSymbol> paramIterator(&(method->getParameterList()));
-   TR::ParameterSymbol *paramCursor = paramIterator.getFirst();
-   int32_t numIntArgs = 0, numFloatArgs = 0;
-   const TR::ARM64LinkageProperties& properties = getProperties();
+    while ((paramCursor != NULL)
+        && ((numIntArgs < properties.getNumIntArgRegs()) || (numFloatArgs < properties.getNumFloatArgRegs()))) {
+        int32_t index = -1;
 
-   while ( (paramCursor!=NULL) &&
-           ( (numIntArgs < properties.getNumIntArgRegs()) ||
-             (numFloatArgs < properties.getNumFloatArgRegs()) ) )
-      {
-      int32_t index = -1;
+        switch (paramCursor->getDataType()) {
+            case TR::Int8:
+            case TR::Int16:
+            case TR::Int32:
+            case TR::Int64:
+            case TR::Address:
+                if (numIntArgs < properties.getNumIntArgRegs()) {
+                    index = numIntArgs;
+                }
+                numIntArgs++;
+                break;
 
-      switch (paramCursor->getDataType())
-         {
-         case TR::Int8:
-         case TR::Int16:
-         case TR::Int32:
-         case TR::Int64:
-         case TR::Address:
-            if (numIntArgs < properties.getNumIntArgRegs())
-               {
-               index = numIntArgs;
-               }
-            numIntArgs++;
-            break;
+            case TR::Float:
+            case TR::Double:
+                if (numFloatArgs < properties.getNumFloatArgRegs()) {
+                    index = numFloatArgs;
+                }
+                numFloatArgs++;
+                break;
+        }
 
-         case TR::Float:
-         case TR::Double:
-            if (numFloatArgs < properties.getNumFloatArgRegs())
-               {
-               index = numFloatArgs;
-               }
-            numFloatArgs++;
-            break;
-         }
+        paramCursor->setLinkageRegisterIndex(index);
+        paramCursor = paramIterator.getNext();
+    }
+}
 
-      paramCursor->setLinkageRegisterIndex(index);
-      paramCursor = paramIterator.getNext();
-      }
-   }
+int32_t J9::ARM64::PrivateLinkage::calculatePreservedRegisterSaveSize(uint32_t &registerSaveDescription,
+    uint32_t &numGPRsSaved)
+{
+    TR::Machine *machine = cg()->machine();
 
+    TR::RealRegister::RegNum firstPreservedGPR = TR::RealRegister::x21;
+    TR::RealRegister::RegNum lastPreservedGPR = TR::RealRegister::x28;
 
-int32_t
-J9::ARM64::PrivateLinkage::calculatePreservedRegisterSaveSize(
-      uint32_t &registerSaveDescription,
-      uint32_t &numGPRsSaved)
-   {
-   TR::Machine *machine = cg()->machine();
+    // Create a bit vector of preserved registers that have been modified
+    // in this method.
+    //
+    for (int32_t i = firstPreservedGPR; i <= lastPreservedGPR; i++) {
+        if (machine->getRealRegister((TR::RealRegister::RegNum)i)->getHasBeenAssignedInMethod()) {
+            registerSaveDescription |= 1 << (i - 1);
+            numGPRsSaved++;
+        }
+    }
 
-   TR::RealRegister::RegNum firstPreservedGPR = TR::RealRegister::x21;
-   TR::RealRegister::RegNum lastPreservedGPR = TR::RealRegister::x28;
-
-   // Create a bit vector of preserved registers that have been modified
-   // in this method.
-   //
-   for (int32_t i = firstPreservedGPR; i <= lastPreservedGPR; i++)
-      {
-      if (machine->getRealRegister((TR::RealRegister::RegNum)i)->getHasBeenAssignedInMethod())
-         {
-         registerSaveDescription |= 1 << (i-1);
-         numGPRsSaved++;
-         }
-      }
-
-   return numGPRsSaved*8;
-   }
+    return numGPRsSaved * 8;
+}
 
 /**
  * @brief Generates instructions for initializing local variable and internal pointer slots in prologue
@@ -573,923 +494,832 @@ J9::ARM64::PrivateLinkage::calculatePreservedRegisterSaveSize(
  *
  * @return instruction cursor
  */
-static TR::Instruction* initializeLocals(TR::Instruction *cursor, uint32_t numSlotsToBeInitialized, int32_t offsetToFirstSlotFromAdjustedSP,
-                              TR::RealRegister *zeroReg, TR::RealRegister *baseReg, TR::RealRegister *javaSP, TR::CodeGenerator *cg)
-   {
-   auto loopCount = numSlotsToBeInitialized / 2;
-   // stp instruction has 7bit immediate offset which is scaled by 8 for 64bit registers.
-   // If the offset to the last 2 slots cleared by stp instruction does not fit in imm7,
-   // we use x10 as base register.
-   const bool isImm7OffsetOverflow = (loopCount > 0) &&
-         !constantIsImm7((offsetToFirstSlotFromAdjustedSP + (loopCount - 1) * 2 * TR::Compiler->om.sizeofReferenceAddress()) >> 3);
+static TR::Instruction *initializeLocals(TR::Instruction *cursor, uint32_t numSlotsToBeInitialized,
+    int32_t offsetToFirstSlotFromAdjustedSP, TR::RealRegister *zeroReg, TR::RealRegister *baseReg,
+    TR::RealRegister *javaSP, TR::CodeGenerator *cg)
+{
+    auto loopCount = numSlotsToBeInitialized / 2;
+    // stp instruction has 7bit immediate offset which is scaled by 8 for 64bit registers.
+    // If the offset to the last 2 slots cleared by stp instruction does not fit in imm7,
+    // we use x10 as base register.
+    const bool isImm7OffsetOverflow = (loopCount > 0)
+        && !constantIsImm7(
+            (offsetToFirstSlotFromAdjustedSP + (loopCount - 1) * 2 * TR::Compiler->om.sizeofReferenceAddress()) >> 3);
 
-   auto offset = offsetToFirstSlotFromAdjustedSP;
-   if (isImm7OffsetOverflow)
-      {
-      if (!constantIsImm7(offset >> 3))
-         {
-         // If offset does not fit in imm7, update baseReg and reset offset to 0
-         if (constantIsUnsignedImm12(offset))
-            {
-            cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addimmx, NULL, baseReg, javaSP, offset, cursor);
-            }
-         else
-            {
-            cursor = loadConstant32(cg, NULL, offset, baseReg, cursor);
-            cursor = generateTrg1Src2Instruction(cg, TR::InstOpCode::addx, NULL, baseReg, javaSP, baseReg, cursor);
-            }
-         offset = 0;
-         }
-      else
-         {
-         // mov baseReg, javaSP
-         cursor = generateTrg1Src2Instruction(cg, TR::InstOpCode::orrx, NULL, baseReg, zeroReg, javaSP, cursor);
-         }
-
-
-      for (int32_t i = 0; i < loopCount; i++)
-         {
-         if (!constantIsImm7(offset >> 3))
-            {
+    auto offset = offsetToFirstSlotFromAdjustedSP;
+    if (isImm7OffsetOverflow) {
+        if (!constantIsImm7(offset >> 3)) {
             // If offset does not fit in imm7, update baseReg and reset offset to 0
-            cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addimmx, NULL, baseReg, baseReg, offset, cursor);
-            offset = 0;
+            if (constantIsUnsignedImm12(offset)) {
+                cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addimmx, NULL, baseReg, javaSP, offset,
+                    cursor);
+            } else {
+                cursor = loadConstant32(cg, NULL, offset, baseReg, cursor);
+                cursor = generateTrg1Src2Instruction(cg, TR::InstOpCode::addx, NULL, baseReg, javaSP, baseReg, cursor);
             }
-         TR::MemoryReference *localMR = TR::MemoryReference::createWithDisplacement(cg, baseReg, offset);
-         cursor = generateMemSrc2Instruction(cg, TR::InstOpCode::stpoffx, NULL, localMR, zeroReg, zeroReg, cursor);
-         offset += (TR::Compiler->om.sizeofReferenceAddress() * 2);
-         }
-      if (numSlotsToBeInitialized % 2)
-         {
-         // clear residue
-         TR::MemoryReference *localMR = TR::MemoryReference::createWithDisplacement(cg, baseReg, offset);
-         cursor = generateMemSrc1Instruction(cg, TR::InstOpCode::strimmx, NULL, localMR, zeroReg, cursor);
-         }
-      }
-   else
-      {
-      for (int32_t i = 0; i < loopCount; i++, offset += (TR::Compiler->om.sizeofReferenceAddress() * 2))
-         {
-         TR::MemoryReference *localMR = TR::MemoryReference::createWithDisplacement(cg, javaSP, offset);
-         cursor = generateMemSrc2Instruction(cg, TR::InstOpCode::stpoffx, NULL, localMR, zeroReg, zeroReg, cursor);
-         }
-      if (numSlotsToBeInitialized % 2)
-         {
-         // clear residue
-         TR::MemoryReference *localMR = TR::MemoryReference::createWithDisplacement(cg, javaSP, offset);
-         cursor = generateMemSrc1Instruction(cg, TR::InstOpCode::strimmx, NULL, localMR, zeroReg, cursor);
-         }
-      }
+            offset = 0;
+        } else {
+            // mov baseReg, javaSP
+            cursor = generateTrg1Src2Instruction(cg, TR::InstOpCode::orrx, NULL, baseReg, zeroReg, javaSP, cursor);
+        }
 
-   return cursor;
-   }
+        for (int32_t i = 0; i < loopCount; i++) {
+            if (!constantIsImm7(offset >> 3)) {
+                // If offset does not fit in imm7, update baseReg and reset offset to 0
+                cursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addimmx, NULL, baseReg, baseReg, offset,
+                    cursor);
+                offset = 0;
+            }
+            TR::MemoryReference *localMR = TR::MemoryReference::createWithDisplacement(cg, baseReg, offset);
+            cursor = generateMemSrc2Instruction(cg, TR::InstOpCode::stpoffx, NULL, localMR, zeroReg, zeroReg, cursor);
+            offset += (TR::Compiler->om.sizeofReferenceAddress() * 2);
+        }
+        if (numSlotsToBeInitialized % 2) {
+            // clear residue
+            TR::MemoryReference *localMR = TR::MemoryReference::createWithDisplacement(cg, baseReg, offset);
+            cursor = generateMemSrc1Instruction(cg, TR::InstOpCode::strimmx, NULL, localMR, zeroReg, cursor);
+        }
+    } else {
+        for (int32_t i = 0; i < loopCount; i++, offset += (TR::Compiler->om.sizeofReferenceAddress() * 2)) {
+            TR::MemoryReference *localMR = TR::MemoryReference::createWithDisplacement(cg, javaSP, offset);
+            cursor = generateMemSrc2Instruction(cg, TR::InstOpCode::stpoffx, NULL, localMR, zeroReg, zeroReg, cursor);
+        }
+        if (numSlotsToBeInitialized % 2) {
+            // clear residue
+            TR::MemoryReference *localMR = TR::MemoryReference::createWithDisplacement(cg, javaSP, offset);
+            cursor = generateMemSrc1Instruction(cg, TR::InstOpCode::strimmx, NULL, localMR, zeroReg, cursor);
+        }
+    }
+
+    return cursor;
+}
 
 void J9::ARM64::PrivateLinkage::createPrologue(TR::Instruction *cursor)
-   {
+{
+    // Prologues are emitted post-RA so it is fine to use real registers directly
+    // in instructions
+    //
+    TR::ARM64LinkageProperties &properties = getProperties();
+    TR::Machine *machine = cg()->machine();
+    TR::RealRegister *vmThread = machine->getRealRegister(properties.getMethodMetaDataRegister()); // x19
+    TR::RealRegister *javaSP = machine->getRealRegister(properties.getStackPointerRegister()); // x20
 
-   // Prologues are emitted post-RA so it is fine to use real registers directly
-   // in instructions
-   //
-   TR::ARM64LinkageProperties& properties = getProperties();
-   TR::Machine *machine = cg()->machine();
-   TR::RealRegister *vmThread = machine->getRealRegister(properties.getMethodMetaDataRegister());   // x19
-   TR::RealRegister *javaSP = machine->getRealRegister(properties.getStackPointerRegister());       // x20
+    TR::Instruction *beforeInterpreterMethodEntryPointInstruction = cursor;
 
-   TR::Instruction *beforeInterpreterMethodEntryPointInstruction = cursor;
+    // --------------------------------------------------------------------------
+    // Create the entry point when transitioning from an interpreted method.
+    // Parameters are passed on the stack, so load them into the appropriate
+    // linkage registers expected by the JITed method entry point.
+    //
+    cursor = loadStackParametersToLinkageRegisters(cursor);
 
-   // --------------------------------------------------------------------------
-   // Create the entry point when transitioning from an interpreted method.
-   // Parameters are passed on the stack, so load them into the appropriate
-   // linkage registers expected by the JITed method entry point.
-   //
-   cursor = loadStackParametersToLinkageRegisters(cursor);
+    TR::Instruction *beforeJittedMethodEntryPointInstruction = cursor;
 
-   TR::Instruction *beforeJittedMethodEntryPointInstruction = cursor;
+    // Entry breakpoint
+    //
+    if (comp()->getOption(TR_EntryBreakPoints)) {
+        cursor = generateExceptionInstruction(cg(), TR::InstOpCode::brkarm64, NULL, 0, cursor);
+    }
 
-   // Entry breakpoint
-   //
-   if (comp()->getOption(TR_EntryBreakPoints))
-      {
-      cursor = generateExceptionInstruction(cg(), TR::InstOpCode::brkarm64, NULL, 0, cursor);
-      }
+    // --------------------------------------------------------------------------
+    // Determine the bitvector of registers to preserve in the prologue
+    //
+    uint32_t registerSaveDescription = 0;
+    uint32_t numGPRsSaved = 0;
 
-   // --------------------------------------------------------------------------
-   // Determine the bitvector of registers to preserve in the prologue
-   //
-   uint32_t registerSaveDescription = 0;
-   uint32_t numGPRsSaved = 0;
+    uint32_t preservedRegisterSaveSize = calculatePreservedRegisterSaveSize(registerSaveDescription, numGPRsSaved);
 
-   uint32_t preservedRegisterSaveSize = calculatePreservedRegisterSaveSize(registerSaveDescription, numGPRsSaved);
+    // Offset between the entry JavaSP of a method and the first mapped local.  This covers
+    // the space needed to preserve the RA.  It is a negative (or zero) offset.
+    //
+    int32_t firstLocalOffset = properties.getOffsetToFirstLocal();
 
-   // Offset between the entry JavaSP of a method and the first mapped local.  This covers
-   // the space needed to preserve the RA.  It is a negative (or zero) offset.
-   //
-   int32_t firstLocalOffset = properties.getOffsetToFirstLocal();
+    // The localMappingCursor is a negative-offset mapping of locals (autos and spills) to
+    // the stack relative to the entry JavaSP of a method.  It includes the offset to the
+    // first mapped local.
+    //
+    TR::ResolvedMethodSymbol *bodySymbol = comp()->getJittedMethodSymbol();
+    int32_t localsSize = -(int32_t)(bodySymbol->getLocalMappingCursor());
 
-   // The localMappingCursor is a negative-offset mapping of locals (autos and spills) to
-   // the stack relative to the entry JavaSP of a method.  It includes the offset to the
-   // first mapped local.
-   //
-   TR::ResolvedMethodSymbol *bodySymbol = comp()->getJittedMethodSymbol();
-   int32_t localsSize = -(int32_t)(bodySymbol->getLocalMappingCursor());
+    // Size of the frame needed to handle the argument storage requirements of any method
+    // call in the current method.
+    //
+    // The offset to the first parm is the offset between the entry JavaSP and the first
+    // mapped parameter.  It is a positive (or zero) offset.
+    //
+    int32_t outgoingArgsSize = cg()->getLargestOutgoingArgSize() + getOffsetToFirstParm();
 
-   // Size of the frame needed to handle the argument storage requirements of any method
-   // call in the current method.
-   //
-   // The offset to the first parm is the offset between the entry JavaSP and the first
-   // mapped parameter.  It is a positive (or zero) offset.
-   //
-   int32_t outgoingArgsSize = cg()->getLargestOutgoingArgSize() + getOffsetToFirstParm();
+    int32_t frameSizeIncludingReturnAddress = preservedRegisterSaveSize + localsSize + outgoingArgsSize;
 
-   int32_t frameSizeIncludingReturnAddress = preservedRegisterSaveSize + localsSize + outgoingArgsSize;
+    // Align the frame to 16 bytes
+    //
+    int32_t alignedFrameSizeIncludingReturnAddress = (frameSizeIncludingReturnAddress + 15) & ~15;
 
-   // Align the frame to 16 bytes
-   //
-   int32_t alignedFrameSizeIncludingReturnAddress = (frameSizeIncludingReturnAddress + 15) & ~15;
+    // The frame size maintained by the code generator does not include the RA
+    //
+    cg()->setFrameSizeInBytes(alignedFrameSizeIncludingReturnAddress + firstLocalOffset);
 
-   // The frame size maintained by the code generator does not include the RA
-   //
-   cg()->setFrameSizeInBytes(alignedFrameSizeIncludingReturnAddress + firstLocalOffset);
+    // --------------------------------------------------------------------------
+    // Encode register save description (RSD)
+    //
+    int32_t preservedRegisterOffsetFromJavaBP
+        = (alignedFrameSizeIncludingReturnAddress - outgoingArgsSize + firstLocalOffset);
 
-   // --------------------------------------------------------------------------
-   // Encode register save description (RSD)
-   //
-   int32_t preservedRegisterOffsetFromJavaBP = (alignedFrameSizeIncludingReturnAddress - outgoingArgsSize + firstLocalOffset);
+    TR_ASSERT_FATAL(preservedRegisterOffsetFromJavaBP >= 0, "expecting a positive preserved register area offset");
 
-   TR_ASSERT_FATAL(preservedRegisterOffsetFromJavaBP >= 0, "expecting a positive preserved register area offset");
+    // Frame size is too large for the RSD word in the metadata
+    //
+    if (preservedRegisterOffsetFromJavaBP > 0xffff) {
+        comp()->failCompilation<TR::CompilationInterrupted>(
+            "Overflowed or underflowed bounds of regSaveOffset in calculateFrameSize.");
+    }
 
-   // Frame size is too large for the RSD word in the metadata
-   //
-   if (preservedRegisterOffsetFromJavaBP > 0xffff)
-      {
-      comp()->failCompilation<TR::CompilationInterrupted>("Overflowed or underflowed bounds of regSaveOffset in calculateFrameSize.");
-      }
+    registerSaveDescription |= (preservedRegisterOffsetFromJavaBP & 0xffff);
 
-   registerSaveDescription |= (preservedRegisterOffsetFromJavaBP & 0xffff);
+    cg()->setRegisterSaveDescription(registerSaveDescription);
 
-   cg()->setRegisterSaveDescription(registerSaveDescription);
+    // In FSD, we must save linkage regs to the incoming argument area because
+    // the stack overflow check doesn't preserve them.
+    bool parmsHaveBeenStored = false;
+    if (comp()->getOption(TR_FullSpeedDebug)) {
+        cursor = saveParametersToStack(cursor);
+        parmsHaveBeenStored = true;
+    }
 
-   // In FSD, we must save linkage regs to the incoming argument area because
-   // the stack overflow check doesn't preserve them.
-   bool parmsHaveBeenStored = false;
-   if (comp()->getOption(TR_FullSpeedDebug))
-      {
-      cursor = saveParametersToStack(cursor);
-      parmsHaveBeenStored = true;
-      }
+    // --------------------------------------------------------------------------
+    // Store return address (RA)
+    //
+    TR::MemoryReference *returnAddressMR = TR::MemoryReference::createWithDisplacement(cg(), javaSP, firstLocalOffset);
+    cursor = generateMemSrc1Instruction(cg(), TR::InstOpCode::sturx, NULL, returnAddressMR,
+        machine->getRealRegister(TR::RealRegister::lr), cursor);
 
-   // --------------------------------------------------------------------------
-   // Store return address (RA)
-   //
-   TR::MemoryReference *returnAddressMR = TR::MemoryReference::createWithDisplacement(cg(), javaSP, firstLocalOffset);
-   cursor = generateMemSrc1Instruction(cg(), TR::InstOpCode::sturx, NULL, returnAddressMR, machine->getRealRegister(TR::RealRegister::lr), cursor);
+    // --------------------------------------------------------------------------
+    // Speculatively adjust Java SP with the needed frame size.
+    // This includes the preserved RA slot.
+    //
+    if (constantIsUnsignedImm12(alignedFrameSizeIncludingReturnAddress)) {
+        cursor = generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::subimmx, NULL, javaSP, javaSP,
+            alignedFrameSizeIncludingReturnAddress, cursor);
+    } else {
+        TR::RealRegister *x9Reg = machine->getRealRegister(TR::RealRegister::RegNum::x9);
 
-   // --------------------------------------------------------------------------
-   // Speculatively adjust Java SP with the needed frame size.
-   // This includes the preserved RA slot.
-   //
-   if (constantIsUnsignedImm12(alignedFrameSizeIncludingReturnAddress))
-      {
-      cursor = generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::subimmx, NULL, javaSP, javaSP, alignedFrameSizeIncludingReturnAddress, cursor);
-      }
-   else
-      {
-      TR::RealRegister *x9Reg = machine->getRealRegister(TR::RealRegister::RegNum::x9);
-
-      if (constantIsUnsignedImm16(alignedFrameSizeIncludingReturnAddress))
-         {
-         // x9 will contain the aligned frame size
-         //
-         cursor = loadConstant32(cg(), NULL, alignedFrameSizeIncludingReturnAddress, x9Reg, cursor);
-         cursor = generateTrg1Src2Instruction(cg(), TR::InstOpCode::subx, NULL, javaSP, javaSP, x9Reg, cursor);
-         }
-      else
-         {
-         TR_ASSERT_FATAL(0, "Large frame size not supported in prologue yet");
-         }
-      }
-
-   // --------------------------------------------------------------------------
-   // Perform javaSP overflow check
-   //
-   if (!comp()->isDLT())
-      {
-      //    if (javaSP < vmThread->SOM)
-      //       goto stackOverflowSnippetLabel
-      //
-      // stackOverflowRestartLabel:
-      //
-      TR::MemoryReference *somMR = TR::MemoryReference::createWithDisplacement(cg(), vmThread, cg()->getStackLimitOffset());
-      TR::RealRegister *somReg = machine->getRealRegister(TR::RealRegister::RegNum::x10);
-      cursor = generateTrg1MemInstruction(cg(), TR::InstOpCode::ldrimmx, NULL, somReg, somMR, cursor);
-
-      TR::RealRegister *zeroReg = machine->getRealRegister(TR::RealRegister::xzr);
-      cursor = generateTrg1Src2Instruction(cg(), TR::InstOpCode::subsx, NULL, zeroReg, javaSP, somReg, cursor);
-
-      TR::LabelSymbol *stackOverflowSnippetLabel = generateLabelSymbol(cg());
-      cursor = generateConditionalBranchInstruction(cg(), NULL, stackOverflowSnippetLabel, TR::CC_LS, cursor);
-
-      TR::LabelSymbol *stackOverflowRestartLabel = generateLabelSymbol(cg());
-      cursor = generateLabelInstruction(cg(), TR::InstOpCode::label, NULL, stackOverflowRestartLabel, cursor);
-
-      cg()->addSnippet(new (cg()->trHeapMemory()) TR::ARM64StackCheckFailureSnippet(cg(), NULL, stackOverflowRestartLabel, stackOverflowSnippetLabel));
-      }
-   else
-      {
-      // If StackCheckFailureSnippet is not added to the end of the snippet list and no data snippets exist,
-      // we might have a HelperCallSnippet at the end of the method.
-      // HelperCallSnippets add a GCMap to the instruction next to the `bl` instruction to the helper,
-      // and if a HelperCallSnippet is at the end of the method, GCMap is added to the address beyond the range of the method.
-      // To avoid that, we add a dummy ConstantDataSnippet. (Data snippets are emitted after normal snippets.)
-      if (!cg()->hasDataSnippets())
-         {
-         auto snippet = cg()->findOrCreate4ByteConstant(NULL, 0);
-         snippet->setReloType(TR_NoRelocation);
-         }
-      }
-
-   // --------------------------------------------------------------------------
-   // Preserve GPRs
-   //
-   // javaSP has been adjusted, so preservedRegs start at offset outgoingArgSize
-   // relative to the javaSP
-   //
-   // Registers are preserved in order from x21 (low memory) -> x28 (high memory)
-   //
-   if (numGPRsSaved)
-      {
-      TR::RealRegister::RegNum firstPreservedGPR = TR::RealRegister::x21;
-      TR::RealRegister::RegNum lastPreservedGPR = TR::RealRegister::x28;
-
-      int32_t preservedRegisterOffsetFromJavaSP = outgoingArgsSize;
-
-      TR::RealRegister *pendingRegToStore = NULL;
-      for (TR::RealRegister::RegNum regIndex = firstPreservedGPR; regIndex <= lastPreservedGPR; regIndex=(TR::RealRegister::RegNum)((uint32_t)regIndex+1))
-         {
-         TR::RealRegister *preservedRealReg = machine->getRealRegister(regIndex);
-         if (preservedRealReg->getHasBeenAssignedInMethod())
-            {
-            if (pendingRegToStore)
-               {
-               TR::MemoryReference *preservedRegMR = TR::MemoryReference::createWithDisplacement(cg(), javaSP, preservedRegisterOffsetFromJavaSP);
-               // Register pair instruction
-               cursor = generateMemSrc2Instruction(cg(), TR::InstOpCode::stpoffx, NULL, preservedRegMR, pendingRegToStore, preservedRealReg, cursor);
-               preservedRegisterOffsetFromJavaSP += 16;
-               numGPRsSaved -= 2;
-               pendingRegToStore = NULL;
-               }
-            else
-               {
-               if (constantIsImm7(preservedRegisterOffsetFromJavaSP >> 3))
-                  {
-                  pendingRegToStore = preservedRealReg;
-                  }
-               else
-                  {
-                  TR::MemoryReference *preservedRegMR = TR::MemoryReference::createWithDisplacement(cg(), javaSP, preservedRegisterOffsetFromJavaSP);
-                  cursor = generateMemSrc1Instruction(cg(), TR::InstOpCode::strimmx, NULL, preservedRegMR, preservedRealReg, cursor);
-                  preservedRegisterOffsetFromJavaSP += 8;
-                  numGPRsSaved--;
-                  }
-               }
-            }
-         }
-      if (pendingRegToStore)
-         {
-         TR::MemoryReference *preservedRegMR = TR::MemoryReference::createWithDisplacement(cg(), javaSP, preservedRegisterOffsetFromJavaSP);
-         cursor = generateMemSrc1Instruction(cg(), TR::InstOpCode::strimmx, NULL, preservedRegMR, pendingRegToStore, cursor);
-         preservedRegisterOffsetFromJavaSP += 8;
-         numGPRsSaved--;
-         pendingRegToStore = NULL;
-         }
-
-      TR_ASSERT_FATAL(numGPRsSaved == 0, "preserved register mismatch in prologue");
-      }
-
-   // --------------------------------------------------------------------------
-   // Initialize locals
-   //
-   TR::GCStackAtlas *atlas = cg()->getStackAtlas();
-   if (atlas)
-      {
-      // The GC stack maps are conservative in that they all say that
-      // collectable locals are live. This means that these locals must be
-      // cleared out in case a GC happens before they are allocated a valid
-      // value.
-      // The atlas contains the number of locals that need to be cleared. They
-      // are all mapped together starting at GC index 0.
-      //
-      uint32_t numLocalsToBeInitialized = atlas->getNumberOfSlotsToBeInitialized();
-      if (numLocalsToBeInitialized > 0 || atlas->getInternalPointerMap())
-         {
-         // The LocalBaseOffset and firstLocalOffset are either negative or zero values
-         //
-         int32_t initializedLocalsOffsetFromAdjustedJavaSP = alignedFrameSizeIncludingReturnAddress + atlas->getLocalBaseOffset() + firstLocalOffset;
-
-         TR::RealRegister *zeroReg = machine->getRealRegister(TR::RealRegister::RegNum::xzr);
-         TR::RealRegister *baseReg = machine->getRealRegister(TR::RealRegister::RegNum::x10);
-
-         cursor = initializeLocals(cursor, numLocalsToBeInitialized, initializedLocalsOffsetFromAdjustedJavaSP,
-                              zeroReg, baseReg, javaSP, cg());
-
-         if (atlas->getInternalPointerMap())
-            {
-            // Total number of slots to be initialized is number of pinning arrays +
-            // number of derived internal pointer stack slots
+        if (constantIsUnsignedImm16(alignedFrameSizeIncludingReturnAddress)) {
+            // x9 will contain the aligned frame size
             //
-            int32_t numSlotsToBeInitialized = atlas->getNumberOfDistinctPinningArrays() + atlas->getInternalPointerMap()->getNumInternalPointers();
-            int32_t offsetToFirstInternalPointerFromAdjustedJavaSP = alignedFrameSizeIncludingReturnAddress + atlas->getOffsetOfFirstInternalPointer() + firstLocalOffset;
+            cursor = loadConstant32(cg(), NULL, alignedFrameSizeIncludingReturnAddress, x9Reg, cursor);
+            cursor = generateTrg1Src2Instruction(cg(), TR::InstOpCode::subx, NULL, javaSP, javaSP, x9Reg, cursor);
+        } else {
+            TR_ASSERT_FATAL(0, "Large frame size not supported in prologue yet");
+        }
+    }
 
-            cursor = initializeLocals(cursor, numSlotsToBeInitialized, offsetToFirstInternalPointerFromAdjustedJavaSP,
-                              zeroReg, baseReg, javaSP, cg());
+    // --------------------------------------------------------------------------
+    // Perform javaSP overflow check
+    //
+    if (!comp()->isDLT()) {
+        //    if (javaSP < vmThread->SOM)
+        //       goto stackOverflowSnippetLabel
+        //
+        // stackOverflowRestartLabel:
+        //
+        TR::MemoryReference *somMR
+            = TR::MemoryReference::createWithDisplacement(cg(), vmThread, cg()->getStackLimitOffset());
+        TR::RealRegister *somReg = machine->getRealRegister(TR::RealRegister::RegNum::x10);
+        cursor = generateTrg1MemInstruction(cg(), TR::InstOpCode::ldrimmx, NULL, somReg, somMR, cursor);
+
+        TR::RealRegister *zeroReg = machine->getRealRegister(TR::RealRegister::xzr);
+        cursor = generateTrg1Src2Instruction(cg(), TR::InstOpCode::subsx, NULL, zeroReg, javaSP, somReg, cursor);
+
+        TR::LabelSymbol *stackOverflowSnippetLabel = generateLabelSymbol(cg());
+        cursor = generateConditionalBranchInstruction(cg(), NULL, stackOverflowSnippetLabel, TR::CC_LS, cursor);
+
+        TR::LabelSymbol *stackOverflowRestartLabel = generateLabelSymbol(cg());
+        cursor = generateLabelInstruction(cg(), TR::InstOpCode::label, NULL, stackOverflowRestartLabel, cursor);
+
+        cg()->addSnippet(new (cg()->trHeapMemory())
+                TR::ARM64StackCheckFailureSnippet(cg(), NULL, stackOverflowRestartLabel, stackOverflowSnippetLabel));
+    } else {
+        // If StackCheckFailureSnippet is not added to the end of the snippet list and no data snippets exist,
+        // we might have a HelperCallSnippet at the end of the method.
+        // HelperCallSnippets add a GCMap to the instruction next to the `bl` instruction to the helper,
+        // and if a HelperCallSnippet is at the end of the method, GCMap is added to the address beyond the range of the
+        // method. To avoid that, we add a dummy ConstantDataSnippet. (Data snippets are emitted after normal snippets.)
+        if (!cg()->hasDataSnippets()) {
+            auto snippet = cg()->findOrCreate4ByteConstant(NULL, 0);
+            snippet->setReloType(TR_NoRelocation);
+        }
+    }
+
+    // --------------------------------------------------------------------------
+    // Preserve GPRs
+    //
+    // javaSP has been adjusted, so preservedRegs start at offset outgoingArgSize
+    // relative to the javaSP
+    //
+    // Registers are preserved in order from x21 (low memory) -> x28 (high memory)
+    //
+    if (numGPRsSaved) {
+        TR::RealRegister::RegNum firstPreservedGPR = TR::RealRegister::x21;
+        TR::RealRegister::RegNum lastPreservedGPR = TR::RealRegister::x28;
+
+        int32_t preservedRegisterOffsetFromJavaSP = outgoingArgsSize;
+
+        TR::RealRegister *pendingRegToStore = NULL;
+        for (TR::RealRegister::RegNum regIndex = firstPreservedGPR; regIndex <= lastPreservedGPR;
+             regIndex = (TR::RealRegister::RegNum)((uint32_t)regIndex + 1)) {
+            TR::RealRegister *preservedRealReg = machine->getRealRegister(regIndex);
+            if (preservedRealReg->getHasBeenAssignedInMethod()) {
+                if (pendingRegToStore) {
+                    TR::MemoryReference *preservedRegMR
+                        = TR::MemoryReference::createWithDisplacement(cg(), javaSP, preservedRegisterOffsetFromJavaSP);
+                    // Register pair instruction
+                    cursor = generateMemSrc2Instruction(cg(), TR::InstOpCode::stpoffx, NULL, preservedRegMR,
+                        pendingRegToStore, preservedRealReg, cursor);
+                    preservedRegisterOffsetFromJavaSP += 16;
+                    numGPRsSaved -= 2;
+                    pendingRegToStore = NULL;
+                } else {
+                    if (constantIsImm7(preservedRegisterOffsetFromJavaSP >> 3)) {
+                        pendingRegToStore = preservedRealReg;
+                    } else {
+                        TR::MemoryReference *preservedRegMR = TR::MemoryReference::createWithDisplacement(cg(), javaSP,
+                            preservedRegisterOffsetFromJavaSP);
+                        cursor = generateMemSrc1Instruction(cg(), TR::InstOpCode::strimmx, NULL, preservedRegMR,
+                            preservedRealReg, cursor);
+                        preservedRegisterOffsetFromJavaSP += 8;
+                        numGPRsSaved--;
+                    }
+                }
             }
-         }
-      }
+        }
+        if (pendingRegToStore) {
+            TR::MemoryReference *preservedRegMR
+                = TR::MemoryReference::createWithDisplacement(cg(), javaSP, preservedRegisterOffsetFromJavaSP);
+            cursor = generateMemSrc1Instruction(cg(), TR::InstOpCode::strimmx, NULL, preservedRegMR, pendingRegToStore,
+                cursor);
+            preservedRegisterOffsetFromJavaSP += 8;
+            numGPRsSaved--;
+            pendingRegToStore = NULL;
+        }
 
-   // Adjust final offsets on locals and parm symbols now that the frame size is known.
-   // These offsets are relative to the javaSP which has been adjusted downward to
-   // accommodate the frame of this method.
-   //
-   ListIterator<TR::AutomaticSymbol> automaticIterator(&bodySymbol->getAutomaticList());
-   TR::AutomaticSymbol *localCursor = automaticIterator.getFirst();
+        TR_ASSERT_FATAL(numGPRsSaved == 0, "preserved register mismatch in prologue");
+    }
 
-   while (localCursor != NULL)
-      {
-      localCursor->setOffset(localCursor->getOffset() + alignedFrameSizeIncludingReturnAddress);
-      localCursor = automaticIterator.getNext();
-      }
+    // --------------------------------------------------------------------------
+    // Initialize locals
+    //
+    TR::GCStackAtlas *atlas = cg()->getStackAtlas();
+    if (atlas) {
+        // The GC stack maps are conservative in that they all say that
+        // collectable locals are live. This means that these locals must be
+        // cleared out in case a GC happens before they are allocated a valid
+        // value.
+        // The atlas contains the number of locals that need to be cleared. They
+        // are all mapped together starting at GC index 0.
+        //
+        uint32_t numLocalsToBeInitialized = atlas->getNumberOfSlotsToBeInitialized();
+        if (numLocalsToBeInitialized > 0 || atlas->getInternalPointerMap()) {
+            // The LocalBaseOffset and firstLocalOffset are either negative or zero values
+            //
+            int32_t initializedLocalsOffsetFromAdjustedJavaSP
+                = alignedFrameSizeIncludingReturnAddress + atlas->getLocalBaseOffset() + firstLocalOffset;
 
-   ListIterator<TR::ParameterSymbol> parameterIterator(&bodySymbol->getParameterList());
-   TR::ParameterSymbol *parmCursor = parameterIterator.getFirst();
-   while (parmCursor != NULL)
-      {
-      parmCursor->setParameterOffset(parmCursor->getParameterOffset() + alignedFrameSizeIncludingReturnAddress);
-      parmCursor = parameterIterator.getNext();
-      }
+            TR::RealRegister *zeroReg = machine->getRealRegister(TR::RealRegister::RegNum::xzr);
+            TR::RealRegister *baseReg = machine->getRealRegister(TR::RealRegister::RegNum::x10);
 
-   // Ensure arguments reside where the method body expects them to be (either in registers or
-   // on the stack).  This state is influenced by global register assignment.
-   //
-   cursor = copyParametersToHomeLocation(cursor, parmsHaveBeenStored);
+            cursor = initializeLocals(cursor, numLocalsToBeInitialized, initializedLocalsOffsetFromAdjustedJavaSP,
+                zeroReg, baseReg, javaSP, cg());
 
-   // Set the instructions for method entry points
-   setInterpretedMethodEntryPoint(beforeInterpreterMethodEntryPointInstruction->getNext());
-   setJittedMethodEntryPoint(beforeJittedMethodEntryPointInstruction->getNext());
-   }
+            if (atlas->getInternalPointerMap()) {
+                // Total number of slots to be initialized is number of pinning arrays +
+                // number of derived internal pointer stack slots
+                //
+                int32_t numSlotsToBeInitialized = atlas->getNumberOfDistinctPinningArrays()
+                    + atlas->getInternalPointerMap()->getNumInternalPointers();
+                int32_t offsetToFirstInternalPointerFromAdjustedJavaSP = alignedFrameSizeIncludingReturnAddress
+                    + atlas->getOffsetOfFirstInternalPointer() + firstLocalOffset;
+
+                cursor = initializeLocals(cursor, numSlotsToBeInitialized,
+                    offsetToFirstInternalPointerFromAdjustedJavaSP, zeroReg, baseReg, javaSP, cg());
+            }
+        }
+    }
+
+    // Adjust final offsets on locals and parm symbols now that the frame size is known.
+    // These offsets are relative to the javaSP which has been adjusted downward to
+    // accommodate the frame of this method.
+    //
+    ListIterator<TR::AutomaticSymbol> automaticIterator(&bodySymbol->getAutomaticList());
+    TR::AutomaticSymbol *localCursor = automaticIterator.getFirst();
+
+    while (localCursor != NULL) {
+        localCursor->setOffset(localCursor->getOffset() + alignedFrameSizeIncludingReturnAddress);
+        localCursor = automaticIterator.getNext();
+    }
+
+    ListIterator<TR::ParameterSymbol> parameterIterator(&bodySymbol->getParameterList());
+    TR::ParameterSymbol *parmCursor = parameterIterator.getFirst();
+    while (parmCursor != NULL) {
+        parmCursor->setParameterOffset(parmCursor->getParameterOffset() + alignedFrameSizeIncludingReturnAddress);
+        parmCursor = parameterIterator.getNext();
+    }
+
+    // Ensure arguments reside where the method body expects them to be (either in registers or
+    // on the stack).  This state is influenced by global register assignment.
+    //
+    cursor = copyParametersToHomeLocation(cursor, parmsHaveBeenStored);
+
+    // Set the instructions for method entry points
+    setInterpretedMethodEntryPoint(beforeInterpreterMethodEntryPointInstruction->getNext());
+    setJittedMethodEntryPoint(beforeJittedMethodEntryPointInstruction->getNext());
+}
 
 void J9::ARM64::PrivateLinkage::createEpilogue(TR::Instruction *cursor)
-   {
-   const TR::ARM64LinkageProperties& properties = getProperties();
-   TR::Machine *machine = cg()->machine();
-   TR::Node *lastNode = cursor->getNode();
-   TR::ResolvedMethodSymbol *bodySymbol = comp()->getJittedMethodSymbol();
-   TR::RealRegister *javaSP = machine->getRealRegister(properties.getStackPointerRegister()); // x20
+{
+    const TR::ARM64LinkageProperties &properties = getProperties();
+    TR::Machine *machine = cg()->machine();
+    TR::Node *lastNode = cursor->getNode();
+    TR::ResolvedMethodSymbol *bodySymbol = comp()->getJittedMethodSymbol();
+    TR::RealRegister *javaSP = machine->getRealRegister(properties.getStackPointerRegister()); // x20
 
-   // restore preserved GPRs
-   int32_t preservedRegisterOffsetFromJavaSP = cg()->getLargestOutgoingArgSize() + getOffsetToFirstParm(); // outgoingArgsSize
-   TR::RealRegister::RegNum firstPreservedGPR = TR::RealRegister::x21;
-   TR::RealRegister::RegNum lastPreservedGPR = TR::RealRegister::x28;
-   TR::RealRegister *pendingRegToLoad = NULL;
-   for (TR::RealRegister::RegNum r = firstPreservedGPR; r <= lastPreservedGPR; r = (TR::RealRegister::RegNum)((uint32_t)r+1))
-      {
-      TR::RealRegister *rr = machine->getRealRegister(r);
-      if (rr->getHasBeenAssignedInMethod())
-         {
-         if (pendingRegToLoad)
-            {
-            TR::MemoryReference *preservedRegMR = TR::MemoryReference::createWithDisplacement(cg(), javaSP, preservedRegisterOffsetFromJavaSP);
-            // Register pair instruction
-            cursor = generateTrg2MemInstruction(cg(), TR::InstOpCode::ldpoffx, lastNode, pendingRegToLoad, rr, preservedRegMR, cursor);
-            preservedRegisterOffsetFromJavaSP += 16;
-            pendingRegToLoad = NULL;
+    // restore preserved GPRs
+    int32_t preservedRegisterOffsetFromJavaSP
+        = cg()->getLargestOutgoingArgSize() + getOffsetToFirstParm(); // outgoingArgsSize
+    TR::RealRegister::RegNum firstPreservedGPR = TR::RealRegister::x21;
+    TR::RealRegister::RegNum lastPreservedGPR = TR::RealRegister::x28;
+    TR::RealRegister *pendingRegToLoad = NULL;
+    for (TR::RealRegister::RegNum r = firstPreservedGPR; r <= lastPreservedGPR;
+         r = (TR::RealRegister::RegNum)((uint32_t)r + 1)) {
+        TR::RealRegister *rr = machine->getRealRegister(r);
+        if (rr->getHasBeenAssignedInMethod()) {
+            if (pendingRegToLoad) {
+                TR::MemoryReference *preservedRegMR
+                    = TR::MemoryReference::createWithDisplacement(cg(), javaSP, preservedRegisterOffsetFromJavaSP);
+                // Register pair instruction
+                cursor = generateTrg2MemInstruction(cg(), TR::InstOpCode::ldpoffx, lastNode, pendingRegToLoad, rr,
+                    preservedRegMR, cursor);
+                preservedRegisterOffsetFromJavaSP += 16;
+                pendingRegToLoad = NULL;
+            } else {
+                if (constantIsImm7(preservedRegisterOffsetFromJavaSP >> 3)) {
+                    pendingRegToLoad = rr;
+                } else {
+                    TR::MemoryReference *preservedRegMR
+                        = TR::MemoryReference::createWithDisplacement(cg(), javaSP, preservedRegisterOffsetFromJavaSP);
+                    cursor = generateTrg1MemInstruction(cg(), TR::InstOpCode::ldrimmx, lastNode, rr, preservedRegMR,
+                        cursor);
+                    preservedRegisterOffsetFromJavaSP += 8;
+                }
             }
-         else
-            {
-            if (constantIsImm7(preservedRegisterOffsetFromJavaSP >> 3))
-               {
-               pendingRegToLoad = rr;
-               }
-            else
-               {
-               TR::MemoryReference *preservedRegMR = TR::MemoryReference::createWithDisplacement(cg(), javaSP, preservedRegisterOffsetFromJavaSP);
-               cursor = generateTrg1MemInstruction(cg(), TR::InstOpCode::ldrimmx, lastNode, rr, preservedRegMR, cursor);
-               preservedRegisterOffsetFromJavaSP += 8;
-               }
-            }
-         }
-      }
-   if (pendingRegToLoad)
-      {
-      TR::MemoryReference *preservedRegMR = TR::MemoryReference::createWithDisplacement(cg(), javaSP, preservedRegisterOffsetFromJavaSP);
-      cursor = generateTrg1MemInstruction(cg(), TR::InstOpCode::ldrimmx, lastNode, pendingRegToLoad, preservedRegMR, cursor);
-      preservedRegisterOffsetFromJavaSP += 8;
-      pendingRegToLoad = NULL;
-      }
+        }
+    }
+    if (pendingRegToLoad) {
+        TR::MemoryReference *preservedRegMR
+            = TR::MemoryReference::createWithDisplacement(cg(), javaSP, preservedRegisterOffsetFromJavaSP);
+        cursor = generateTrg1MemInstruction(cg(), TR::InstOpCode::ldrimmx, lastNode, pendingRegToLoad, preservedRegMR,
+            cursor);
+        preservedRegisterOffsetFromJavaSP += 8;
+        pendingRegToLoad = NULL;
+    }
 
-   // remove space for preserved registers
-   int32_t firstLocalOffset = properties.getOffsetToFirstLocal();
+    // remove space for preserved registers
+    int32_t firstLocalOffset = properties.getOffsetToFirstLocal();
 
-   uint32_t alignedFrameSizeIncludingReturnAddress = cg()->getFrameSizeInBytes() - firstLocalOffset;
-   if (constantIsUnsignedImm12(alignedFrameSizeIncludingReturnAddress))
-      {
-      cursor = generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::addimmx, lastNode, javaSP, javaSP, alignedFrameSizeIncludingReturnAddress, cursor);
-      }
-   else
-      {
-      TR::RealRegister *x9Reg = machine->getRealRegister(TR::RealRegister::RegNum::x9);
-      cursor = loadConstant32(cg(), lastNode, alignedFrameSizeIncludingReturnAddress, x9Reg, cursor);
-      cursor = generateTrg1Src2Instruction(cg(), TR::InstOpCode::addx, lastNode, javaSP, javaSP, x9Reg, cursor);
-      }
+    uint32_t alignedFrameSizeIncludingReturnAddress = cg()->getFrameSizeInBytes() - firstLocalOffset;
+    if (constantIsUnsignedImm12(alignedFrameSizeIncludingReturnAddress)) {
+        cursor = generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::addimmx, lastNode, javaSP, javaSP,
+            alignedFrameSizeIncludingReturnAddress, cursor);
+    } else {
+        TR::RealRegister *x9Reg = machine->getRealRegister(TR::RealRegister::RegNum::x9);
+        cursor = loadConstant32(cg(), lastNode, alignedFrameSizeIncludingReturnAddress, x9Reg, cursor);
+        cursor = generateTrg1Src2Instruction(cg(), TR::InstOpCode::addx, lastNode, javaSP, javaSP, x9Reg, cursor);
+    }
 
-   // restore return address
-   TR::RealRegister *lr = machine->getRealRegister(TR::RealRegister::lr);
-   if (machine->getLinkRegisterKilled())
-      {
-      TR::MemoryReference *returnAddressMR = TR::MemoryReference::createWithDisplacement(cg(), javaSP, firstLocalOffset);
-      cursor = generateTrg1MemInstruction(cg(), TR::InstOpCode::ldurx, lastNode, lr, returnAddressMR, cursor);
-      }
+    // restore return address
+    TR::RealRegister *lr = machine->getRealRegister(TR::RealRegister::lr);
+    if (machine->getLinkRegisterKilled()) {
+        TR::MemoryReference *returnAddressMR
+            = TR::MemoryReference::createWithDisplacement(cg(), javaSP, firstLocalOffset);
+        cursor = generateTrg1MemInstruction(cg(), TR::InstOpCode::ldurx, lastNode, lr, returnAddressMR, cursor);
+    }
 
-   // return
-   generateRegBranchInstruction(cg(), TR::InstOpCode::ret, lastNode, lr, cursor);
-   }
+    // return
+    generateRegBranchInstruction(cg(), TR::InstOpCode::ret, lastNode, lr, cursor);
+}
 
-void J9::ARM64::PrivateLinkage::pushOutgoingMemArgument(TR::Register *argReg, int32_t offset, TR::InstOpCode::Mnemonic opCode, TR::ARM64MemoryArgument &memArg)
-   {
-   const TR::ARM64LinkageProperties& properties = self()->getProperties();
-   TR::RealRegister *javaSP = cg()->machine()->getRealRegister(properties.getStackPointerRegister()); // x20
+void J9::ARM64::PrivateLinkage::pushOutgoingMemArgument(TR::Register *argReg, int32_t offset,
+    TR::InstOpCode::Mnemonic opCode, TR::ARM64MemoryArgument &memArg)
+{
+    const TR::ARM64LinkageProperties &properties = self()->getProperties();
+    TR::RealRegister *javaSP = cg()->machine()->getRealRegister(properties.getStackPointerRegister()); // x20
 
-   TR::MemoryReference *result = TR::MemoryReference::createWithDisplacement(cg(), javaSP, offset);
-   memArg.argRegister = argReg;
-   memArg.argMemory = result;
-   memArg.opCode = opCode;
-   }
+    TR::MemoryReference *result = TR::MemoryReference::createWithDisplacement(cg(), javaSP, offset);
+    memArg.argRegister = argReg;
+    memArg.argMemory = result;
+    memArg.opCode = opCode;
+}
 
-int32_t J9::ARM64::PrivateLinkage::buildArgs(TR::Node *callNode,
-   TR::RegisterDependencyConditions *dependencies)
-   {
-   return buildPrivateLinkageArgs(callNode, dependencies, TR_Private);
-   }
+int32_t J9::ARM64::PrivateLinkage::buildArgs(TR::Node *callNode, TR::RegisterDependencyConditions *dependencies)
+{
+    return buildPrivateLinkageArgs(callNode, dependencies, TR_Private);
+}
 
 int32_t J9::ARM64::PrivateLinkage::buildPrivateLinkageArgs(TR::Node *callNode,
-   TR::RegisterDependencyConditions *dependencies,
-   TR_LinkageConventions linkage)
-   {
-   TR_ASSERT(linkage == TR_Private || linkage == TR_Helper || linkage == TR_CHelper, "Unexpected linkage convention");
+    TR::RegisterDependencyConditions *dependencies, TR_LinkageConventions linkage)
+{
+    TR_ASSERT(linkage == TR_Private || linkage == TR_Helper || linkage == TR_CHelper, "Unexpected linkage convention");
 
-   const TR::ARM64LinkageProperties& properties = getProperties();
-   TR::Compilation *comp = this->comp();
-   TR::ARM64MemoryArgument *pushToMemory = NULL;
-   TR::Register *tempReg;
-   int32_t argIndex = 0;
-   int32_t numMemArgs = 0;
-   int32_t memArgSize = 0;
-   int32_t firstExplicitArg = 0;
-   int32_t from, to, step;
-   int32_t argSize = -getOffsetToFirstParm();
-   int32_t totalSize = 0;
-   int32_t multiplier;
+    const TR::ARM64LinkageProperties &properties = getProperties();
+    TR::Compilation *comp = this->comp();
+    TR::ARM64MemoryArgument *pushToMemory = NULL;
+    TR::Register *tempReg;
+    int32_t argIndex = 0;
+    int32_t numMemArgs = 0;
+    int32_t memArgSize = 0;
+    int32_t firstExplicitArg = 0;
+    int32_t from, to, step;
+    int32_t argSize = -getOffsetToFirstParm();
+    int32_t totalSize = 0;
+    int32_t multiplier;
 
-   uint32_t numIntegerArgs = 0;
-   uint32_t numFloatArgs = 0;
+    uint32_t numIntegerArgs = 0;
+    uint32_t numFloatArgs = 0;
 
-   TR::Node *child;
-   TR::DataType childType;
-   TR::DataType resType = callNode->getType();
+    TR::Node *child;
+    TR::DataType childType;
+    TR::DataType resType = callNode->getType();
 
-   uint32_t firstArgumentChild = callNode->getFirstArgumentIndex();
+    uint32_t firstArgumentChild = callNode->getFirstArgumentIndex();
 
-   TR::MethodSymbol *callSymbol = callNode->getSymbol()->castToMethodSymbol();
+    TR::MethodSymbol *callSymbol = callNode->getSymbol()->castToMethodSymbol();
 
-   bool isHelperCall = linkage == TR_Helper || linkage == TR_CHelper;
-   bool rightToLeft = isHelperCall &&
-                      //we want the arguments for induceOSR to be passed from left to right as in any other non-helper call
-                      !callNode->getSymbolReference()->isOSRInductionHelper();
+    bool isHelperCall = linkage == TR_Helper || linkage == TR_CHelper;
+    bool rightToLeft = isHelperCall &&
+        // we want the arguments for induceOSR to be passed from left to right as in any other non-helper call
+        !callNode->getSymbolReference()->isOSRInductionHelper();
 
-   if (rightToLeft)
-      {
-      from = callNode->getNumChildren() - 1;
-      to   = firstArgumentChild;
-      step = -1;
-      }
-   else
-      {
-      from = firstArgumentChild;
-      to   = callNode->getNumChildren() - 1;
-      step = 1;
-      }
+    if (rightToLeft) {
+        from = callNode->getNumChildren() - 1;
+        to = firstArgumentChild;
+        step = -1;
+    } else {
+        from = firstArgumentChild;
+        to = callNode->getNumChildren() - 1;
+        step = 1;
+    }
 
-   uint32_t numIntArgRegs = properties.getNumIntArgRegs();
-   uint32_t numFloatArgRegs = properties.getNumFloatArgRegs();
+    uint32_t numIntArgRegs = properties.getNumIntArgRegs();
+    uint32_t numFloatArgRegs = properties.getNumFloatArgRegs();
 
-   TR::RealRegister::RegNum specialArgReg = TR::RealRegister::NoReg;
-   switch (callSymbol->getMandatoryRecognizedMethod())
-      {
-      // Node: special long args are still only passed in one GPR
-      case TR::java_lang_invoke_ComputedCalls_dispatchJ9Method:
-         specialArgReg = getProperties().getJ9MethodArgumentRegister();
-         // Other args go in memory
-         numIntArgRegs   = 0;
-         numFloatArgRegs = 0;
-         break;
-      case TR::java_lang_invoke_ComputedCalls_dispatchVirtual:
-      case TR::com_ibm_jit_JITHelpers_dispatchVirtual:
-         specialArgReg = getProperties().getVTableIndexArgumentRegister();
-         break;
-      default:
-         break;
-      }
-   if (specialArgReg != TR::RealRegister::NoReg)
-      {
-      logprintf(comp->getOption(TR_TraceCG), comp->log(), "Special arg %s in %s\n",
+    TR::RealRegister::RegNum specialArgReg = TR::RealRegister::NoReg;
+    switch (callSymbol->getMandatoryRecognizedMethod()) {
+        // Node: special long args are still only passed in one GPR
+        case TR::java_lang_invoke_ComputedCalls_dispatchJ9Method:
+            specialArgReg = getProperties().getJ9MethodArgumentRegister();
+            // Other args go in memory
+            numIntArgRegs = 0;
+            numFloatArgRegs = 0;
+            break;
+        case TR::java_lang_invoke_ComputedCalls_dispatchVirtual:
+        case TR::com_ibm_jit_JITHelpers_dispatchVirtual:
+            specialArgReg = getProperties().getVTableIndexArgumentRegister();
+            break;
+        default:
+            break;
+    }
+    if (specialArgReg != TR::RealRegister::NoReg) {
+        logprintf(comp->getOption(TR_TraceCG), comp->log(), "Special arg %s in %s\n",
             comp->getDebug()->getName(callNode->getChild(from)),
             comp->getDebug()->getName(cg()->machine()->getRealRegister(specialArgReg)));
 
-      // Skip the special arg in the first loop
-      from += step;
-      }
+        // Skip the special arg in the first loop
+        from += step;
+    }
 
-   // C helpers have an implicit first argument (the VM thread) that we have to account for
-   if (linkage == TR_CHelper)
-      {
-      TR_ASSERT(numIntArgRegs > 0, "This code doesn't handle passing this implicit arg on the stack");
-      numIntegerArgs++;
-      totalSize += TR::Compiler->om.sizeofReferenceAddress();
-      }
+    // C helpers have an implicit first argument (the VM thread) that we have to account for
+    if (linkage == TR_CHelper) {
+        TR_ASSERT(numIntArgRegs > 0, "This code doesn't handle passing this implicit arg on the stack");
+        numIntegerArgs++;
+        totalSize += TR::Compiler->om.sizeofReferenceAddress();
+    }
 
-   for (int32_t i = from; (rightToLeft && i >= to) || (!rightToLeft && i <= to); i += step)
-      {
-      child = callNode->getChild(i);
-      childType = child->getDataType();
+    for (int32_t i = from; (rightToLeft && i >= to) || (!rightToLeft && i <= to); i += step) {
+        child = callNode->getChild(i);
+        childType = child->getDataType();
 
-      switch (childType)
-         {
-         case TR::Int8:
-         case TR::Int16:
-         case TR::Int32:
-         case TR::Int64:
-         case TR::Address:
-            multiplier = (childType == TR::Int64) ? 2 : 1;
-            if (numIntegerArgs >= numIntArgRegs)
-               {
-               numMemArgs++;
-               memArgSize += TR::Compiler->om.sizeofReferenceAddress() * multiplier;
-               }
-            numIntegerArgs++;
-            totalSize += TR::Compiler->om.sizeofReferenceAddress() * multiplier;
-            break;
-         case TR::Float:
-         case TR::Double:
-            multiplier = (childType == TR::Double) ? 2 : 1;
-            if (numFloatArgs >= numFloatArgRegs)
-               {
-               numMemArgs++;
-               memArgSize += TR::Compiler->om.sizeofReferenceAddress() * multiplier;
-               }
-            numFloatArgs++;
-            totalSize += TR::Compiler->om.sizeofReferenceAddress() * multiplier;
-            break;
-         default:
-            TR_ASSERT(false, "Argument type %s is not supported\n", childType.toString());
-         }
-      }
+        switch (childType) {
+            case TR::Int8:
+            case TR::Int16:
+            case TR::Int32:
+            case TR::Int64:
+            case TR::Address:
+                multiplier = (childType == TR::Int64) ? 2 : 1;
+                if (numIntegerArgs >= numIntArgRegs) {
+                    numMemArgs++;
+                    memArgSize += TR::Compiler->om.sizeofReferenceAddress() * multiplier;
+                }
+                numIntegerArgs++;
+                totalSize += TR::Compiler->om.sizeofReferenceAddress() * multiplier;
+                break;
+            case TR::Float:
+            case TR::Double:
+                multiplier = (childType == TR::Double) ? 2 : 1;
+                if (numFloatArgs >= numFloatArgRegs) {
+                    numMemArgs++;
+                    memArgSize += TR::Compiler->om.sizeofReferenceAddress() * multiplier;
+                }
+                numFloatArgs++;
+                totalSize += TR::Compiler->om.sizeofReferenceAddress() * multiplier;
+                break;
+            default:
+                TR_ASSERT(false, "Argument type %s is not supported\n", childType.toString());
+        }
+    }
 
-   // From here, down, any new stack allocations will expire / die when the function returns
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+    // From here, down, any new stack allocations will expire / die when the function returns
+    TR::StackMemoryRegion stackMemoryRegion(*trMemory());
 
-   if (numMemArgs > 0)
-      {
-      pushToMemory = new (trStackMemory()) TR::ARM64MemoryArgument[numMemArgs];
-      }
+    if (numMemArgs > 0) {
+        pushToMemory = new (trStackMemory()) TR::ARM64MemoryArgument[numMemArgs];
+    }
 
-   if (specialArgReg)
-      from -= step;  // we do want to process special args in the following loop
+    if (specialArgReg)
+        from -= step; // we do want to process special args in the following loop
 
-   numIntegerArgs = 0;
-   numFloatArgs = 0;
+    numIntegerArgs = 0;
+    numFloatArgs = 0;
 
-   // C helpers have an implicit first argument (the VM thread) that we have to account for
-   if (linkage == TR_CHelper)
-      {
-      TR_ASSERT(numIntArgRegs > 0, "This code doesn't handle passing this implicit arg on the stack");
-      TR::Register *vmThreadArgRegister = cg()->allocateRegister();
-      generateMovInstruction(cg(), callNode, vmThreadArgRegister, cg()->getMethodMetaDataRegister());
-      dependencies->addPreCondition(vmThreadArgRegister, properties.getIntegerArgumentRegister(numIntegerArgs));
-      if (resType.getDataType() == TR::NoType)
-         dependencies->addPostCondition(vmThreadArgRegister, properties.getIntegerArgumentRegister(numIntegerArgs));
-      numIntegerArgs++;
-      firstExplicitArg = 1;
-      }
+    // C helpers have an implicit first argument (the VM thread) that we have to account for
+    if (linkage == TR_CHelper) {
+        TR_ASSERT(numIntArgRegs > 0, "This code doesn't handle passing this implicit arg on the stack");
+        TR::Register *vmThreadArgRegister = cg()->allocateRegister();
+        generateMovInstruction(cg(), callNode, vmThreadArgRegister, cg()->getMethodMetaDataRegister());
+        dependencies->addPreCondition(vmThreadArgRegister, properties.getIntegerArgumentRegister(numIntegerArgs));
+        if (resType.getDataType() == TR::NoType)
+            dependencies->addPostCondition(vmThreadArgRegister, properties.getIntegerArgumentRegister(numIntegerArgs));
+        numIntegerArgs++;
+        firstExplicitArg = 1;
+    }
 
-   // Helper linkage preserves all argument registers except the return register
-   // TODO: C helper linkage does not, this code needs to make sure argument registers are killed in post dependencies
-   for (int32_t i = from; (rightToLeft && i >= to) || (!rightToLeft && i <= to); i += step)
-      {
-      TR::Register *argRegister;
-      TR::InstOpCode::Mnemonic op;
-      bool isSpecialArg = (i == from && specialArgReg != TR::RealRegister::NoReg);
+    // Helper linkage preserves all argument registers except the return register
+    // TODO: C helper linkage does not, this code needs to make sure argument registers are killed in post dependencies
+    for (int32_t i = from; (rightToLeft && i >= to) || (!rightToLeft && i <= to); i += step) {
+        TR::Register *argRegister;
+        TR::InstOpCode::Mnemonic op;
+        bool isSpecialArg = (i == from && specialArgReg != TR::RealRegister::NoReg);
 
-      child = callNode->getChild(i);
-      childType = child->getDataType();
+        child = callNode->getChild(i);
+        childType = child->getDataType();
 
-      switch (childType)
-         {
-         case TR::Int8:
-         case TR::Int16:
-         case TR::Int32:
-         case TR::Int64:
-         case TR::Address:
-            if (childType == TR::Address)
-               {
-               argRegister = pushAddressArg(child);
-               }
-            else if (childType == TR::Int64)
-               {
-               argRegister = pushLongArg(child);
-               }
-            else
-               {
-               argRegister = pushIntegerWordArg(child);
-               }
-            if (isSpecialArg)
-               {
-               if (specialArgReg == properties.getIntegerReturnRegister(0))
-                  {
-                  TR::Register *resultReg;
-                  if (resType.isAddress())
-                     resultReg = cg()->allocateCollectedReferenceRegister();
-                  else
-                     resultReg = cg()->allocateRegister();
-                  dependencies->addPreCondition(argRegister, specialArgReg);
-                  dependencies->addPostCondition(resultReg, properties.getIntegerReturnRegister(0));
-                  }
-               else
-                  {
-                  TR::addDependency(dependencies, argRegister, specialArgReg, TR_GPR, cg());
-                  }
-               }
-            else
-               {
-               argSize += TR::Compiler->om.sizeofReferenceAddress() * ((childType == TR::Int64) ? 2 : 1);
-               if (!cg()->canClobberNodesRegister(child, 0))
-                  {
-                  if (argRegister->containsCollectedReference())
-                     tempReg = cg()->allocateCollectedReferenceRegister();
-                  else
-                     tempReg = cg()->allocateRegister();
-                  generateMovInstruction(cg(), callNode, tempReg, argRegister);
-                  argRegister = tempReg;
-                  }
-               if (numIntegerArgs < numIntArgRegs)
-                  {
-                  if (numIntegerArgs == firstExplicitArg)
-                     {
-                     // the first integer argument
-                     TR::Register *resultReg;
-                     if (resType.isAddress())
-                        resultReg = cg()->allocateCollectedReferenceRegister();
-                     else
-                        resultReg = cg()->allocateRegister();
-                     dependencies->addPreCondition(argRegister, properties.getIntegerArgumentRegister(numIntegerArgs));
-                     dependencies->addPostCondition(resultReg, TR::RealRegister::x0);
-                     if (firstExplicitArg == 1)
-                        dependencies->addPostCondition(argRegister, properties.getIntegerArgumentRegister(numIntegerArgs));
-                     }
-                  else
-                     {
-                     TR::addDependency(dependencies, argRegister, properties.getIntegerArgumentRegister(numIntegerArgs), TR_GPR, cg());
-                     }
-                  }
-               else // numIntegerArgs >= numIntArgRegs
-                  {
-                  op = ((childType == TR::Address) || (childType == TR::Int64)) ? TR::InstOpCode::strimmx : TR::InstOpCode::strimmw;
-                  pushOutgoingMemArgument(argRegister, totalSize - argSize, op, pushToMemory[argIndex++]);
-                  }
-               numIntegerArgs++;
-               }
-            break;
-         case TR::Float:
-         case TR::Double:
-            if (childType == TR::Float)
-               {
-               argSize += TR::Compiler->om.sizeofReferenceAddress();
-               argRegister = pushFloatArg(child);
-               }
-            else
-               {
-               argSize += TR::Compiler->om.sizeofReferenceAddress() * 2;
-               argRegister = pushDoubleArg(child);
-               }
-            if (!cg()->canClobberNodesRegister(child, 0))
-               {
-               tempReg = cg()->allocateRegister(TR_FPR);
-               op = (childType == TR::Float) ? TR::InstOpCode::fmovs : TR::InstOpCode::fmovd;
-               generateTrg1Src1Instruction(cg(), op, callNode, tempReg, argRegister);
-               argRegister = tempReg;
-               }
-            if (numFloatArgs < numFloatArgRegs)
-               {
-               if (numFloatArgs == 0 && resType.isFloatingPoint())
-                  {
-                  TR::Register *resultReg;
-                  if (resType.getDataType() == TR::Float)
-                     resultReg = cg()->allocateSinglePrecisionRegister();
-                  else
-                     resultReg = cg()->allocateRegister(TR_FPR);
-                  dependencies->addPreCondition(argRegister, TR::RealRegister::v0);
-                  dependencies->addPostCondition(resultReg, TR::RealRegister::v0);
-                  }
-               else
-                  TR::addDependency(dependencies, argRegister, properties.getFloatArgumentRegister(numFloatArgs), TR_FPR, cg());
-               }
-            else // numFloatArgs >= numFloatArgRegs
-               {
-               op = (childType == TR::Float) ? TR::InstOpCode::vstrimms : TR::InstOpCode::vstrimmd;
-               pushOutgoingMemArgument(argRegister, totalSize - argSize, op, pushToMemory[argIndex++]);
-               }
-            numFloatArgs++;
-            break;
-         }
-      }
+        switch (childType) {
+            case TR::Int8:
+            case TR::Int16:
+            case TR::Int32:
+            case TR::Int64:
+            case TR::Address:
+                if (childType == TR::Address) {
+                    argRegister = pushAddressArg(child);
+                } else if (childType == TR::Int64) {
+                    argRegister = pushLongArg(child);
+                } else {
+                    argRegister = pushIntegerWordArg(child);
+                }
+                if (isSpecialArg) {
+                    if (specialArgReg == properties.getIntegerReturnRegister(0)) {
+                        TR::Register *resultReg;
+                        if (resType.isAddress())
+                            resultReg = cg()->allocateCollectedReferenceRegister();
+                        else
+                            resultReg = cg()->allocateRegister();
+                        dependencies->addPreCondition(argRegister, specialArgReg);
+                        dependencies->addPostCondition(resultReg, properties.getIntegerReturnRegister(0));
+                    } else {
+                        TR::addDependency(dependencies, argRegister, specialArgReg, TR_GPR, cg());
+                    }
+                } else {
+                    argSize += TR::Compiler->om.sizeofReferenceAddress() * ((childType == TR::Int64) ? 2 : 1);
+                    if (!cg()->canClobberNodesRegister(child, 0)) {
+                        if (argRegister->containsCollectedReference())
+                            tempReg = cg()->allocateCollectedReferenceRegister();
+                        else
+                            tempReg = cg()->allocateRegister();
+                        generateMovInstruction(cg(), callNode, tempReg, argRegister);
+                        argRegister = tempReg;
+                    }
+                    if (numIntegerArgs < numIntArgRegs) {
+                        if (numIntegerArgs == firstExplicitArg) {
+                            // the first integer argument
+                            TR::Register *resultReg;
+                            if (resType.isAddress())
+                                resultReg = cg()->allocateCollectedReferenceRegister();
+                            else
+                                resultReg = cg()->allocateRegister();
+                            dependencies->addPreCondition(argRegister,
+                                properties.getIntegerArgumentRegister(numIntegerArgs));
+                            dependencies->addPostCondition(resultReg, TR::RealRegister::x0);
+                            if (firstExplicitArg == 1)
+                                dependencies->addPostCondition(argRegister,
+                                    properties.getIntegerArgumentRegister(numIntegerArgs));
+                        } else {
+                            TR::addDependency(dependencies, argRegister,
+                                properties.getIntegerArgumentRegister(numIntegerArgs), TR_GPR, cg());
+                        }
+                    } else // numIntegerArgs >= numIntArgRegs
+                    {
+                        op = ((childType == TR::Address) || (childType == TR::Int64)) ? TR::InstOpCode::strimmx
+                                                                                      : TR::InstOpCode::strimmw;
+                        pushOutgoingMemArgument(argRegister, totalSize - argSize, op, pushToMemory[argIndex++]);
+                    }
+                    numIntegerArgs++;
+                }
+                break;
+            case TR::Float:
+            case TR::Double:
+                if (childType == TR::Float) {
+                    argSize += TR::Compiler->om.sizeofReferenceAddress();
+                    argRegister = pushFloatArg(child);
+                } else {
+                    argSize += TR::Compiler->om.sizeofReferenceAddress() * 2;
+                    argRegister = pushDoubleArg(child);
+                }
+                if (!cg()->canClobberNodesRegister(child, 0)) {
+                    tempReg = cg()->allocateRegister(TR_FPR);
+                    op = (childType == TR::Float) ? TR::InstOpCode::fmovs : TR::InstOpCode::fmovd;
+                    generateTrg1Src1Instruction(cg(), op, callNode, tempReg, argRegister);
+                    argRegister = tempReg;
+                }
+                if (numFloatArgs < numFloatArgRegs) {
+                    if (numFloatArgs == 0 && resType.isFloatingPoint()) {
+                        TR::Register *resultReg;
+                        if (resType.getDataType() == TR::Float)
+                            resultReg = cg()->allocateSinglePrecisionRegister();
+                        else
+                            resultReg = cg()->allocateRegister(TR_FPR);
+                        dependencies->addPreCondition(argRegister, TR::RealRegister::v0);
+                        dependencies->addPostCondition(resultReg, TR::RealRegister::v0);
+                    } else
+                        TR::addDependency(dependencies, argRegister, properties.getFloatArgumentRegister(numFloatArgs),
+                            TR_FPR, cg());
+                } else // numFloatArgs >= numFloatArgRegs
+                {
+                    op = (childType == TR::Float) ? TR::InstOpCode::vstrimms : TR::InstOpCode::vstrimmd;
+                    pushOutgoingMemArgument(argRegister, totalSize - argSize, op, pushToMemory[argIndex++]);
+                }
+                numFloatArgs++;
+                break;
+        }
+    }
 
-   for (int32_t i = TR::RealRegister::FirstGPR; i <= TR::RealRegister::LastGPR; ++i)
-      {
-      TR::RealRegister::RegNum realReg = (TR::RealRegister::RegNum)i;
-      if (properties.getPreserved(realReg) || (properties.getRegisterFlags(realReg) & ARM64_Reserved))
-         continue;
-      if (realReg == specialArgReg)
-         continue; // already added deps above.  No need to add them here.
-      if (callSymbol->isComputed() && i == getProperties().getComputedCallTargetRegister())
-         continue;
-      if (!dependencies->searchPreConditionRegister(realReg))
-         {
-         if (realReg == properties.getIntegerArgumentRegister(0) && callNode->getDataType() == TR::Address)
-            {
-            dependencies->addPreCondition(cg()->allocateRegister(), TR::RealRegister::x0);
-            dependencies->addPostCondition(cg()->allocateCollectedReferenceRegister(), TR::RealRegister::x0);
-            }
-         else
-            {
-            // Helper linkage preserves all registers that are not argument registers, so we don't need to spill them.
-            if (linkage != TR_Helper)
-               TR::addDependency(dependencies, NULL, realReg, TR_GPR, cg());
-            }
-         }
-      }
-
-   if (callNode->getType().isFloatingPoint() && numFloatArgs == 0)
-      {
-      //add return floating-point register dependency
-      TR::addDependency(dependencies, NULL, (TR::RealRegister::RegNum)getProperties().getFloatReturnRegister(), TR_FPR, cg());
-      }
-
-   // Helper linkage preserves all registers that are not argument registers, so we don't need to spill them.
-   if (linkage != TR_Helper)
-      {
-      for (int32_t i = TR::RealRegister::FirstFPR; i <= TR::RealRegister::LastFPR; ++i)
-         {
-         TR::RealRegister::RegNum realReg = (TR::RealRegister::RegNum)i;
-         if (properties.getPreserved(realReg))
+    for (int32_t i = TR::RealRegister::FirstGPR; i <= TR::RealRegister::LastGPR; ++i) {
+        TR::RealRegister::RegNum realReg = (TR::RealRegister::RegNum)i;
+        if (properties.getPreserved(realReg) || (properties.getRegisterFlags(realReg) & ARM64_Reserved))
             continue;
-         if (!dependencies->searchPreConditionRegister(realReg))
-            {
-            TR::addDependency(dependencies, NULL, realReg, TR_FPR, cg());
+        if (realReg == specialArgReg)
+            continue; // already added deps above.  No need to add them here.
+        if (callSymbol->isComputed() && i == getProperties().getComputedCallTargetRegister())
+            continue;
+        if (!dependencies->searchPreConditionRegister(realReg)) {
+            if (realReg == properties.getIntegerArgumentRegister(0) && callNode->getDataType() == TR::Address) {
+                dependencies->addPreCondition(cg()->allocateRegister(), TR::RealRegister::x0);
+                dependencies->addPostCondition(cg()->allocateCollectedReferenceRegister(), TR::RealRegister::x0);
+            } else {
+                // Helper linkage preserves all registers that are not argument registers, so we don't need to spill
+                // them.
+                if (linkage != TR_Helper)
+                    TR::addDependency(dependencies, NULL, realReg, TR_GPR, cg());
             }
-         }
-      }
+        }
+    }
 
-   /* Spills all vector registers */
-   if ((linkage != TR_Helper) && killsVectorRegisters())
-      {
-      TR::Register *tmpReg = cg()->allocateRegister();
-      dependencies->addPostCondition(tmpReg, TR::RealRegister::KillVectorRegs);
-      cg()->stopUsingRegister(tmpReg);
-      }
+    if (callNode->getType().isFloatingPoint() && numFloatArgs == 0) {
+        // add return floating-point register dependency
+        TR::addDependency(dependencies, NULL, (TR::RealRegister::RegNum)getProperties().getFloatReturnRegister(),
+            TR_FPR, cg());
+    }
 
-   if (numMemArgs > 0)
-      {
-      for (argIndex = 0; argIndex < numMemArgs; argIndex++)
-         {
-         TR::Register *aReg = pushToMemory[argIndex].argRegister;
-         generateMemSrc1Instruction(cg(), pushToMemory[argIndex].opCode, callNode, pushToMemory[argIndex].argMemory, aReg);
-         cg()->stopUsingRegister(aReg);
-         }
-      }
+    // Helper linkage preserves all registers that are not argument registers, so we don't need to spill them.
+    if (linkage != TR_Helper) {
+        for (int32_t i = TR::RealRegister::FirstFPR; i <= TR::RealRegister::LastFPR; ++i) {
+            TR::RealRegister::RegNum realReg = (TR::RealRegister::RegNum)i;
+            if (properties.getPreserved(realReg))
+                continue;
+            if (!dependencies->searchPreConditionRegister(realReg)) {
+                TR::addDependency(dependencies, NULL, realReg, TR_FPR, cg());
+            }
+        }
+    }
 
-   return totalSize;
-   }
+    /* Spills all vector registers */
+    if ((linkage != TR_Helper) && killsVectorRegisters()) {
+        TR::Register *tmpReg = cg()->allocateRegister();
+        dependencies->addPostCondition(tmpReg, TR::RealRegister::KillVectorRegs);
+        cg()->stopUsingRegister(tmpReg);
+    }
 
-void J9::ARM64::PrivateLinkage::buildDirectCall(TR::Node *callNode,
-   TR::SymbolReference *callSymRef,
-   TR::RegisterDependencyConditions *dependencies,
-   const TR::ARM64LinkageProperties &pp,
-   uint32_t argSize)
-   {
-   TR::Instruction *gcPoint;
-   TR::MethodSymbol *callSymbol = callSymRef->getSymbol()->castToMethodSymbol();
+    if (numMemArgs > 0) {
+        for (argIndex = 0; argIndex < numMemArgs; argIndex++) {
+            TR::Register *aReg = pushToMemory[argIndex].argRegister;
+            generateMemSrc1Instruction(cg(), pushToMemory[argIndex].opCode, callNode, pushToMemory[argIndex].argMemory,
+                aReg);
+            cg()->stopUsingRegister(aReg);
+        }
+    }
 
-   TR_J9VMBase *fej9 = comp()->fej9();
+    return totalSize;
+}
 
-   if (callSymRef->getReferenceNumber() >= TR_ARM64numRuntimeHelpers)
-      fej9->reserveTrampolineIfNecessary(comp(), callSymRef, false);
+void J9::ARM64::PrivateLinkage::buildDirectCall(TR::Node *callNode, TR::SymbolReference *callSymRef,
+    TR::RegisterDependencyConditions *dependencies, const TR::ARM64LinkageProperties &pp, uint32_t argSize)
+{
+    TR::Instruction *gcPoint;
+    TR::MethodSymbol *callSymbol = callSymRef->getSymbol()->castToMethodSymbol();
 
-   bool forceUnresolvedDispatch = !fej9->isResolvedDirectDispatchGuaranteed(comp());
+    TR_J9VMBase *fej9 = comp()->fej9();
 
-   if (callSymbol->isJITInternalNative() ||
-       (!callSymRef->isUnresolved() && !callSymbol->isInterpreted() &&
-        (callSymbol->isHelper() || !forceUnresolvedDispatch)))
-      {
-      bool isMyself = comp()->isRecursiveMethodTarget(callSymbol);
+    if (callSymRef->getReferenceNumber() >= TR_ARM64numRuntimeHelpers)
+        fej9->reserveTrampolineIfNecessary(comp(), callSymRef, false);
 
-      gcPoint = generateImmSymInstruction(cg(), TR::InstOpCode::bl, callNode,
-         isMyself ? 0 : (uintptr_t)callSymbol->getMethodAddress(),
-         dependencies,
-         callSymRef ? callSymRef : callNode->getSymbolReference(),
-         NULL);
-      }
-   else
-      {
-      TR::LabelSymbol *label = generateLabelSymbol(cg());
-      TR::Snippet *snippet;
+    bool forceUnresolvedDispatch = !fej9->isResolvedDirectDispatchGuaranteed(comp());
 
-      if (callSymRef->isUnresolved() || forceUnresolvedDispatch)
-         {
-         snippet = new (trHeapMemory()) TR::ARM64UnresolvedCallSnippet(cg(), callNode, label, argSize);
-         }
-      else
-         {
-         snippet = new (trHeapMemory()) TR::ARM64CallSnippet(cg(), callNode, label, argSize);
-         snippet->gcMap().setGCRegisterMask(pp.getPreservedRegisterMapForGC());
-         }
+    if (callSymbol->isJITInternalNative()
+        || (!callSymRef->isUnresolved() && !callSymbol->isInterpreted()
+            && (callSymbol->isHelper() || !forceUnresolvedDispatch))) {
+        bool isMyself = comp()->isRecursiveMethodTarget(callSymbol);
 
-      cg()->addSnippet(snippet);
-      gcPoint = generateImmSymInstruction(cg(), TR::InstOpCode::bl, callNode,
-         0, dependencies,
-         new (trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), label),
-         snippet);
+        gcPoint = generateImmSymInstruction(cg(), TR::InstOpCode::bl, callNode,
+            isMyself ? 0 : (uintptr_t)callSymbol->getMethodAddress(), dependencies,
+            callSymRef ? callSymRef : callNode->getSymbolReference(), NULL);
+    } else {
+        TR::LabelSymbol *label = generateLabelSymbol(cg());
+        TR::Snippet *snippet;
+
+        if (callSymRef->isUnresolved() || forceUnresolvedDispatch) {
+            snippet = new (trHeapMemory()) TR::ARM64UnresolvedCallSnippet(cg(), callNode, label, argSize);
+        } else {
+            snippet = new (trHeapMemory()) TR::ARM64CallSnippet(cg(), callNode, label, argSize);
+            snippet->gcMap().setGCRegisterMask(pp.getPreservedRegisterMapForGC());
+        }
+
+        cg()->addSnippet(snippet);
+        gcPoint = generateImmSymInstruction(cg(), TR::InstOpCode::bl, callNode, 0, dependencies,
+            new (trHeapMemory()) TR::SymbolReference(comp()->getSymRefTab(), label), snippet);
 
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
-      auto rm = callSymbol->getMandatoryRecognizedMethod();
-      if (rm == TR::java_lang_invoke_MethodHandle_invokeBasic)
-         {
-         cg()->addInvokeBasicCallSite(callNode, gcPoint);
-         }
+        auto rm = callSymbol->getMandatoryRecognizedMethod();
+        if (rm == TR::java_lang_invoke_MethodHandle_invokeBasic) {
+            cg()->addInvokeBasicCallSite(callNode, gcPoint);
+        }
 #endif
 
-      // Nop is necessary due to confusion when resolving shared slots at a transition
-      if (callSymRef->isOSRInductionHelper())
-         cg()->generateNop(callNode);
+        // Nop is necessary due to confusion when resolving shared slots at a transition
+        if (callSymRef->isOSRInductionHelper())
+            cg()->generateNop(callNode);
+    }
 
-      }
-
-   gcPoint->ARM64NeedsGCMap(cg(), callSymbol->getLinkageConvention() == TR_Helper ? 0xffffffff : pp.getPreservedRegisterMapForGC());
-   }
+    gcPoint->ARM64NeedsGCMap(cg(),
+        callSymbol->getLinkageConvention() == TR_Helper ? 0xffffffff : pp.getPreservedRegisterMapForGC());
+}
 
 TR::Register *J9::ARM64::PrivateLinkage::buildDirectDispatch(TR::Node *callNode)
-   {
-   TR::SymbolReference *callSymRef = callNode->getSymbolReference();
-   const TR::ARM64LinkageProperties &pp = getProperties();
-   // Extra post dependency for killing vector registers (see KillVectorRegs)
-   const int extraPostReg = killsVectorRegisters() ? 1 : 0;
-   TR::RegisterDependencyConditions *dependencies =
-      new (trHeapMemory()) TR::RegisterDependencyConditions(
-         pp.getNumberOfDependencyGPRegisters(),
-         pp.getNumberOfDependencyGPRegisters() + extraPostReg, trMemory());
+{
+    TR::SymbolReference *callSymRef = callNode->getSymbolReference();
+    const TR::ARM64LinkageProperties &pp = getProperties();
+    // Extra post dependency for killing vector registers (see KillVectorRegs)
+    const int extraPostReg = killsVectorRegisters() ? 1 : 0;
+    TR::RegisterDependencyConditions *dependencies = new (trHeapMemory()) TR::RegisterDependencyConditions(
+        pp.getNumberOfDependencyGPRegisters(), pp.getNumberOfDependencyGPRegisters() + extraPostReg, trMemory());
 
-   int32_t argSize = buildArgs(callNode, dependencies);
+    int32_t argSize = buildArgs(callNode, dependencies);
 
-   buildDirectCall(callNode, callSymRef, dependencies, pp, argSize);
-   cg()->machine()->setLinkRegisterKilled(true);
+    buildDirectCall(callNode, callSymRef, dependencies, pp, argSize);
+    cg()->machine()->setLinkRegisterKilled(true);
 
-   TR::Register *retReg;
-   switch(callNode->getOpCodeValue())
-      {
-      case TR::icall:
-         retReg = dependencies->searchPostConditionRegister(
-                     pp.getIntegerReturnRegister());
-         break;
-      case TR::lcall:
-      case TR::acall:
-         retReg = dependencies->searchPostConditionRegister(
-                     pp.getLongReturnRegister());
-         break;
-      case TR::fcall:
-      case TR::dcall:
-         retReg = dependencies->searchPostConditionRegister(
-                     pp.getFloatReturnRegister());
-         break;
-      case TR::call:
-         retReg = NULL;
-         break;
-      default:
-         retReg = NULL;
-         TR_ASSERT_FATAL(false, "Unsupported direct call Opcode.");
-      }
+    TR::Register *retReg;
+    switch (callNode->getOpCodeValue()) {
+        case TR::icall:
+            retReg = dependencies->searchPostConditionRegister(pp.getIntegerReturnRegister());
+            break;
+        case TR::lcall:
+        case TR::acall:
+            retReg = dependencies->searchPostConditionRegister(pp.getLongReturnRegister());
+            break;
+        case TR::fcall:
+        case TR::dcall:
+            retReg = dependencies->searchPostConditionRegister(pp.getFloatReturnRegister());
+            break;
+        case TR::call:
+            retReg = NULL;
+            break;
+        default:
+            retReg = NULL;
+            TR_ASSERT_FATAL(false, "Unsupported direct call Opcode.");
+    }
 
-   callNode->setRegister(retReg);
+    callNode->setRegister(retReg);
 
-   dependencies->stopUsingDepRegs(cg(), retReg);
-   return retReg;
-   }
+    dependencies->stopUsingDepRegs(cg(), retReg);
+    return retReg;
+}
 
 /**
  * @brief Gets profiled call site information
@@ -1500,89 +1330,86 @@ TR::Register *J9::ARM64::PrivateLinkage::buildDirectDispatch(TR::Node *callNode)
  * @param[out] values:      list of PIC items
  * @returns true if any call site information is returned
  */
-static bool getProfiledCallSiteInfo(TR::CodeGenerator *cg, TR::Node *callNode, uint32_t maxStaticPICs, TR_ScratchList<J9::ARM64PICItem> &values)
-   {
-   TR::Compilation *comp = cg->comp();
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
-   if (comp->compileRelocatableCode())
-      return false;
+static bool getProfiledCallSiteInfo(TR::CodeGenerator *cg, TR::Node *callNode, uint32_t maxStaticPICs,
+    TR_ScratchList<J9::ARM64PICItem> &values)
+{
+    TR::Compilation *comp = cg->comp();
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
+    if (comp->compileRelocatableCode())
+        return false;
 
-   OMR::Logger *log = comp->log();
-   bool trace = comp->getOption(TR_TraceCG);
+    OMR::Logger *log = comp->log();
+    bool trace = comp->getOption(TR_TraceCG);
 
-   TR::SymbolReference *methodSymRef = callNode->getSymbolReference();
-   TR::MethodSymbol    *methodSymbol = methodSymRef->getSymbol()->castToMethodSymbol();
+    TR::SymbolReference *methodSymRef = callNode->getSymbolReference();
+    TR::MethodSymbol *methodSymbol = methodSymRef->getSymbol()->castToMethodSymbol();
 
-   if (!methodSymbol->isVirtual() && !methodSymbol->isInterface())
-      return false;
+    if (!methodSymbol->isVirtual() && !methodSymbol->isInterface())
+        return false;
 
-   TR_AddressInfo *info = static_cast<TR_AddressInfo*>(TR_ValueProfileInfoManager::getProfiledValueInfo(callNode, comp, AddressInfo));
-   if (!info)
-      {
-      logprintf(trace, log, "Profiled target not found for node %p\n", callNode);
-      return false;
-      }
-   static const bool tracePIC = (feGetEnv("TR_TracePIC") != NULL);
-   if (tracePIC && trace)
-      {
-      log->printf("Value profile info for callNode %p in %s\n", callNode, comp->signature());
-      info->getProfiler()->dumpInfo(log);
-      log->println();
-      }
-   uint32_t totalFreq = info->getTotalFrequency();
-   if (totalFreq == 0 || info->getTopProbability() < MIN_PROFILED_CALL_FREQUENCY)
-      {
-      logprintf(trace, log, "Profiled target with enough frequency not found for node %p\n", callNode);
-      return false;
-      }
+    TR_AddressInfo *info
+        = static_cast<TR_AddressInfo *>(TR_ValueProfileInfoManager::getProfiledValueInfo(callNode, comp, AddressInfo));
+    if (!info) {
+        logprintf(trace, log, "Profiled target not found for node %p\n", callNode);
+        return false;
+    }
+    static const bool tracePIC = (feGetEnv("TR_TracePIC") != NULL);
+    if (tracePIC && trace) {
+        log->printf("Value profile info for callNode %p in %s\n", callNode, comp->signature());
+        info->getProfiler()->dumpInfo(log);
+        log->println();
+    }
+    uint32_t totalFreq = info->getTotalFrequency();
+    if (totalFreq == 0 || info->getTopProbability() < MIN_PROFILED_CALL_FREQUENCY) {
+        logprintf(trace, log, "Profiled target with enough frequency not found for node %p\n", callNode);
+        return false;
+    }
 
-   TR_ScratchList<TR_ExtraAddressInfo> allValues(comp->trMemory());
-   info->getSortedList(comp, &allValues);
+    TR_ScratchList<TR_ExtraAddressInfo> allValues(comp->trMemory());
+    info->getSortedList(comp, &allValues);
 
-   TR_ResolvedMethod   *owningMethod = methodSymRef->getOwningMethod(comp);
-   TR_OpaqueClassBlock *callSiteMethodClass;
+    TR_ResolvedMethod *owningMethod = methodSymRef->getOwningMethod(comp);
+    TR_OpaqueClassBlock *callSiteMethodClass;
 
-   if (methodSymbol->isVirtual())
-       callSiteMethodClass = methodSymRef->getSymbol()->getResolvedMethodSymbol()->getResolvedMethod()->classOfMethod();
+    if (methodSymbol->isVirtual())
+        callSiteMethodClass
+            = methodSymRef->getSymbol()->getResolvedMethodSymbol()->getResolvedMethod()->classOfMethod();
 
-   ListIterator<TR_ExtraAddressInfo> valuesIt(&allValues);
+    ListIterator<TR_ExtraAddressInfo> valuesIt(&allValues);
 
-   uint32_t             numStaticPics = 0;
-   TR_ExtraAddressInfo *profiledInfo;
-   for (profiledInfo = valuesIt.getFirst();  numStaticPics < maxStaticPICs && profiledInfo != NULL; profiledInfo = valuesIt.getNext())
-      {
-      float freq = (float)profiledInfo->_frequency / totalFreq;
-      if (freq < MIN_PROFILED_CALL_FREQUENCY)
-         break;
+    uint32_t numStaticPics = 0;
+    TR_ExtraAddressInfo *profiledInfo;
+    for (profiledInfo = valuesIt.getFirst(); numStaticPics < maxStaticPICs && profiledInfo != NULL;
+         profiledInfo = valuesIt.getNext()) {
+        float freq = (float)profiledInfo->_frequency / totalFreq;
+        if (freq < MIN_PROFILED_CALL_FREQUENCY)
+            break;
 
-      TR_OpaqueClassBlock *clazz = (TR_OpaqueClassBlock *)profiledInfo->_value;
-      if (comp->getPersistentInfo()->isObsoleteClass(clazz, fej9))
-         continue;
-
-      TR_ResolvedMethod *method;
-
-      if (methodSymbol->isVirtual())
-         {
-         TR_ASSERT_FATAL(callSiteMethodClass, "Expecting valid callSiteMethodClass for virtual call");
-         if (!cg->isProfiledClassAndCallSiteCompatible(clazz, callSiteMethodClass))
+        TR_OpaqueClassBlock *clazz = (TR_OpaqueClassBlock *)profiledInfo->_value;
+        if (comp->getPersistentInfo()->isObsoleteClass(clazz, fej9))
             continue;
 
-         method = owningMethod->getResolvedVirtualMethod(comp, clazz, methodSymRef->getOffset());
-         }
-      else
-         {
-         method = owningMethod->getResolvedInterfaceMethod(comp, clazz, methodSymRef->getCPIndex());
-         }
+        TR_ResolvedMethod *method;
 
-      if (!method || method->isInterpreted())
-         continue;
+        if (methodSymbol->isVirtual()) {
+            TR_ASSERT_FATAL(callSiteMethodClass, "Expecting valid callSiteMethodClass for virtual call");
+            if (!cg->isProfiledClassAndCallSiteCompatible(clazz, callSiteMethodClass))
+                continue;
 
-      values.add(new (comp->trStackMemory()) J9::ARM64PICItem(clazz, method, freq));
-      ++numStaticPics;
-      }
+            method = owningMethod->getResolvedVirtualMethod(comp, clazz, methodSymRef->getOffset());
+        } else {
+            method = owningMethod->getResolvedInterfaceMethod(comp, clazz, methodSymRef->getCPIndex());
+        }
 
-   return numStaticPics > 0;
-   }
+        if (!method || method->isInterpreted())
+            continue;
+
+        values.add(new (comp->trStackMemory()) J9::ARM64PICItem(clazz, method, freq));
+        ++numStaticPics;
+    }
+
+    return numStaticPics > 0;
+}
 
 /**
  * @brief Generates instruction sequence for static PIC call
@@ -1599,61 +1426,52 @@ static bool getProfiledCallSiteInfo(TR::CodeGenerator *cg, TR::Node *callNode, u
  * @param[in] regMapForGC:    register map for GC
  * @returns instruction making direct call to the method
  */
-static TR::Instruction* buildStaticPICCall(TR::CodeGenerator *cg, TR::Node *callNode, TR_OpaqueClassBlock *profiledClass, TR_ResolvedMethod *profiledMethod,
-                                             TR::Register *vftReg, TR::Register *tempReg, TR::Register *temp2Reg, int32_t slotCount, TR::LabelSymbol *missLabel, uint32_t regMapForGC)
-   {
-   TR::Compilation *comp = cg->comp();
-   TR::SymbolReference *methodSymRef = callNode->getSymbolReference();
-   TR::SymbolReference *profiledMethodSymRef = comp->getSymRefTab()->findOrCreateMethodSymbol(methodSymRef->getOwningMethodIndex(),
-                                                                                             -1,
-                                                                                             profiledMethod,
-                                                                                             TR::MethodSymbol::Virtual);
+static TR::Instruction *buildStaticPICCall(TR::CodeGenerator *cg, TR::Node *callNode,
+    TR_OpaqueClassBlock *profiledClass, TR_ResolvedMethod *profiledMethod, TR::Register *vftReg, TR::Register *tempReg,
+    TR::Register *temp2Reg, int32_t slotCount, TR::LabelSymbol *missLabel, uint32_t regMapForGC)
+{
+    TR::Compilation *comp = cg->comp();
+    TR::SymbolReference *methodSymRef = callNode->getSymbolReference();
+    TR::SymbolReference *profiledMethodSymRef = comp->getSymRefTab()->findOrCreateMethodSymbol(
+        methodSymRef->getOwningMethodIndex(), -1, profiledMethod, TR::MethodSymbol::Virtual);
 
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
-   if (comp->compileRelocatableCode())
-      {
-      loadAddressConstantInSnippet(cg, callNode, reinterpret_cast<intptr_t>(profiledClass), tempReg, TR_ClassPointer);
-      }
-   else
-      {
-      bool isUnloadAssumptionRequired = fej9->isUnloadAssumptionRequired(profiledClass, comp->getCurrentMethod());
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
+    if (comp->compileRelocatableCode()) {
+        loadAddressConstantInSnippet(cg, callNode, reinterpret_cast<intptr_t>(profiledClass), tempReg, TR_ClassPointer);
+    } else {
+        bool isUnloadAssumptionRequired = fej9->isUnloadAssumptionRequired(profiledClass, comp->getCurrentMethod());
 
-      if (isUnloadAssumptionRequired)
-         {
-         loadAddressConstantInSnippet(cg, callNode, reinterpret_cast<intptr_t>(profiledClass), tempReg, TR_NoRelocation, true);
-         }
-      else
-         {
-         loadAddressConstant(cg, false, callNode, reinterpret_cast<intptr_t>(profiledClass), tempReg);
-         }
-      }
-   generateCompareInstruction(cg, callNode, vftReg, tempReg, true);
+        if (isUnloadAssumptionRequired) {
+            loadAddressConstantInSnippet(cg, callNode, reinterpret_cast<intptr_t>(profiledClass), tempReg,
+                TR_NoRelocation, true);
+        } else {
+            loadAddressConstant(cg, false, callNode, reinterpret_cast<intptr_t>(profiledClass), tempReg);
+        }
+    }
+    generateCompareInstruction(cg, callNode, vftReg, tempReg, true);
 
-   generateConditionalBranchInstruction(cg, callNode, missLabel, TR::CC_NE);
-   if (comp->getOptions()->enableDebugCounters())
-      {
-      TR::MethodSymbol *methodSymbol = methodSymRef->getSymbol()->castToMethodSymbol();
-      if (methodSymbol->isInterface())
-         {
-         TR_ARM64ScratchRegisterManager *srm = cg->generateScratchRegisterManager(2);
-         srm->donateScratchRegister(tempReg);
-         srm->donateScratchRegister(temp2Reg);
-         cg->generateDebugCounter(TR::DebugCounter::debugCounterName(comp, "cg.callInterface/(%s)/%s/%d/%d/staticPIC/slot%d",
-                                                                           comp->signature(),
-                                                                           comp->getHotnessName(),
-                                                                           callNode->getByteCodeInfo().getCallerIndex(),
-                                                                           callNode->getByteCodeInfo().getByteCodeIndex(),
-                                                                           slotCount), *srm);
-         srm->stopUsingRegisters();
-         }
-      }
+    generateConditionalBranchInstruction(cg, callNode, missLabel, TR::CC_NE);
+    if (comp->getOptions()->enableDebugCounters()) {
+        TR::MethodSymbol *methodSymbol = methodSymRef->getSymbol()->castToMethodSymbol();
+        if (methodSymbol->isInterface()) {
+            TR_ARM64ScratchRegisterManager *srm = cg->generateScratchRegisterManager(2);
+            srm->donateScratchRegister(tempReg);
+            srm->donateScratchRegister(temp2Reg);
+            cg->generateDebugCounter(TR::DebugCounter::debugCounterName(comp,
+                                         "cg.callInterface/(%s)/%s/%d/%d/staticPIC/slot%d", comp->signature(),
+                                         comp->getHotnessName(), callNode->getByteCodeInfo().getCallerIndex(),
+                                         callNode->getByteCodeInfo().getByteCodeIndex(), slotCount),
+                *srm);
+            srm->stopUsingRegisters();
+        }
+    }
 
-   TR::Instruction *gcPoint = generateImmSymInstruction(cg, TR::InstOpCode::bl, callNode, (uintptr_t)profiledMethod->startAddressForJittedMethod(),
-                                                                                  NULL, profiledMethodSymRef, NULL);
-   gcPoint->ARM64NeedsGCMap(cg, regMapForGC);
-   fej9->reserveTrampolineIfNecessary(comp, profiledMethodSymRef, false);
-   return gcPoint;
-   }
+    TR::Instruction *gcPoint = generateImmSymInstruction(cg, TR::InstOpCode::bl, callNode,
+        (uintptr_t)profiledMethod->startAddressForJittedMethod(), NULL, profiledMethodSymRef, NULL);
+    gcPoint->ARM64NeedsGCMap(cg, regMapForGC);
+    fej9->reserveTrampolineIfNecessary(comp, profiledMethodSymRef, false);
+    return gcPoint;
+}
 
 /**
  * @brief Generates instruction sequence for virtual call
@@ -1664,28 +1482,26 @@ static TR::Instruction* buildStaticPICCall(TR::CodeGenerator *cg, TR::Node *call
  * @param[in] x9:          x9 register
  * @param[in] regMapForGC: register map for GC
  */
-static void buildVirtualCall(TR::CodeGenerator *cg, TR::Node *callNode, TR::Register *vftReg, TR::Register *x9, uint32_t regMapForGC)
-   {
-   int32_t offset = callNode->getSymbolReference()->getOffset();
-   TR_ASSERT_FATAL(offset < 0, "Unexpected positive offset for virtual call");
+static void buildVirtualCall(TR::CodeGenerator *cg, TR::Node *callNode, TR::Register *vftReg, TR::Register *x9,
+    uint32_t regMapForGC)
+{
+    int32_t offset = callNode->getSymbolReference()->getOffset();
+    TR_ASSERT_FATAL(offset < 0, "Unexpected positive offset for virtual call");
 
-   // jitVTableIndex() in oti/JITInterface.hpp assumes the instruction sequence below
-   if (offset >= -65536)
-      {
-      generateTrg1ImmInstruction(cg, TR::InstOpCode::movnx, callNode, x9, ~offset & 0xFFFF);
-      }
-   else
-      {
-      generateTrg1ImmInstruction(cg, TR::InstOpCode::movzx, callNode, x9, offset & 0xFFFF);
-      generateTrg1ImmInstruction(cg, TR::InstOpCode::movkx, callNode, x9,
-                                 (((offset >> 16) & 0xFFFF) | TR::MOV_LSL16));
-      generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::sbfmx, callNode, x9, x9, 0x1F); // sxtw x9, w9
-      }
-   TR::MemoryReference *tempMR = TR::MemoryReference::createWithIndexReg(cg, vftReg, x9);
-   generateTrg1MemInstruction(cg, TR::InstOpCode::ldroffx, callNode, x9, tempMR);
-   TR::Instruction *gcPoint = generateRegBranchInstruction(cg, TR::InstOpCode::blr, callNode, x9);
-   gcPoint->ARM64NeedsGCMap(cg, regMapForGC);
-   }
+    // jitVTableIndex() in oti/JITInterface.hpp assumes the instruction sequence below
+    if (offset >= -65536) {
+        generateTrg1ImmInstruction(cg, TR::InstOpCode::movnx, callNode, x9, ~offset & 0xFFFF);
+    } else {
+        generateTrg1ImmInstruction(cg, TR::InstOpCode::movzx, callNode, x9, offset & 0xFFFF);
+        generateTrg1ImmInstruction(cg, TR::InstOpCode::movkx, callNode, x9,
+            (((offset >> 16) & 0xFFFF) | TR::MOV_LSL16));
+        generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::sbfmx, callNode, x9, x9, 0x1F); // sxtw x9, w9
+    }
+    TR::MemoryReference *tempMR = TR::MemoryReference::createWithIndexReg(cg, vftReg, x9);
+    generateTrg1MemInstruction(cg, TR::InstOpCode::ldroffx, callNode, x9, tempMR);
+    TR::Instruction *gcPoint = generateRegBranchInstruction(cg, TR::InstOpCode::blr, callNode, x9);
+    gcPoint->ARM64NeedsGCMap(cg, regMapForGC);
+}
 
 /**
  * @brief Generates instruction sequence for interface call
@@ -1700,894 +1516,859 @@ static void buildVirtualCall(TR::CodeGenerator *cg, TR::Node *callNode, TR::Regi
  * @param[in] ifcSnippet:         interface call snippet
  * @param[in] regMapForGC:        register map for GC
  */
-static void buildInterfaceCall(TR::CodeGenerator *cg, TR::Node *callNode, TR::Register *vftReg, TR::Register *x9Reg, TR::Register *x10Reg, TR::Register *x11Reg,
-                               bool useLastITableCache, TR::ARM64InterfaceCallSnippet *ifcSnippet, uint32_t regMapForGC)
-   {
-   /*
-    *  Generating following instruction sequence.
-    *  Recompilation is dependent on this instruction sequence.
-    *  Please do not modify without changing recompilation code.
-    *
-    *  if useLastITableCache is false:
-    *    if debug counters are disabled:
-    *      ldrx x10Reg, L_firstClassCacheSlot
-    *      cmpx vftReg, x10Reg
-    *      ldrx x10Reg, L_firstBranchAddressCacheSlot
-    *      beq  hitLabel
-    *      ldrx x10Reg, L_secondClassCacheSlot
-    *      cmpx vftReg, x10Reg
-    *      bne  snippetLabel
-    *      ldrx x10Reg, L_secondBranchAddressCacheSlot
-    *     hitLabel:
-    *      blr  x10Reg
-    *     doneLabel:
-    *
-    *    if debug counters are enabled:
-    *      ldrx x10Reg, L_firstClassCacheSlot
-    *      cmpx vftReg, x10Reg
-    *      bne  slot1MissedLabel
-    *      ; debug counter, trashes x9 and x11Reg
-    *      ldrx x10Reg, L_firstBranchAddressCacheSlot
-    *      b    hitLabel
-    *     slot1MissedLabel:
-    *      beq  hitLabel
-    *      ldrx x10Reg, L_secondClassCacheSlot
-    *      cmpx vftReg, x10Reg
-    *      bne  slot2MissedLabel
-    *      ; debug counter, trashes x9 and x11Reg
-    *      b    slot2DoneLabel
-    *     slot2MissedLabel:
-    *      ; debug counter, trashes x9 and x11Reg
-    *     slot2DoneLabel:
-    *      cmpx vftReg, x10Reg
-    *      bne  snippetLabel
-    *      ldrx x10Reg, L_secondBranchAddressCacheSlot
-    *     hitLabel:
-    *      blr  x10Reg
-    *     doneLabel:
-    *
-    *  if useLastITableCache is true:
-    *    if debug counters are disabled:
-    *      ldrx x10Reg, L_firstClassCacheSlot
-    *      cmpx vftReg, x10Reg
-    *      ldrx x10Reg, L_firstBranchAddressCacheSlot
-    *      beq  hitLabel
-    *      ldrx x10Reg, L_secondClassCacheSlot
-    *      cmpx vftReg, x10Reg
-    *      ldrx x10Reg, L_secondBranchAddressCacheSlot
-    *      beq  hitLabel
-    *      ldr  x10Reg, [vftReg, lastITableOffset]     ; cached iTable
-    *      ldrx x9, L_interfaceClassSlot               ; actual interfaceClass
-    *      ldr  x11Reg, [x10Reg, interfaceClassOffset]; interfaceClass in lastITable
-    *      cmpx x9, x11Reg
-    *      bal  snippetLabel                           ; will be patched to bne
-    *      mov  w9, sizeof(J9Class)
-    *      ldr  x11Reg, [x10Reg, iTableOffset]        ; load vTableOffset
-    *      sub  x9, x9, x11Reg                        ; icallVMprJavaSendPatchupVirtual expects x9 to hold vTable index
-    *      ldr  x10Reg, [vftReg, x9]
-    *     hitLabel:
-    *      blr  x10Reg
-    *     doneLabel:
-    *
-    *    if debug counters are enabled:
-    *      ldrx x10Reg, L_firstClassCacheSlot
-    *      cmpx vftReg, x10Reg
-    *      bne  slot1MissedLabel
-    *      ; debug counter, trashes x9 and x11Reg
-    *      ldrx x10Reg, L_firstBranchAddressCacheSlot
-    *      b    hitLabel
-    *     slot1MissedLabel:
-    *      ldrx x10Reg, L_secondClassCacheSlot
-    *      cmpx vftReg, x10Reg
-    *      bne  slot2DoneLabel
-    *      ; debug counter, trashes x9 and x11Reg
-    *     slot2DoneLabel:
-    *      cmpx vftReg, x10Reg
-    *      ldrx x10Reg, L_secondBranchAddressCacheSlot
-    *      beq  hitLabel
-    *      ldr  x10Reg, [vftReg, lastITableOffset]     ; cached iTable
-    *      ldrx x9, L_interfaceClassSlot               ; actual interfaceClass
-    *      ldr  x11Reg, [x10Reg, interfaceClassOffset]; interfaceClass in lastITable
-    *      cmpx x9, x11Reg
-    *      bne  lastITableMissedLabel
-    *      ; debug counter, trashes x9 and x11Reg
-    *      cmpx x9, x9                                 ; to set Z flag
-    *      b    lastITableDoneLabel
-    *     lastITableMissedLabel:
-    *      ; debug counter, trashes x9 and x11Reg
-    *      cmp  x10Reg, #0                             ; to unset Z flag
-    *     lastITableDoneLabel:
-    *      bal  snippetLabel                           ; will be patched to bne
-    *      mov  w9, sizeof(J9Class)
-    *      ldr  x11Reg, [x10Reg, iTableOffset]        ; load vTableOffset
-    *      sub  x9, x9, x11Reg                        ; icallVMprJavaSendPatchupVirtual expects x9 to hold vTable index
-    *      ldr  x10Reg, [vftReg, x9]
-    *     hitLabel:
-    *      blr  x10Reg
-    *     doneLabel:
-    */
+static void buildInterfaceCall(TR::CodeGenerator *cg, TR::Node *callNode, TR::Register *vftReg, TR::Register *x9Reg,
+    TR::Register *x10Reg, TR::Register *x11Reg, bool useLastITableCache, TR::ARM64InterfaceCallSnippet *ifcSnippet,
+    uint32_t regMapForGC)
+{
+    /*
+     *  Generating following instruction sequence.
+     *  Recompilation is dependent on this instruction sequence.
+     *  Please do not modify without changing recompilation code.
+     *
+     *  if useLastITableCache is false:
+     *    if debug counters are disabled:
+     *      ldrx x10Reg, L_firstClassCacheSlot
+     *      cmpx vftReg, x10Reg
+     *      ldrx x10Reg, L_firstBranchAddressCacheSlot
+     *      beq  hitLabel
+     *      ldrx x10Reg, L_secondClassCacheSlot
+     *      cmpx vftReg, x10Reg
+     *      bne  snippetLabel
+     *      ldrx x10Reg, L_secondBranchAddressCacheSlot
+     *     hitLabel:
+     *      blr  x10Reg
+     *     doneLabel:
+     *
+     *    if debug counters are enabled:
+     *      ldrx x10Reg, L_firstClassCacheSlot
+     *      cmpx vftReg, x10Reg
+     *      bne  slot1MissedLabel
+     *      ; debug counter, trashes x9 and x11Reg
+     *      ldrx x10Reg, L_firstBranchAddressCacheSlot
+     *      b    hitLabel
+     *     slot1MissedLabel:
+     *      beq  hitLabel
+     *      ldrx x10Reg, L_secondClassCacheSlot
+     *      cmpx vftReg, x10Reg
+     *      bne  slot2MissedLabel
+     *      ; debug counter, trashes x9 and x11Reg
+     *      b    slot2DoneLabel
+     *     slot2MissedLabel:
+     *      ; debug counter, trashes x9 and x11Reg
+     *     slot2DoneLabel:
+     *      cmpx vftReg, x10Reg
+     *      bne  snippetLabel
+     *      ldrx x10Reg, L_secondBranchAddressCacheSlot
+     *     hitLabel:
+     *      blr  x10Reg
+     *     doneLabel:
+     *
+     *  if useLastITableCache is true:
+     *    if debug counters are disabled:
+     *      ldrx x10Reg, L_firstClassCacheSlot
+     *      cmpx vftReg, x10Reg
+     *      ldrx x10Reg, L_firstBranchAddressCacheSlot
+     *      beq  hitLabel
+     *      ldrx x10Reg, L_secondClassCacheSlot
+     *      cmpx vftReg, x10Reg
+     *      ldrx x10Reg, L_secondBranchAddressCacheSlot
+     *      beq  hitLabel
+     *      ldr  x10Reg, [vftReg, lastITableOffset]     ; cached iTable
+     *      ldrx x9, L_interfaceClassSlot               ; actual interfaceClass
+     *      ldr  x11Reg, [x10Reg, interfaceClassOffset]; interfaceClass in lastITable
+     *      cmpx x9, x11Reg
+     *      bal  snippetLabel                           ; will be patched to bne
+     *      mov  w9, sizeof(J9Class)
+     *      ldr  x11Reg, [x10Reg, iTableOffset]        ; load vTableOffset
+     *      sub  x9, x9, x11Reg                        ; icallVMprJavaSendPatchupVirtual expects x9 to hold vTable index
+     *      ldr  x10Reg, [vftReg, x9]
+     *     hitLabel:
+     *      blr  x10Reg
+     *     doneLabel:
+     *
+     *    if debug counters are enabled:
+     *      ldrx x10Reg, L_firstClassCacheSlot
+     *      cmpx vftReg, x10Reg
+     *      bne  slot1MissedLabel
+     *      ; debug counter, trashes x9 and x11Reg
+     *      ldrx x10Reg, L_firstBranchAddressCacheSlot
+     *      b    hitLabel
+     *     slot1MissedLabel:
+     *      ldrx x10Reg, L_secondClassCacheSlot
+     *      cmpx vftReg, x10Reg
+     *      bne  slot2DoneLabel
+     *      ; debug counter, trashes x9 and x11Reg
+     *     slot2DoneLabel:
+     *      cmpx vftReg, x10Reg
+     *      ldrx x10Reg, L_secondBranchAddressCacheSlot
+     *      beq  hitLabel
+     *      ldr  x10Reg, [vftReg, lastITableOffset]     ; cached iTable
+     *      ldrx x9, L_interfaceClassSlot               ; actual interfaceClass
+     *      ldr  x11Reg, [x10Reg, interfaceClassOffset]; interfaceClass in lastITable
+     *      cmpx x9, x11Reg
+     *      bne  lastITableMissedLabel
+     *      ; debug counter, trashes x9 and x11Reg
+     *      cmpx x9, x9                                 ; to set Z flag
+     *      b    lastITableDoneLabel
+     *     lastITableMissedLabel:
+     *      ; debug counter, trashes x9 and x11Reg
+     *      cmp  x10Reg, #0                             ; to unset Z flag
+     *     lastITableDoneLabel:
+     *      bal  snippetLabel                           ; will be patched to bne
+     *      mov  w9, sizeof(J9Class)
+     *      ldr  x11Reg, [x10Reg, iTableOffset]        ; load vTableOffset
+     *      sub  x9, x9, x11Reg                        ; icallVMprJavaSendPatchupVirtual expects x9 to hold vTable index
+     *      ldr  x10Reg, [vftReg, x9]
+     *     hitLabel:
+     *      blr  x10Reg
+     *     doneLabel:
+     */
 
-   TR::LabelSymbol *ifcSnippetLabel = ifcSnippet->getSnippetLabel();
-   TR::LabelSymbol *firstClassCacheSlotLabel = ifcSnippet->getFirstClassCacheSlotLabel();
-   generateTrg1ImmSymInstruction(cg, TR::InstOpCode::ldrx, callNode, x10Reg, 0, firstClassCacheSlotLabel);
+    TR::LabelSymbol *ifcSnippetLabel = ifcSnippet->getSnippetLabel();
+    TR::LabelSymbol *firstClassCacheSlotLabel = ifcSnippet->getFirstClassCacheSlotLabel();
+    generateTrg1ImmSymInstruction(cg, TR::InstOpCode::ldrx, callNode, x10Reg, 0, firstClassCacheSlotLabel);
 
-   TR::LabelSymbol *hitLabel = generateLabelSymbol(cg);
-   generateCompareInstruction(cg, callNode, vftReg, x10Reg, true);
-   TR::LabelSymbol *firstBranchAddressCacheSlotLabel = ifcSnippet->getFirstBranchAddressCacheSlotLabel();
+    TR::LabelSymbol *hitLabel = generateLabelSymbol(cg);
+    generateCompareInstruction(cg, callNode, vftReg, x10Reg, true);
+    TR::LabelSymbol *firstBranchAddressCacheSlotLabel = ifcSnippet->getFirstBranchAddressCacheSlotLabel();
 
-   TR::Compilation *comp = cg->comp();
-   TR_Debug *debugObj = cg->getDebug();
-   TR_ARM64ScratchRegisterManager *srm = NULL;
-   bool isDebugCounterGenerated = false;
-   const bool enableDebugCounters = comp->getOptions()->enableDebugCounters();
-   if (enableDebugCounters)
-      {
-      srm = cg->generateScratchRegisterManager(2);
-      srm->donateScratchRegister(x9Reg);
-      srm->donateScratchRegister(x11Reg);
-      TR::Instruction *prevCursor = cg->getAppendInstruction();
-      /* Record if slot 1 hit */
-      TR::Instruction *cursor = cg->generateDebugCounter(TR::DebugCounter::debugCounterName(comp, "cg.callInterface/(%s)/%s/%d/%d/dynamicPIC/slot1",
-                                                                                            comp->signature(),
-                                                                                            comp->getHotnessName(),
-                                                                                            callNode->getByteCodeInfo().getCallerIndex(),
-                                                                                            callNode->getByteCodeInfo().getByteCodeIndex()), *srm);
-      if (prevCursor != cursor)
-         {
-         isDebugCounterGenerated = true;
-         /* Debug counter was generated. Generating instructions before debug counter instructions. */
-         TR::LabelSymbol *slot1MissedLabel = generateLabelSymbol(cg);
-         TR::Instruction *branchToSlot1MissedLabelInstr = generateConditionalBranchInstruction(cg, callNode, slot1MissedLabel, TR::CC_NE, prevCursor);
-         generateTrg1ImmSymInstruction(cg, TR::InstOpCode::ldrx, callNode, x10Reg, 0, firstBranchAddressCacheSlotLabel);
-         TR::Instruction *branchToHitLabelInstr = generateLabelInstruction(cg, TR::InstOpCode::b, callNode, hitLabel);
-         TR::Instruction *slot1MissedLabelInstr = generateLabelInstruction(cg, TR::InstOpCode::label, callNode, slot1MissedLabel);
-         if (debugObj)
-            {
-            debugObj->addInstructionComment(branchToSlot1MissedLabelInstr, "Jumps to slot1MissedLabel");
+    TR::Compilation *comp = cg->comp();
+    TR_Debug *debugObj = cg->getDebug();
+    TR_ARM64ScratchRegisterManager *srm = NULL;
+    bool isDebugCounterGenerated = false;
+    const bool enableDebugCounters = comp->getOptions()->enableDebugCounters();
+    if (enableDebugCounters) {
+        srm = cg->generateScratchRegisterManager(2);
+        srm->donateScratchRegister(x9Reg);
+        srm->donateScratchRegister(x11Reg);
+        TR::Instruction *prevCursor = cg->getAppendInstruction();
+        /* Record if slot 1 hit */
+        TR::Instruction *cursor = cg->generateDebugCounter(
+            TR::DebugCounter::debugCounterName(comp, "cg.callInterface/(%s)/%s/%d/%d/dynamicPIC/slot1",
+                comp->signature(), comp->getHotnessName(), callNode->getByteCodeInfo().getCallerIndex(),
+                callNode->getByteCodeInfo().getByteCodeIndex()),
+            *srm);
+        if (prevCursor != cursor) {
+            isDebugCounterGenerated = true;
+            /* Debug counter was generated. Generating instructions before debug counter instructions. */
+            TR::LabelSymbol *slot1MissedLabel = generateLabelSymbol(cg);
+            TR::Instruction *branchToSlot1MissedLabelInstr
+                = generateConditionalBranchInstruction(cg, callNode, slot1MissedLabel, TR::CC_NE, prevCursor);
+            generateTrg1ImmSymInstruction(cg, TR::InstOpCode::ldrx, callNode, x10Reg, 0,
+                firstBranchAddressCacheSlotLabel);
+            TR::Instruction *branchToHitLabelInstr
+                = generateLabelInstruction(cg, TR::InstOpCode::b, callNode, hitLabel);
+            TR::Instruction *slot1MissedLabelInstr
+                = generateLabelInstruction(cg, TR::InstOpCode::label, callNode, slot1MissedLabel);
+            if (debugObj) {
+                debugObj->addInstructionComment(branchToSlot1MissedLabelInstr, "Jumps to slot1MissedLabel");
+                debugObj->addInstructionComment(branchToHitLabelInstr, "Jumps to hitLabel");
+                debugObj->addInstructionComment(slot1MissedLabelInstr, "slot1MissedLabel");
+            }
+        }
+    }
+    if (!isDebugCounterGenerated) {
+        generateTrg1ImmSymInstruction(cg, TR::InstOpCode::ldrx, callNode, x10Reg, 0, firstBranchAddressCacheSlotLabel);
+        TR::Instruction *branchToHitLabelInstr
+            = generateConditionalBranchInstruction(cg, callNode, hitLabel, TR::CC_EQ);
+        if (debugObj) {
             debugObj->addInstructionComment(branchToHitLabelInstr, "Jumps to hitLabel");
-            debugObj->addInstructionComment(slot1MissedLabelInstr, "slot1MissedLabel");
-            }
-         }
-      }
-   if (!isDebugCounterGenerated)
-      {
-      generateTrg1ImmSymInstruction(cg, TR::InstOpCode::ldrx, callNode, x10Reg, 0, firstBranchAddressCacheSlotLabel);
-      TR::Instruction *branchToHitLabelInstr = generateConditionalBranchInstruction(cg, callNode, hitLabel, TR::CC_EQ);
-      if (debugObj)
-         {
-         debugObj->addInstructionComment(branchToHitLabelInstr, "Jumps to hitLabel");
-         }
-      }
-
-   TR::LabelSymbol *secondClassCacheSlotLabel = ifcSnippet->getSecondClassCacheSlotLabel();
-
-   generateTrg1ImmSymInstruction(cg, TR::InstOpCode::ldrx, callNode, x10Reg, 0, secondClassCacheSlotLabel);
-
-   if (enableDebugCounters)
-      {
-      TR::Instruction *prevCursor1 = cg->getAppendInstruction();
-      /* Record if slot 2 hit */
-      TR::Instruction *cursor1 = cg->generateDebugCounter(TR::DebugCounter::debugCounterName(comp, "cg.callInterface/(%s)/%s/%d/%d/dynamicPIC/slot2",
-                                                                                             comp->signature(),
-                                                                                             comp->getHotnessName(),
-                                                                                             callNode->getByteCodeInfo().getCallerIndex(),
-                                                                                             callNode->getByteCodeInfo().getByteCodeIndex()), *srm);
-
-      if (!useLastITableCache)
-         {
-         TR::Instruction *prevCursor2 = cg->getAppendInstruction();
-         /* Record if slot 2 missed */
-         TR::Instruction *cursor2 = cg->generateDebugCounter(TR::DebugCounter::debugCounterName(comp, "cg.callInterface/(%s)/%s/%d/%d/dynamicPIC/cachemiss",
-                                                                                             comp->signature(),
-                                                                                             comp->getHotnessName(),
-                                                                                             callNode->getByteCodeInfo().getCallerIndex(),
-                                                                                             callNode->getByteCodeInfo().getByteCodeIndex()), *srm);
-         if ((prevCursor1 != cursor1) || (prevCursor2 != cursor2))
-            {
-            TR::LabelSymbol *slot2MissedLabel = generateLabelSymbol(cg);
-            TR::LabelSymbol *slot2DoneLabel = generateLabelSymbol(cg);
-            /* Debug counter was generated. Generating instructions before debug counter instructions recording hit for second cache slot. */
-            TR::Instruction *cursor = generateCompareInstruction(cg, callNode, vftReg, x10Reg, true, prevCursor1);
-            TR::Instruction *branchToSlot2MissedLabelInstr = generateConditionalBranchInstruction(cg, callNode, slot2MissedLabel, TR::CC_NE, cursor);
-
-            /* Generating instructions before debug counter instructions recording cache miss. */
-            cursor = generateLabelInstruction(cg, TR::InstOpCode::b, callNode, slot2DoneLabel, prevCursor2);
-            TR::Instruction *slot2MissedLabelInstr = generateLabelInstruction(cg, TR::InstOpCode::label, callNode, slot2MissedLabel, cursor);
-
-            /* Generating instructions after debug counter instructions. */
-            TR::Instruction *slot2DoneLabelInstr = generateLabelInstruction(cg, TR::InstOpCode::label, callNode, slot2DoneLabel);
-            if (debugObj)
-               {
-               debugObj->addInstructionComment(branchToSlot2MissedLabelInstr, "Jumps to slot2MissedLabel");
-               debugObj->addInstructionComment(cursor, "Jumps to slot2DoneLabel");
-               debugObj->addInstructionComment(slot2MissedLabelInstr, "slot2MissedLabel");
-               debugObj->addInstructionComment(slot2DoneLabelInstr, "slot2DoneLabel");
-               }
-            }
-         }
-      else
-         {
-         if (prevCursor1 != cursor1)
-            {
-            TR::LabelSymbol *slot2DoneLabel = generateLabelSymbol(cg);
-            /* Debug counter was generated. Generating instructions before debug counter instructions recording hit for second cache slot. */
-            TR::Instruction *cursor = generateCompareInstruction(cg, callNode, vftReg, x10Reg, true, prevCursor1);
-            TR::Instruction *branchToSlot2DoneLabelInstr = generateConditionalBranchInstruction(cg, callNode, slot2DoneLabel, TR::CC_NE, cursor);
-            /* Generating instructions after debug counter instructions. */
-            TR::Instruction *slot2DoneLabelInstr = generateLabelInstruction(cg, TR::InstOpCode::label, callNode, slot2DoneLabel);
-            if (debugObj)
-               {
-               debugObj->addInstructionComment(branchToSlot2DoneLabelInstr, "Jumps to slot2DoneLabel");
-               debugObj->addInstructionComment(slot2DoneLabelInstr, "slot2DoneLabel");
-               }
-            }
-         }
-      }
-
-   generateCompareInstruction(cg, callNode, vftReg, x10Reg, true);
-
-   TR::SymbolReference  *methodSymRef = callNode->getSymbolReference();
-   TR_ResolvedMethod    *owningMethod = methodSymRef->getOwningMethod(comp);
-   uintptr_t            itableIndex;
-   TR_OpaqueClassBlock  *interfaceClassOfMethod = owningMethod->getResolvedInterfaceMethod(methodSymRef->getCPIndex(), &itableIndex);
-
-   TR::Instruction *gcPoint;
-   if (useLastITableCache && (interfaceClassOfMethod != NULL))
-      {
-      TR_J9VMBase *fej9 = cg->fej9();
-
-      TR::LabelSymbol *secondBranchAddressCacheSlotLabel = ifcSnippet->getSecondBranchAddressCacheSlotLabel();
-      generateTrg1ImmSymInstruction(cg, TR::InstOpCode::ldrx, callNode, x10Reg, 0, secondBranchAddressCacheSlotLabel);
-      generateConditionalBranchInstruction(cg, callNode, hitLabel, TR::CC_EQ);
-
-      generateTrg1MemInstruction(cg, TR::InstOpCode::ldrimmx, callNode, x10Reg, TR::MemoryReference::createWithDisplacement(cg, vftReg, fej9->getOffsetOfLastITableFromClassField()));
-      TR::LabelSymbol *interfacedClassSlotLabel = ifcSnippet->getInterfaceClassSlotLabel();
-      generateTrg1ImmSymInstruction(cg, TR::InstOpCode::ldrx, callNode, x9Reg, 0, interfacedClassSlotLabel);
-      generateTrg1MemInstruction(cg, TR::InstOpCode::ldrimmx, callNode, x11Reg, TR::MemoryReference::createWithDisplacement(cg, x10Reg, fej9->getOffsetOfInterfaceClassFromITableField()));
-      generateCompareInstruction(cg, callNode, x9Reg, x11Reg, true);
-
-      if (enableDebugCounters)
-         {
-         TR::Instruction *prevCursor1 = cg->getAppendInstruction();
-         /* Record if lastITable cache hit */
-         TR::Instruction *cursor1 = cg->generateDebugCounter(TR::DebugCounter::debugCounterName(comp, "cg.callInterface/(%s)/%s/%d/%d/dynamicPIC/lastITable",
-                                                                                             comp->signature(),
-                                                                                             comp->getHotnessName(),
-                                                                                             callNode->getByteCodeInfo().getCallerIndex(),
-                                                                                             callNode->getByteCodeInfo().getByteCodeIndex()), *srm);
-         TR::Instruction *prevCursor2 = cg->getAppendInstruction();
-         /* Record if lastITable cache missed */
-         TR::Instruction *cursor2 = cg->generateDebugCounter(TR::DebugCounter::debugCounterName(comp, "cg.callInterface/(%s)/%s/%d/%d/dynamicPIC/cachemiss",
-                                                                                             comp->signature(),
-                                                                                             comp->getHotnessName(),
-                                                                                             callNode->getByteCodeInfo().getCallerIndex(),
-                                                                                             callNode->getByteCodeInfo().getByteCodeIndex()), *srm);
-         if ((prevCursor1 != cursor1) || (prevCursor2 != cursor2))
-            {
-            TR::LabelSymbol *lastITableMissedLabel = generateLabelSymbol(cg);
-            TR::LabelSymbol *lastITableDoneLabel = generateLabelSymbol(cg);
-            /* Debug counter was generated. Generating instructions before debug counter instructions recording hit for lastITable cache. */
-            TR::Instruction *branchToLastITableMissedLabelInstr = generateConditionalBranchInstruction(cg, callNode, lastITableMissedLabel, TR::CC_NE, prevCursor1);
-
-            /* Generating instructions before debug counter instructions recording cache miss. */
-            TR::Instruction *cmpInstr1 = generateCompareInstruction(cg, callNode, x9Reg, x9Reg, true, prevCursor2); /* to set Z flag */
-            TR::Instruction *cursor = generateLabelInstruction(cg, TR::InstOpCode::b, callNode, lastITableDoneLabel, cmpInstr1);
-            TR::Instruction *lastITableMissedLabelInstr = generateLabelInstruction(cg, TR::InstOpCode::label, callNode, lastITableMissedLabel, cursor);
-
-            /* Generating instructions after debug counter instructions. */
-            generateCompareImmInstruction(cg, callNode, x10Reg, 0, true); /* to unset Z flag */
-            TR::Instruction *lastITableDoneLabelInstr = generateLabelInstruction(cg, TR::InstOpCode::label, callNode, lastITableDoneLabel);
-            if (debugObj)
-               {
-               debugObj->addInstructionComment(branchToLastITableMissedLabelInstr, "Jumps to lastITableMissedLabel");
-               debugObj->addInstructionComment(cursor, "Jumps to lastITableDoneLabel");
-               debugObj->addInstructionComment(lastITableMissedLabelInstr, "lastITable2MissedLabel");
-               debugObj->addInstructionComment(lastITableDoneLabelInstr, "lastITableDoneLabel");
-               }
-            }
-         }
-
-      /* This conditional branch instruction with "always" condition code will be patched to b.ne instruction after second cache slot is filled. */
-      gcPoint = generateConditionalBranchInstruction(cg, callNode, ifcSnippetLabel, TR::CC_AL);
-      loadConstant32(cg, callNode, fej9->getITableEntryJitVTableOffset(), x9Reg);
-      generateTrg1MemInstruction(cg, TR::InstOpCode::ldrimmx, callNode, x11Reg, TR::MemoryReference::createWithDisplacement(cg, x10Reg, fej9->convertITableIndexToOffset(itableIndex)));
-      /* PicBuilder.spp checks this instruction. It needs to be 'sub x9, x9, x11'. */
-      generateTrg1Src2Instruction(cg, TR::InstOpCode::subx, callNode, x9Reg, x9Reg, x11Reg);
-      generateTrg1MemInstruction(cg, TR::InstOpCode::ldroffx, callNode, x10Reg, TR::MemoryReference::createWithIndexReg(cg, vftReg, x9Reg));
-      if (debugObj)
-         {
-         debugObj->addInstructionComment(gcPoint, "Jumps to Snippet. Will be patched to b.ne");
-         }
-      }
-   else
-      {
-      gcPoint = generateConditionalBranchInstruction(cg, callNode, ifcSnippetLabel, TR::CC_NE);
-      TR::LabelSymbol *secondBranchAddressCacheSlotLabel = ifcSnippet->getSecondBranchAddressCacheSlotLabel();
-
-      generateTrg1ImmSymInstruction(cg, TR::InstOpCode::ldrx, callNode, x10Reg, 0, secondBranchAddressCacheSlotLabel);
-      if (debugObj)
-         {
-         debugObj->addInstructionComment(gcPoint, "Jumps to snippet");
-         }
-      }
-   gcPoint->ARM64NeedsGCMap(cg, regMapForGC);
-
-   if (enableDebugCounters)
-      {
-      srm->stopUsingRegisters();
-      }
-   TR::Instruction *hitLabelInstr = generateLabelInstruction(cg, TR::InstOpCode::label, callNode, hitLabel);
-   if (debugObj)
-      {
-      debugObj->addInstructionComment(hitLabelInstr, "hitLabel");
-      }
-   gcPoint = generateRegBranchInstruction(cg, TR::InstOpCode::blr, callNode, x10Reg);
-   gcPoint->ARM64NeedsGCMap(cg, regMapForGC);
-
-   }
-
-static TR::Register *evaluateUpToVftChild(TR::Node *callNode, TR::CodeGenerator *cg)
-   {
-   TR::Register *vftReg = NULL;
-   if (callNode->getFirstArgumentIndex() == 1)
-      {
-      TR::Node *child = callNode->getFirstChild();
-      vftReg = cg->evaluate(child);
-      cg->decReferenceCount(child);
-      }
-   TR_ASSERT_FATAL(vftReg != NULL, "Failed to find vft child.");
-   return vftReg;
-   }
-
-void J9::ARM64::PrivateLinkage::buildVirtualDispatch(TR::Node *callNode,
-   TR::RegisterDependencyConditions *dependencies,
-   uint32_t argSize)
-   {
-   TR::Register *x0 = dependencies->searchPreConditionRegister(TR::RealRegister::x0);
-   TR::Register *x9 = dependencies->searchPreConditionRegister(TR::RealRegister::x9);
-   TR::Register *x10 = dependencies->searchPreConditionRegister(TR::RealRegister::x10);
-   TR::Register *x11 = dependencies->searchPreConditionRegister(TR::RealRegister::x11);
-
-   TR::SymbolReference *methodSymRef = callNode->getSymbolReference();
-   TR::MethodSymbol *methodSymbol = methodSymRef->getSymbol()->castToMethodSymbol();
-   TR::LabelSymbol *doneLabel = generateLabelSymbol(cg());
-   uint32_t regMapForGC = getProperties().getPreservedRegisterMapForGC();
-   void *thunk = NULL;
-
-   TR::Instruction *gcPoint;
-
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(comp()->fe());
-   OMR::Logger *log = comp()->log();
-   bool trace = comp()->getOption(TR_TraceCG);
-
-   // Computed calls
-   //
-   if (methodSymbol->isComputed())
-      {
-      TR::Register *vftReg = evaluateUpToVftChild(callNode, cg());
-      TR::addDependency(dependencies, vftReg, getProperties().getComputedCallTargetRegister(), TR_GPR, cg());
-
-      switch (methodSymbol->getMandatoryRecognizedMethod())
-         {
-         case TR::java_lang_invoke_ComputedCalls_dispatchVirtual:
-         case TR::com_ibm_jit_JITHelpers_dispatchVirtual:
-            {
-            // Need a j2i thunk for the method that will ultimately be dispatched by this handle call
-            char *j2iSignature = fej9->getJ2IThunkSignatureForDispatchVirtual(methodSymbol->getMethod()->signatureChars(), methodSymbol->getMethod()->signatureLength(), comp());
-            int32_t signatureLen = strlen(j2iSignature);
-            thunk = fej9->getJ2IThunk(j2iSignature, signatureLen, comp());
-            if (!thunk)
-               {
-               thunk = fej9->setJ2IThunk(j2iSignature, signatureLen,
-                                         TR::ARM64CallSnippet::generateVIThunk(fej9->getEquivalentVirtualCallNodeForDispatchVirtual(callNode, comp()), argSize, cg()), comp());
-               }
-            }
-         default:
-            if (fej9->needsInvokeExactJ2IThunk(callNode, comp()))
-               {
-               TR_MHJ2IThunk *thunk = TR::ARM64CallSnippet::generateInvokeExactJ2IThunk(callNode, argSize, cg(), methodSymbol->getMethod()->signatureChars());
-               fej9->setInvokeExactJ2IThunk(thunk, comp());
-               }
-            break;
-         }
-
-      TR::Instruction *gcPoint = generateRegBranchInstruction(cg(), TR::InstOpCode::blr, callNode, vftReg, dependencies);
-      gcPoint->ARM64NeedsGCMap(cg(), regMapForGC);
-
-#if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
-      // JITHelpers.dispatchVirtual() can target MethodHandle.invokeBasic().
-      auto rm = methodSymbol->getMandatoryRecognizedMethod();
-      if (rm == TR::com_ibm_jit_JITHelpers_dispatchVirtual)
-         {
-         cg()->addInvokeBasicCallSite(callNode, gcPoint);
-         }
-#endif
-
-      return;
-      }
-
-   // Virtual and interface calls
-   //
-   TR_ASSERT_FATAL(methodSymbol->isVirtual() || methodSymbol->isInterface(), "Unexpected method type");
-
-   thunk = fej9->getJ2IThunk(methodSymbol->getMethod(), comp());
-   if (!thunk)
-      thunk = fej9->setJ2IThunk(methodSymbol->getMethod(), TR::ARM64CallSnippet::generateVIThunk(callNode, argSize, cg()), comp());
-
-   bool callIsSafe = methodSymRef != comp()->getSymRefTab()->findObjectNewInstanceImplSymbol();
-
-   // evaluate vftReg because it is required for implicit NULLCHK
-   TR::Register *vftReg = evaluateUpToVftChild(callNode, cg());
-   TR::addDependency(dependencies, vftReg, TR::RealRegister::NoReg, TR_GPR, cg());
-
-   if (methodSymbol->isVirtual())
-      {
-      TR::MemoryReference *tempMR;
-      if (methodSymRef->isUnresolved() || comp()->compileRelocatableCode())
-         {
-         TR::LabelSymbol *vcSnippetLabel = generateLabelSymbol(cg());
-         TR::ARM64VirtualUnresolvedSnippet *vcSnippet =
-            new (trHeapMemory())
-            TR::ARM64VirtualUnresolvedSnippet(cg(), callNode, vcSnippetLabel, argSize, doneLabel, (uint8_t *)thunk);
-         cg()->addSnippet(vcSnippet);
-
-
-         // The following instructions are modified by _virtualUnresolvedHelper
-         // in aarch64/runtime/PicBuilder.spp to load the vTable index in x9
-
-         // This `b` instruction is modified to movzx x9, lower 16bit of offset
-         generateLabelInstruction(cg(), TR::InstOpCode::b, callNode, vcSnippetLabel);
-         generateTrg1ImmInstruction(cg(), TR::InstOpCode::movkx, callNode, x9, TR::MOV_LSL16);
-         generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::sbfmx, callNode, x9, x9, 0x1F); // sxtw x9, w9
-         tempMR = TR::MemoryReference::createWithIndexReg(cg(), vftReg, x9);
-         generateTrg1MemInstruction(cg(), TR::InstOpCode::ldroffx, callNode, x9, tempMR);
-         gcPoint = generateRegBranchInstruction(cg(), TR::InstOpCode::blr, callNode, x9);
-         gcPoint->ARM64NeedsGCMap(cg(), regMapForGC);
-         generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, doneLabel, dependencies);
-
-         return;
-         }
-
-      // Handle guarded devirtualization next
-      //
-      if (callIsSafe)
-         {
-         TR::ResolvedMethodSymbol *resolvedMethodSymbol = methodSymRef->getSymbol()->getResolvedMethodSymbol();
-         TR_ResolvedMethod       *resolvedMethod = resolvedMethodSymbol->getResolvedMethod();
-
-         if (comp()->performVirtualGuardNOPing() &&
-             comp()->isVirtualGuardNOPingRequired() &&
-             !resolvedMethod->isInterpreted() &&
-             !callNode->isTheVirtualCallNodeForAGuardedInlinedCall())
-            {
-            TR_VirtualGuard *virtualGuard = NULL;
-
-            if (!resolvedMethod->virtualMethodIsOverridden() &&
-                !resolvedMethod->isAbstract())
-               {
-               logprintf(trace, log, "Creating TR_NonoverriddenGuard for node %p\n", callNode);
-
-               virtualGuard = TR_VirtualGuard::createGuardedDevirtualizationGuard(TR_NonoverriddenGuard, comp(), callNode);
-               }
-            else
-               {
-               TR_DevirtualizedCallInfo *devirtualizedCallInfo = comp()->findDevirtualizedCall(callNode);
-               TR_OpaqueClassBlock      *refinedThisClass = devirtualizedCallInfo ? devirtualizedCallInfo->_thisType : NULL;
-               TR_OpaqueClassBlock      *thisClass = refinedThisClass ? refinedThisClass : resolvedMethod->containingClass();
-
-               TR_PersistentCHTable     *chTable = comp()->getPersistentInfo()->getPersistentCHTable();
-               /* Devirtualization is not currently supported for AOT compilations */
-               if (thisClass && TR::Compiler->cls.isAbstractClass(comp(), thisClass) && !comp()->compileRelocatableCode())
-                  {
-                  TR_ResolvedMethod *calleeMethod = chTable->findSingleAbstractImplementer(thisClass, methodSymRef->getOffset(), methodSymRef->getOwningMethod(comp()), comp());
-                  if (calleeMethod &&
-                      (comp()->isRecursiveMethodTarget(calleeMethod) ||
-                       !calleeMethod->isInterpreted() ||
-                       calleeMethod->isJITInternalNative()))
-                     {
-                     logprintf(trace, log, "Creating TR_AbstractGuard for node %p\n", callNode);
-
-                     resolvedMethod = calleeMethod;
-                     virtualGuard = TR_VirtualGuard::createGuardedDevirtualizationGuard(TR_AbstractGuard, comp(), callNode);
-                     }
-                  }
-               else if (refinedThisClass &&
-                        resolvedMethod->virtualMethodIsOverridden() &&
-                        !chTable->isOverriddenInThisHierarchy(resolvedMethod, refinedThisClass, methodSymRef->getOffset(), comp()))
-                  {
-                  TR_ResolvedMethod *calleeMethod = methodSymRef->getOwningMethod(comp())->getResolvedVirtualMethod(comp(), refinedThisClass, methodSymRef->getOffset());
-                  if (calleeMethod &&
-                      (comp()->isRecursiveMethodTarget(calleeMethod) ||
-                       !calleeMethod->isInterpreted() ||
-                       calleeMethod->isJITInternalNative()))
-                     {
-                     logprintf(trace, log, "Creating TR_HierarchyGuard for node %p\n", callNode);
-
-                     resolvedMethod = calleeMethod;
-                     virtualGuard = TR_VirtualGuard::createGuardedDevirtualizationGuard(TR_HierarchyGuard, comp(), callNode);
-                     }
-                  }
-               }
-
-            // If we have a virtual call guard generate a direct call
-            // in the inline path and the virtual call out of line.
-            // If the guard is later patched we'll go out of line path.
-            //
-            if (virtualGuard)
-               {
-               TR::LabelSymbol *virtualCallLabel = generateLabelSymbol(cg());
-               generateVirtualGuardNOPInstruction(cg(), callNode, virtualGuard->addNOPSite(), NULL, virtualCallLabel);
-
-               if (comp()->getOption(TR_EnableHCR))
-                  {
-                  if (cg()->supportsMergingGuards())
-                     {
-                     virtualGuard->setMergedWithHCRGuard();
-                     }
-                  else
-                     {
-                     TR_VirtualGuard *HCRGuard = TR_VirtualGuard::createGuardedDevirtualizationGuard(TR_HCRGuard, comp(), callNode);
-                     generateVirtualGuardNOPInstruction(cg(), callNode, HCRGuard->addNOPSite(), NULL, virtualCallLabel);
-                     }
-                  }
-               if (resolvedMethod != resolvedMethodSymbol->getResolvedMethod())
-                  {
-                  methodSymRef = comp()->getSymRefTab()->findOrCreateMethodSymbol(methodSymRef->getOwningMethodIndex(),
-                                                                                  -1,
-                                                                                  resolvedMethod,
-                                                                                  TR::MethodSymbol::Virtual);
-                  methodSymbol = methodSymRef->getSymbol()->castToMethodSymbol();
-                  resolvedMethodSymbol = methodSymbol->getResolvedMethodSymbol();
-                  resolvedMethod = resolvedMethodSymbol->getResolvedMethod();
-                  }
-               uintptr_t methodAddress = comp()->isRecursiveMethodTarget(resolvedMethod) ? 0 : (uintptr_t)resolvedMethod->startAddressForJittedMethod();
-               TR::Instruction *gcPoint = generateImmSymInstruction(cg(), TR::InstOpCode::bl, callNode, methodAddress, NULL, methodSymRef, NULL);
-               generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, doneLabel, dependencies);
-               gcPoint->ARM64NeedsGCMap(cg(), regMapForGC);
-
-               fej9->reserveTrampolineIfNecessary(comp(), methodSymRef, false);
-
-               // Out of line virtual call
-               //
-               TR_ARM64OutOfLineCodeSection *virtualCallOOL = new (trHeapMemory()) TR_ARM64OutOfLineCodeSection(virtualCallLabel, doneLabel, cg());
-
-               virtualCallOOL->swapInstructionListsWithCompilation();
-               TR::Instruction *OOLLabelInstr = generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, virtualCallLabel);
-
-               // XXX: Temporary fix, OOL instruction stream does not pick up live locals or monitors correctly.
-               TR_ASSERT(!OOLLabelInstr->getLiveLocals() && !OOLLabelInstr->getLiveMonitors(), "Expecting first OOL instruction to not have live locals/monitors info");
-               OOLLabelInstr->setLiveLocals(gcPoint->getLiveLocals());
-               OOLLabelInstr->setLiveMonitors(gcPoint->getLiveMonitors());
-
-               buildVirtualCall(cg(), callNode, vftReg, x9, regMapForGC);
-
-               generateLabelInstruction(cg(), TR::InstOpCode::b, callNode, doneLabel);
-               virtualCallOOL->swapInstructionListsWithCompilation();
-               cg()->getARM64OutOfLineCodeSectionList().push_front(virtualCallOOL);
-
-               return;
-               }
-            }
-         }
-      }
-
-   bool useLastITableCache = !comp()->getOption(TR_DisableLastITableCache);
-
-   // Profile-driven virtual and interface calls
-   //
-   // If the top value dominates everything else, generate a single static
-   // PIC call inline and a virtual call or dynamic PIC call out of line.
-   //
-   // Otherwise generate a reasonable amount of static PIC calls and a
-   // virtual call or dynamic PIC call all inline.
-   //
-   if (callIsSafe && !callNode->isTheVirtualCallNodeForAGuardedInlinedCall() && !comp()->getOption(TR_DisableInterpreterProfiling))
-      {
-      static uint32_t  maxVirtualStaticPICs = comp()->getOptions()->getMaxStaticPICSlots(comp()->getMethodHotness());
-      static uint32_t  maxInterfaceStaticPICs = comp()->getOptions()->getNumInterfaceCallCacheSlots();
-
-      TR_ScratchList<J9::ARM64PICItem> values(cg()->trMemory());
-      const uint32_t maxStaticPICs = methodSymbol->isInterface() ? maxInterfaceStaticPICs : maxVirtualStaticPICs;
-
-      if (getProfiledCallSiteInfo(cg(), callNode, maxStaticPICs, values))
-         {
-         ListIterator<J9::ARM64PICItem>  i(&values);
-         J9::ARM64PICItem               *pic = i.getFirst();
-
-         if (useLastITableCache && methodSymbol->isInterface())
-            {
-            // Find the class pointer to the interface class if it is already loaded.
-            //
-            TR::Method *interfaceMethod = methodSymbol->getMethod();
-            int32_t len = interfaceMethod->classNameLength();
-            char *s = TR::Compiler->cls.classNameToSignature(interfaceMethod->classNameChars(), len, comp());
-            auto interfaceClassOfMethod = fej9->getClassFromSignature(s, len, methodSymRef->getOwningMethod(comp()));
-            int32_t numStaticPICSlots = (pic->_frequency > MAX_PROFILED_CALL_FREQUENCY) ? 1 : values.getSize();
-
-            // Disable lastITable logic if all the implementers can fit into the pic slots during non-startup state
-            if (interfaceClassOfMethod && comp()->getPersistentInfo()->getJitState() != STARTUP_STATE)
-               {
-               int32_t numPICSlots = numStaticPICSlots + 2;
-               TR_ResolvedMethod **implArray = new (comp()->trStackMemory()) TR_ResolvedMethod *[numPICSlots+1];
-               TR_PersistentCHTable *chTable = comp()->getPersistentInfo()->getPersistentCHTable();
-               int32_t cpIndex = methodSymRef->getCPIndex();
-               int32_t numImplementers = chTable->findnInterfaceImplementers(interfaceClassOfMethod, numPICSlots+1, implArray, cpIndex, methodSymRef->getOwningMethod(comp()), comp());
-               if (numImplementers <= numPICSlots)
-                  {
-                  useLastITableCache = false;
-                  logprintf(trace, log, "Found %d implementers for call to %s, can be fit into %d pic slots, disabling lastITable cache\n",
-                        numImplementers, methodSymbol->getMethod()->signature(comp()->trMemory()), numPICSlots);
-                  }
-               }
-            }
-         // If this value is dominant, optimize exclusively for it
-         if (pic->_frequency > MAX_PROFILED_CALL_FREQUENCY)
-            {
-            logprintf(trace, log, "Found dominant profiled target, frequency = %f\n", pic->_frequency);
-
-            TR::LabelSymbol *slowCallLabel = generateLabelSymbol(cg());
-
-            TR::Instruction *gcPoint = buildStaticPICCall(cg(), callNode, pic->_clazz, pic->_method,
-                                                            vftReg, x9, x10, 1, slowCallLabel, regMapForGC);
-            generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, doneLabel, dependencies);
-
-            // Out of line virtual/interface call
-            //
-            TR_ARM64OutOfLineCodeSection *slowCallOOL = new (trHeapMemory()) TR_ARM64OutOfLineCodeSection(slowCallLabel, doneLabel, cg());
-
-            slowCallOOL->swapInstructionListsWithCompilation();
-            TR::Instruction *OOLLabelInstr = generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, slowCallLabel);
-
-            // XXX: Temporary fix, OOL instruction stream does not pick up live locals or monitors correctly.
-            TR_ASSERT_FATAL(!OOLLabelInstr->getLiveLocals() && !OOLLabelInstr->getLiveMonitors(), "Expecting first OOL instruction to not have live locals/monitors info");
-            OOLLabelInstr->setLiveLocals(gcPoint->getLiveLocals());
-            OOLLabelInstr->setLiveMonitors(gcPoint->getLiveMonitors());
-
-            TR::LabelSymbol *doneOOLLabel = generateLabelSymbol(cg());
-
-            if (methodSymbol->isInterface())
-               {
-               TR::LabelSymbol               *ifcSnippetLabel = generateLabelSymbol(cg());
-               TR::LabelSymbol               *firstClassCacheSlotLabel = generateLabelSymbol(cg());
-               TR::LabelSymbol               *firstBranchAddressCacheSlotLabel = generateLabelSymbol(cg());
-               TR::LabelSymbol               *secondClassCacheSlotLabel = generateLabelSymbol(cg());
-               TR::LabelSymbol               *secondBranchAddressCacheSlotLabel = generateLabelSymbol(cg());
-               TR::LabelSymbol               *interfaceClassSlotLabel = generateLabelSymbol(cg());
-               TR::ARM64InterfaceCallSnippet *ifcSnippet = new (trHeapMemory()) TR::ARM64InterfaceCallSnippet(cg(), callNode, ifcSnippetLabel,
-                                                                                                              argSize, doneOOLLabel, firstClassCacheSlotLabel, secondClassCacheSlotLabel,
-                                                                                                              firstBranchAddressCacheSlotLabel, secondBranchAddressCacheSlotLabel,
-                                                                                                              interfaceClassSlotLabel, static_cast<uint8_t *>(thunk));
-               cg()->addSnippet(ifcSnippet);
-               buildInterfaceCall(cg(), callNode, vftReg, x9, x10, x11, useLastITableCache, ifcSnippet, regMapForGC);
-               }
-            else
-               {
-               buildVirtualCall(cg(), callNode, vftReg, x9, regMapForGC);
-               }
-
-            generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, doneOOLLabel);
-            generateLabelInstruction(cg(), TR::InstOpCode::b, callNode, doneLabel);
-            slowCallOOL->swapInstructionListsWithCompilation();
-            cg()->getARM64OutOfLineCodeSectionList().push_front(slowCallOOL);
-
-            return;
-            }
-         else
-            {
-            logprintf(trace, log, "Generating %d static PIC calls\n", values.getSize());
-
-            // Build multiple static PIC calls
-            int32_t slotCount = 1;
-            while (pic)
-               {
-               TR::LabelSymbol *nextLabel = generateLabelSymbol(cg());
-
-               buildStaticPICCall(cg(), callNode, pic->_clazz, pic->_method,
-                                  vftReg, x9, x10, slotCount++, nextLabel, regMapForGC);
-               generateLabelInstruction(cg(), TR::InstOpCode::b, callNode, doneLabel);
-               generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, nextLabel);
-               pic = i.getNext();
-               }
-            // Regular virtual/interface call will be built below
-            }
-         }
-      }
-
-   // Finally, regular virtual and interface calls
-   //
-   if (methodSymbol->isInterface())
-      {
-      // interface calls
-      // ToDo: Inline interface dispatch
-
-      TR::LabelSymbol *ifcSnippetLabel = generateLabelSymbol(cg());
-      TR::LabelSymbol *firstClassCacheSlotLabel = generateLabelSymbol(cg());
-      TR::LabelSymbol *firstBranchAddressCacheSlotLabel = generateLabelSymbol(cg());
-      TR::LabelSymbol *secondClassCacheSlotLabel = generateLabelSymbol(cg());
-      TR::LabelSymbol *secondBranchAddressCacheSlotLabel = generateLabelSymbol(cg());
-      TR::LabelSymbol *interfaceClassSlotLabel = generateLabelSymbol(cg());
-      TR::ARM64InterfaceCallSnippet *ifcSnippet =
-         new (trHeapMemory())
-         TR::ARM64InterfaceCallSnippet(cg(), callNode, ifcSnippetLabel, argSize, doneLabel, firstClassCacheSlotLabel, firstBranchAddressCacheSlotLabel,
-                                       secondClassCacheSlotLabel, secondBranchAddressCacheSlotLabel, interfaceClassSlotLabel, static_cast<uint8_t *>(thunk));
-      cg()->addSnippet(ifcSnippet);
-
-      buildInterfaceCall(cg(), callNode, vftReg, x9, x10, x11, useLastITableCache, ifcSnippet, regMapForGC);
-      }
-   else
-      {
-      buildVirtualCall(cg(), callNode, vftReg, x9, regMapForGC);
-      }
-   generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, doneLabel, dependencies);
-   }
-
-TR::Register *J9::ARM64::PrivateLinkage::buildIndirectDispatch(TR::Node *callNode)
-   {
-   const TR::ARM64LinkageProperties &pp = getProperties();
-   TR::RealRegister *sp = cg()->machine()->getRealRegister(pp.getStackPointerRegister());
-
-   // Extra post dependency for killing vector registers (see KillVectorRegs)
-   const int extraPostReg = killsVectorRegisters() ? 1 : 0;
-   TR::RegisterDependencyConditions *dependencies =
-      new (trHeapMemory()) TR::RegisterDependencyConditions(
-         pp.getNumberOfDependencyGPRegisters(),
-         pp.getNumberOfDependencyGPRegisters() + extraPostReg, trMemory());
-
-   int32_t argSize = buildArgs(callNode, dependencies);
-
-   buildVirtualDispatch(callNode, dependencies, argSize);
-   cg()->machine()->setLinkRegisterKilled(true);
-
-   TR::Register *retReg;
-   switch(callNode->getOpCodeValue())
-      {
-      case TR::icalli:
-         retReg = dependencies->searchPostConditionRegister(
-                     pp.getIntegerReturnRegister());
-         break;
-      case TR::lcalli:
-      case TR::acalli:
-         retReg = dependencies->searchPostConditionRegister(
-                     pp.getLongReturnRegister());
-         break;
-      case TR::fcalli:
-      case TR::dcalli:
-         retReg = dependencies->searchPostConditionRegister(
-                     pp.getFloatReturnRegister());
-         break;
-      case TR::calli:
-         retReg = NULL;
-         break;
-      default:
-         retReg = NULL;
-         TR_ASSERT_FATAL(false, "Unsupported indirect call Opcode.");
-      }
-
-   callNode->setRegister(retReg);
-
-   dependencies->stopUsingDepRegs(cg(), retReg);
-   return retReg;
-   }
-
-TR::Instruction *
-J9::ARM64::PrivateLinkage::loadStackParametersToLinkageRegisters(TR::Instruction *cursor)
-   {
-   TR::Machine *machine = cg()->machine();
-   TR::ARM64LinkageProperties& properties = getProperties();
-   TR::RealRegister *javaSP = machine->getRealRegister(properties.getStackPointerRegister());       // x20
-
-   TR::ResolvedMethodSymbol *bodySymbol = comp()->getJittedMethodSymbol();
-   ListIterator<TR::ParameterSymbol> parmIterator(&(bodySymbol->getParameterList()));
-   TR::ParameterSymbol *parmCursor;
-
-   // Copy from stack all parameters that belong in linkage regs
-   //
-   for (parmCursor = parmIterator.getFirst();
-        parmCursor != NULL;
-        parmCursor = parmIterator.getNext())
-      {
-      if (parmCursor->isParmPassedInRegister())
-         {
-         int8_t lri = parmCursor->getLinkageRegisterIndex();
-         TR::RealRegister *linkageReg;
-         TR::InstOpCode::Mnemonic op;
-         TR::DataType dataType = parmCursor->getDataType();
-
-         if (dataType == TR::Double || dataType == TR::Float)
-            {
-            linkageReg = machine->getRealRegister(properties.getFloatArgumentRegister(lri));
-            op = (dataType == TR::Double) ? TR::InstOpCode::vldrimmd : TR::InstOpCode::vldrimms;
-            }
-         else
-            {
-            linkageReg = machine->getRealRegister(properties.getIntegerArgumentRegister(lri));
-            op = (dataType == TR::Int64 || dataType == TR::Address) ? TR::InstOpCode::ldrimmx : TR::InstOpCode::ldrimmw;
-            }
-
-         TR::MemoryReference *stackMR = TR::MemoryReference::createWithDisplacement(cg(), javaSP, parmCursor->getParameterOffset());
-         cursor = generateTrg1MemInstruction(cg(), op, NULL, linkageReg, stackMR, cursor);
-         }
-      }
-
-    return cursor;
+        }
     }
 
-TR::Instruction *
-J9::ARM64::PrivateLinkage::saveParametersToStack(TR::Instruction *cursor)
-   {
-   TR::Machine *machine = cg()->machine();
-   TR::ARM64LinkageProperties& properties = getProperties();
-   TR::RealRegister *javaSP = machine->getRealRegister(properties.getStackPointerRegister());       // x20
+    TR::LabelSymbol *secondClassCacheSlotLabel = ifcSnippet->getSecondClassCacheSlotLabel();
 
-   TR::ResolvedMethodSymbol *bodySymbol = comp()->getJittedMethodSymbol();
-   ListIterator<TR::ParameterSymbol> parmIterator(&(bodySymbol->getParameterList()));
-   TR::ParameterSymbol *parmCursor;
+    generateTrg1ImmSymInstruction(cg, TR::InstOpCode::ldrx, callNode, x10Reg, 0, secondClassCacheSlotLabel);
 
-   // Store to stack all parameters passed in linkage registers
-   //
-   for (parmCursor = parmIterator.getFirst();
-        parmCursor != NULL;
-        parmCursor = parmIterator.getNext())
-      {
-      if (parmCursor->isParmPassedInRegister())
-         {
-         int8_t lri = parmCursor->getLinkageRegisterIndex();
-         TR::RealRegister *linkageReg;
-         TR::InstOpCode::Mnemonic op;
+    if (enableDebugCounters) {
+        TR::Instruction *prevCursor1 = cg->getAppendInstruction();
+        /* Record if slot 2 hit */
+        TR::Instruction *cursor1 = cg->generateDebugCounter(
+            TR::DebugCounter::debugCounterName(comp, "cg.callInterface/(%s)/%s/%d/%d/dynamicPIC/slot2",
+                comp->signature(), comp->getHotnessName(), callNode->getByteCodeInfo().getCallerIndex(),
+                callNode->getByteCodeInfo().getByteCodeIndex()),
+            *srm);
 
-         if (parmCursor->getDataType() == TR::Double || parmCursor->getDataType() == TR::Float)
-            {
-            linkageReg = machine->getRealRegister(properties.getFloatArgumentRegister(lri));
-            op = (parmCursor->getDataType() == TR::Double) ? TR::InstOpCode::vstrimmd : TR::InstOpCode::vstrimms;
+        if (!useLastITableCache) {
+            TR::Instruction *prevCursor2 = cg->getAppendInstruction();
+            /* Record if slot 2 missed */
+            TR::Instruction *cursor2 = cg->generateDebugCounter(
+                TR::DebugCounter::debugCounterName(comp, "cg.callInterface/(%s)/%s/%d/%d/dynamicPIC/cachemiss",
+                    comp->signature(), comp->getHotnessName(), callNode->getByteCodeInfo().getCallerIndex(),
+                    callNode->getByteCodeInfo().getByteCodeIndex()),
+                *srm);
+            if ((prevCursor1 != cursor1) || (prevCursor2 != cursor2)) {
+                TR::LabelSymbol *slot2MissedLabel = generateLabelSymbol(cg);
+                TR::LabelSymbol *slot2DoneLabel = generateLabelSymbol(cg);
+                /* Debug counter was generated. Generating instructions before debug counter instructions recording hit
+                 * for second cache slot. */
+                TR::Instruction *cursor = generateCompareInstruction(cg, callNode, vftReg, x10Reg, true, prevCursor1);
+                TR::Instruction *branchToSlot2MissedLabelInstr
+                    = generateConditionalBranchInstruction(cg, callNode, slot2MissedLabel, TR::CC_NE, cursor);
+
+                /* Generating instructions before debug counter instructions recording cache miss. */
+                cursor = generateLabelInstruction(cg, TR::InstOpCode::b, callNode, slot2DoneLabel, prevCursor2);
+                TR::Instruction *slot2MissedLabelInstr
+                    = generateLabelInstruction(cg, TR::InstOpCode::label, callNode, slot2MissedLabel, cursor);
+
+                /* Generating instructions after debug counter instructions. */
+                TR::Instruction *slot2DoneLabelInstr
+                    = generateLabelInstruction(cg, TR::InstOpCode::label, callNode, slot2DoneLabel);
+                if (debugObj) {
+                    debugObj->addInstructionComment(branchToSlot2MissedLabelInstr, "Jumps to slot2MissedLabel");
+                    debugObj->addInstructionComment(cursor, "Jumps to slot2DoneLabel");
+                    debugObj->addInstructionComment(slot2MissedLabelInstr, "slot2MissedLabel");
+                    debugObj->addInstructionComment(slot2DoneLabelInstr, "slot2DoneLabel");
+                }
             }
-         else
-            {
-            linkageReg = machine->getRealRegister(properties.getIntegerArgumentRegister(lri));
-            op = TR::InstOpCode::strimmx;
+        } else {
+            if (prevCursor1 != cursor1) {
+                TR::LabelSymbol *slot2DoneLabel = generateLabelSymbol(cg);
+                /* Debug counter was generated. Generating instructions before debug counter instructions recording hit
+                 * for second cache slot. */
+                TR::Instruction *cursor = generateCompareInstruction(cg, callNode, vftReg, x10Reg, true, prevCursor1);
+                TR::Instruction *branchToSlot2DoneLabelInstr
+                    = generateConditionalBranchInstruction(cg, callNode, slot2DoneLabel, TR::CC_NE, cursor);
+                /* Generating instructions after debug counter instructions. */
+                TR::Instruction *slot2DoneLabelInstr
+                    = generateLabelInstruction(cg, TR::InstOpCode::label, callNode, slot2DoneLabel);
+                if (debugObj) {
+                    debugObj->addInstructionComment(branchToSlot2DoneLabelInstr, "Jumps to slot2DoneLabel");
+                    debugObj->addInstructionComment(slot2DoneLabelInstr, "slot2DoneLabel");
+                }
+            }
+        }
+    }
+
+    generateCompareInstruction(cg, callNode, vftReg, x10Reg, true);
+
+    TR::SymbolReference *methodSymRef = callNode->getSymbolReference();
+    TR_ResolvedMethod *owningMethod = methodSymRef->getOwningMethod(comp);
+    uintptr_t itableIndex;
+    TR_OpaqueClassBlock *interfaceClassOfMethod
+        = owningMethod->getResolvedInterfaceMethod(methodSymRef->getCPIndex(), &itableIndex);
+
+    TR::Instruction *gcPoint;
+    if (useLastITableCache && (interfaceClassOfMethod != NULL)) {
+        TR_J9VMBase *fej9 = cg->fej9();
+
+        TR::LabelSymbol *secondBranchAddressCacheSlotLabel = ifcSnippet->getSecondBranchAddressCacheSlotLabel();
+        generateTrg1ImmSymInstruction(cg, TR::InstOpCode::ldrx, callNode, x10Reg, 0, secondBranchAddressCacheSlotLabel);
+        generateConditionalBranchInstruction(cg, callNode, hitLabel, TR::CC_EQ);
+
+        generateTrg1MemInstruction(cg, TR::InstOpCode::ldrimmx, callNode, x10Reg,
+            TR::MemoryReference::createWithDisplacement(cg, vftReg, fej9->getOffsetOfLastITableFromClassField()));
+        TR::LabelSymbol *interfacedClassSlotLabel = ifcSnippet->getInterfaceClassSlotLabel();
+        generateTrg1ImmSymInstruction(cg, TR::InstOpCode::ldrx, callNode, x9Reg, 0, interfacedClassSlotLabel);
+        generateTrg1MemInstruction(cg, TR::InstOpCode::ldrimmx, callNode, x11Reg,
+            TR::MemoryReference::createWithDisplacement(cg, x10Reg, fej9->getOffsetOfInterfaceClassFromITableField()));
+        generateCompareInstruction(cg, callNode, x9Reg, x11Reg, true);
+
+        if (enableDebugCounters) {
+            TR::Instruction *prevCursor1 = cg->getAppendInstruction();
+            /* Record if lastITable cache hit */
+            TR::Instruction *cursor1 = cg->generateDebugCounter(
+                TR::DebugCounter::debugCounterName(comp, "cg.callInterface/(%s)/%s/%d/%d/dynamicPIC/lastITable",
+                    comp->signature(), comp->getHotnessName(), callNode->getByteCodeInfo().getCallerIndex(),
+                    callNode->getByteCodeInfo().getByteCodeIndex()),
+                *srm);
+            TR::Instruction *prevCursor2 = cg->getAppendInstruction();
+            /* Record if lastITable cache missed */
+            TR::Instruction *cursor2 = cg->generateDebugCounter(
+                TR::DebugCounter::debugCounterName(comp, "cg.callInterface/(%s)/%s/%d/%d/dynamicPIC/cachemiss",
+                    comp->signature(), comp->getHotnessName(), callNode->getByteCodeInfo().getCallerIndex(),
+                    callNode->getByteCodeInfo().getByteCodeIndex()),
+                *srm);
+            if ((prevCursor1 != cursor1) || (prevCursor2 != cursor2)) {
+                TR::LabelSymbol *lastITableMissedLabel = generateLabelSymbol(cg);
+                TR::LabelSymbol *lastITableDoneLabel = generateLabelSymbol(cg);
+                /* Debug counter was generated. Generating instructions before debug counter instructions recording hit
+                 * for lastITable cache. */
+                TR::Instruction *branchToLastITableMissedLabelInstr
+                    = generateConditionalBranchInstruction(cg, callNode, lastITableMissedLabel, TR::CC_NE, prevCursor1);
+
+                /* Generating instructions before debug counter instructions recording cache miss. */
+                TR::Instruction *cmpInstr1
+                    = generateCompareInstruction(cg, callNode, x9Reg, x9Reg, true, prevCursor2); /* to set Z flag */
+                TR::Instruction *cursor
+                    = generateLabelInstruction(cg, TR::InstOpCode::b, callNode, lastITableDoneLabel, cmpInstr1);
+                TR::Instruction *lastITableMissedLabelInstr
+                    = generateLabelInstruction(cg, TR::InstOpCode::label, callNode, lastITableMissedLabel, cursor);
+
+                /* Generating instructions after debug counter instructions. */
+                generateCompareImmInstruction(cg, callNode, x10Reg, 0, true); /* to unset Z flag */
+                TR::Instruction *lastITableDoneLabelInstr
+                    = generateLabelInstruction(cg, TR::InstOpCode::label, callNode, lastITableDoneLabel);
+                if (debugObj) {
+                    debugObj->addInstructionComment(branchToLastITableMissedLabelInstr,
+                        "Jumps to lastITableMissedLabel");
+                    debugObj->addInstructionComment(cursor, "Jumps to lastITableDoneLabel");
+                    debugObj->addInstructionComment(lastITableMissedLabelInstr, "lastITable2MissedLabel");
+                    debugObj->addInstructionComment(lastITableDoneLabelInstr, "lastITableDoneLabel");
+                }
+            }
+        }
+
+        /* This conditional branch instruction with "always" condition code will be patched to b.ne instruction after
+         * second cache slot is filled. */
+        gcPoint = generateConditionalBranchInstruction(cg, callNode, ifcSnippetLabel, TR::CC_AL);
+        loadConstant32(cg, callNode, fej9->getITableEntryJitVTableOffset(), x9Reg);
+        generateTrg1MemInstruction(cg, TR::InstOpCode::ldrimmx, callNode, x11Reg,
+            TR::MemoryReference::createWithDisplacement(cg, x10Reg, fej9->convertITableIndexToOffset(itableIndex)));
+        /* PicBuilder.spp checks this instruction. It needs to be 'sub x9, x9, x11'. */
+        generateTrg1Src2Instruction(cg, TR::InstOpCode::subx, callNode, x9Reg, x9Reg, x11Reg);
+        generateTrg1MemInstruction(cg, TR::InstOpCode::ldroffx, callNode, x10Reg,
+            TR::MemoryReference::createWithIndexReg(cg, vftReg, x9Reg));
+        if (debugObj) {
+            debugObj->addInstructionComment(gcPoint, "Jumps to Snippet. Will be patched to b.ne");
+        }
+    } else {
+        gcPoint = generateConditionalBranchInstruction(cg, callNode, ifcSnippetLabel, TR::CC_NE);
+        TR::LabelSymbol *secondBranchAddressCacheSlotLabel = ifcSnippet->getSecondBranchAddressCacheSlotLabel();
+
+        generateTrg1ImmSymInstruction(cg, TR::InstOpCode::ldrx, callNode, x10Reg, 0, secondBranchAddressCacheSlotLabel);
+        if (debugObj) {
+            debugObj->addInstructionComment(gcPoint, "Jumps to snippet");
+        }
+    }
+    gcPoint->ARM64NeedsGCMap(cg, regMapForGC);
+
+    if (enableDebugCounters) {
+        srm->stopUsingRegisters();
+    }
+    TR::Instruction *hitLabelInstr = generateLabelInstruction(cg, TR::InstOpCode::label, callNode, hitLabel);
+    if (debugObj) {
+        debugObj->addInstructionComment(hitLabelInstr, "hitLabel");
+    }
+    gcPoint = generateRegBranchInstruction(cg, TR::InstOpCode::blr, callNode, x10Reg);
+    gcPoint->ARM64NeedsGCMap(cg, regMapForGC);
+}
+
+static TR::Register *evaluateUpToVftChild(TR::Node *callNode, TR::CodeGenerator *cg)
+{
+    TR::Register *vftReg = NULL;
+    if (callNode->getFirstArgumentIndex() == 1) {
+        TR::Node *child = callNode->getFirstChild();
+        vftReg = cg->evaluate(child);
+        cg->decReferenceCount(child);
+    }
+    TR_ASSERT_FATAL(vftReg != NULL, "Failed to find vft child.");
+    return vftReg;
+}
+
+void J9::ARM64::PrivateLinkage::buildVirtualDispatch(TR::Node *callNode, TR::RegisterDependencyConditions *dependencies,
+    uint32_t argSize)
+{
+    TR::Register *x0 = dependencies->searchPreConditionRegister(TR::RealRegister::x0);
+    TR::Register *x9 = dependencies->searchPreConditionRegister(TR::RealRegister::x9);
+    TR::Register *x10 = dependencies->searchPreConditionRegister(TR::RealRegister::x10);
+    TR::Register *x11 = dependencies->searchPreConditionRegister(TR::RealRegister::x11);
+
+    TR::SymbolReference *methodSymRef = callNode->getSymbolReference();
+    TR::MethodSymbol *methodSymbol = methodSymRef->getSymbol()->castToMethodSymbol();
+    TR::LabelSymbol *doneLabel = generateLabelSymbol(cg());
+    uint32_t regMapForGC = getProperties().getPreservedRegisterMapForGC();
+    void *thunk = NULL;
+
+    TR::Instruction *gcPoint;
+
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(comp()->fe());
+    OMR::Logger *log = comp()->log();
+    bool trace = comp()->getOption(TR_TraceCG);
+
+    // Computed calls
+    //
+    if (methodSymbol->isComputed()) {
+        TR::Register *vftReg = evaluateUpToVftChild(callNode, cg());
+        TR::addDependency(dependencies, vftReg, getProperties().getComputedCallTargetRegister(), TR_GPR, cg());
+
+        switch (methodSymbol->getMandatoryRecognizedMethod()) {
+            case TR::java_lang_invoke_ComputedCalls_dispatchVirtual:
+            case TR::com_ibm_jit_JITHelpers_dispatchVirtual: {
+                // Need a j2i thunk for the method that will ultimately be dispatched by this handle call
+                char *j2iSignature = fej9->getJ2IThunkSignatureForDispatchVirtual(
+                    methodSymbol->getMethod()->signatureChars(), methodSymbol->getMethod()->signatureLength(), comp());
+                int32_t signatureLen = strlen(j2iSignature);
+                thunk = fej9->getJ2IThunk(j2iSignature, signatureLen, comp());
+                if (!thunk) {
+                    thunk = fej9->setJ2IThunk(j2iSignature, signatureLen,
+                        TR::ARM64CallSnippet::generateVIThunk(
+                            fej9->getEquivalentVirtualCallNodeForDispatchVirtual(callNode, comp()), argSize, cg()),
+                        comp());
+                }
+            }
+            default:
+                if (fej9->needsInvokeExactJ2IThunk(callNode, comp())) {
+                    TR_MHJ2IThunk *thunk = TR::ARM64CallSnippet::generateInvokeExactJ2IThunk(callNode, argSize, cg(),
+                        methodSymbol->getMethod()->signatureChars());
+                    fej9->setInvokeExactJ2IThunk(thunk, comp());
+                }
+                break;
+        }
+
+        TR::Instruction *gcPoint
+            = generateRegBranchInstruction(cg(), TR::InstOpCode::blr, callNode, vftReg, dependencies);
+        gcPoint->ARM64NeedsGCMap(cg(), regMapForGC);
+
+#if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
+        // JITHelpers.dispatchVirtual() can target MethodHandle.invokeBasic().
+        auto rm = methodSymbol->getMandatoryRecognizedMethod();
+        if (rm == TR::com_ibm_jit_JITHelpers_dispatchVirtual) {
+            cg()->addInvokeBasicCallSite(callNode, gcPoint);
+        }
+#endif
+
+        return;
+    }
+
+    // Virtual and interface calls
+    //
+    TR_ASSERT_FATAL(methodSymbol->isVirtual() || methodSymbol->isInterface(), "Unexpected method type");
+
+    thunk = fej9->getJ2IThunk(methodSymbol->getMethod(), comp());
+    if (!thunk)
+        thunk = fej9->setJ2IThunk(methodSymbol->getMethod(),
+            TR::ARM64CallSnippet::generateVIThunk(callNode, argSize, cg()), comp());
+
+    bool callIsSafe = methodSymRef != comp()->getSymRefTab()->findObjectNewInstanceImplSymbol();
+
+    // evaluate vftReg because it is required for implicit NULLCHK
+    TR::Register *vftReg = evaluateUpToVftChild(callNode, cg());
+    TR::addDependency(dependencies, vftReg, TR::RealRegister::NoReg, TR_GPR, cg());
+
+    if (methodSymbol->isVirtual()) {
+        TR::MemoryReference *tempMR;
+        if (methodSymRef->isUnresolved() || comp()->compileRelocatableCode()) {
+            TR::LabelSymbol *vcSnippetLabel = generateLabelSymbol(cg());
+            TR::ARM64VirtualUnresolvedSnippet *vcSnippet = new (trHeapMemory())
+                TR::ARM64VirtualUnresolvedSnippet(cg(), callNode, vcSnippetLabel, argSize, doneLabel, (uint8_t *)thunk);
+            cg()->addSnippet(vcSnippet);
+
+            // The following instructions are modified by _virtualUnresolvedHelper
+            // in aarch64/runtime/PicBuilder.spp to load the vTable index in x9
+
+            // This `b` instruction is modified to movzx x9, lower 16bit of offset
+            generateLabelInstruction(cg(), TR::InstOpCode::b, callNode, vcSnippetLabel);
+            generateTrg1ImmInstruction(cg(), TR::InstOpCode::movkx, callNode, x9, TR::MOV_LSL16);
+            generateTrg1Src1ImmInstruction(cg(), TR::InstOpCode::sbfmx, callNode, x9, x9, 0x1F); // sxtw x9, w9
+            tempMR = TR::MemoryReference::createWithIndexReg(cg(), vftReg, x9);
+            generateTrg1MemInstruction(cg(), TR::InstOpCode::ldroffx, callNode, x9, tempMR);
+            gcPoint = generateRegBranchInstruction(cg(), TR::InstOpCode::blr, callNode, x9);
+            gcPoint->ARM64NeedsGCMap(cg(), regMapForGC);
+            generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, doneLabel, dependencies);
+
+            return;
+        }
+
+        // Handle guarded devirtualization next
+        //
+        if (callIsSafe) {
+            TR::ResolvedMethodSymbol *resolvedMethodSymbol = methodSymRef->getSymbol()->getResolvedMethodSymbol();
+            TR_ResolvedMethod *resolvedMethod = resolvedMethodSymbol->getResolvedMethod();
+
+            if (comp()->performVirtualGuardNOPing() && comp()->isVirtualGuardNOPingRequired()
+                && !resolvedMethod->isInterpreted() && !callNode->isTheVirtualCallNodeForAGuardedInlinedCall()) {
+                TR_VirtualGuard *virtualGuard = NULL;
+
+                if (!resolvedMethod->virtualMethodIsOverridden() && !resolvedMethod->isAbstract()) {
+                    logprintf(trace, log, "Creating TR_NonoverriddenGuard for node %p\n", callNode);
+
+                    virtualGuard
+                        = TR_VirtualGuard::createGuardedDevirtualizationGuard(TR_NonoverriddenGuard, comp(), callNode);
+                } else {
+                    TR_DevirtualizedCallInfo *devirtualizedCallInfo = comp()->findDevirtualizedCall(callNode);
+                    TR_OpaqueClassBlock *refinedThisClass
+                        = devirtualizedCallInfo ? devirtualizedCallInfo->_thisType : NULL;
+                    TR_OpaqueClassBlock *thisClass
+                        = refinedThisClass ? refinedThisClass : resolvedMethod->containingClass();
+
+                    TR_PersistentCHTable *chTable = comp()->getPersistentInfo()->getPersistentCHTable();
+                    /* Devirtualization is not currently supported for AOT compilations */
+                    if (thisClass && TR::Compiler->cls.isAbstractClass(comp(), thisClass)
+                        && !comp()->compileRelocatableCode()) {
+                        TR_ResolvedMethod *calleeMethod = chTable->findSingleAbstractImplementer(thisClass,
+                            methodSymRef->getOffset(), methodSymRef->getOwningMethod(comp()), comp());
+                        if (calleeMethod
+                            && (comp()->isRecursiveMethodTarget(calleeMethod) || !calleeMethod->isInterpreted()
+                                || calleeMethod->isJITInternalNative())) {
+                            logprintf(trace, log, "Creating TR_AbstractGuard for node %p\n", callNode);
+
+                            resolvedMethod = calleeMethod;
+                            virtualGuard = TR_VirtualGuard::createGuardedDevirtualizationGuard(TR_AbstractGuard, comp(),
+                                callNode);
+                        }
+                    } else if (refinedThisClass && resolvedMethod->virtualMethodIsOverridden()
+                        && !chTable->isOverriddenInThisHierarchy(resolvedMethod, refinedThisClass,
+                            methodSymRef->getOffset(), comp())) {
+                        TR_ResolvedMethod *calleeMethod
+                            = methodSymRef->getOwningMethod(comp())->getResolvedVirtualMethod(comp(), refinedThisClass,
+                                methodSymRef->getOffset());
+                        if (calleeMethod
+                            && (comp()->isRecursiveMethodTarget(calleeMethod) || !calleeMethod->isInterpreted()
+                                || calleeMethod->isJITInternalNative())) {
+                            logprintf(trace, log, "Creating TR_HierarchyGuard for node %p\n", callNode);
+
+                            resolvedMethod = calleeMethod;
+                            virtualGuard = TR_VirtualGuard::createGuardedDevirtualizationGuard(TR_HierarchyGuard,
+                                comp(), callNode);
+                        }
+                    }
+                }
+
+                // If we have a virtual call guard generate a direct call
+                // in the inline path and the virtual call out of line.
+                // If the guard is later patched we'll go out of line path.
+                //
+                if (virtualGuard) {
+                    TR::LabelSymbol *virtualCallLabel = generateLabelSymbol(cg());
+                    generateVirtualGuardNOPInstruction(cg(), callNode, virtualGuard->addNOPSite(), NULL,
+                        virtualCallLabel);
+
+                    if (comp()->getOption(TR_EnableHCR)) {
+                        if (cg()->supportsMergingGuards()) {
+                            virtualGuard->setMergedWithHCRGuard();
+                        } else {
+                            TR_VirtualGuard *HCRGuard
+                                = TR_VirtualGuard::createGuardedDevirtualizationGuard(TR_HCRGuard, comp(), callNode);
+                            generateVirtualGuardNOPInstruction(cg(), callNode, HCRGuard->addNOPSite(), NULL,
+                                virtualCallLabel);
+                        }
+                    }
+                    if (resolvedMethod != resolvedMethodSymbol->getResolvedMethod()) {
+                        methodSymRef = comp()->getSymRefTab()->findOrCreateMethodSymbol(
+                            methodSymRef->getOwningMethodIndex(), -1, resolvedMethod, TR::MethodSymbol::Virtual);
+                        methodSymbol = methodSymRef->getSymbol()->castToMethodSymbol();
+                        resolvedMethodSymbol = methodSymbol->getResolvedMethodSymbol();
+                        resolvedMethod = resolvedMethodSymbol->getResolvedMethod();
+                    }
+                    uintptr_t methodAddress = comp()->isRecursiveMethodTarget(resolvedMethod)
+                        ? 0
+                        : (uintptr_t)resolvedMethod->startAddressForJittedMethod();
+                    TR::Instruction *gcPoint = generateImmSymInstruction(cg(), TR::InstOpCode::bl, callNode,
+                        methodAddress, NULL, methodSymRef, NULL);
+                    generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, doneLabel, dependencies);
+                    gcPoint->ARM64NeedsGCMap(cg(), regMapForGC);
+
+                    fej9->reserveTrampolineIfNecessary(comp(), methodSymRef, false);
+
+                    // Out of line virtual call
+                    //
+                    TR_ARM64OutOfLineCodeSection *virtualCallOOL
+                        = new (trHeapMemory()) TR_ARM64OutOfLineCodeSection(virtualCallLabel, doneLabel, cg());
+
+                    virtualCallOOL->swapInstructionListsWithCompilation();
+                    TR::Instruction *OOLLabelInstr
+                        = generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, virtualCallLabel);
+
+                    // XXX: Temporary fix, OOL instruction stream does not pick up live locals or monitors correctly.
+                    TR_ASSERT(!OOLLabelInstr->getLiveLocals() && !OOLLabelInstr->getLiveMonitors(),
+                        "Expecting first OOL instruction to not have live locals/monitors info");
+                    OOLLabelInstr->setLiveLocals(gcPoint->getLiveLocals());
+                    OOLLabelInstr->setLiveMonitors(gcPoint->getLiveMonitors());
+
+                    buildVirtualCall(cg(), callNode, vftReg, x9, regMapForGC);
+
+                    generateLabelInstruction(cg(), TR::InstOpCode::b, callNode, doneLabel);
+                    virtualCallOOL->swapInstructionListsWithCompilation();
+                    cg()->getARM64OutOfLineCodeSectionList().push_front(virtualCallOOL);
+
+                    return;
+                }
+            }
+        }
+    }
+
+    bool useLastITableCache = !comp()->getOption(TR_DisableLastITableCache);
+
+    // Profile-driven virtual and interface calls
+    //
+    // If the top value dominates everything else, generate a single static
+    // PIC call inline and a virtual call or dynamic PIC call out of line.
+    //
+    // Otherwise generate a reasonable amount of static PIC calls and a
+    // virtual call or dynamic PIC call all inline.
+    //
+    if (callIsSafe && !callNode->isTheVirtualCallNodeForAGuardedInlinedCall()
+        && !comp()->getOption(TR_DisableInterpreterProfiling)) {
+        static uint32_t maxVirtualStaticPICs = comp()->getOptions()->getMaxStaticPICSlots(comp()->getMethodHotness());
+        static uint32_t maxInterfaceStaticPICs = comp()->getOptions()->getNumInterfaceCallCacheSlots();
+
+        TR_ScratchList<J9::ARM64PICItem> values(cg()->trMemory());
+        const uint32_t maxStaticPICs = methodSymbol->isInterface() ? maxInterfaceStaticPICs : maxVirtualStaticPICs;
+
+        if (getProfiledCallSiteInfo(cg(), callNode, maxStaticPICs, values)) {
+            ListIterator<J9::ARM64PICItem> i(&values);
+            J9::ARM64PICItem *pic = i.getFirst();
+
+            if (useLastITableCache && methodSymbol->isInterface()) {
+                // Find the class pointer to the interface class if it is already loaded.
+                //
+                TR::Method *interfaceMethod = methodSymbol->getMethod();
+                int32_t len = interfaceMethod->classNameLength();
+                char *s = TR::Compiler->cls.classNameToSignature(interfaceMethod->classNameChars(), len, comp());
+                auto interfaceClassOfMethod
+                    = fej9->getClassFromSignature(s, len, methodSymRef->getOwningMethod(comp()));
+                int32_t numStaticPICSlots = (pic->_frequency > MAX_PROFILED_CALL_FREQUENCY) ? 1 : values.getSize();
+
+                // Disable lastITable logic if all the implementers can fit into the pic slots during non-startup state
+                if (interfaceClassOfMethod && comp()->getPersistentInfo()->getJitState() != STARTUP_STATE) {
+                    int32_t numPICSlots = numStaticPICSlots + 2;
+                    TR_ResolvedMethod **implArray = new (comp()->trStackMemory()) TR_ResolvedMethod *[numPICSlots + 1];
+                    TR_PersistentCHTable *chTable = comp()->getPersistentInfo()->getPersistentCHTable();
+                    int32_t cpIndex = methodSymRef->getCPIndex();
+                    int32_t numImplementers = chTable->findnInterfaceImplementers(interfaceClassOfMethod,
+                        numPICSlots + 1, implArray, cpIndex, methodSymRef->getOwningMethod(comp()), comp());
+                    if (numImplementers <= numPICSlots) {
+                        useLastITableCache = false;
+                        logprintf(trace, log,
+                            "Found %d implementers for call to %s, can be fit into %d pic slots, disabling lastITable "
+                            "cache\n",
+                            numImplementers, methodSymbol->getMethod()->signature(comp()->trMemory()), numPICSlots);
+                    }
+                }
+            }
+            // If this value is dominant, optimize exclusively for it
+            if (pic->_frequency > MAX_PROFILED_CALL_FREQUENCY) {
+                logprintf(trace, log, "Found dominant profiled target, frequency = %f\n", pic->_frequency);
+
+                TR::LabelSymbol *slowCallLabel = generateLabelSymbol(cg());
+
+                TR::Instruction *gcPoint = buildStaticPICCall(cg(), callNode, pic->_clazz, pic->_method, vftReg, x9,
+                    x10, 1, slowCallLabel, regMapForGC);
+                generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, doneLabel, dependencies);
+
+                // Out of line virtual/interface call
+                //
+                TR_ARM64OutOfLineCodeSection *slowCallOOL
+                    = new (trHeapMemory()) TR_ARM64OutOfLineCodeSection(slowCallLabel, doneLabel, cg());
+
+                slowCallOOL->swapInstructionListsWithCompilation();
+                TR::Instruction *OOLLabelInstr
+                    = generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, slowCallLabel);
+
+                // XXX: Temporary fix, OOL instruction stream does not pick up live locals or monitors correctly.
+                TR_ASSERT_FATAL(!OOLLabelInstr->getLiveLocals() && !OOLLabelInstr->getLiveMonitors(),
+                    "Expecting first OOL instruction to not have live locals/monitors info");
+                OOLLabelInstr->setLiveLocals(gcPoint->getLiveLocals());
+                OOLLabelInstr->setLiveMonitors(gcPoint->getLiveMonitors());
+
+                TR::LabelSymbol *doneOOLLabel = generateLabelSymbol(cg());
+
+                if (methodSymbol->isInterface()) {
+                    TR::LabelSymbol *ifcSnippetLabel = generateLabelSymbol(cg());
+                    TR::LabelSymbol *firstClassCacheSlotLabel = generateLabelSymbol(cg());
+                    TR::LabelSymbol *firstBranchAddressCacheSlotLabel = generateLabelSymbol(cg());
+                    TR::LabelSymbol *secondClassCacheSlotLabel = generateLabelSymbol(cg());
+                    TR::LabelSymbol *secondBranchAddressCacheSlotLabel = generateLabelSymbol(cg());
+                    TR::LabelSymbol *interfaceClassSlotLabel = generateLabelSymbol(cg());
+                    TR::ARM64InterfaceCallSnippet *ifcSnippet = new (trHeapMemory())
+                        TR::ARM64InterfaceCallSnippet(cg(), callNode, ifcSnippetLabel, argSize, doneOOLLabel,
+                            firstClassCacheSlotLabel, secondClassCacheSlotLabel, firstBranchAddressCacheSlotLabel,
+                            secondBranchAddressCacheSlotLabel, interfaceClassSlotLabel, static_cast<uint8_t *>(thunk));
+                    cg()->addSnippet(ifcSnippet);
+                    buildInterfaceCall(cg(), callNode, vftReg, x9, x10, x11, useLastITableCache, ifcSnippet,
+                        regMapForGC);
+                } else {
+                    buildVirtualCall(cg(), callNode, vftReg, x9, regMapForGC);
+                }
+
+                generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, doneOOLLabel);
+                generateLabelInstruction(cg(), TR::InstOpCode::b, callNode, doneLabel);
+                slowCallOOL->swapInstructionListsWithCompilation();
+                cg()->getARM64OutOfLineCodeSectionList().push_front(slowCallOOL);
+
+                return;
+            } else {
+                logprintf(trace, log, "Generating %d static PIC calls\n", values.getSize());
+
+                // Build multiple static PIC calls
+                int32_t slotCount = 1;
+                while (pic) {
+                    TR::LabelSymbol *nextLabel = generateLabelSymbol(cg());
+
+                    buildStaticPICCall(cg(), callNode, pic->_clazz, pic->_method, vftReg, x9, x10, slotCount++,
+                        nextLabel, regMapForGC);
+                    generateLabelInstruction(cg(), TR::InstOpCode::b, callNode, doneLabel);
+                    generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, nextLabel);
+                    pic = i.getNext();
+                }
+                // Regular virtual/interface call will be built below
+            }
+        }
+    }
+
+    // Finally, regular virtual and interface calls
+    //
+    if (methodSymbol->isInterface()) {
+        // interface calls
+        // ToDo: Inline interface dispatch
+
+        TR::LabelSymbol *ifcSnippetLabel = generateLabelSymbol(cg());
+        TR::LabelSymbol *firstClassCacheSlotLabel = generateLabelSymbol(cg());
+        TR::LabelSymbol *firstBranchAddressCacheSlotLabel = generateLabelSymbol(cg());
+        TR::LabelSymbol *secondClassCacheSlotLabel = generateLabelSymbol(cg());
+        TR::LabelSymbol *secondBranchAddressCacheSlotLabel = generateLabelSymbol(cg());
+        TR::LabelSymbol *interfaceClassSlotLabel = generateLabelSymbol(cg());
+        TR::ARM64InterfaceCallSnippet *ifcSnippet
+            = new (trHeapMemory()) TR::ARM64InterfaceCallSnippet(cg(), callNode, ifcSnippetLabel, argSize, doneLabel,
+                firstClassCacheSlotLabel, firstBranchAddressCacheSlotLabel, secondClassCacheSlotLabel,
+                secondBranchAddressCacheSlotLabel, interfaceClassSlotLabel, static_cast<uint8_t *>(thunk));
+        cg()->addSnippet(ifcSnippet);
+
+        buildInterfaceCall(cg(), callNode, vftReg, x9, x10, x11, useLastITableCache, ifcSnippet, regMapForGC);
+    } else {
+        buildVirtualCall(cg(), callNode, vftReg, x9, regMapForGC);
+    }
+    generateLabelInstruction(cg(), TR::InstOpCode::label, callNode, doneLabel, dependencies);
+}
+
+TR::Register *J9::ARM64::PrivateLinkage::buildIndirectDispatch(TR::Node *callNode)
+{
+    const TR::ARM64LinkageProperties &pp = getProperties();
+    TR::RealRegister *sp = cg()->machine()->getRealRegister(pp.getStackPointerRegister());
+
+    // Extra post dependency for killing vector registers (see KillVectorRegs)
+    const int extraPostReg = killsVectorRegisters() ? 1 : 0;
+    TR::RegisterDependencyConditions *dependencies = new (trHeapMemory()) TR::RegisterDependencyConditions(
+        pp.getNumberOfDependencyGPRegisters(), pp.getNumberOfDependencyGPRegisters() + extraPostReg, trMemory());
+
+    int32_t argSize = buildArgs(callNode, dependencies);
+
+    buildVirtualDispatch(callNode, dependencies, argSize);
+    cg()->machine()->setLinkRegisterKilled(true);
+
+    TR::Register *retReg;
+    switch (callNode->getOpCodeValue()) {
+        case TR::icalli:
+            retReg = dependencies->searchPostConditionRegister(pp.getIntegerReturnRegister());
+            break;
+        case TR::lcalli:
+        case TR::acalli:
+            retReg = dependencies->searchPostConditionRegister(pp.getLongReturnRegister());
+            break;
+        case TR::fcalli:
+        case TR::dcalli:
+            retReg = dependencies->searchPostConditionRegister(pp.getFloatReturnRegister());
+            break;
+        case TR::calli:
+            retReg = NULL;
+            break;
+        default:
+            retReg = NULL;
+            TR_ASSERT_FATAL(false, "Unsupported indirect call Opcode.");
+    }
+
+    callNode->setRegister(retReg);
+
+    dependencies->stopUsingDepRegs(cg(), retReg);
+    return retReg;
+}
+
+TR::Instruction *J9::ARM64::PrivateLinkage::loadStackParametersToLinkageRegisters(TR::Instruction *cursor)
+{
+    TR::Machine *machine = cg()->machine();
+    TR::ARM64LinkageProperties &properties = getProperties();
+    TR::RealRegister *javaSP = machine->getRealRegister(properties.getStackPointerRegister()); // x20
+
+    TR::ResolvedMethodSymbol *bodySymbol = comp()->getJittedMethodSymbol();
+    ListIterator<TR::ParameterSymbol> parmIterator(&(bodySymbol->getParameterList()));
+    TR::ParameterSymbol *parmCursor;
+
+    // Copy from stack all parameters that belong in linkage regs
+    //
+    for (parmCursor = parmIterator.getFirst(); parmCursor != NULL; parmCursor = parmIterator.getNext()) {
+        if (parmCursor->isParmPassedInRegister()) {
+            int8_t lri = parmCursor->getLinkageRegisterIndex();
+            TR::RealRegister *linkageReg;
+            TR::InstOpCode::Mnemonic op;
+            TR::DataType dataType = parmCursor->getDataType();
+
+            if (dataType == TR::Double || dataType == TR::Float) {
+                linkageReg = machine->getRealRegister(properties.getFloatArgumentRegister(lri));
+                op = (dataType == TR::Double) ? TR::InstOpCode::vldrimmd : TR::InstOpCode::vldrimms;
+            } else {
+                linkageReg = machine->getRealRegister(properties.getIntegerArgumentRegister(lri));
+                op = (dataType == TR::Int64 || dataType == TR::Address) ? TR::InstOpCode::ldrimmx
+                                                                        : TR::InstOpCode::ldrimmw;
             }
 
-         TR::MemoryReference *stackMR = TR::MemoryReference::createWithDisplacement(cg(), javaSP, parmCursor->getParameterOffset());
-         cursor = generateMemSrc1Instruction(cg(), op, NULL, stackMR, linkageReg, cursor);
-         }
-      }
+            TR::MemoryReference *stackMR
+                = TR::MemoryReference::createWithDisplacement(cg(), javaSP, parmCursor->getParameterOffset());
+            cursor = generateTrg1MemInstruction(cg(), op, NULL, linkageReg, stackMR, cursor);
+        }
+    }
 
-   return cursor;
-   }
+    return cursor;
+}
+
+TR::Instruction *J9::ARM64::PrivateLinkage::saveParametersToStack(TR::Instruction *cursor)
+{
+    TR::Machine *machine = cg()->machine();
+    TR::ARM64LinkageProperties &properties = getProperties();
+    TR::RealRegister *javaSP = machine->getRealRegister(properties.getStackPointerRegister()); // x20
+
+    TR::ResolvedMethodSymbol *bodySymbol = comp()->getJittedMethodSymbol();
+    ListIterator<TR::ParameterSymbol> parmIterator(&(bodySymbol->getParameterList()));
+    TR::ParameterSymbol *parmCursor;
+
+    // Store to stack all parameters passed in linkage registers
+    //
+    for (parmCursor = parmIterator.getFirst(); parmCursor != NULL; parmCursor = parmIterator.getNext()) {
+        if (parmCursor->isParmPassedInRegister()) {
+            int8_t lri = parmCursor->getLinkageRegisterIndex();
+            TR::RealRegister *linkageReg;
+            TR::InstOpCode::Mnemonic op;
+
+            if (parmCursor->getDataType() == TR::Double || parmCursor->getDataType() == TR::Float) {
+                linkageReg = machine->getRealRegister(properties.getFloatArgumentRegister(lri));
+                op = (parmCursor->getDataType() == TR::Double) ? TR::InstOpCode::vstrimmd : TR::InstOpCode::vstrimms;
+            } else {
+                linkageReg = machine->getRealRegister(properties.getIntegerArgumentRegister(lri));
+                op = TR::InstOpCode::strimmx;
+            }
+
+            TR::MemoryReference *stackMR
+                = TR::MemoryReference::createWithDisplacement(cg(), javaSP, parmCursor->getParameterOffset());
+            cursor = generateMemSrc1Instruction(cg(), op, NULL, stackMR, linkageReg, cursor);
+        }
+    }
+
+    return cursor;
+}
 
 void J9::ARM64::PrivateLinkage::performPostBinaryEncoding()
-   {
-   // --------------------------------------------------------------------------
-   // Encode the size of the interpreter entry area into the linkage info word
-   //
-   TR_ASSERT_FATAL(cg()->getReturnTypeInfoInstruction(),
-                   "Expecting the return type info instruction to be created");
+{
+    // --------------------------------------------------------------------------
+    // Encode the size of the interpreter entry area into the linkage info word
+    //
+    TR_ASSERT_FATAL(cg()->getReturnTypeInfoInstruction(), "Expecting the return type info instruction to be created");
 
-   TR::ARM64ImmInstruction *linkageInfoWordInstruction = cg()->getReturnTypeInfoInstruction();
-   uint32_t linkageInfoWord = linkageInfoWordInstruction->getSourceImmediate();
+    TR::ARM64ImmInstruction *linkageInfoWordInstruction = cg()->getReturnTypeInfoInstruction();
+    uint32_t linkageInfoWord = linkageInfoWordInstruction->getSourceImmediate();
 
-   intptr_t jittedMethodEntryAddress = reinterpret_cast<intptr_t>(getJittedMethodEntryPoint()->getBinaryEncoding());
-   intptr_t interpretedMethodEntryAddress = reinterpret_cast<intptr_t>(getInterpretedMethodEntryPoint()->getBinaryEncoding());
+    intptr_t jittedMethodEntryAddress = reinterpret_cast<intptr_t>(getJittedMethodEntryPoint()->getBinaryEncoding());
+    intptr_t interpretedMethodEntryAddress
+        = reinterpret_cast<intptr_t>(getInterpretedMethodEntryPoint()->getBinaryEncoding());
 
-   linkageInfoWord = (static_cast<uint32_t>(jittedMethodEntryAddress - interpretedMethodEntryAddress) << 16) | linkageInfoWord;
-   linkageInfoWordInstruction->setSourceImmediate(linkageInfoWord);
+    linkageInfoWord
+        = (static_cast<uint32_t>(jittedMethodEntryAddress - interpretedMethodEntryAddress) << 16) | linkageInfoWord;
+    linkageInfoWordInstruction->setSourceImmediate(linkageInfoWord);
 
-   *(uint32_t *)(linkageInfoWordInstruction->getBinaryEncoding()) = linkageInfoWord;
+    *(uint32_t *)(linkageInfoWordInstruction->getBinaryEncoding()) = linkageInfoWord;
 
-   // Set recompilation info
-   //
-   TR::Recompilation *recomp = comp()->getRecompilationInfo();
-   if (recomp != NULL && recomp->couldBeCompiledAgain())
-      {
-      J9::PrivateLinkage::LinkageInfo *lkInfo = J9::PrivateLinkage::LinkageInfo::get(cg()->getCodeStart());
-      if (recomp->useSampling())
-         lkInfo->setSamplingMethodBody();
-      else
-         lkInfo->setCountingMethodBody();
-      }
-   }
+    // Set recompilation info
+    //
+    TR::Recompilation *recomp = comp()->getRecompilationInfo();
+    if (recomp != NULL && recomp->couldBeCompiledAgain()) {
+        J9::PrivateLinkage::LinkageInfo *lkInfo = J9::PrivateLinkage::LinkageInfo::get(cg()->getCodeStart());
+        if (recomp->useSampling())
+            lkInfo->setSamplingMethodBody();
+        else
+            lkInfo->setCountingMethodBody();
+    }
+}
 
-int32_t J9::ARM64::HelperLinkage::buildArgs(TR::Node *callNode,
-   TR::RegisterDependencyConditions *dependencies)
-   {
-   return buildPrivateLinkageArgs(callNode, dependencies, _helperLinkage);
-   }
+int32_t J9::ARM64::HelperLinkage::buildArgs(TR::Node *callNode, TR::RegisterDependencyConditions *dependencies)
+{
+    return buildPrivateLinkageArgs(callNode, dependencies, _helperLinkage);
+}

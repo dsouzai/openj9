@@ -34,25 +34,22 @@
  * @param isPrivateLinkage Whether the snippet is involved in a private JIT linkage (i.e. Call Helper to JITCODE)
  * @return                 Updated binary encoding cursor after RI hook generation.
  */
-uint8_t *
-J9::Z::Snippet::generateRuntimeInstrumentationOnOffInstruction(TR::CodeGenerator *cg, uint8_t *cursor, TR::InstOpCode::Mnemonic op, bool isPrivateLinkage)
-   {
-   if (cg->getSupportsRuntimeInstrumentation())
-      {
-      if (!isPrivateLinkage || cg->getEnableRIOverPrivateLinkage())
-         {
-         if (op == TR::InstOpCode::RION)
-            *(int32_t *) cursor = 0xAA010000;
-         else if (op == TR::InstOpCode::RIOFF)
-            *(int32_t *) cursor = 0xAA030000;
-         else
-            TR_ASSERT( 0, "Unexpected RI opcode.");
-         cursor += sizeof(int32_t);
-         }
-      }
-   return cursor;
-   }
-
+uint8_t *J9::Z::Snippet::generateRuntimeInstrumentationOnOffInstruction(TR::CodeGenerator *cg, uint8_t *cursor,
+    TR::InstOpCode::Mnemonic op, bool isPrivateLinkage)
+{
+    if (cg->getSupportsRuntimeInstrumentation()) {
+        if (!isPrivateLinkage || cg->getEnableRIOverPrivateLinkage()) {
+            if (op == TR::InstOpCode::RION)
+                *(int32_t *)cursor = 0xAA010000;
+            else if (op == TR::InstOpCode::RIOFF)
+                *(int32_t *)cursor = 0xAA030000;
+            else
+                TR_ASSERT(0, "Unexpected RI opcode.");
+            cursor += sizeof(int32_t);
+        }
+    }
+    return cursor;
+}
 
 /**
  * Helper method to query the length of Runtime Instrumentation Hooks RION or RIOFF in snippet
@@ -61,13 +58,11 @@ J9::Z::Snippet::generateRuntimeInstrumentationOnOffInstruction(TR::CodeGenerator
  * @param isPrivateLinkage Whether the snippet is involved in a private JIT linkage (i.e. Call Helper to JITCODE)
  * @return                 The length of RION or RIOFF encoding if generated.  Zero otherwise.
  */
-uint32_t
-J9::Z::Snippet::getRuntimeInstrumentationOnOffInstructionLength(TR::CodeGenerator *cg, bool isPrivateLinkage)
-   {
-   if (cg->getSupportsRuntimeInstrumentation())
-      {
-      if (!isPrivateLinkage || cg->getEnableRIOverPrivateLinkage())
-         return sizeof(int32_t);  // Both RION and RIOFF are 32-bit (4-byte) instructions.
-      }
-   return 0;
-   }
+uint32_t J9::Z::Snippet::getRuntimeInstrumentationOnOffInstructionLength(TR::CodeGenerator *cg, bool isPrivateLinkage)
+{
+    if (cg->getSupportsRuntimeInstrumentation()) {
+        if (!isPrivateLinkage || cg->getEnableRIOverPrivateLinkage())
+            return sizeof(int32_t); // Both RION and RIOFF are 32-bit (4-byte) instructions.
+    }
+    return 0;
+}

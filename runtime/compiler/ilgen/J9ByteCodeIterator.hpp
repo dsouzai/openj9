@@ -36,149 +36,166 @@
 #include "env/VMJ9.h"
 #include "ilgen/J9ByteCode.hpp"
 
-namespace OMR { class Logger; }
+namespace OMR {
+class Logger;
+}
 
-class TR_J9ByteCodeIterator : public TR_ByteCodeIterator<TR_J9ByteCode, TR_ResolvedJ9Method>
-   {
-   typedef TR_ByteCodeIterator<TR_J9ByteCode, TR_ResolvedJ9Method> Base;
+class TR_J9ByteCodeIterator : public TR_ByteCodeIterator<TR_J9ByteCode, TR_ResolvedJ9Method> {
+    typedef TR_ByteCodeIterator<TR_J9ByteCode, TR_ResolvedJ9Method> Base;
 
 public:
-   TR_ALLOC(TR_Memory::ByteCodeIterator);
+    TR_ALLOC(TR_Memory::ByteCodeIterator);
 
-   enum TR_ByteCodeFlags
-      {
-      SizeMask        = 0x07,
-      Branch          = 0x08,
-      ToHandler       = 0x10,
-      Absolute        = 0x20,
-      TwoByteOffset   = 0x40,
-      FourByteOffset  = 0x80,
+    enum TR_ByteCodeFlags {
+        SizeMask = 0x07,
+        Branch = 0x08,
+        ToHandler = 0x10,
+        Absolute = 0x20,
+        TwoByteOffset = 0x40,
+        FourByteOffset = 0x80,
 
-      TwoByteRelativeBranch = (Branch | TwoByteOffset),
-      FourByteRelativeBranch = (Branch | FourByteOffset),
-      TwoByteAbsoluteBranch = (Branch | Absolute | TwoByteOffset),
-      FourByteAbsoluteBranch = (Branch | Absolute | FourByteOffset),
-      TwoByteRelativeToHandler = (ToHandler | TwoByteOffset),
-      FourByteRelativeToHandler = (ToHandler | FourByteOffset),
-      TwoByteAbsoluteToHandler = (ToHandler | Absolute | TwoByteOffset),
-      FourByteAbsoluteToHandler = (ToHandler | Absolute | FourByteOffset),
+        TwoByteRelativeBranch = (Branch | TwoByteOffset),
+        FourByteRelativeBranch = (Branch | FourByteOffset),
+        TwoByteAbsoluteBranch = (Branch | Absolute | TwoByteOffset),
+        FourByteAbsoluteBranch = (Branch | Absolute | FourByteOffset),
+        TwoByteRelativeToHandler = (ToHandler | TwoByteOffset),
+        FourByteRelativeToHandler = (ToHandler | FourByteOffset),
+        TwoByteAbsoluteToHandler = (ToHandler | Absolute | TwoByteOffset),
+        FourByteAbsoluteToHandler = (ToHandler | Absolute | FourByteOffset),
+    };
 
-      };
+    TR_J9ByteCodeIterator(TR::ResolvedMethodSymbol *methodSymbol, TR::Compilation *comp)
+        : Base(methodSymbol, static_cast<TR_ResolvedJ9Method *>(methodSymbol->getResolvedMethod()), comp)
+    {}
 
-   TR_J9ByteCodeIterator(TR::ResolvedMethodSymbol *methodSymbol, TR::Compilation *comp)
-      : Base(methodSymbol, static_cast<TR_ResolvedJ9Method*>(methodSymbol->getResolvedMethod()), comp)
-      {}
+    TR_J9ByteCodeIterator(TR::ResolvedMethodSymbol *methodSymbol, TR_ResolvedJ9Method *method, TR_J9VMBase *fe,
+        TR::Compilation *comp)
+        : Base(methodSymbol, method, comp)
+    {
+        initialize(method, fe);
+    }
 
-   TR_J9ByteCodeIterator(TR::ResolvedMethodSymbol *methodSymbol, TR_ResolvedJ9Method *method, TR_J9VMBase * fe, TR::Compilation * comp) :
-      Base(methodSymbol, method, comp)
-      {
-      initialize(method, fe);
-      }
+    void initialize(TR_ResolvedJ9Method *, TR_J9VMBase *);
 
-   void initialize(TR_ResolvedJ9Method *, TR_J9VMBase *);
+    int32_t defaultTargetIndex() { return (int32_t)(_bcIndex + 1 + ((4 - ((intptr_t)&_code[_bcIndex + 1] & 3)) & 3)); }
 
-   int32_t defaultTargetIndex() { return (int32_t)(_bcIndex + 1 + ((4 - ((intptr_t)&_code[_bcIndex+1] & 3)) & 3)); }
+    bool isThisChanged();
 
-   bool isThisChanged();
+    int32_t findFloatingPointInstruction();
 
-   int32_t findFloatingPointInstruction();
+    int32_t nextSwitchValue(int32_t &bcIndex);
 
-   int32_t nextSwitchValue(int32_t & bcIndex);
+    static int32_t size(TR_J9ByteCode bc) { return _byteCodeFlags[bc] & SizeMask; }
 
-   static int32_t size(TR_J9ByteCode bc)
-      {
-      return _byteCodeFlags[bc] & SizeMask;
-      }
+    TR_J9ByteCode first()
+    {
+        _bcIndex = 0;
+        return current();
+    }
 
-   TR_J9ByteCode first()
-      {
-      _bcIndex = 0;
-      return current();
-      }
+    TR_J9ByteCode next()
+    {
+        int32_t size = _byteCodeFlags[_bc] & SizeMask;
+        if (size)
+            _bcIndex += size;
+        else
+            stepOverVariableSizeBC();
+        return current();
+    }
 
-   TR_J9ByteCode next()
-      {
-      int32_t size = _byteCodeFlags[_bc] & SizeMask;
-      if (size)
-         _bcIndex += size;
-      else
-         stepOverVariableSizeBC();
-      return current();
-      }
+    int32_t currentByteCodeIndex() { return _bcIndex; }
 
-   int32_t currentByteCodeIndex()
-      {
-      return _bcIndex;
-      }
+    TR_J9ByteCode current()
+    {
+        _bc = (_bcIndex >= _maxByteCodeIndex ? J9BCunknown : convertOpCodeToByteCodeEnum(_code[_bcIndex]));
+        TR_ASSERT_FATAL(_bcIndex >= _maxByteCodeIndex || _bc != J9BCunknown, "Unknown bytecode to JIT %d \n",
+            _code[_bcIndex]);
+        return _bc;
+    }
 
-   TR_J9ByteCode current()
-      {
-      _bc = (_bcIndex >= _maxByteCodeIndex ? J9BCunknown : convertOpCodeToByteCodeEnum(_code[_bcIndex]));
-      TR_ASSERT_FATAL(_bcIndex >= _maxByteCodeIndex || _bc != J9BCunknown, "Unknown bytecode to JIT %d \n", _code[_bcIndex]);
-      return _bc;
-      }
+    static TR_J9ByteCode convertOpCodeToByteCodeEnum(uint8_t opcode) { return _opCodeToByteCodeEnum[opcode]; }
 
-   static TR_J9ByteCode convertOpCodeToByteCodeEnum(uint8_t opcode)
-      {
-      return _opCodeToByteCodeEnum[opcode];
-      }
-   uint32_t estimatedCodeSize()                   { return estimatedCodeSize(current()); }
-   static uint32_t estimatedCodeSize(TR_J9ByteCode bc) { return _estimatedCodeSize[bc]; }
+    uint32_t estimatedCodeSize() { return estimatedCodeSize(current()); }
 
+    static uint32_t estimatedCodeSize(TR_J9ByteCode bc) { return _estimatedCodeSize[bc]; }
 
-   bool     isBranch()                            { return (_byteCodeFlags[_bc] & Branch) != 0; }
-   int32_t  relativeBranch()                      { TR_ASSERT((_byteCodeFlags[_bc] & Absolute) == 0, "assertion failure"); return (_byteCodeFlags[_bc] & TwoByteOffset) ? next2BytesSigned() : next4BytesSigned(); }
-   int32_t  absoluteBranch()                      { TR_ASSERT((_byteCodeFlags[_bc] & Absolute) != 0, "assertion failure"); return (_byteCodeFlags[_bc] & TwoByteOffset) ? next2Bytes() : next4Bytes(); }
-   int32_t  branchDestination(int32_t base)       { TR_ASSERT((_byteCodeFlags[_bc] & Branch) != 0, "assertion failure"); return ((_byteCodeFlags[_bc] & Absolute) != 0) ? absoluteBranch() : base + relativeBranch(); }
+    bool isBranch() { return (_byteCodeFlags[_bc] & Branch) != 0; }
 
-   uint8_t  nextByte(int32_t o = 1)               { return _code[_bcIndex + o]; }
-   int8_t   nextByteSigned(int32_t o = 1)         { return nextByte(o); }
+    int32_t relativeBranch()
+    {
+        TR_ASSERT((_byteCodeFlags[_bc] & Absolute) == 0, "assertion failure");
+        return (_byteCodeFlags[_bc] & TwoByteOffset) ? next2BytesSigned() : next4BytesSigned();
+    }
+
+    int32_t absoluteBranch()
+    {
+        TR_ASSERT((_byteCodeFlags[_bc] & Absolute) != 0, "assertion failure");
+        return (_byteCodeFlags[_bc] & TwoByteOffset) ? next2Bytes() : next4Bytes();
+    }
+
+    int32_t branchDestination(int32_t base)
+    {
+        TR_ASSERT((_byteCodeFlags[_bc] & Branch) != 0, "assertion failure");
+        return ((_byteCodeFlags[_bc] & Absolute) != 0) ? absoluteBranch() : base + relativeBranch();
+    }
+
+    uint8_t nextByte(int32_t o = 1) { return _code[_bcIndex + o]; }
+
+    int8_t nextByteSigned(int32_t o = 1) { return nextByte(o); }
 
 #if defined(NETWORK_ORDER_BYTECODE)
-   uint16_t next2Bytes(int32_t o = 1)             { return nextByte(o) << 8 | nextByte(o + 1); }
-   uint32_t next4Bytes(int32_t o = 1)             { return nextByte(o) << 24 | nextByte(o + 1) << 16 |
-                                                                         nextByte(o + 2) << 8 |
-                                                                         nextByte(o + 3); }
-   int16_t  next2BytesSigned(int32_t o = 1)       { return next2Bytes(o); }
-   int32_t  next4BytesSigned(int32_t o = 1)       { return next4Bytes(o); }
+    uint16_t next2Bytes(int32_t o = 1) { return nextByte(o) << 8 | nextByte(o + 1); }
+
+    uint32_t next4Bytes(int32_t o = 1)
+    {
+        return nextByte(o) << 24 | nextByte(o + 1) << 16 | nextByte(o + 2) << 8 | nextByte(o + 3);
+    }
+
+    int16_t next2BytesSigned(int32_t o = 1) { return next2Bytes(o); }
+
+    int32_t next4BytesSigned(int32_t o = 1) { return next4Bytes(o); }
 #else
-   uint16_t next2Bytes(int32_t o = 1)             { return *((uint16_t*)&_code[_bcIndex + o]); }
-   uint32_t next4Bytes(int32_t o = 1)             { return *((uint32_t*)&_code[_bcIndex + o]); }
-   int16_t  next2BytesSigned(int32_t o = 1)       { return next2Bytes(o); }
-   int32_t  next4BytesSigned(int32_t o = 1)       { return next4Bytes(o); }
+    uint16_t next2Bytes(int32_t o = 1) { return *((uint16_t *)&_code[_bcIndex + o]); }
+
+    uint32_t next4Bytes(int32_t o = 1) { return *((uint32_t *)&_code[_bcIndex + o]); }
+
+    int16_t next2BytesSigned(int32_t o = 1) { return next2Bytes(o); }
+
+    int32_t next4BytesSigned(int32_t o = 1) { return next4Bytes(o); }
 #endif
 
 protected:
-   void stepOverVariableSizeBC();
+    void stepOverVariableSizeBC();
 
-   void printFirst(OMR::Logger *log, int32_t i);
-   void printCPIndex(OMR::Logger *log, int32_t i);
-   void printConstant(OMR::Logger *log, int32_t i);
-   void printConstant(OMR::Logger *log, double d);
-   void printFirstAndConstant(OMR::Logger *log, int32_t i, int32_t j);
-   void printJumpIndex(OMR::Logger *log, int32_t offset);
+    void printFirst(OMR::Logger *log, int32_t i);
+    void printCPIndex(OMR::Logger *log, int32_t i);
+    void printConstant(OMR::Logger *log, int32_t i);
+    void printConstant(OMR::Logger *log, double d);
+    void printFirstAndConstant(OMR::Logger *log, int32_t i, int32_t j);
+    void printJumpIndex(OMR::Logger *log, int32_t offset);
 
-   void printByteCodePrologue(OMR::Logger *log);
-   void printByteCode(OMR::Logger *log);
-   void printByteCodeEpilogue(OMR::Logger *log);
+    void printByteCodePrologue(OMR::Logger *log);
+    void printByteCode(OMR::Logger *log);
+    void printByteCodeEpilogue(OMR::Logger *log);
 
-   TR_J9VMBase *fe()             { return _fe; }
-   //TR_ResolvedJ9Method *method() { return _method; }
-   //TR_ResolvedJ9Method  *   _method;
-   TR_J9VMBase          *   _fe;
-   const uint8_t        *   _code;
-   TR_J9ByteCode            _bc; // TODO: remove this field, Replace uses with call to current()
+    TR_J9VMBase *fe() { return _fe; }
 
-   static const uint8_t       _byteCodeFlags[];
-   static const TR_J9ByteCode _opCodeToByteCodeEnum[256];
-   static const uint8_t       _estimatedCodeSize[];
+    // TR_ResolvedJ9Method *method() { return _method; }
+    // TR_ResolvedJ9Method  *   _method;
+    TR_J9VMBase *_fe;
+    const uint8_t *_code;
+    TR_J9ByteCode _bc; // TODO: remove this field, Replace uses with call to current()
 
-   static TR::ILOpCodes    _lcmpOps[];
-   static TR::ILOpCodes    _fcmplOps[];
-   static TR::ILOpCodes    _fcmpgOps[];
-   static TR::ILOpCodes    _dcmplOps[];
-   static TR::ILOpCodes    _dcmpgOps[];
-   };
+    static const uint8_t _byteCodeFlags[];
+    static const TR_J9ByteCode _opCodeToByteCodeEnum[256];
+    static const uint8_t _estimatedCodeSize[];
+
+    static TR::ILOpCodes _lcmpOps[];
+    static TR::ILOpCodes _fcmplOps[];
+    static TR::ILOpCodes _fcmpgOps[];
+    static TR::ILOpCodes _dcmplOps[];
+    static TR::ILOpCodes _dcmpgOps[];
+};
 
 #endif
 

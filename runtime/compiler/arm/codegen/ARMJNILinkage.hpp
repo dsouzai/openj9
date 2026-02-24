@@ -35,58 +35,39 @@ class MemoryReference;
 class Node;
 class Register;
 class RegisterDependencyConditions;
-}
+} // namespace TR
 
-namespace J9
-{
+namespace J9 { namespace ARM {
 
-namespace ARM
-{
+class JNILinkage : public PrivateLinkage {
+public:
+    JNILinkage(TR::CodeGenerator *codeGen);
 
-class JNILinkage : public PrivateLinkage
-   {
-   public:
+    virtual TR::MemoryReference *getOutgoingArgumentMemRef(int32_t totalParmAreaSize, int32_t argOffset,
+        TR::Register *argReg, TR::InstOpCode::Mnemonic opCode, TR::ARMMemoryArgument &memArg);
 
-   JNILinkage(TR::CodeGenerator *codeGen);
-
-   virtual TR::MemoryReference *getOutgoingArgumentMemRef(int32_t               totalParmAreaSize,
-                                                            int32_t               argOffset,
-                                                            TR::Register          *argReg,
-                                                            TR::InstOpCode::Mnemonic         opCode,
-                                                            TR::ARMMemoryArgument &memArg);
-
-   virtual TR::ARMLinkageProperties& getProperties();
+    virtual TR::ARMLinkageProperties &getProperties();
 #if defined(__VFP_FP__) && !defined(__SOFTFP__)
-   TR::Register *pushFloatArgForJNI(TR::Node *child);
-   TR::Register *pushDoubleArgForJNI(TR::Node *child);
+    TR::Register *pushFloatArgForJNI(TR::Node *child);
+    TR::Register *pushDoubleArgForJNI(TR::Node *child);
 #endif
 
-   virtual int32_t buildJNIArgs(TR::Node *callNode,
-                             TR::RegisterDependencyConditions *dependencies,
-                             TR::Register* &vftReg,
-                             bool passReceiver = true,
-                             bool passEnvArg = true);
+    virtual int32_t buildJNIArgs(TR::Node *callNode, TR::RegisterDependencyConditions *dependencies,
+        TR::Register *&vftReg, bool passReceiver = true, bool passEnvArg = true);
 
-   virtual int32_t buildArgs(TR::Node                            *callNode,
-                             TR::RegisterDependencyConditions *dependencies,
-                             TR::Register* &vftReg,
-                             bool                                isVirtual);
+    virtual int32_t buildArgs(TR::Node *callNode, TR::RegisterDependencyConditions *dependencies, TR::Register *&vftReg,
+        bool isVirtual);
 
-   virtual void buildVirtualDispatch(TR::Node *callNode,
-                        TR::RegisterDependencyConditions *dependencies,
-                        TR::RegisterDependencyConditions *postDeps,
-                        TR::Register                     *vftReg,
-                        uint32_t                         sizeOfArguments);
+    virtual void buildVirtualDispatch(TR::Node *callNode, TR::RegisterDependencyConditions *dependencies,
+        TR::RegisterDependencyConditions *postDeps, TR::Register *vftReg, uint32_t sizeOfArguments);
 
-   virtual TR::Register *buildDirectDispatch(TR::Node *callNode);
-   virtual TR::Register *buildIndirectDispatch(TR::Node *callNode);
+    virtual TR::Register *buildDirectDispatch(TR::Node *callNode);
+    virtual TR::Register *buildIndirectDispatch(TR::Node *callNode);
 
 private:
-   TR::ARMLinkageProperties _properties;
-   };
+    TR::ARMLinkageProperties _properties;
+};
 
-}
-
-}
+}} // namespace J9::ARM
 
 #endif

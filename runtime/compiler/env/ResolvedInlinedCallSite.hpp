@@ -27,11 +27,10 @@
 
 namespace J9 {
 
-struct ResolvedInlinedCallSite
-   {
-   TR_ResolvedMethod *_method;
-   TR_ByteCodeInfo _bci;
-   };
+struct ResolvedInlinedCallSite {
+    TR_ResolvedMethod *_method;
+    TR_ByteCodeInfo _bci;
+};
 
 } // namespace J9
 

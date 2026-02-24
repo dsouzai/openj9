@@ -25,17 +25,15 @@
 
 #include "optimizer/J9CFGSimplifier.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class CFGSimplifier : public J9::CFGSimplifier
-   {
-   public:
+class CFGSimplifier : public J9::CFGSimplifier {
+public:
+    CFGSimplifier(TR::OptimizationManager *manager)
+        : J9::CFGSimplifier(manager)
+    {}
+};
 
-   CFGSimplifier(TR::OptimizationManager *manager) :
-      J9::CFGSimplifier(manager) {}
-   };
-
-}
+} // namespace TR
 
 #endif

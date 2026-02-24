@@ -30,17 +30,15 @@ namespace TR {
 class Compilation;
 }
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE KnownObjectTable : public J9::KnownObjectTableConnector
-   {
+class OMR_EXTENSIBLE KnownObjectTable : public J9::KnownObjectTableConnector {
 public:
+    KnownObjectTable(TR::Compilation *comp)
+        : J9::KnownObjectTableConnector(comp)
+    {}
+};
 
-   KnownObjectTable(TR::Compilation *comp) : J9::KnownObjectTableConnector(comp) {}
-
-   };
-
-}
+} // namespace TR
 
 #endif

@@ -30,26 +30,26 @@
 namespace TR {
 class Node;
 class TreeTop;
-}
+} // namespace TR
 
 class TR_StoreBaseWalker;
 
-typedef TR::typed_allocator<TR::Node*, TR::Region &> NodeForwardListAllocator;
-typedef TR::forward_list<TR::Node*, NodeForwardListAllocator> NodeForwardList;
+typedef TR::typed_allocator<TR::Node *, TR::Region &> NodeForwardListAllocator;
+typedef TR::forward_list<TR::Node *, NodeForwardListAllocator> NodeForwardList;
 
-class TR_SequentialStoreSimplifier : public TR::Optimization
-   {
-   public:
-   TR_SequentialStoreSimplifier(TR::OptimizationManager *manager)
-      : TR::Optimization(manager)
-      {}
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_SequentialStoreSimplifier(manager);
-      }
+class TR_SequentialStoreSimplifier : public TR::Optimization {
+public:
+    TR_SequentialStoreSimplifier(TR::OptimizationManager *manager)
+        : TR::Optimization(manager)
+    {}
 
-   virtual int32_t perform();
-   virtual const char * optDetailString() const throw();
-   };
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_SequentialStoreSimplifier(manager);
+    }
+
+    virtual int32_t perform();
+    virtual const char *optDetailString() const throw();
+};
 
 #endif

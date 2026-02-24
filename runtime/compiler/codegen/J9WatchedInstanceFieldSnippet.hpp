@@ -26,28 +26,30 @@
 #include "codegen/Snippet.hpp"
 #include "codegen/CodeGenerator.hpp"
 
-namespace OMR { class Logger; }
+namespace OMR {
+class Logger;
+}
 
 namespace TR {
 
-class J9WatchedInstanceFieldSnippet : public TR::Snippet
-   {
-   protected :
+class J9WatchedInstanceFieldSnippet : public TR::Snippet {
+protected:
+    J9JITWatchedInstanceFieldData instanceFieldData;
 
-   J9JITWatchedInstanceFieldData instanceFieldData;
+public:
+    J9WatchedInstanceFieldSnippet(TR::CodeGenerator *cg, TR::Node *node, J9Method *m, UDATA loc, UDATA os);
 
-   public :
+    J9Method *getMethod() { return instanceFieldData.method; }
 
-   J9WatchedInstanceFieldSnippet(TR::CodeGenerator *cg, TR::Node *node, J9Method *m, UDATA loc, UDATA os);
+    UDATA getLocation() { return instanceFieldData.location; }
 
-   J9Method *getMethod() { return instanceFieldData.method; }
-   UDATA getLocation() { return instanceFieldData.location; }
-   UDATA getOffset() { return instanceFieldData.offset; }
-   virtual uint32_t getLength(int32_t val) { return sizeof(J9JITWatchedInstanceFieldData); }
+    UDATA getOffset() { return instanceFieldData.offset; }
 
-   virtual uint8_t *emitSnippetBody();
-   virtual void print(OMR::Logger *log, TR_Debug *debug);
-   };
-}
+    virtual uint32_t getLength(int32_t val) { return sizeof(J9JITWatchedInstanceFieldData); }
+
+    virtual uint8_t *emitSnippetBody();
+    virtual void print(OMR::Logger *log, TR_Debug *debug);
+};
+} // namespace TR
 
 #endif

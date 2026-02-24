@@ -21,9 +21,9 @@
  *******************************************************************************/
 
 #if defined(J9ZOS390)
-#pragma csect(CODE,"TRJ9GCStackAtlas#C")
-#pragma csect(STATIC,"TRJ9GCStackAtlas#S")
-#pragma csect(TEST,"TRJ9GCStackAtlas#T")
+#pragma csect(CODE, "TRJ9GCStackAtlas#C")
+#pragma csect(STATIC, "TRJ9GCStackAtlas#S")
+#pragma csect(TEST, "TRJ9GCStackAtlas#T")
 #endif
 
 #include "codegen/GCStackAtlas.hpp"
@@ -32,77 +32,72 @@
 #include "codegen/CodeGenerator.hpp"
 #include "ras/Logger.hpp"
 
+void J9::GCStackAtlas::close(TR::CodeGenerator *cg)
+{
+    // Dump the atlas before merging. The atlas after merging is given by the
+    // dump of the external atlas
+    //
+    TR::Compilation *comp = cg->comp();
+    OMR::Logger *log = comp->log();
+    bool trace = comp->getOption(TR_TraceCG);
 
-void
-J9::GCStackAtlas::close(TR::CodeGenerator *cg)
-   {
-   // Dump the atlas before merging. The atlas after merging is given by the
-   // dump of the external atlas
-   //
-   TR::Compilation *comp = cg->comp();
-   OMR::Logger *log = comp->log();
-   bool trace = comp->getOption(TR_TraceCG);
+    if (trace)
+        comp->getDebug()->print(log, self());
 
-   if (trace)
-      comp->getDebug()->print(log, self());
+    TR_GCStackMap *parameterMap = 0;
+    if (self()->getInternalPointerMap()) {
+        parameterMap = self()->getParameterMap();
+    }
 
-   TR_GCStackMap * parameterMap = 0;
-   if (self()->getInternalPointerMap())
-      {
-      parameterMap = self()->getParameterMap();
-      }
+    if (comp->getOption(TR_DisableMergeStackMaps))
+        return;
 
-   if (comp->getOption(TR_DisableMergeStackMaps))
-       return;
+    // Merge adjacent similar maps
+    //
+    uint8_t *start = cg->getCodeStart();
+    ListElement<TR_GCStackMap> *mapEntry, *next;
+    TR_GCStackMap *map, *nextMap;
 
-   // Merge adjacent similar maps
-   //
-   uint8_t *start = cg->getCodeStart();
-   ListElement<TR_GCStackMap> *mapEntry, *next;
-   TR_GCStackMap *map, *nextMap;
+    for (mapEntry = self()->getStackMapList().getListHead(); mapEntry; mapEntry = next) {
+        next = mapEntry->getNextElement();
+        map = mapEntry->getData();
 
-   for (mapEntry = self()->getStackMapList().getListHead(); mapEntry; mapEntry = next)
-      {
-      next = mapEntry->getNextElement();
-      map = mapEntry->getData();
+        // See if the next map can be merged with this one.
+        // If they have the same contents, the ranges are merged and a single map
+        // represents both ranges.
+        //
+        if (!next) {
+            continue;
+        }
 
-      // See if the next map can be merged with this one.
-      // If they have the same contents, the ranges are merged and a single map
-      // represents both ranges.
-      //
-      if (!next)
-         {
-         continue;
-         }
+        nextMap = next->getData();
 
-      nextMap = next->getData();
+        int32_t mapBytes = map->getMapSizeInBytes();
 
-      int32_t mapBytes = map->getMapSizeInBytes();
+        // TODO: We should be using mapsAreIdentical API here instead. Also it seems there is a similar comment in OMR,
+        // i.e. "Maps are the same". Do we need a common API here for map merging which can be extended?
+        if (nextMap != parameterMap && mapBytes == nextMap->getMapSizeInBytes()
+            && map->getRegisterMap() == nextMap->getRegisterMap()
+            && !memcmp(map->getMapBits(), nextMap->getMapBits(), mapBytes)
+            && (comp->getOption(TR_DisableLiveMonitorMetadata)
+                || ((map->getLiveMonitorBits() != 0) == (nextMap->getLiveMonitorBits() != 0)
+                    && (map->getLiveMonitorBits() == 0
+                        || !memcmp(map->getLiveMonitorBits(), nextMap->getLiveMonitorBits(), mapBytes))))
+            && ((!nextMap->getInternalPointerMap() && !map->getInternalPointerMap())
+                || (nextMap->getInternalPointerMap() && map->getInternalPointerMap()
+                    && map->isInternalPointerMapIdenticalTo(nextMap)))
+            && map->isByteCodeInfoIdenticalTo(nextMap)) {
+            // Maps are the same - can merge
+            //
+            logprintf(trace, log,
+                "Map with code offset range starting at [%08x] is identical to the previous map [%08x], merging and "
+                "eliminating previous\n",
+                nextMap->getLowestCodeOffset(), map->getLowestCodeOffset());
 
-      // TODO: We should be using mapsAreIdentical API here instead. Also it seems there is a similar comment in OMR,
-      // i.e. "Maps are the same". Do we need a common API here for map merging which can be extended?
-      if (nextMap != parameterMap &&
-          mapBytes == nextMap->getMapSizeInBytes() &&
-          map->getRegisterMap() == nextMap->getRegisterMap() &&
-          !memcmp(map->getMapBits(), nextMap->getMapBits(), mapBytes) &&
-          (comp->getOption(TR_DisableLiveMonitorMetadata) ||
-           ((map->getLiveMonitorBits() != 0) == (nextMap->getLiveMonitorBits() != 0) &&
-            (map->getLiveMonitorBits() == 0 ||
-             !memcmp(map->getLiveMonitorBits(), nextMap->getLiveMonitorBits(), mapBytes)))) &&
-          ((!nextMap->getInternalPointerMap() && !map->getInternalPointerMap()) ||
-           (nextMap->getInternalPointerMap() && map->getInternalPointerMap() &&
-            map->isInternalPointerMapIdenticalTo(nextMap))) &&
-          map->isByteCodeInfoIdenticalTo(nextMap))
-         {
-         // Maps are the same - can merge
-         //
-         logprintf(trace, log, "Map with code offset range starting at [%08x] is identical to the previous map [%08x], merging and eliminating previous\n",
-               nextMap->getLowestCodeOffset(), map->getLowestCodeOffset());
-
-         map->setLowestCodeOffset(nextMap->getLowestCodeOffset());
-         self()->getStackMapList().removeNext(mapEntry);
-         self()->decNumberOfMaps();
-         next = mapEntry;
-         }
-      }
-   }
+            map->setLowestCodeOffset(nextMap->getLowestCodeOffset());
+            self()->getStackMapList().removeNext(mapEntry);
+            self()->decNumberOfMaps();
+            next = mapEntry;
+        }
+    }
+}

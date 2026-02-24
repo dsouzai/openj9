@@ -24,66 +24,71 @@
 #define LISTENER_HPP
 
 #include "j9.h"
-#include "infra/Monitor.hpp"  // TR::Monitor
+#include "infra/Monitor.hpp" // TR::Monitor
 #include "net/ServerStream.hpp"
 
- /**
-    @class TR_Listener
-    @brief Implementation of a "listener" thread that waits for network connection requests 
+/**
+   @class TR_Listener
+   @brief Implementation of a "listener" thread that waits for network connection requests
 
-    This thread will be created at the JITServer. 
-    Typical sequence executed by a JITServer is:
-    (1) Create a TR_Listener object with "allocate()" function
-    (2) Start a listener thread with  listener->startListenerThread(javaVM);
- */
+   This thread will be created at the JITServer.
+   Typical sequence executed by a JITServer is:
+   (1) Create a TR_Listener object with "allocate()" function
+   (2) Start a listener thread with  listener->startListenerThread(javaVM);
+*/
 
 #define OPENJ9_LISTENER_POLL_TIMEOUT 100 // in milliseconds
 
 class BaseCompileDispatcher;
 
-class TR_Listener
-   {
+class TR_Listener {
 public:
-   TR_Listener();
-   static TR_Listener* allocate();
-   void startListenerThread(J9JavaVM *javaVM);
-   void stop();
-   /**
-      @brief Function called to deal with incoming connection requests
+    TR_Listener();
+    static TR_Listener *allocate();
+    void startListenerThread(J9JavaVM *javaVM);
+    void stop();
+    /**
+       @brief Function called to deal with incoming connection requests
 
-      This function opens a socket (non-blocking), binds it and then waits for incoming
-      connection by polling on it with a timeout (see OPENJ9_LISTENER_POLL_TIMEOUT).
-      If it ever comes out of polling (due to timeout or a new connection request),
-      it checks the exit flag. If the flag is set, then the thread exits.
-      Otherwise, it establishes the connection using accept().
-      Once a connection is accepted a ServerStream object is created (receiving the newly
-      opened socket descriptor as a parameter) and passed to the compilation handler.
-      Typically, the compilation handler places the ServerStream object in a queue and
-      returns immediately so that other connection requests can be accepted.
-      Note: it must be executed on a separate thread as it needs to keep listening for new connections.
+       This function opens a socket (non-blocking), binds it and then waits for incoming
+       connection by polling on it with a timeout (see OPENJ9_LISTENER_POLL_TIMEOUT).
+       If it ever comes out of polling (due to timeout or a new connection request),
+       it checks the exit flag. If the flag is set, then the thread exits.
+       Otherwise, it establishes the connection using accept().
+       Once a connection is accepted a ServerStream object is created (receiving the newly
+       opened socket descriptor as a parameter) and passed to the compilation handler.
+       Typically, the compilation handler places the ServerStream object in a queue and
+       returns immediately so that other connection requests can be accepted.
+       Note: it must be executed on a separate thread as it needs to keep listening for new connections.
 
-      @param [in] compiler Object that defines the behavior when a new connection is accepted
-   */
-   void serveRemoteCompilationRequests(BaseCompileDispatcher *compiler);
-   int32_t waitForListenerThreadExit(J9JavaVM *javaVM);
-   void setAttachAttempted(bool b) { _listenerThreadAttachAttempted = b; }
-   bool getAttachAttempted() const { return _listenerThreadAttachAttempted; }
+       @param [in] compiler Object that defines the behavior when a new connection is accepted
+    */
+    void serveRemoteCompilationRequests(BaseCompileDispatcher *compiler);
+    int32_t waitForListenerThreadExit(J9JavaVM *javaVM);
 
-   J9VMThread* getListenerThread() const { return _listenerThread; }
-   void setListenerThread(J9VMThread* thread) { _listenerThread = thread; }
-   j9thread_t getListenerOSThread() const { return _listenerOSThread; }
-   TR::Monitor* getListenerMonitor() const { return _listenerMonitor; }
+    void setAttachAttempted(bool b) { _listenerThreadAttachAttempted = b; }
 
-   bool getListenerThreadExitFlag() const { return _listenerThreadExitFlag; }
-   void setListenerThreadExitFlag() { _listenerThreadExitFlag = true; }
+    bool getAttachAttempted() const { return _listenerThreadAttachAttempted; }
+
+    J9VMThread *getListenerThread() const { return _listenerThread; }
+
+    void setListenerThread(J9VMThread *thread) { _listenerThread = thread; }
+
+    j9thread_t getListenerOSThread() const { return _listenerOSThread; }
+
+    TR::Monitor *getListenerMonitor() const { return _listenerMonitor; }
+
+    bool getListenerThreadExitFlag() const { return _listenerThreadExitFlag; }
+
+    void setListenerThreadExitFlag() { _listenerThreadExitFlag = true; }
 
 private:
-   J9VMThread *_listenerThread;
-   TR::Monitor *_listenerMonitor;
-   j9thread_t _listenerOSThread;
-   volatile bool _listenerThreadAttachAttempted;
-   volatile bool _listenerThreadExitFlag;
-   };
+    J9VMThread *_listenerThread;
+    TR::Monitor *_listenerMonitor;
+    j9thread_t _listenerOSThread;
+    volatile bool _listenerThreadAttachAttempted;
+    volatile bool _listenerThreadExitFlag;
+};
 
 /**
    @class BaseCompileDispatcher
@@ -93,10 +98,9 @@ private:
    An instance of the derived class needs to be passed to serveRemoteCompilationRequests
    which internally calls "compile()"
  */
-class BaseCompileDispatcher
-   {
+class BaseCompileDispatcher {
 public:
-   virtual void compile(JITServer::ServerStream *stream) = 0;
-   };
+    virtual void compile(JITServer::ServerStream *stream) = 0;
+};
 
 #endif

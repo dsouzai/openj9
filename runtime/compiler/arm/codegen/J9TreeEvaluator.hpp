@@ -28,49 +28,49 @@
  */
 #ifndef J9_TREE_EVALUATOR_CONNECTOR
 #define J9_TREE_EVALUATOR_CONNECTOR
+
 namespace J9 {
-namespace ARM { class TreeEvaluator; }
-typedef J9::ARM::TreeEvaluator TreeEvaluatorConnector;
+namespace ARM {
+class TreeEvaluator;
 }
+
+typedef J9::ARM::TreeEvaluator TreeEvaluatorConnector;
+} // namespace J9
 #else
 #error J9::ARM::TreeEvaluator expected to be a primary connector, but a J9 connector is already defined
 #endif
 
-#include "compiler/codegen/J9TreeEvaluator.hpp"  // include parent
+#include "compiler/codegen/J9TreeEvaluator.hpp" // include parent
 #include "il/LabelSymbol.hpp"
 
-namespace J9
-{
+namespace J9 { namespace ARM {
 
-namespace ARM
-{
+class OMR_EXTENSIBLE TreeEvaluator : public J9::TreeEvaluator {
+public:
+    static TR::Register *NULLCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *resolveAndNULLCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
+    static TR::Register *evaluateNULLCHKWithPossibleResolve(TR::Node *node, bool needResolution, TR::CodeGenerator *cg);
+    static void genWrtbarForArrayCopy(TR::Node *node, TR::Register *srcObjReg, TR::Register *dstObjReg,
+        TR::CodeGenerator *cg);
 
-class OMR_EXTENSIBLE TreeEvaluator: public J9::TreeEvaluator
-   {
-   public:
+    /*
+     * Generates instructions to fill in the J9JITWatchedStaticFieldData.fieldAddress,
+     * J9JITWatchedStaticFieldData.fieldClass for static fields, and J9JITWatchedInstanceFieldData.offset for instance
+     * fields at runtime. Used for fieldwatch support.
+     * @param dataSnippetRegister: Optional, can be used to pass the address of the snippet inside the register.
+     */
+    static void generateFillInDataBlockSequenceForUnresolvedField(TR::CodeGenerator *cg, TR::Node *node,
+        TR::Snippet *dataSnippet, bool isWrite, TR::Register *sideEffectRegister, TR::Register *dataSnippetRegister);
 
-   static TR::Register *NULLCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *resolveAndNULLCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg);
-   static TR::Register *evaluateNULLCHKWithPossibleResolve(TR::Node *node, bool needResolution, TR::CodeGenerator *cg);
-   static void genWrtbarForArrayCopy(TR::Node *node, TR::Register *srcObjReg, TR::Register *dstObjReg, TR::CodeGenerator *cg);
+    /*
+     * Generate instructions for static/instance field access report.
+     * @param dataSnippetRegister: Optional, can be used to pass the address of the snippet inside the register.
+     */
+    static void generateTestAndReportFieldWatchInstructions(TR::CodeGenerator *cg, TR::Node *node,
+        TR::Snippet *dataSnippet, bool isWrite, TR::Register *sideEffectRegister, TR::Register *valueReg,
+        TR::Register *dataSnippetRegister);
+};
 
-   /*
-    * Generates instructions to fill in the J9JITWatchedStaticFieldData.fieldAddress, J9JITWatchedStaticFieldData.fieldClass for static fields,
-    * and J9JITWatchedInstanceFieldData.offset for instance fields at runtime. Used for fieldwatch support.
-    * @param dataSnippetRegister: Optional, can be used to pass the address of the snippet inside the register.  
-    */
-   static void generateFillInDataBlockSequenceForUnresolvedField (TR::CodeGenerator *cg, TR::Node *node, TR::Snippet *dataSnippet, bool isWrite, TR::Register *sideEffectRegister, TR::Register *dataSnippetRegister);
-
-   /*
-    * Generate instructions for static/instance field access report.
-    * @param dataSnippetRegister: Optional, can be used to pass the address of the snippet inside the register.  
-    */
-   static void generateTestAndReportFieldWatchInstructions(TR::CodeGenerator *cg, TR::Node *node, TR::Snippet *dataSnippet, bool isWrite, TR::Register *sideEffectRegister, TR::Register *valueReg, TR::Register *dataSnippetRegister);
-
-   };
-
-}
-
-}
+}} // namespace J9::ARM
 
 #endif

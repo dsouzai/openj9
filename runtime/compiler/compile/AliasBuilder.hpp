@@ -28,19 +28,15 @@
 namespace TR {
 class Compilation;
 class SymbolReferenceTable;
-}
+} // namespace TR
 
-namespace TR
-   {
-   class AliasBuilder : public J9::AliasBuilderConnector
-      {
-      public:
-
-      AliasBuilder(TR::SymbolReferenceTable *symRefTab, size_t sizeHint, TR::Compilation *c) :
-         J9::AliasBuilderConnector(symRefTab, sizeHint, c)
-         {
-         }
-      };
-   }
+namespace TR {
+class AliasBuilder : public J9::AliasBuilderConnector {
+public:
+    AliasBuilder(TR::SymbolReferenceTable *symRefTab, size_t sizeHint, TR::Compilation *c)
+        : J9::AliasBuilderConnector(symRefTab, sizeHint, c)
+    {}
+};
+} // namespace TR
 
 #endif

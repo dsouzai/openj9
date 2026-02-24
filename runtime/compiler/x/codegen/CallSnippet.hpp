@@ -32,112 +32,100 @@ class Instruction;
 class LabelSymbol;
 class MethodSymbol;
 class SymbolReference;
-}
+} // namespace TR
 
 namespace TR {
 
-class X86PicDataSnippet : public TR::Snippet
-   {
-   TR::SymbolReference *_methodSymRef;
-   TR::SymbolReference *_dispatchSymRef;
-   TR::Instruction     *_slotPatchInstruction;
-   TR::Instruction     *_startOfPicInstruction;
-   TR::LabelSymbol      *_doneLabel;
-   uint8_t            *_thunkAddress;
-   int32_t             _numberOfSlots;
-   bool                _isInterface;
-   bool                _hasJ2IThunkInPicData;
+class X86PicDataSnippet : public TR::Snippet {
+    TR::SymbolReference *_methodSymRef;
+    TR::SymbolReference *_dispatchSymRef;
+    TR::Instruction *_slotPatchInstruction;
+    TR::Instruction *_startOfPicInstruction;
+    TR::LabelSymbol *_doneLabel;
+    uint8_t *_thunkAddress;
+    int32_t _numberOfSlots;
+    bool _isInterface;
+    bool _hasJ2IThunkInPicData;
 
-   public:
+public:
+    X86PicDataSnippet(int32_t numberOfSlots, TR::Instruction *startOfPicInstruction, TR::LabelSymbol *snippetLabel,
+        TR::LabelSymbol *doneLabel, TR::SymbolReference *methodSymRef, TR::Instruction *slotPatchInstruction,
+        uint8_t *thunkAddress, bool isInterface, TR::CodeGenerator *cg)
+        : TR::Snippet(cg, NULL, snippetLabel, true)
+        , _numberOfSlots(numberOfSlots)
+        , _startOfPicInstruction(startOfPicInstruction)
+        , _methodSymRef(methodSymRef)
+        , _doneLabel(doneLabel)
+        , _slotPatchInstruction(slotPatchInstruction)
+        , _isInterface(isInterface)
+        , _dispatchSymRef(NULL)
+        , _thunkAddress(thunkAddress)
+        , _hasJ2IThunkInPicData(shouldEmitJ2IThunkPointer())
+    {}
 
-   X86PicDataSnippet(
-      int32_t              numberOfSlots,
-      TR::Instruction      *startOfPicInstruction,
-      TR::LabelSymbol       *snippetLabel,
-      TR::LabelSymbol       *doneLabel,
-      TR::SymbolReference  *methodSymRef,
-      TR::Instruction      *slotPatchInstruction,
-      uint8_t             *thunkAddress,
-      bool                 isInterface,
-      TR::CodeGenerator *cg) :
-         TR::Snippet(cg, NULL, snippetLabel, true),
-         _numberOfSlots(numberOfSlots),
-         _startOfPicInstruction(startOfPicInstruction),
-         _methodSymRef(methodSymRef),
-         _doneLabel(doneLabel),
-         _slotPatchInstruction(slotPatchInstruction),
-         _isInterface(isInterface),
-         _dispatchSymRef(NULL),
-         _thunkAddress(thunkAddress),
-         _hasJ2IThunkInPicData(shouldEmitJ2IThunkPointer())
-      {}
+    bool isInterface() { return _isInterface; }
 
-   bool isInterface()         {return _isInterface;}
-   int32_t getNumberOfSlots() {return _numberOfSlots;}
-   bool hasJ2IThunkInPicData() {return _hasJ2IThunkInPicData;}
+    int32_t getNumberOfSlots() { return _numberOfSlots; }
 
-   TR::SymbolReference *getDispatchSymRef() {return _dispatchSymRef;}
-   TR::SymbolReference *getMethodSymRef() {return _methodSymRef;}
+    bool hasJ2IThunkInPicData() { return _hasJ2IThunkInPicData; }
 
-   TR::LabelSymbol *getDoneLabel() {return _doneLabel;}
+    TR::SymbolReference *getDispatchSymRef() { return _dispatchSymRef; }
 
-   bool forceUnresolvedDispatch()
-      {
-      // No need to force unresolved dispatch for interface calls, since those
-      // are unresolved anyway.
-      return !isInterface()
-         && !((TR_J9VMBase*)(cg()->fe()))->isResolvedVirtualDispatchGuaranteed(cg()->comp());
-      }
+    TR::SymbolReference *getMethodSymRef() { return _methodSymRef; }
 
-   bool unresolvedDispatch()
-      {
-      return _methodSymRef->isUnresolved() || forceUnresolvedDispatch();
-      }
+    TR::LabelSymbol *getDoneLabel() { return _doneLabel; }
 
-   uint8_t *encodeConstantPoolInfo(uint8_t *cursor);
-   uint8_t *encodeJ2IThunkPointer(uint8_t *cursor);
+    bool forceUnresolvedDispatch()
+    {
+        // No need to force unresolved dispatch for interface calls, since those
+        // are unresolved anyway.
+        return !isInterface() && !((TR_J9VMBase *)(cg()->fe()))->isResolvedVirtualDispatchGuaranteed(cg()->comp());
+    }
 
-   virtual Kind getKind() { return (_isInterface ? IsIPicData : IsVPicData); }
+    bool unresolvedDispatch() { return _methodSymRef->isUnresolved() || forceUnresolvedDispatch(); }
 
-   virtual uint8_t *emitSnippetBody();
+    uint8_t *encodeConstantPoolInfo(uint8_t *cursor);
+    uint8_t *encodeJ2IThunkPointer(uint8_t *cursor);
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
+    virtual Kind getKind() { return (_isInterface ? IsIPicData : IsVPicData); }
 
-   private:
-   bool shouldEmitJ2IThunkPointer();
-   };
+    virtual uint8_t *emitSnippetBody();
 
-class X86CallSnippet : public TR::Snippet
-   {
-   public:
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
 
-   X86CallSnippet(TR::CodeGenerator *cg, TR::Node * n, TR::LabelSymbol * lab, bool isGCSafePoint)
-      : TR::Snippet(cg, n, lab, isGCSafePoint)
-      {
-      _realMethodSymbolReference = NULL;
-      }
+private:
+    bool shouldEmitJ2IThunkPointer();
+};
 
-   X86CallSnippet(TR::CodeGenerator *cg, TR::Node * n, TR::LabelSymbol * lab, TR::SymbolReference* realSymRef, bool isGCSafePoint)
-      : TR::Snippet(cg, n, lab, isGCSafePoint)
-      {
-      _realMethodSymbolReference = realSymRef;
-      }
+class X86CallSnippet : public TR::Snippet {
+public:
+    X86CallSnippet(TR::CodeGenerator *cg, TR::Node *n, TR::LabelSymbol *lab, bool isGCSafePoint)
+        : TR::Snippet(cg, n, lab, isGCSafePoint)
+    {
+        _realMethodSymbolReference = NULL;
+    }
 
-   virtual Kind getKind() { return IsCall; }
+    X86CallSnippet(TR::CodeGenerator *cg, TR::Node *n, TR::LabelSymbol *lab, TR::SymbolReference *realSymRef,
+        bool isGCSafePoint)
+        : TR::Snippet(cg, n, lab, isGCSafePoint)
+    {
+        _realMethodSymbolReference = realSymRef;
+    }
 
-   virtual uint8_t *emitSnippetBody();
+    virtual Kind getKind() { return IsCall; }
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
+    virtual uint8_t *emitSnippetBody();
 
-   TR::SymbolReference *getRealMethodSymbolReference() { return _realMethodSymbolReference; }
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
 
-   private:
+    TR::SymbolReference *getRealMethodSymbolReference() { return _realMethodSymbolReference; }
 
-   uint8_t * alignCursorForCodePatching(uint8_t *cursor, bool alignWithNOPs=false);
+private:
+    uint8_t *alignCursorForCodePatching(uint8_t *cursor, bool alignWithNOPs = false);
 
-   TR::SymbolReference * _realMethodSymbolReference;
-   };
+    TR::SymbolReference *_realMethodSymbolReference;
+};
 
-}
+} // namespace TR
 
 #endif

@@ -30,26 +30,20 @@ namespace TR {
 class Compilation;
 }
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE VMAccessCriticalSection : public J9::VMAccessCriticalSectionConnector
-   {
+class OMR_EXTENSIBLE VMAccessCriticalSection : public J9::VMAccessCriticalSectionConnector {
 public:
+    VMAccessCriticalSection(TR_J9VMBase *fej9, VMAccessAcquireProtocol protocol = acquireVMAccessIfNeeded,
+        TR::Compilation *comp = NULL)
+        : J9::VMAccessCriticalSectionConnector(fej9, protocol, comp)
+    {}
 
-   VMAccessCriticalSection(
-         TR_J9VMBase *fej9,
-         VMAccessAcquireProtocol protocol = acquireVMAccessIfNeeded,
-         TR::Compilation *comp = NULL) :
-      J9::VMAccessCriticalSectionConnector(fej9, protocol, comp) {}
+    VMAccessCriticalSection(TR::Compilation *comp, VMAccessAcquireProtocol protocol = acquireVMAccessIfNeeded)
+        : J9::VMAccessCriticalSectionConnector(comp, protocol)
+    {}
+};
 
-   VMAccessCriticalSection(
-         TR::Compilation *comp,
-         VMAccessAcquireProtocol protocol = acquireVMAccessIfNeeded) :
-      J9::VMAccessCriticalSectionConnector(comp, protocol) {}
-
-   };
-
-}
+} // namespace TR
 
 #endif

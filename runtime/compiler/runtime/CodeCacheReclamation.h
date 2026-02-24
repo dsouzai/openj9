@@ -26,13 +26,13 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-   typedef void JIT_GC_END_HOOK(J9VMThread *vmContext);
-   U_8* jitAllocateCodeMemory(J9JITConfig* jitConfig, uint32_t numBytes, uint32_t headRoom);
-   UDATA releaseCodeFunc(J9VMThread * currentThread, J9StackWalkState * walkState);
-   void jitReleaseCodeMemory(TR_FrontEnd * javaVM,void *startPC, int32_t startOffset, int32_t endOffset);
-   void jitCodeHook(J9VMThread *vmContext);
-   void jitReleaseCodeHookGlobalGCEnd(J9VMThread *vmContext);
-   void jitReleaseCodeHookLocalGCEnd(J9VMThread *vmContext);
+typedef void JIT_GC_END_HOOK(J9VMThread *vmContext);
+U_8 *jitAllocateCodeMemory(J9JITConfig *jitConfig, uint32_t numBytes, uint32_t headRoom);
+UDATA releaseCodeFunc(J9VMThread *currentThread, J9StackWalkState *walkState);
+void jitReleaseCodeMemory(TR_FrontEnd *javaVM, void *startPC, int32_t startOffset, int32_t endOffset);
+void jitCodeHook(J9VMThread *vmContext);
+void jitReleaseCodeHookGlobalGCEnd(J9VMThread *vmContext);
+void jitReleaseCodeHookLocalGCEnd(J9VMThread *vmContext);
 #ifdef __cplusplus
 }
 #endif

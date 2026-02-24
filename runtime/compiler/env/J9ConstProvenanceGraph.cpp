@@ -26,563 +26,463 @@
 #include <algorithm>
 
 J9::ConstProvenanceGraph::ConstProvenanceGraph(TR::Compilation *comp)
-   : _comp(comp)
-   , _edges(comp->region())
-   , _emptyReferents(comp->region())
-   , _seenArgPairs(comp->region())
+    : _comp(comp)
+    , _edges(comp->region())
+    , _emptyReferents(comp->region())
+    , _seenArgPairs(comp->region())
 #if defined(J9VM_OPT_JITSERVER)
-   , _hasServerAddedRawEdgesFromClient(false)
+    , _hasServerAddedRawEdgesFromClient(false)
 #endif
-   {
-   // empty
-   }
+{
+    // empty
+}
 
-const TR::set<J9::ConstProvenanceGraph::Place> &
-J9::ConstProvenanceGraph::referents(Place origin)
-   {
-   auto it = _edges.find(origin);
-   return it == _edges.end() ? _emptyReferents : it->second;
-   }
+const TR::set<J9::ConstProvenanceGraph::Place> &J9::ConstProvenanceGraph::referents(Place origin)
+{
+    auto it = _edges.find(origin);
+    return it == _edges.end() ? _emptyReferents : it->second;
+}
 
-bool
-J9::ConstProvenanceGraph::isConstProvenanceEnabled()
-   {
-   // Disable during AOT compilation. There is no known object table anyway.
-   // If/when the known object table is eventually supported in AOT, it will
-   // require SVM, and the relocations will specify how to find all of the
-   // known objects, so it will be possible to populate the graph from scratch
-   // as validations are carried out at load time.
-   //
-   // Also disable if class unloading is disabled (-Xnoclassgc). In that case
-   // all classes are permanent, and all const refs will be equally permanent,
-   // so it won't matter which classes own them.
-   //
-   return !_comp->compileRelocatableCode()
-      && !_comp->getOption(TR_NoClassGC)
-      && !_comp->getOption(TR_DisableConstProvenance);
-   }
+bool J9::ConstProvenanceGraph::isConstProvenanceEnabled()
+{
+    // Disable during AOT compilation. There is no known object table anyway.
+    // If/when the known object table is eventually supported in AOT, it will
+    // require SVM, and the relocations will specify how to find all of the
+    // known objects, so it will be possible to populate the graph from scratch
+    // as validations are carried out at load time.
+    //
+    // Also disable if class unloading is disabled (-Xnoclassgc). In that case
+    // all classes are permanent, and all const refs will be equally permanent,
+    // so it won't matter which classes own them.
+    //
+    return !_comp->compileRelocatableCode() && !_comp->getOption(TR_NoClassGC)
+        && !_comp->getOption(TR_DisableConstProvenance);
+}
 
-void
-J9::ConstProvenanceGraph::addEdgeImpl(Place origin, Place referent)
-   {
-   bool ignore = referent.kind() == PlaceKind_PermanentRoot || origin == referent;
-   if (trace())
-      {
-      const char *what = ignore ? "ignore redundant" : "accept";
-      _comp->log()->printf("    %s edge: ", what);
-      trace(origin);
-      trace(" -> ");
-      trace(referent);
-      trace("\n");
-      }
+void J9::ConstProvenanceGraph::addEdgeImpl(Place origin, Place referent)
+{
+    bool ignore = referent.kind() == PlaceKind_PermanentRoot || origin == referent;
+    if (trace()) {
+        const char *what = ignore ? "ignore redundant" : "accept";
+        _comp->log()->printf("    %s edge: ", what);
+        trace(origin);
+        trace(" -> ");
+        trace(referent);
+        trace("\n");
+    }
 
-   assertValidPlace(origin);
-   assertValidPlace(referent);
-   if (ignore)
-      {
-      return;
-      }
+    assertValidPlace(origin);
+    assertValidPlace(referent);
+    if (ignore) {
+        return;
+    }
 
-   TR::set<Place> emptyEdgeSet(_comp->region());
-   auto mapInsertResult = _edges.insert(std::make_pair(origin, emptyEdgeSet));
-   TR::set<Place> &edgeSet = mapInsertResult.first->second;
-   edgeSet.insert(referent);
-   }
+    TR::set<Place> emptyEdgeSet(_comp->region());
+    auto mapInsertResult = _edges.insert(std::make_pair(origin, emptyEdgeSet));
+    TR::set<Place> &edgeSet = mapInsertResult.first->second;
+    edgeSet.insert(referent);
+}
 
-J9::ConstProvenanceGraph::Place
-J9::ConstProvenanceGraph::place(J9ClassLoader *loader)
-   {
-   if (!isPermanentLoader(loader))
-      {
-      return Place::makeClassLoader(loader);
-      }
+J9::ConstProvenanceGraph::Place J9::ConstProvenanceGraph::place(J9ClassLoader *loader)
+{
+    if (!isPermanentLoader(loader)) {
+        return Place::makeClassLoader(loader);
+    }
 
-   // Identify permanent loaders with the permanent root place. This eliminates
-   // edges that would otherwise uselessly target the permanent loaders.
-   if (trace())
-      {
-      trace("    ");
-      trace(loader);
-      trace(" is permanent\n");
-      }
+    // Identify permanent loaders with the permanent root place. This eliminates
+    // edges that would otherwise uselessly target the permanent loaders.
+    if (trace()) {
+        trace("    ");
+        trace(loader);
+        trace(" is permanent\n");
+    }
 
-   return Place::makePermanentRoot();
-   }
+    return Place::makePermanentRoot();
+}
 
-J9::ConstProvenanceGraph::Place
-J9::ConstProvenanceGraph::place(TR_OpaqueClassBlock *clazz)
-   {
-   if (_comp->fej9()->isClassArray(clazz))
-      {
-      TR_OpaqueClassBlock *component =
-         _comp->fej9()->getLeafComponentClassFromArrayClass(clazz);
+J9::ConstProvenanceGraph::Place J9::ConstProvenanceGraph::place(TR_OpaqueClassBlock *clazz)
+{
+    if (_comp->fej9()->isClassArray(clazz)) {
+        TR_OpaqueClassBlock *component = _comp->fej9()->getLeafComponentClassFromArrayClass(clazz);
 
-      if (trace())
-         {
-         trace("    ");
-         trace(clazz);
-         trace(" is an array class with leaf component ");
-         trace(component);
-         trace("\n");
-         }
+        if (trace()) {
+            trace("    ");
+            trace(clazz);
+            trace(" is an array class with leaf component ");
+            trace(component);
+            trace("\n");
+        }
 
-      clazz = component;
-      }
+        clazz = component;
+    }
 
-   if (_comp->fej9()->isAnonymousClass(clazz))
-      {
-      return Place::makeAnonymousClass((J9Class*)clazz);
-      }
+    if (_comp->fej9()->isAnonymousClass(clazz)) {
+        return Place::makeAnonymousClass((J9Class *)clazz);
+    }
 
-   // Identify the class with its loader, which has the same lifetime because
-   // the class is not anonymous.
-   auto loader = (J9ClassLoader*)_comp->fej9()->getClassLoader(clazz);
+    // Identify the class with its loader, which has the same lifetime because
+    // the class is not anonymous.
+    auto loader = (J9ClassLoader *)_comp->fej9()->getClassLoader(clazz);
 
-   if (trace())
-      {
-      trace("    ");
-      trace(clazz);
-      trace(" is defined by ");
-      trace(loader);
-      trace("\n");
-      }
+    if (trace()) {
+        trace("    ");
+        trace(clazz);
+        trace(" is defined by ");
+        trace(loader);
+        trace("\n");
+    }
 
-   return place(loader);
-   }
+    return place(loader);
+}
 
-J9::ConstProvenanceGraph::Place
-J9::ConstProvenanceGraph::place(J9Class *clazz)
-   {
-   return place((TR_OpaqueClassBlock*)clazz);
-   }
+J9::ConstProvenanceGraph::Place J9::ConstProvenanceGraph::place(J9Class *clazz)
+{
+    return place((TR_OpaqueClassBlock *)clazz);
+}
 
-J9::ConstProvenanceGraph::Place
-J9::ConstProvenanceGraph::place(J9ConstantPool *cp)
-   {
-   // Identify the constant pool with the class it belongs to, which has the
-   // same lifetime.
-   TR_OpaqueClassBlock *clazz = _comp->fej9()->getClassFromCP(cp);
+J9::ConstProvenanceGraph::Place J9::ConstProvenanceGraph::place(J9ConstantPool *cp)
+{
+    // Identify the constant pool with the class it belongs to, which has the
+    // same lifetime.
+    TR_OpaqueClassBlock *clazz = _comp->fej9()->getClassFromCP(cp);
 
-   if (trace())
-      {
-      trace("    ");
-      trace(cp);
-      trace(" belongs to ");
-      trace(clazz);
-      trace("\n");
-      }
+    if (trace()) {
+        trace("    ");
+        trace(cp);
+        trace(" belongs to ");
+        trace(clazz);
+        trace("\n");
+    }
 
-   return place(clazz);
-   }
+    return place(clazz);
+}
 
-J9::ConstProvenanceGraph::Place
-J9::ConstProvenanceGraph::place(TR_ResolvedMethod *method)
-   {
-   // Identify the method with its class, which has the same lifetime.
-   TR_OpaqueClassBlock *clazz = method->classOfMethod();
+J9::ConstProvenanceGraph::Place J9::ConstProvenanceGraph::place(TR_ResolvedMethod *method)
+{
+    // Identify the method with its class, which has the same lifetime.
+    TR_OpaqueClassBlock *clazz = method->classOfMethod();
 
-   if (trace())
-      {
-      trace("    ");
-      trace(method);
-      trace(" is defined by ");
-      trace(clazz);
-      trace("\n");
-      }
+    if (trace()) {
+        trace("    ");
+        trace(method);
+        trace(" is defined by ");
+        trace(clazz);
+        trace("\n");
+    }
 
-   return place(clazz);
-   }
+    return place(clazz);
+}
 
-J9::ConstProvenanceGraph::Place
-J9::ConstProvenanceGraph::place(TR_OpaqueMethodBlock *method)
-   {
-   // Identify the method with its class, which has the same lifetime.
-   TR_OpaqueClassBlock *clazz = _comp->fej9()->getClassOfMethod(method);
+J9::ConstProvenanceGraph::Place J9::ConstProvenanceGraph::place(TR_OpaqueMethodBlock *method)
+{
+    // Identify the method with its class, which has the same lifetime.
+    TR_OpaqueClassBlock *clazz = _comp->fej9()->getClassOfMethod(method);
 
-   if (trace())
-      {
-      trace("    ");
-      trace(method);
-      trace(" is defined by ");
-      trace(clazz);
-      trace("\n");
-      }
+    if (trace()) {
+        trace("    ");
+        trace(method);
+        trace(" is defined by ");
+        trace(clazz);
+        trace("\n");
+    }
 
-   return place(clazz);
-   }
+    return place(clazz);
+}
 
-J9::ConstProvenanceGraph::Place
-J9::ConstProvenanceGraph::place(J9Method *method)
-   {
-   return place((TR_OpaqueMethodBlock*)method);
-   }
+J9::ConstProvenanceGraph::Place J9::ConstProvenanceGraph::place(J9Method *method)
+{
+    return place((TR_OpaqueMethodBlock *)method);
+}
 
-J9::ConstProvenanceGraph::Place
-J9::ConstProvenanceGraph::place(KnownObject koi)
-   {
-   return Place::makeKnownObject(koi._i);
-   }
+J9::ConstProvenanceGraph::Place J9::ConstProvenanceGraph::place(KnownObject koi)
+{
+    return Place::makeKnownObject(koi._i);
+}
 
-bool
-J9::ConstProvenanceGraph::trace()
-   {
-   return _comp->getOption(TR_TraceConstProvenance);
-   }
+bool J9::ConstProvenanceGraph::trace() { return _comp->getOption(TR_TraceConstProvenance); }
 
-void
-J9::ConstProvenanceGraph::trace(Place p)
-   {
-   OMR::Logger *log = _comp->log();
+void J9::ConstProvenanceGraph::trace(Place p)
+{
+    OMR::Logger *log = _comp->log();
 
-   switch (p.kind())
-      {
-      case PlaceKind_PermanentRoot:
-         log->prints("permanent root");
-         break;
+    switch (p.kind()) {
+        case PlaceKind_PermanentRoot:
+            log->prints("permanent root");
+            break;
 
-      case PlaceKind_ClassLoader:
-         log->printf("class loader %p", p.getClassLoader());
-         break;
+        case PlaceKind_ClassLoader:
+            log->printf("class loader %p", p.getClassLoader());
+            break;
 
-      case PlaceKind_AnonymousClass:
-         log->printf("anonymous class %p", p.getAnonymousClass());
-         break;
+        case PlaceKind_AnonymousClass:
+            log->printf("anonymous class %p", p.getAnonymousClass());
+            break;
 
-      case PlaceKind_KnownObject:
-         log->printf("obj%d", p.getKnownObject());
-         break;
-      }
-   }
+        case PlaceKind_KnownObject:
+            log->printf("obj%d", p.getKnownObject());
+            break;
+    }
+}
 
-void
-J9::ConstProvenanceGraph::trace(const char *s)
-   {
-   _comp->log()->prints(s);
-   }
+void J9::ConstProvenanceGraph::trace(const char *s) { _comp->log()->prints(s); }
 
-void
-J9::ConstProvenanceGraph::trace(J9ClassLoader *loader)
-   {
-   _comp->log()->printf("class loader %p", loader);
-   }
+void J9::ConstProvenanceGraph::trace(J9ClassLoader *loader) { _comp->log()->printf("class loader %p", loader); }
 
-void
-J9::ConstProvenanceGraph::trace(TR_OpaqueClassBlock *clazz)
-   {
-   int32_t len = 0;
-   const char *name = TR::Compiler->cls.classNameChars(_comp, clazz, len);
-   _comp->log()->printf("class %p %.*s", clazz, len, name);
-   }
+void J9::ConstProvenanceGraph::trace(TR_OpaqueClassBlock *clazz)
+{
+    int32_t len = 0;
+    const char *name = TR::Compiler->cls.classNameChars(_comp, clazz, len);
+    _comp->log()->printf("class %p %.*s", clazz, len, name);
+}
 
-void
-J9::ConstProvenanceGraph::trace(J9Class *clazz)
-   {
-   trace((TR_OpaqueClassBlock*)clazz);
-   }
+void J9::ConstProvenanceGraph::trace(J9Class *clazz) { trace((TR_OpaqueClassBlock *)clazz); }
 
-void
-J9::ConstProvenanceGraph::trace(J9ConstantPool *cp)
-   {
-   _comp->log()->printf("constant pool %p", cp);
-   }
+void J9::ConstProvenanceGraph::trace(J9ConstantPool *cp) { _comp->log()->printf("constant pool %p", cp); }
 
-void
-J9::ConstProvenanceGraph::trace(TR_ResolvedMethod *method)
-   {
-   _comp->log()->printf(
-      "method %p %.*s.%.*s%.*s",
-      method->getNonPersistentIdentifier(),
-      method->classNameLength(),
-      method->classNameChars(),
-      method->nameLength(),
-      method->nameChars(),
-      method->signatureLength(),
-      method->signatureChars());
-   }
+void J9::ConstProvenanceGraph::trace(TR_ResolvedMethod *method)
+{
+    _comp->log()->printf("method %p %.*s.%.*s%.*s", method->getNonPersistentIdentifier(), method->classNameLength(),
+        method->classNameChars(), method->nameLength(), method->nameChars(), method->signatureLength(),
+        method->signatureChars());
+}
 
-void
-J9::ConstProvenanceGraph::trace(TR_OpaqueMethodBlock *method)
-   {
-   char buf[1024];
-   const char *sig =
-      _comp->fej9()->sampleSignature(method, buf, sizeof(buf), _comp->trMemory());
+void J9::ConstProvenanceGraph::trace(TR_OpaqueMethodBlock *method)
+{
+    char buf[1024];
+    const char *sig = _comp->fej9()->sampleSignature(method, buf, sizeof(buf), _comp->trMemory());
 
-   _comp->log()->printf("method %p %s", method, sig);
-   }
+    _comp->log()->printf("method %p %s", method, sig);
+}
 
-void
-J9::ConstProvenanceGraph::trace(J9Method *method)
-   {
-   trace((TR_OpaqueMethodBlock*)method);
-   }
+void J9::ConstProvenanceGraph::trace(J9Method *method) { trace((TR_OpaqueMethodBlock *)method); }
 
-void
-J9::ConstProvenanceGraph::trace(KnownObject koi)
-   {
-   _comp->log()->printf("obj%d", koi._i);
-   }
+void J9::ConstProvenanceGraph::trace(KnownObject koi) { _comp->log()->printf("obj%d", koi._i); }
 
-void
-J9::ConstProvenanceGraph::dumpDot(OMR::Logger *log)
-   {
-   log->prints("// const provenance graph in dot (graphviz) format\n");
-   log->prints("// \"perm\"   permanent root\n");
-   log->prints("// \"obj...\" known object\n");
-   log->prints("// \"L:...\" loader\n");
-   log->prints("// \"C:...\" anonymous class\n");
-   log->prints("digraph CPG {\n");
+void J9::ConstProvenanceGraph::dumpDot(OMR::Logger *log)
+{
+    log->prints("// const provenance graph in dot (graphviz) format\n");
+    log->prints("// \"perm\"   permanent root\n");
+    log->prints("// \"obj...\" known object\n");
+    log->prints("// \"L:...\" loader\n");
+    log->prints("// \"C:...\" anonymous class\n");
+    log->prints("digraph CPG {\n");
 
-   TR::Region &stackRegion = _comp->trMemory()->currentStackRegion();
-   TR::set<Place> allPlaces(stackRegion);
-   for (auto it = _edges.begin(), end = _edges.end(); it != end; it++)
-      {
-      allPlaces.insert(it->first);
-      const TR::set<Place> &refs = it->second;
-      for (auto rIt = refs.begin(), rEnd = refs.end(); rIt != rEnd; rIt++)
-         {
-         allPlaces.insert(*rIt);
-         }
-      }
+    TR::Region &stackRegion = _comp->trMemory()->currentStackRegion();
+    TR::set<Place> allPlaces(stackRegion);
+    for (auto it = _edges.begin(), end = _edges.end(); it != end; it++) {
+        allPlaces.insert(it->first);
+        const TR::set<Place> &refs = it->second;
+        for (auto rIt = refs.begin(), rEnd = refs.end(); rIt != rEnd; rIt++) {
+            allPlaces.insert(*rIt);
+        }
+    }
 
-   for (auto it = allPlaces.begin(), end = allPlaces.end(); it != end; it++)
-      {
-      Place p = *it;
-      if (p.kind() == PlaceKind_ClassLoader || p.kind() == PlaceKind_AnonymousClass)
-         {
-         log->prints("    ");
-         printDotPlaceName(log, p);
-         log->prints(" [label=\"");
-         printDotPlaceName(log, p, true);
-         log->prints("\"];\n");
-         }
-      }
+    for (auto it = allPlaces.begin(), end = allPlaces.end(); it != end; it++) {
+        Place p = *it;
+        if (p.kind() == PlaceKind_ClassLoader || p.kind() == PlaceKind_AnonymousClass) {
+            log->prints("    ");
+            printDotPlaceName(log, p);
+            log->prints(" [label=\"");
+            printDotPlaceName(log, p, true);
+            log->prints("\"];\n");
+        }
+    }
 
-   for (auto it = allPlaces.begin(), end = allPlaces.end(); it != end; it++)
-      {
-      Place p = *it;
-      const TR::set<Place> &refs = referents(p);
-      if (refs.empty())
-         {
-         continue;
-         }
+    for (auto it = allPlaces.begin(), end = allPlaces.end(); it != end; it++) {
+        Place p = *it;
+        const TR::set<Place> &refs = referents(p);
+        if (refs.empty()) {
+            continue;
+        }
 
-      log->prints("    ");
-      printDotPlaceName(log, p);
-      log->prints(" -> ");
+        log->prints("    ");
+        printDotPlaceName(log, p);
+        log->prints(" -> ");
 
-      if (refs.size() == 1)
-         {
-         printDotPlaceName(log, *refs.begin());
-         }
-      else
-         {
-         log->printc('{');
-         auto rIt = refs.begin();
-         printDotPlaceName(log, *rIt++);
-         for (auto rEnd = refs.end(); rIt != rEnd; rIt++)
-            {
-            log->printc(' ');
-            printDotPlaceName(log, *rIt);
+        if (refs.size() == 1) {
+            printDotPlaceName(log, *refs.begin());
+        } else {
+            log->printc('{');
+            auto rIt = refs.begin();
+            printDotPlaceName(log, *rIt++);
+            for (auto rEnd = refs.end(); rIt != rEnd; rIt++) {
+                log->printc(' ');
+                printDotPlaceName(log, *rIt);
             }
 
-         log->printc('}');
-         }
+            log->printc('}');
+        }
 
-      log->prints(";\n");
-      }
+        log->prints(";\n");
+    }
 
-   log->prints("}\n\n");
-   }
+    log->prints("}\n\n");
+}
 
-void
-J9::ConstProvenanceGraph::printDotPlaceName(OMR::Logger *log, Place p, bool label)
-   {
-   // The formatting used in tracing is a bit verbose for graph labels, and it
-   // doesn't work at all for node IDs.
-   //
-   // Names including addresses in hex separate the one-character prefix from
-   // the address with a colon in the label, but that's not allowed in IDs.
-   //
-   const char *colon = label ? ":" : "";
-   switch (p.kind())
-      {
-      case PlaceKind_PermanentRoot:
-         log->prints("perm");
-         break;
+void J9::ConstProvenanceGraph::printDotPlaceName(OMR::Logger *log, Place p, bool label)
+{
+    // The formatting used in tracing is a bit verbose for graph labels, and it
+    // doesn't work at all for node IDs.
+    //
+    // Names including addresses in hex separate the one-character prefix from
+    // the address with a colon in the label, but that's not allowed in IDs.
+    //
+    const char *colon = label ? ":" : "";
+    switch (p.kind()) {
+        case PlaceKind_PermanentRoot:
+            log->prints("perm");
+            break;
 
-      case PlaceKind_ClassLoader:
-         log->printf("L%s%zX", colon, (uintptr_t)p.getClassLoader());
-         break;
+        case PlaceKind_ClassLoader:
+            log->printf("L%s%zX", colon, (uintptr_t)p.getClassLoader());
+            break;
 
-      case PlaceKind_AnonymousClass:
-         log->printf("C%s%zX", colon, (uintptr_t)p.getAnonymousClass());
-         break;
+        case PlaceKind_AnonymousClass:
+            log->printf("C%s%zX", colon, (uintptr_t)p.getAnonymousClass());
+            break;
 
-      case PlaceKind_KnownObject:
-         log->printf("obj%d", p.getKnownObject());
-         break;
-      }
-   }
+        case PlaceKind_KnownObject:
+            log->printf("obj%d", p.getKnownObject());
+            break;
+    }
+}
 
-bool
-J9::ConstProvenanceGraph::isPermanentLoader(J9ClassLoader *loader)
-   {
-   // NOTE: Test for presence in _comp->permanentLoaders() instead of checking
-   // for J9CLASSLOADER_OUTLIVING_LOADERS_PERMANENT to ensure consistency with
-   // J9::RetainedMethodSet and consistency over time.
-   //
-   // -- RetainedMethodSet (RMS) --
-   //
-   // Because RMS uses _comp->permanentLoaders(), which is determined once for
-   // the compilation and cached, we'll get exactly the same loaders here.
-   //
-   // The actual requirement w.r.t. RMS is that every loader that it considers
-   // to be permanent in this compilation must also be considered permanent
-   // here. Otherwise, to see what kind of problem could arise, suppose loader
-   // L is known to be permanent by RMS but not ConstProvenanceGraph (CPG).
-   // It's possible to inline a profiled target or single implementer defined
-   // by L without a bond. If a known object is encountered starting from (a
-   // method defined by a class defined by) L, it won't necessarily be
-   // reachable in the graph from the outermost method, but it also won't
-   // necessarily be reachable from a bond method, since no bond was generated
-   // to allow the inlining. So the known object could be unreachable.
-   //
-   // Checking J9CLASSLOADER_OUTLIVING_LOADERS_PERMANENT wouldn't necessarily
-   // allow this requirement to be violated, depending on the detailed order in
-   // which operations are performed in the compilation, but by using the exact
-   // same loaders, it's obvious that the requirement is met.
-   //
-   // -- Consistency over time --
-   //
-   // It's important to use the same permanent loaders for CPG throughout the
-   // compilation, and looking for J9CLASSLOADER_OUTLIVING_LOADERS_PERMANENT
-   // could allow us to treat a loader first as unloadable but then later as
-   // permanent. To see the problem, suppose we're compiling a method defined
-   // by (a class defined by) some permanent loader L that, at the start of the
-   // compilation, is not yet known to the JIT to be permanent. Then suppose
-   // that we encounter a known object at some path starting from L. The first
-   // edge in the path will originate from L. If later during the compilation L
-   // is discovered to be permanent, and if the determination here is sensitive
-   // to that discovery, then when it eventually comes time to search the graph
-   // to attribute the known object to an owning class, the known object might
-   // not be reachable from the permanent root place, and in that case, it also
-   // won't be reachable from the outermost method, since at the time of the
-   // search the method would be identified as permanent and reduced to the
-   // permanent root place as well. So the known object could be unreachable.
-   //
-   auto permanentLoaders = _comp->permanentLoaders();
-   auto end = permanentLoaders.end();
-   return std::find(permanentLoaders.begin(), end, loader) != end;
-   }
+bool J9::ConstProvenanceGraph::isPermanentLoader(J9ClassLoader *loader)
+{
+    // NOTE: Test for presence in _comp->permanentLoaders() instead of checking
+    // for J9CLASSLOADER_OUTLIVING_LOADERS_PERMANENT to ensure consistency with
+    // J9::RetainedMethodSet and consistency over time.
+    //
+    // -- RetainedMethodSet (RMS) --
+    //
+    // Because RMS uses _comp->permanentLoaders(), which is determined once for
+    // the compilation and cached, we'll get exactly the same loaders here.
+    //
+    // The actual requirement w.r.t. RMS is that every loader that it considers
+    // to be permanent in this compilation must also be considered permanent
+    // here. Otherwise, to see what kind of problem could arise, suppose loader
+    // L is known to be permanent by RMS but not ConstProvenanceGraph (CPG).
+    // It's possible to inline a profiled target or single implementer defined
+    // by L without a bond. If a known object is encountered starting from (a
+    // method defined by a class defined by) L, it won't necessarily be
+    // reachable in the graph from the outermost method, but it also won't
+    // necessarily be reachable from a bond method, since no bond was generated
+    // to allow the inlining. So the known object could be unreachable.
+    //
+    // Checking J9CLASSLOADER_OUTLIVING_LOADERS_PERMANENT wouldn't necessarily
+    // allow this requirement to be violated, depending on the detailed order in
+    // which operations are performed in the compilation, but by using the exact
+    // same loaders, it's obvious that the requirement is met.
+    //
+    // -- Consistency over time --
+    //
+    // It's important to use the same permanent loaders for CPG throughout the
+    // compilation, and looking for J9CLASSLOADER_OUTLIVING_LOADERS_PERMANENT
+    // could allow us to treat a loader first as unloadable but then later as
+    // permanent. To see the problem, suppose we're compiling a method defined
+    // by (a class defined by) some permanent loader L that, at the start of the
+    // compilation, is not yet known to the JIT to be permanent. Then suppose
+    // that we encounter a known object at some path starting from L. The first
+    // edge in the path will originate from L. If later during the compilation L
+    // is discovered to be permanent, and if the determination here is sensitive
+    // to that discovery, then when it eventually comes time to search the graph
+    // to attribute the known object to an owning class, the known object might
+    // not be reachable from the permanent root place, and in that case, it also
+    // won't be reachable from the outermost method, since at the time of the
+    // search the method would be identified as permanent and reduced to the
+    // permanent root place as well. So the known object could be unreachable.
+    //
+    auto permanentLoaders = _comp->permanentLoaders();
+    auto end = permanentLoaders.end();
+    return std::find(permanentLoaders.begin(), end, loader) != end;
+}
 
-void
-J9::ConstProvenanceGraph::assertValidPlace(Place p)
-   {
-   switch (p.kind())
-      {
-      case PlaceKind_ClassLoader:
-         {
-         J9ClassLoader *loader = p.getClassLoader();
-         TR_ASSERT_FATAL(loader != NULL, "class loader place with null pointer");
+void J9::ConstProvenanceGraph::assertValidPlace(Place p)
+{
+    switch (p.kind()) {
+        case PlaceKind_ClassLoader: {
+            J9ClassLoader *loader = p.getClassLoader();
+            TR_ASSERT_FATAL(loader != NULL, "class loader place with null pointer");
 
-         // If the loader is permanent, then we should use the permanent root
-         // place instead.
-         TR_ASSERT_FATAL(
-            !isPermanentLoader(loader),
-            "class loader place for loader %p, which is permanent",
-            loader);
+            // If the loader is permanent, then we should use the permanent root
+            // place instead.
+            TR_ASSERT_FATAL(!isPermanentLoader(loader), "class loader place for loader %p, which is permanent", loader);
 
-         break;
-         }
+            break;
+        }
 
-      case PlaceKind_AnonymousClass:
-         {
-         J9Class *clazz = p.getAnonymousClass();
-         TR_ASSERT_FATAL(clazz != NULL, "anonymous class place with null pointer");
-         TR_ASSERT_FATAL(
-            _comp->fej9()->isAnonymousClass((TR_OpaqueClassBlock*)clazz),
-            "anonymous class place for non-anonymous class %p",
-            p.getAnonymousClass());
+        case PlaceKind_AnonymousClass: {
+            J9Class *clazz = p.getAnonymousClass();
+            TR_ASSERT_FATAL(clazz != NULL, "anonymous class place with null pointer");
+            TR_ASSERT_FATAL(_comp->fej9()->isAnonymousClass((TR_OpaqueClassBlock *)clazz),
+                "anonymous class place for non-anonymous class %p", p.getAnonymousClass());
 
-         break;
-         }
+            break;
+        }
 
-      case PlaceKind_KnownObject:
-         {
-         TR::KnownObjectTable *knot = _comp->getKnownObjectTable();
-         TR_ASSERT_FATAL(
-            knot != NULL, "known object place without known object table");
+        case PlaceKind_KnownObject: {
+            TR::KnownObjectTable *knot = _comp->getKnownObjectTable();
+            TR_ASSERT_FATAL(knot != NULL, "known object place without known object table");
 
-         TR::KnownObjectTable::Index koi = p.getKnownObject();
-         TR_ASSERT_FATAL(
-            0 <= koi && koi < knot->getEndIndex(),
-            "known object place koi=%d out of bounds (%d)",
-            koi,
-            knot->getEndIndex());
+            TR::KnownObjectTable::Index koi = p.getKnownObject();
+            TR_ASSERT_FATAL(0 <= koi && koi < knot->getEndIndex(), "known object place koi=%d out of bounds (%d)", koi,
+                knot->getEndIndex());
 
-         TR_ASSERT_FATAL(!knot->isNull(koi), "known object place with null index");
-         break;
-         }
+            TR_ASSERT_FATAL(!knot->isNull(koi), "known object place with null index");
+            break;
+        }
 
-      default:
-         break;
-      }
-   }
+        default:
+            break;
+    }
+}
 
 #if defined(J9VM_OPT_JITSERVER)
-void
-J9::ConstProvenanceGraph::getRawEdgesOnClient(std::vector<RawEdge> &edges)
-   {
-   TR_ASSERT_FATAL(_comp->isRemoteCompilation(), "client only");
+void J9::ConstProvenanceGraph::getRawEdgesOnClient(std::vector<RawEdge> &edges)
+{
+    TR_ASSERT_FATAL(_comp->isRemoteCompilation(), "client only");
 
-   edges.clear();
+    edges.clear();
 
-   for (auto entry = _edges.begin(); entry != _edges.end(); entry++)
-      {
-      RawPlace origin = entry->first.to_raw();
+    for (auto entry = _edges.begin(); entry != _edges.end(); entry++) {
+        RawPlace origin = entry->first.to_raw();
 
-      const auto &referents = entry->second;
-      for (auto it = referents.begin(); it != referents.end(); it++)
-         {
-         RawEdge edge = {};
-         edge.origin = origin;
-         edge.referent = it->to_raw();
-         edges.push_back(edge);
-         }
-      }
-   }
+        const auto &referents = entry->second;
+        for (auto it = referents.begin(); it != referents.end(); it++) {
+            RawEdge edge = {};
+            edge.origin = origin;
+            edge.referent = it->to_raw();
+            edges.push_back(edge);
+        }
+    }
+}
 
-void
-J9::ConstProvenanceGraph::addRawEdgesOnServer(const std::vector<RawEdge> &edges)
-   {
-   TR_ASSERT_FATAL(_comp->isOutOfProcessCompilation(), "server only");
+void J9::ConstProvenanceGraph::addRawEdgesOnServer(const std::vector<RawEdge> &edges)
+{
+    TR_ASSERT_FATAL(_comp->isOutOfProcessCompilation(), "server only");
 
-   if (!isConstProvenanceEnabled())
-      {
-      return;
-      }
+    if (!isConstProvenanceEnabled()) {
+        return;
+    }
 
-   _hasServerAddedRawEdgesFromClient = true;
+    _hasServerAddedRawEdgesFromClient = true;
 
-   for (auto it = edges.begin(); it != edges.end(); it++)
-      {
-      Place origin = Place::from_raw(it->origin);
-      Place referent = Place::from_raw(it->referent);
-      if (trace())
-         {
-         trace("Const provenance: add edge from client: ");
-         trace(origin);
-         trace(" -> ");
-         trace(referent);
-         trace("\n");
-         }
+    for (auto it = edges.begin(); it != edges.end(); it++) {
+        Place origin = Place::from_raw(it->origin);
+        Place referent = Place::from_raw(it->referent);
+        if (trace()) {
+            trace("Const provenance: add edge from client: ");
+            trace(origin);
+            trace(" -> ");
+            trace(referent);
+            trace("\n");
+        }
 
-      addEdgeImpl(origin, referent);
-      }
+        addEdgeImpl(origin, referent);
+    }
 
-   if (!edges.empty())
-      {
-      logprintln(trace(), _comp->log());
-      }
-   }
+    if (!edges.empty()) {
+        logprintln(trace(), _comp->log());
+    }
+}
 #endif

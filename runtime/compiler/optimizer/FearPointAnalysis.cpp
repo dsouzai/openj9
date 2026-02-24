@@ -35,32 +35,28 @@
 #include "infra/Checklist.hpp"
 #include "ras/Logger.hpp"
 
-
 bool TR_FearPointAnalysis::virtualGuardKillsFear(TR::Compilation *comp, TR::Node *virtualGuardNode)
-   {
-   if (!comp->cg()->supportsMergingGuards())
-      return false;
+{
+    if (!comp->cg()->supportsMergingGuards())
+        return false;
 
-   static bool kill = (feGetEnv("TR_FPAnalaysisGuardsDoNotKillFear")) == NULL;
+    static bool kill = (feGetEnv("TR_FPAnalaysisGuardsDoNotKillFear")) == NULL;
 
-   if (kill && !comp->getOption(TR_DisableVectorAPIExpansion) && comp->getMethodSymbol()->hasVectorAPI())
-      {
-      TR_VirtualGuard *guardInfo = comp->findVirtualGuardInfo(virtualGuardNode);
-      if (guardInfo->isInlineGuard())
-         {
-         TR::Method *guardedMethod = guardInfo->getSymbolReference()->getSymbol()->castToMethodSymbol()->getMethod();
-         uint32_t classNameLength = guardedMethod->classNameLength();
-         char* className = guardedMethod->classNameChars();
-         // Set Virtual guard to not kill fear if it is guarding calls to method in two VectorJEP packages.
-         if ((classNameLength >= 20 && strncmp("jdk/incubator/vector", className, 20) == 0)
-               || (classNameLength >= 22 && strncmp("jdk/internal/vm/vector", className, 22) == 0))
-            {
-            return false;
+    if (kill && !comp->getOption(TR_DisableVectorAPIExpansion) && comp->getMethodSymbol()->hasVectorAPI()) {
+        TR_VirtualGuard *guardInfo = comp->findVirtualGuardInfo(virtualGuardNode);
+        if (guardInfo->isInlineGuard()) {
+            TR::Method *guardedMethod = guardInfo->getSymbolReference()->getSymbol()->castToMethodSymbol()->getMethod();
+            uint32_t classNameLength = guardedMethod->classNameLength();
+            char *className = guardedMethod->classNameChars();
+            // Set Virtual guard to not kill fear if it is guarding calls to method in two VectorJEP packages.
+            if ((classNameLength >= 20 && strncmp("jdk/incubator/vector", className, 20) == 0)
+                || (classNameLength >= 22 && strncmp("jdk/internal/vm/vector", className, 22) == 0)) {
+                return false;
             }
-         }
-      }
-   return kill;
-   }
+        }
+    }
+    return kill;
+}
 
 int32_t TR_FearPointAnalysis::getNumberOfBits() { return 1; }
 
@@ -70,13 +66,11 @@ TR_DataFlowAnalysis::Kind TR_FearPointAnalysis::getKind() { return FearPointAnal
 
 TR_FearPointAnalysis *TR_FearPointAnalysis::asFearPointAnalysis() { return this; }
 
-void TR_FearPointAnalysis::analyzeNode(TR::Node *node, vcount_t visitCount, TR_BlockStructure *block, TR_SingleBitContainer *bv)
-   {
-   }
+void TR_FearPointAnalysis::analyzeNode(TR::Node *node, vcount_t visitCount, TR_BlockStructure *block,
+    TR_SingleBitContainer *bv)
+{}
 
-void TR_FearPointAnalysis::analyzeTreeTopsInBlockStructure(TR_BlockStructure *block)
-   {
-   }
+void TR_FearPointAnalysis::analyzeTreeTopsInBlockStructure(TR_BlockStructure *block) {}
 
 /**
  * Conduct fear analysis for an set of fear generating nodes, provided
@@ -86,204 +80,184 @@ void TR_FearPointAnalysis::analyzeTreeTopsInBlockStructure(TR_BlockStructure *bl
  * fear and then propagate this upwards. When topLevelFearOnly is enabled, this phase
  * is skipped and it is assumed that the set of fear generating nodes are all treetop nodes.
  */
-TR_FearPointAnalysis::TR_FearPointAnalysis(
-      TR::Compilation *comp,
-      TR::Optimizer *optimizer,
-      TR_Structure *rootStructure,
-      TR_BitVector &fearGeneratingNodes,
-      bool topLevelFearOnly,
-      bool trace) :
-   TR_BackwardUnionSingleBitContainerAnalysis(comp, comp->getFlowGraph(), optimizer, trace),
-   _fearGeneratingNodes(fearGeneratingNodes),
-   _EMPTY(comp->getNodeCount(), trMemory(), stackAlloc),
-   _topLevelFearOnly(topLevelFearOnly),
-   _trace(trace)
-   {
+TR_FearPointAnalysis::TR_FearPointAnalysis(TR::Compilation *comp, TR::Optimizer *optimizer, TR_Structure *rootStructure,
+    TR_BitVector &fearGeneratingNodes, bool topLevelFearOnly, bool trace)
+    : TR_BackwardUnionSingleBitContainerAnalysis(comp, comp->getFlowGraph(), optimizer, trace)
+    , _fearGeneratingNodes(fearGeneratingNodes)
+    , _EMPTY(comp->getNodeCount(), trMemory(), stackAlloc)
+    , _topLevelFearOnly(topLevelFearOnly)
+    , _trace(trace)
+{
+    if (comp->getVisitCount() > 8000)
+        comp->resetVisitCounts(1);
 
-   if (comp->getVisitCount() > 8000)
-      comp->resetVisitCounts(1);
-
-
-   // Allocate the map from node to BitVector of fear generating nodes that reach it
-   // Must be before the stack mark since it will be used by the caller
-   //
-   _fearfulNodes = (TR_SingleBitContainer**) trMemory()->allocateStackMemory(comp->getNodeCount() * sizeof(TR_SingleBitContainer *));
-   TR::NodeChecklist checklist(comp);
-   for (TR::TreeTop *treeTop = comp->getStartTree(); treeTop; treeTop = treeTop->getNextTreeTop())
-      {
-      if (treeTop->getNode()->getOpCodeValue() == TR::BBStart)
-         {
-         TR::Block *currentBlock = treeTop->getEnclosingBlock();
-         if (currentBlock->isOSRCatchBlock() || currentBlock->isOSRCodeBlock())
-            {
-            treeTop = currentBlock->getExit();
-            continue;
+    // Allocate the map from node to BitVector of fear generating nodes that reach it
+    // Must be before the stack mark since it will be used by the caller
+    //
+    _fearfulNodes = (TR_SingleBitContainer **)trMemory()->allocateStackMemory(
+        comp->getNodeCount() * sizeof(TR_SingleBitContainer *));
+    TR::NodeChecklist checklist(comp);
+    for (TR::TreeTop *treeTop = comp->getStartTree(); treeTop; treeTop = treeTop->getNextTreeTop()) {
+        if (treeTop->getNode()->getOpCodeValue() == TR::BBStart) {
+            TR::Block *currentBlock = treeTop->getEnclosingBlock();
+            if (currentBlock->isOSRCatchBlock() || currentBlock->isOSRCodeBlock()) {
+                treeTop = currentBlock->getExit();
+                continue;
             }
-         }
+        }
 
-      computeFear(comp, treeTop->getNode(), checklist);
-      }
+        computeFear(comp, treeTop->getNode(), checklist);
+    }
 
-   // Only nodes in fearGeneratingNodes will have fear initially, so it is cheaper to
-   // apply these directly
-   //
-   if (_topLevelFearOnly)
-      computeFearFromBitVector(comp);
+    // Only nodes in fearGeneratingNodes will have fear initially, so it is cheaper to
+    // apply these directly
+    //
+    if (_topLevelFearOnly)
+        computeFearFromBitVector(comp);
 
+    // Allocate the block info before setting the stack mark - it will be used by
+    // the caller
+    //
+    initializeBlockInfo();
 
-   // Allocate the block info before setting the stack mark - it will be used by
-   // the caller
-   //
-   initializeBlockInfo();
-
-   {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
-   performAnalysis(rootStructure, false);
-   }
-
-   }
+    {
+        TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+        performAnalysis(rootStructure, false);
+    }
+}
 
 void TR_FearPointAnalysis::computeFear(TR::Compilation *comp, TR::Node *node, TR::NodeChecklist &checklist)
-   {
-   if (checklist.contains(node))
-      return;
-   checklist.add(node);
-   _fearfulNodes[node->getGlobalIndex()] = new (trStackMemory()) TR_SingleBitContainer(comp->getNodeCount(), trMemory(), stackAlloc);
+{
+    if (checklist.contains(node))
+        return;
+    checklist.add(node);
+    _fearfulNodes[node->getGlobalIndex()]
+        = new (trStackMemory()) TR_SingleBitContainer(comp->getNodeCount(), trMemory(), stackAlloc);
 
-   // If only the treetops are of concern then its safe to use the
-   // cheaper BitVector method to compute initial fear
-   //
-   if (_topLevelFearOnly)
-      return;
+    // If only the treetops are of concern then its safe to use the
+    // cheaper BitVector method to compute initial fear
+    //
+    if (_topLevelFearOnly)
+        return;
 
-   for (int i = 0; i < node->getNumChildren(); ++i)
-      {
-      computeFear(comp, node->getChild(i), checklist);
-      *(_fearfulNodes[node->getGlobalIndex()]) |= *(_fearfulNodes[node->getChild(i)->getGlobalIndex()]);
-      }
+    for (int i = 0; i < node->getNumChildren(); ++i) {
+        computeFear(comp, node->getChild(i), checklist);
+        *(_fearfulNodes[node->getGlobalIndex()]) |= *(_fearfulNodes[node->getChild(i)->getGlobalIndex()]);
+    }
 
-   if (_fearGeneratingNodes.get(node->getGlobalIndex()))
-      {
-      logprintf(_trace, comp->log(), "@@ n%dn generates fear\n", node->getGlobalIndex());
-      _fearfulNodes[node->getGlobalIndex()]->set();
-      }
-   }
+    if (_fearGeneratingNodes.get(node->getGlobalIndex())) {
+        logprintf(_trace, comp->log(), "@@ n%dn generates fear\n", node->getGlobalIndex());
+        _fearfulNodes[node->getGlobalIndex()]->set();
+    }
+}
 
 #if defined(DEBUG) || defined(PROD_WITH_ASSUMES)
 bool TR_FearPointAnalysis::confirmFearFromBitVector(TR::Node *node)
-   {
-   if (_fearGeneratingNodes.get(node->getGlobalIndex()))
-      return true;
+{
+    if (_fearGeneratingNodes.get(node->getGlobalIndex()))
+        return true;
 
-   for (int i = 0; i < node->getNumChildren(); ++i)
-      if (confirmFearFromBitVector(node->getChild(i)))
-         return true;
+    for (int i = 0; i < node->getNumChildren(); ++i)
+        if (confirmFearFromBitVector(node->getChild(i)))
+            return true;
 
-   return false;
-   }
+    return false;
+}
 #endif
 
 void TR_FearPointAnalysis::computeFearFromBitVector(TR::Compilation *comp)
-   {
-   TR_BitVectorIterator nodes(_fearGeneratingNodes);
-   while (nodes.hasMoreElements())
-      {
-      int32_t index = nodes.getNextElement();
-      logprintf(_trace, comp->log(), "@@ n%dn generates fear\n", index);
-      TR_ASSERT(_fearfulNodes[index],
-         "all fear generating nodes must be treetop nodes when using topLevelFearOnly, otherwise the data structure may not be initialized");
-      _fearfulNodes[index]->set();
-      }
+{
+    TR_BitVectorIterator nodes(_fearGeneratingNodes);
+    while (nodes.hasMoreElements()) {
+        int32_t index = nodes.getNextElement();
+        logprintf(_trace, comp->log(), "@@ n%dn generates fear\n", index);
+        TR_ASSERT(_fearfulNodes[index],
+            "all fear generating nodes must be treetop nodes when using topLevelFearOnly, otherwise the data structure "
+            "may not be initialized");
+        _fearfulNodes[index]->set();
+    }
 
 #if defined(DEBUG) || defined(PROD_WITH_ASSUMES)
-   // Do a complete pass to confirm the cheaper approach was used correctly
-   TR::NodeChecklist checklist(comp);
-   for (TR::TreeTop *treeTop = comp->getStartTree(); treeTop; treeTop = treeTop->getNextTreeTop())
-      {
-      if (treeTop->getNode()->getOpCodeValue() == TR::BBStart)
-         {
-         TR::Block *currentBlock = treeTop->getEnclosingBlock();
-         if (currentBlock->isOSRCatchBlock() || currentBlock->isOSRCodeBlock())
-            {
-            treeTop = currentBlock->getExit();
-            continue;
+    // Do a complete pass to confirm the cheaper approach was used correctly
+    TR::NodeChecklist checklist(comp);
+    for (TR::TreeTop *treeTop = comp->getStartTree(); treeTop; treeTop = treeTop->getNextTreeTop()) {
+        if (treeTop->getNode()->getOpCodeValue() == TR::BBStart) {
+            TR::Block *currentBlock = treeTop->getEnclosingBlock();
+            if (currentBlock->isOSRCatchBlock() || currentBlock->isOSRCodeBlock()) {
+                treeTop = currentBlock->getExit();
+                continue;
             }
-         }
+        }
 
-      bool fearful = confirmFearFromBitVector(treeTop->getNode());
-      TR_ASSERT(_fearfulNodes[treeTop->getNode()->getGlobalIndex()]->get() == fearful,
-         "all fear generating nodes must be treetop nodes when using topLevelFearOnly, otherwise the initial fear may be incorrect");
-      }
+        bool fearful = confirmFearFromBitVector(treeTop->getNode());
+        TR_ASSERT(_fearfulNodes[treeTop->getNode()->getGlobalIndex()]->get() == fearful,
+            "all fear generating nodes must be treetop nodes when using topLevelFearOnly, otherwise the initial fear "
+            "may be incorrect");
+    }
 #endif
-   }
+}
 
 TR_SingleBitContainer *TR_FearPointAnalysis::generatedFear(TR::Node *node)
-   {
-   TR_SingleBitContainer *returnValue = _fearfulNodes[node->getGlobalIndex()];
-   if (!returnValue)
-     return &_EMPTY;
-   return returnValue;
-   }
+{
+    TR_SingleBitContainer *returnValue = _fearfulNodes[node->getGlobalIndex()];
+    if (!returnValue)
+        return &_EMPTY;
+    return returnValue;
+}
 
 void TR_FearPointAnalysis::initializeGenAndKillSetInfo()
-   {
-   for (int32_t i = 0; i < comp()->getFlowGraph()->getNextNodeNumber(); ++i)
-      {
-      _regularGenSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),trMemory(), stackAlloc);
-      _exceptionGenSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),trMemory(), stackAlloc);
-      _regularKillSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),trMemory(), stackAlloc);
-      _exceptionKillSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),trMemory(), stackAlloc);
-      }
+{
+    for (int32_t i = 0; i < comp()->getFlowGraph()->getNextNodeNumber(); ++i) {
+        _regularGenSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(), trMemory(), stackAlloc);
+        _exceptionGenSetInfo[i]
+            = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(), trMemory(), stackAlloc);
+        _regularKillSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(), trMemory(), stackAlloc);
+        _exceptionKillSetInfo[i]
+            = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(), trMemory(), stackAlloc);
+    }
 
-   TR::Block *currentBlock = NULL;
-   bool exceptingTTSeen = false;
-   for (TR::TreeTop *treeTop = comp()->findLastTree(); treeTop; treeTop = treeTop->getPrevTreeTop())
-      {
-      if (treeTop->getNode()->getOpCodeValue() == TR::BBEnd)
-         {
-         exceptingTTSeen = false;
-         currentBlock = treeTop->getEnclosingBlock();
-         if (currentBlock->isOSRCatchBlock() || currentBlock->isOSRCodeBlock())
-            {
+    TR::Block *currentBlock = NULL;
+    bool exceptingTTSeen = false;
+    for (TR::TreeTop *treeTop = comp()->findLastTree(); treeTop; treeTop = treeTop->getPrevTreeTop()) {
+        if (treeTop->getNode()->getOpCodeValue() == TR::BBEnd) {
+            exceptingTTSeen = false;
+            currentBlock = treeTop->getEnclosingBlock();
+            if (currentBlock->isOSRCatchBlock() || currentBlock->isOSRCodeBlock()) {
+                _regularKillSetInfo[currentBlock->getNumber()]->setAll(getNumberOfBits());
+                _exceptionKillSetInfo[currentBlock->getNumber()]->setAll(getNumberOfBits());
+                treeTop = currentBlock->getEntry();
+            }
+            continue;
+        }
+
+        if (treeTop->getNode()->getOpCode().canRaiseException()) {
+            exceptingTTSeen = true;
+            _exceptionKillSetInfo[currentBlock->getNumber()]->empty();
+        }
+
+        if (comp()->isPotentialOSRPointWithSupport(treeTop)) {
             _regularKillSetInfo[currentBlock->getNumber()]->setAll(getNumberOfBits());
             _exceptionKillSetInfo[currentBlock->getNumber()]->setAll(getNumberOfBits());
-            treeTop = currentBlock->getEntry();
-            }
-         continue;
-         }
+            _regularGenSetInfo[currentBlock->getNumber()]->empty();
+        }
 
-      if (treeTop->getNode()->getOpCode().canRaiseException())
-         {
-         exceptingTTSeen = true;
-         _exceptionKillSetInfo[currentBlock->getNumber()]->empty();
-         }
+        // kill any fear originating from inside
+        if (treeTop->getNode()->isTheVirtualGuardForAGuardedInlinedCall()
+            && virtualGuardKillsFear(comp(), treeTop->getNode())) {
+            _regularKillSetInfo[currentBlock->getNumber()]->setAll(getNumberOfBits());
+            _exceptionKillSetInfo[currentBlock->getNumber()]->setAll(getNumberOfBits());
+            //*(_regularKillSetInfo[currentBlock->getNumber()]) |=
+            //*(_inlinedCalleeMasks[treeTop->getNode()->getByteCodeInfo().getCallerIndex()]);
+            //*(_exceptionKillSetInfo[currentBlock->getNumber()]) |=
+            //*(_inlinedCalleeMasks[treeTop->getNode()->getByteCodeInfo().getCallerIndex()]);
+        }
 
-      if (comp()->isPotentialOSRPointWithSupport(treeTop))
-         {
-         _regularKillSetInfo[currentBlock->getNumber()]->setAll(getNumberOfBits());
-         _exceptionKillSetInfo[currentBlock->getNumber()]->setAll(getNumberOfBits());
-         _regularGenSetInfo[currentBlock->getNumber()]->empty();
-         }
+        TR_SingleBitContainer *fear = generatedFear(treeTop->getNode());
+        *(_regularGenSetInfo[currentBlock->getNumber()]) |= *fear;
+        if (exceptingTTSeen)
+            *(_exceptionGenSetInfo[currentBlock->getNumber()]) |= *fear;
+    }
+}
 
-      // kill any fear originating from inside
-      if (treeTop->getNode()->isTheVirtualGuardForAGuardedInlinedCall()
-            && virtualGuardKillsFear(comp(), treeTop->getNode()))
-         {
-         _regularKillSetInfo[currentBlock->getNumber()]->setAll(getNumberOfBits());
-         _exceptionKillSetInfo[currentBlock->getNumber()]->setAll(getNumberOfBits());
-         //*(_regularKillSetInfo[currentBlock->getNumber()]) |= *(_inlinedCalleeMasks[treeTop->getNode()->getByteCodeInfo().getCallerIndex()]);
-         //*(_exceptionKillSetInfo[currentBlock->getNumber()]) |= *(_inlinedCalleeMasks[treeTop->getNode()->getByteCodeInfo().getCallerIndex()]);
-         }
-
-      TR_SingleBitContainer *fear = generatedFear(treeTop->getNode());
-      *(_regularGenSetInfo[currentBlock->getNumber()] ) |= *fear;
-      if (exceptingTTSeen)
-         *(_exceptionGenSetInfo[currentBlock->getNumber()]) |= *fear;
-      }
-   }
-
-bool TR_FearPointAnalysis::postInitializationProcessing()
-   {
-   return true;
-   }
+bool TR_FearPointAnalysis::postInitializationProcessing() { return true; }
 

@@ -28,72 +28,76 @@
  */
 #ifndef J9_INSTRUCTION_CONNECTOR
 #define J9_INSTRUCTION_CONNECTOR
+
 namespace J9 {
-   class Instruction;
-   typedef J9::Instruction InstructionConnector;
-}
+class Instruction;
+typedef J9::Instruction InstructionConnector;
+} // namespace J9
 #endif
 
 #include "codegen/OMRInstruction.hpp"
 
 class TR_BitVector;
 class TR_GCStackMap;
+
 namespace TR {
 class CodeGenerator;
 class Node;
-}
+} // namespace TR
 
-namespace J9
-{
+namespace J9 {
 
-class OMR_EXTENSIBLE Instruction : public OMR::InstructionConnector
-   {
-   protected:
+class OMR_EXTENSIBLE Instruction : public OMR::InstructionConnector {
+protected:
+    Instruction(TR::CodeGenerator *cg, TR::InstOpCode::Mnemonic op, TR::Node *node = 0);
 
-   Instruction(
-      TR::CodeGenerator *cg,
-      TR::InstOpCode::Mnemonic op,
-      TR::Node *node = 0);
+    Instruction(TR::CodeGenerator *cg, TR::Instruction *precedingInstruction, TR::InstOpCode::Mnemonic op,
+        TR::Node *node = 0);
 
-   Instruction(
-      TR::CodeGenerator *cg,
-      TR::Instruction *precedingInstruction,
-      TR::InstOpCode::Mnemonic op,
-      TR::Node *node = 0);
+public:
+    typedef uint32_t TCollectableReferenceMask;
 
+    bool needsGCMap() { return (_index & TO_MASK(NeedsGCMapBit)) != 0; }
 
-   public:
+    void setNeedsGCMap(TCollectableReferenceMask regMask = 0xFFFFFFFF)
+    {
+        _gc._GCRegisterMask = regMask;
+        _index |= TO_MASK(NeedsGCMapBit);
+    }
 
-   typedef uint32_t TCollectableReferenceMask;
+    bool needsAOTRelocation() { return (_index & TO_MASK(NeedsAOTRelocation)) != 0; }
 
-   bool needsGCMap() { return (_index & TO_MASK(NeedsGCMapBit)) != 0; }
-   void setNeedsGCMap(TCollectableReferenceMask regMask = 0xFFFFFFFF) { _gc._GCRegisterMask = regMask; _index |= TO_MASK(NeedsGCMapBit); }
-   bool needsAOTRelocation() { return (_index & TO_MASK(NeedsAOTRelocation)) != 0; }
-   void setNeedsAOTRelocation(bool v = true) { v ? _index |= TO_MASK(NeedsAOTRelocation) : _index &= ~TO_MASK(NeedsAOTRelocation); }
+    void setNeedsAOTRelocation(bool v = true)
+    {
+        v ? _index |= TO_MASK(NeedsAOTRelocation) : _index &= ~TO_MASK(NeedsAOTRelocation);
+    }
 
-   TR_GCStackMap *getGCMap() { return _gc._GCMap; }
-   TR_GCStackMap *setGCMap(TR_GCStackMap *map) { return (_gc._GCMap = map); }
-   TCollectableReferenceMask getGCRegisterMask() { return _gc._GCRegisterMask; }
+    TR_GCStackMap *getGCMap() { return _gc._GCMap; }
 
-   TR_BitVector *getLiveLocals() { return _liveLocals; }
-   TR_BitVector *setLiveLocals(TR_BitVector *v) { return (_liveLocals = v); }
-   TR_BitVector *getLiveMonitors() { return _liveMonitors; }
-   TR_BitVector *setLiveMonitors(TR_BitVector *v) { return (_liveMonitors = v); }
+    TR_GCStackMap *setGCMap(TR_GCStackMap *map) { return (_gc._GCMap = map); }
 
-   private:
+    TCollectableReferenceMask getGCRegisterMask() { return _gc._GCRegisterMask; }
 
-   TR_BitVector *_liveLocals;
-   TR_BitVector *_liveMonitors;
+    TR_BitVector *getLiveLocals() { return _liveLocals; }
 
-   union TR_GCInfo
-      {
-      TCollectableReferenceMask _GCRegisterMask;
-      TR_GCStackMap *_GCMap;
-      TR_GCInfo() { _GCMap = 0; } // Clear the largest member, thus clearing the whole union
-      } _gc;
+    TR_BitVector *setLiveLocals(TR_BitVector *v) { return (_liveLocals = v); }
 
-   };
+    TR_BitVector *getLiveMonitors() { return _liveMonitors; }
 
-}
+    TR_BitVector *setLiveMonitors(TR_BitVector *v) { return (_liveMonitors = v); }
+
+private:
+    TR_BitVector *_liveLocals;
+    TR_BitVector *_liveMonitors;
+
+    union TR_GCInfo {
+        TCollectableReferenceMask _GCRegisterMask;
+        TR_GCStackMap *_GCMap;
+
+        TR_GCInfo() { _GCMap = 0; } // Clear the largest member, thus clearing the whole union
+    } _gc;
+};
+
+} // namespace J9
 
 #endif /* TRJ9_INSTRUCTIONBASE_INCL */

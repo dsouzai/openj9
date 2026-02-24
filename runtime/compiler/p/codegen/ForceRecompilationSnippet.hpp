@@ -29,36 +29,33 @@ namespace TR {
 class CodeGenerator;
 class Instruction;
 class LabelSymbol;
-}
+} // namespace TR
 
 namespace TR {
 
-class PPCForceRecompilationSnippet : public TR::Snippet
-   {
-   TR::Instruction *branchToSnippet;
-   TR::LabelSymbol *_doneLabel;
-   public:
+class PPCForceRecompilationSnippet : public TR::Snippet {
+    TR::Instruction *branchToSnippet;
+    TR::LabelSymbol *_doneLabel;
 
-   PPCForceRecompilationSnippet(
-         TR::LabelSymbol *snippetlab,
-         TR::LabelSymbol *doneLab,
-         TR::Instruction *bts,
-         TR::CodeGenerator *cg)
-      : _doneLabel(doneLab), TR::Snippet(cg, 0, snippetlab, false), branchToSnippet(bts)
-      {
-      }
+public:
+    PPCForceRecompilationSnippet(TR::LabelSymbol *snippetlab, TR::LabelSymbol *doneLab, TR::Instruction *bts,
+        TR::CodeGenerator *cg)
+        : _doneLabel(doneLab)
+        , TR::Snippet(cg, 0, snippetlab, false)
+        , branchToSnippet(bts)
+    {}
 
-   virtual Kind getKind() { return IsForceRecompilation; }
+    virtual Kind getKind() { return IsForceRecompilation; }
 
-   TR::Instruction *getBranchToSnippet() {return branchToSnippet;}
+    TR::Instruction *getBranchToSnippet() { return branchToSnippet; }
 
-   TR::LabelSymbol *getDoneLabel() {return _doneLabel;}
+    TR::LabelSymbol *getDoneLabel() { return _doneLabel; }
 
-   virtual uint8_t *emitSnippetBody();
+    virtual uint8_t *emitSnippetBody();
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-   };
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
+};
 
-}
+} // namespace TR
 
 #endif

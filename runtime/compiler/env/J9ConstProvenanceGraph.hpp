@@ -94,405 +94,386 @@ namespace J9 {
  * reference. Instead, BarImpl will own it, preserving the possibility of
  * unloading BarImpl before Foo.
  */
-class ConstProvenanceGraph
-   {
-   public:
-   ConstProvenanceGraph(TR::Compilation *comp);
+class ConstProvenanceGraph {
+public:
+    ConstProvenanceGraph(TR::Compilation *comp);
 
-   enum PlaceKind
-      {
-      PlaceKind_PermanentRoot,
-      PlaceKind_ClassLoader,
-      PlaceKind_AnonymousClass,
-      PlaceKind_KnownObject,
-      };
+    enum PlaceKind {
+        PlaceKind_PermanentRoot,
+        PlaceKind_ClassLoader,
+        PlaceKind_AnonymousClass,
+        PlaceKind_KnownObject,
+    };
 
 #if defined(J9VM_OPT_JITSERVER)
-   public:
+public:
 #else
-   private:
+private:
 #endif
 
-   /**
-    * \brief The internal representation of Place, for JITServer.
-    */
-   struct RawPlace
-      {
-      PlaceKind _kind;
-      union
-         {
-         J9ClassLoader *_classLoader;
-         J9Class *_anonymousClass;
-         TR::KnownObjectTable::Index _knownObjectIndex;
-         };
-      };
+    /**
+     * \brief The internal representation of Place, for JITServer.
+     */
+    struct RawPlace {
+        PlaceKind _kind;
+
+        union {
+            J9ClassLoader *_classLoader;
+            J9Class *_anonymousClass;
+            TR::KnownObjectTable::Index _knownObjectIndex;
+        };
+    };
 
 #if defined(J9VM_OPT_JITSERVER)
-   /**
-    * \brief An edge where the origin and referent are specified by RawPlace.
-    */
-   struct RawEdge
-      {
-      RawPlace origin;
-      RawPlace referent;
-      };
+    /**
+     * \brief An edge where the origin and referent are specified by RawPlace.
+     */
+    struct RawEdge {
+        RawPlace origin;
+        RawPlace referent;
+    };
 #endif
 
-   public:
+public:
+    /**
+     * \brief Place represents a \em place as described in ConstProvenanceGraph.
+     */
+    class Place {
+    private:
+        Place() {}
 
-   /**
-    * \brief Place represents a \em place as described in ConstProvenanceGraph.
-    */
-   class Place
-      {
-      private:
+    public:
+        static Place makePermanentRoot()
+        {
+            Place result;
+            result._raw._kind = PlaceKind_PermanentRoot;
+            return result;
+        }
 
-      Place() {}
+        // The loader should not be permanent, but that isn't checked here since
+        // Place is just a thin wrapper around the pointer.
+        static Place makeClassLoader(J9ClassLoader *classLoader)
+        {
+            Place result;
+            result._raw._kind = PlaceKind_ClassLoader;
+            result._raw._classLoader = classLoader;
+            return result;
+        }
 
-      public:
+        // The class should be anonymous, but that isn't checked here since Place
+        // is just a thin wrapper around the pointer.
+        static Place makeAnonymousClass(J9Class *clazz)
+        {
+            Place result;
+            result._raw._kind = PlaceKind_AnonymousClass;
+            result._raw._anonymousClass = clazz;
+            return result;
+        }
 
-      static Place makePermanentRoot()
-         {
-         Place result;
-         result._raw._kind = PlaceKind_PermanentRoot;
-         return result;
-         }
+        // The known object index should be in-bounds and not the null index, i.e.
+        // it should already have been assigned to some known object, but that
+        // isn't checked here since Place is just a thin wrapper around the index.
+        static Place makeKnownObject(TR::KnownObjectTable::Index koi)
+        {
+            Place result;
+            result._raw._kind = PlaceKind_KnownObject;
+            result._raw._knownObjectIndex = koi;
+            return result;
+        }
 
-      // The loader should not be permanent, but that isn't checked here since
-      // Place is just a thin wrapper around the pointer.
-      static Place makeClassLoader(J9ClassLoader *classLoader)
-         {
-         Place result;
-         result._raw._kind = PlaceKind_ClassLoader;
-         result._raw._classLoader = classLoader;
-         return result;
-         }
+        PlaceKind kind() const { return _raw._kind; }
 
-      // The class should be anonymous, but that isn't checked here since Place
-      // is just a thin wrapper around the pointer.
-      static Place makeAnonymousClass(J9Class *clazz)
-         {
-         Place result;
-         result._raw._kind = PlaceKind_AnonymousClass;
-         result._raw._anonymousClass = clazz;
-         return result;
-         }
+        J9ClassLoader *getClassLoader() const
+        {
+            assertKind(PlaceKind_ClassLoader);
+            return _raw._classLoader;
+        }
 
-      // The known object index should be in-bounds and not the null index, i.e.
-      // it should already have been assigned to some known object, but that
-      // isn't checked here since Place is just a thin wrapper around the index.
-      static Place makeKnownObject(TR::KnownObjectTable::Index koi)
-         {
-         Place result;
-         result._raw._kind = PlaceKind_KnownObject;
-         result._raw._knownObjectIndex = koi;
-         return result;
-         }
+        J9Class *getAnonymousClass() const
+        {
+            assertKind(PlaceKind_AnonymousClass);
+            return _raw._anonymousClass;
+        }
 
-      PlaceKind kind() const { return _raw._kind; }
+        TR::KnownObjectTable::Index getKnownObject() const
+        {
+            assertKind(PlaceKind_KnownObject);
+            return _raw._knownObjectIndex;
+        }
 
-      J9ClassLoader *getClassLoader() const
-         {
-         assertKind(PlaceKind_ClassLoader);
-         return _raw._classLoader;
-         }
+        bool operator==(const Place &other) const
+        {
+            PlaceKind k = kind();
+            if (k != other.kind()) {
+                return false;
+            }
 
-      J9Class *getAnonymousClass() const
-         {
-         assertKind(PlaceKind_AnonymousClass);
-         return _raw._anonymousClass;
-         }
+            switch (k) {
+                case PlaceKind_PermanentRoot:
+                    return true;
+                case PlaceKind_ClassLoader:
+                    return getClassLoader() == other.getClassLoader();
+                case PlaceKind_AnonymousClass:
+                    return getAnonymousClass() == other.getAnonymousClass();
+                case PlaceKind_KnownObject:
+                    return getKnownObject() == other.getKnownObject();
+            }
 
-      TR::KnownObjectTable::Index getKnownObject() const
-         {
-         assertKind(PlaceKind_KnownObject);
-         return _raw._knownObjectIndex;
-         }
-
-      bool operator==(const Place &other) const
-         {
-         PlaceKind k = kind();
-         if (k != other.kind())
-            {
+            TR_ASSERT_FATAL(false, "unreachable");
             return false;
+        }
+
+        bool operator<(const Place &other) const
+        {
+            PlaceKind k1 = kind();
+            PlaceKind k2 = other.kind();
+            if (k1 != k2) {
+                return k1 < k2;
             }
 
-         switch (k)
-            {
-            case PlaceKind_PermanentRoot:
-               return true;
-            case PlaceKind_ClassLoader:
-               return getClassLoader() == other.getClassLoader();
-            case PlaceKind_AnonymousClass:
-               return getAnonymousClass() == other.getAnonymousClass();
-            case PlaceKind_KnownObject:
-               return getKnownObject() == other.getKnownObject();
+            std::less<void *> ptrLt;
+            switch (k1) {
+                case PlaceKind_PermanentRoot:
+                    return false;
+                case PlaceKind_ClassLoader:
+                    return ptrLt(getClassLoader(), other.getClassLoader());
+                case PlaceKind_AnonymousClass:
+                    return ptrLt(getAnonymousClass(), other.getAnonymousClass());
+                case PlaceKind_KnownObject:
+                    return getKnownObject() < other.getKnownObject();
             }
 
-         TR_ASSERT_FATAL(false, "unreachable");
-         return false;
-         }
-
-      bool operator<(const Place &other) const
-         {
-         PlaceKind k1 = kind();
-         PlaceKind k2 = other.kind();
-         if (k1 != k2)
-            {
-            return k1 < k2;
-            }
-
-         std::less<void*> ptrLt;
-         switch (k1)
-            {
-            case PlaceKind_PermanentRoot:
-               return false;
-            case PlaceKind_ClassLoader:
-               return ptrLt(getClassLoader(), other.getClassLoader());
-            case PlaceKind_AnonymousClass:
-               return ptrLt(getAnonymousClass(), other.getAnonymousClass());
-            case PlaceKind_KnownObject:
-               return getKnownObject() < other.getKnownObject();
-            }
-
-         TR_ASSERT_FATAL(false, "unreachable");
-         return false;
-         }
+            TR_ASSERT_FATAL(false, "unreachable");
+            return false;
+        }
 
 #if defined(J9VM_OPT_JITSERVER)
-      static Place from_raw(RawPlace raw)
-         {
-         Place result;
-         result._raw = raw;
-         return result;
-         }
+        static Place from_raw(RawPlace raw)
+        {
+            Place result;
+            result._raw = raw;
+            return result;
+        }
 
-      RawPlace to_raw() const { return _raw; }
+        RawPlace to_raw() const { return _raw; }
 #endif
 
-      private:
+    private:
+        void assertKind(PlaceKind kind) const
+        {
+            TR_ASSERT_FATAL(_raw._kind == kind, "expected kind %d but was %d", kind, _raw._kind);
+        }
 
-      void assertKind(PlaceKind kind) const
-         {
-         TR_ASSERT_FATAL(
-            _raw._kind == kind, "expected kind %d but was %d", kind, _raw._kind);
-         }
+        RawPlace _raw;
+    };
 
-      RawPlace _raw;
-      };
+    /**
+     * \brief Get the set of targets of edges outgoing from \p origin.
+     * \param origin the starting place
+     * \return the set of referents
+     */
+    const TR::set<Place> &referents(Place origin);
 
-   /**
-    * \brief Get the set of targets of edges outgoing from \p origin.
-    * \param origin the starting place
-    * \return the set of referents
-    */
-   const TR::set<Place> &referents(Place origin);
+    /**
+     * \brief A strongly-typed wrapper for a known object index.
+     *
+     * This is suitable to pass to addEdge(), which uses the arguments' types to
+     * determine how to treat them.
+     */
+    struct KnownObject {
+        explicit KnownObject(TR::KnownObjectTable::Index i)
+            : _i(i)
+        {}
 
-   /**
-    * \brief A strongly-typed wrapper for a known object index.
-    *
-    * This is suitable to pass to addEdge(), which uses the arguments' types to
-    * determine how to treat them.
-    */
-   struct KnownObject
-      {
-      explicit KnownObject(TR::KnownObjectTable::Index i) : _i(i) {}
-      TR::KnownObjectTable::Index _i;
+        TR::KnownObjectTable::Index _i;
 
-      bool operator==(const KnownObject &other) const { return _i == other._i; }
-      };
+        bool operator==(const KnownObject &other) const { return _i == other._i; }
+    };
 
-   /**
-    * \brief Convenience method to construct KnownObject.
-    *
-    * Callers can avoid writing out J9::ConstProvenanceGraph::KnownObject(i).
-    *
-    * \param i the known object index
-    * \return a KnownObject with index \p i
-    */
-   static KnownObject knownObject(TR::KnownObjectTable::Index i)
-      {
-      return KnownObject(i);
-      }
+    /**
+     * \brief Convenience method to construct KnownObject.
+     *
+     * Callers can avoid writing out J9::ConstProvenanceGraph::KnownObject(i).
+     *
+     * \param i the known object index
+     * \return a KnownObject with index \p i
+     */
+    static KnownObject knownObject(TR::KnownObjectTable::Index i) { return KnownObject(i); }
 
-   /**
-    * \brief Add an edge from \p origin to \p referent.
-    *
-    * This indicates there is a path of one or more "sufficiently constant"
-    * references from \p origin to \p referent in the runtime environment, i.e.
-    * class statics, constant pool, Java heap.
-    *
-    * \param origin where the edge/path originates from
-    * \param referent the referent
-    */
-   template <typename T, typename U>
-   void addEdge(T origin, U referent)
-      {
-      // The equals() test isn't really necessary, since if origin and referent
-      // are equal, place() will map them to equal places, and addEdgeImpl()
-      // will ignore the edge. So the main point of equals() here is just to
-      // cut down on noise in the log, but it doesn't hurt to skip calling
-      // place() on both arguments when possible.
-      if (!isConstProvenanceEnabled()
-          || isNull(referent)
-          || equals(origin, referent))
-         {
-         return;
-         }
+    /**
+     * \brief Add an edge from \p origin to \p referent.
+     *
+     * This indicates there is a path of one or more "sufficiently constant"
+     * references from \p origin to \p referent in the runtime environment, i.e.
+     * class statics, constant pool, Java heap.
+     *
+     * \param origin where the edge/path originates from
+     * \param referent the referent
+     */
+    template<typename T, typename U> void addEdge(T origin, U referent)
+    {
+        // The equals() test isn't really necessary, since if origin and referent
+        // are equal, place() will map them to equal places, and addEdgeImpl()
+        // will ignore the edge. So the main point of equals() here is just to
+        // cut down on noise in the log, but it doesn't hurt to skip calling
+        // place() on both arguments when possible.
+        if (!isConstProvenanceEnabled() || isNull(referent) || equals(origin, referent)) {
+            return;
+        }
 
-      // Check whether these exact arguments have been seen before. This is
-      // also not strictly necessary, but cuts down on noise in the log. It's
-      // done regardless of tracing so that enabling tracing won't have any
-      // effect on the logic.
-      auto pair = std::make_pair(ArgKey(origin), ArgKey(referent));
-      if (_seenArgPairs.count(pair) != 0)
-         {
-         return; // We've already had these exact arguments.
-         }
+        // Check whether these exact arguments have been seen before. This is
+        // also not strictly necessary, but cuts down on noise in the log. It's
+        // done regardless of tracing so that enabling tracing won't have any
+        // effect on the logic.
+        auto pair = std::make_pair(ArgKey(origin), ArgKey(referent));
+        if (_seenArgPairs.count(pair) != 0) {
+            return; // We've already had these exact arguments.
+        }
 
-      _seenArgPairs.insert(pair);
+        _seenArgPairs.insert(pair);
 
-      if (trace())
-         {
-         trace("Const provenance: add edge: ");
-         trace(origin);
-         trace(" -> ");
-         trace(referent);
-         trace("\n");
-         }
+        if (trace()) {
+            trace("Const provenance: add edge: ");
+            trace(origin);
+            trace(" -> ");
+            trace(referent);
+            trace("\n");
+        }
 
-      // This forces all tracing from place(origin) to appear in the log before
-      // any tracing from place(referent).
-      Place originPlace = place(origin);
-      Place referentPlace = place(referent);
-      addEdgeImpl(originPlace, referentPlace);
-      }
+        // This forces all tracing from place(origin) to appear in the log before
+        // any tracing from place(referent).
+        Place originPlace = place(origin);
+        Place referentPlace = place(referent);
+        addEdgeImpl(originPlace, referentPlace);
+    }
 
-   /**
-    * \brief Determine whether constant provenance is enabled.
-    *
-    * If it's disabled, then ConstProvenanceGraph will still exist, but no edges
-    * will be added.
-    *
-    * \return true if constant provenance is enabled, false otherwise
-    */
-   bool isConstProvenanceEnabled();
+    /**
+     * \brief Determine whether constant provenance is enabled.
+     *
+     * If it's disabled, then ConstProvenanceGraph will still exist, but no edges
+     * will be added.
+     *
+     * \return true if constant provenance is enabled, false otherwise
+     */
+    bool isConstProvenanceEnabled();
 
-   bool trace(); // true if tracing is enabled for constant provenance
+    bool trace(); // true if tracing is enabled for constant provenance
 
-   // Convert various types to Place. These are mainly used in addEdge(), but
-   // they can also be useful for callers to get a starting point from which to
-   // call referents().
-   Place place(J9ClassLoader *loader);
-   Place place(TR_OpaqueClassBlock *clazz);
-   Place place(J9Class *clazz);
-   Place place(J9ConstantPool *cp);
-   Place place(TR_ResolvedMethod *method);
-   Place place(TR_OpaqueMethodBlock *method);
-   Place place(J9Method *method);
-   Place place(KnownObject koi);
+    // Convert various types to Place. These are mainly used in addEdge(), but
+    // they can also be useful for callers to get a starting point from which to
+    // call referents().
+    Place place(J9ClassLoader *loader);
+    Place place(TR_OpaqueClassBlock *clazz);
+    Place place(J9Class *clazz);
+    Place place(J9ConstantPool *cp);
+    Place place(TR_ResolvedMethod *method);
+    Place place(TR_OpaqueMethodBlock *method);
+    Place place(J9Method *method);
+    Place place(KnownObject koi);
 
-   // Trace various kinds of values (whether trace() is true or not).
-   void trace(const char *s); // verbatim message
-   void trace(J9ClassLoader *loader);
-   void trace(TR_OpaqueClassBlock *clazz);
-   void trace(J9Class *clazz);
-   void trace(J9ConstantPool *cp);
-   void trace(TR_ResolvedMethod *method);
-   void trace(TR_OpaqueMethodBlock *method);
-   void trace(J9Method *method);
-   void trace(KnownObject koi);
-   void trace(Place p);
+    // Trace various kinds of values (whether trace() is true or not).
+    void trace(const char *s); // verbatim message
+    void trace(J9ClassLoader *loader);
+    void trace(TR_OpaqueClassBlock *clazz);
+    void trace(J9Class *clazz);
+    void trace(J9ConstantPool *cp);
+    void trace(TR_ResolvedMethod *method);
+    void trace(TR_OpaqueMethodBlock *method);
+    void trace(J9Method *method);
+    void trace(KnownObject koi);
+    void trace(Place p);
 
-   void dumpDot(OMR::Logger *log);
+    void dumpDot(OMR::Logger *log);
 
 #if defined(J9VM_OPT_JITSERVER)
-   /**
-    * \brief Add to \p edges all edges that exist on the client.
-    *
-    * This may only be called on the client.
-    */
-   void getRawEdgesOnClient(std::vector<RawEdge> &edges);
+    /**
+     * \brief Add to \p edges all edges that exist on the client.
+     *
+     * This may only be called on the client.
+     */
+    void getRawEdgesOnClient(std::vector<RawEdge> &edges);
 
-   /**
-    * \brief Add all edges from \p edges to this ConstProvenanceGraph.
-    *
-    * This may only be called on the server. The edges should have come from
-    * getRawEdgesOnClient().
-    */
-   void addRawEdgesOnServer(const std::vector<RawEdge> &edges);
+    /**
+     * \brief Add all edges from \p edges to this ConstProvenanceGraph.
+     *
+     * This may only be called on the server. The edges should have come from
+     * getRawEdgesOnClient().
+     */
+    void addRawEdgesOnServer(const std::vector<RawEdge> &edges);
 
-   /**
-    * \brief Determine whether we have already added the edges from the client
-    * in this compilation.
-    *
-    * \return true if it has already happened, false otherwise
-    */
-   bool hasServerAddedRawEdgesFromClient() { return _hasServerAddedRawEdgesFromClient; }
+    /**
+     * \brief Determine whether we have already added the edges from the client
+     * in this compilation.
+     *
+     * \return true if it has already happened, false otherwise
+     */
+    bool hasServerAddedRawEdgesFromClient() { return _hasServerAddedRawEdgesFromClient; }
 #endif
 
-   private:
+private:
+    void addEdgeImpl(Place origin, Place referent);
 
-   void addEdgeImpl(Place origin, Place referent);
+    static bool isNull(void *p) { return p == NULL; }
 
-   static bool isNull(void *p) { return p == NULL; }
-   static bool isNull(KnownObject koi) { return false; }
+    static bool isNull(KnownObject koi) { return false; }
 
-   static bool equals(void *x, void *y) { return x == y; }
-   static bool equals(const KnownObject &x, const KnownObject &y) { return x == y; }
-   static bool equals(const KnownObject &x, void *y) { return false; }
-   static bool equals(void *x, const KnownObject &y) { return false; }
+    static bool equals(void *x, void *y) { return x == y; }
 
-   void printDotPlaceName(OMR::Logger *log, Place p, bool label = false);
+    static bool equals(const KnownObject &x, const KnownObject &y) { return x == y; }
 
-   bool isPermanentLoader(J9ClassLoader *loader);
-   void assertValidPlace(Place p);
+    static bool equals(const KnownObject &x, void *y) { return false; }
 
-   enum ArgKeyKind
-      {
-      ArgKeyKind_Pointer,
-      ArgKeyKind_KnownObject,
-      };
+    static bool equals(void *x, const KnownObject &y) { return false; }
 
-   struct ArgKey
-      {
-      ArgKeyKind _kind;
-      union
-         {
-         void *_pointer;
-         TR::KnownObjectTable::Index _knownObjectIndex;
-         };
+    void printDotPlaceName(OMR::Logger *log, Place p, bool label = false);
 
-      explicit ArgKey(void *p) : _kind(ArgKeyKind_Pointer), _pointer(p) {}
-      explicit ArgKey(KnownObject koi)
-         : _kind(ArgKeyKind_KnownObject), _knownObjectIndex(koi._i) {}
+    bool isPermanentLoader(J9ClassLoader *loader);
+    void assertValidPlace(Place p);
 
-      bool operator<(const ArgKey &other) const
-         {
-         if (_kind != other._kind)
-            {
-            return _kind < other._kind;
+    enum ArgKeyKind {
+        ArgKeyKind_Pointer,
+        ArgKeyKind_KnownObject,
+    };
+
+    struct ArgKey {
+        ArgKeyKind _kind;
+
+        union {
+            void *_pointer;
+            TR::KnownObjectTable::Index _knownObjectIndex;
+        };
+
+        explicit ArgKey(void *p)
+            : _kind(ArgKeyKind_Pointer)
+            , _pointer(p)
+        {}
+
+        explicit ArgKey(KnownObject koi)
+            : _kind(ArgKeyKind_KnownObject)
+            , _knownObjectIndex(koi._i)
+        {}
+
+        bool operator<(const ArgKey &other) const
+        {
+            if (_kind != other._kind) {
+                return _kind < other._kind;
+            } else if (_kind == ArgKeyKind_Pointer) {
+                return std::less<void *>()(_pointer, other._pointer);
+            } else {
+                return _knownObjectIndex < other._knownObjectIndex;
             }
-         else if (_kind == ArgKeyKind_Pointer)
-            {
-            return std::less<void*>()(_pointer, other._pointer);
-            }
-         else
-            {
-            return _knownObjectIndex < other._knownObjectIndex;
-            }
-         }
-      };
+        }
+    };
 
-   TR::Compilation * const _comp;
-   TR::map<Place, TR::set<Place>> _edges;
-   const TR::set<Place> _emptyReferents;
-   TR::set<std::pair<ArgKey, ArgKey>> _seenArgPairs;
+    TR::Compilation * const _comp;
+    TR::map<Place, TR::set<Place> > _edges;
+    const TR::set<Place> _emptyReferents;
+    TR::set<std::pair<ArgKey, ArgKey> > _seenArgPairs;
 
 #if defined(J9VM_OPT_JITSERVER)
-   bool _hasServerAddedRawEdgesFromClient; // used on the server
+    bool _hasServerAddedRawEdgesFromClient; // used on the server
 #endif
-   };
+};
 
 } // namespace J9
 

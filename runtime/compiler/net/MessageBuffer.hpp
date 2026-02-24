@@ -29,8 +29,7 @@
 #include "env/CompilerEnv.hpp"
 #include "infra/Monitor.hpp"
 
-namespace JITServer
-{
+namespace JITServer {
 /**
    @class MessageBuffer
    @brief A wrapper around a contiguous, persistent memory allocated buffer
@@ -52,182 +51,181 @@ namespace JITServer
    and the allocator itself can be destroyed with tryFreePersistentAllocator() if there are no active connections
    to a server. Servers use the persistent global allocator.
  */
-class MessageBuffer
-   {
+class MessageBuffer {
 public:
-   MessageBuffer();
-   ~MessageBuffer();
+    MessageBuffer();
+    ~MessageBuffer();
 
+    /**
+       @brief Get the current active size of the buffer.
 
-   /**
-      @brief Get the current active size of the buffer.
+       Note: this returns the number of bytes written to the buffer so far,
+       NOT the overall capacity of the buffer. Capacity is the number of
+       bytes allocated, but not necessarily used.
 
-      Note: this returns the number of bytes written to the buffer so far,
-      NOT the overall capacity of the buffer. Capacity is the number of
-      bytes allocated, but not necessarily used.
+       @return the size of the buffer
+    */
+    uint32_t size() const { return _curPtr - _storage; }
 
-      @return the size of the buffer
-   */
-   uint32_t size() const { return _curPtr - _storage; }
+    char *getBufferStart() const { return _storage; }
 
-   char *getBufferStart() const { return _storage; }
+    /**
+       @brief Return a pointer to the value at given offset inside the buffer.
 
-   /**
-      @brief Return a pointer to the value at given offset inside the buffer.
+       Given a type and offset, returns the pointer of that type.
+       Behavior is only defined if offset does not exceed populated buffer size.
 
-      Given a type and offset, returns the pointer of that type.
-      Behavior is only defined if offset does not exceed populated buffer size.
+       @return ponter of the specified type at given offset
+    */
+    template<typename T> T *getValueAtOffset(uint32_t offset) const
+    {
+        TR_ASSERT_FATAL(offset < size(), "Offset is outside of buffer bounds");
+        return reinterpret_cast<T *>(_storage + offset);
+    }
 
-      @return ponter of the specified type at given offset
-   */
-   template <typename T>
-   T *getValueAtOffset(uint32_t offset) const
-      {
-      TR_ASSERT_FATAL(offset < size(), "Offset is outside of buffer bounds");
-      return reinterpret_cast<T *>(_storage + offset);
-      }
+    /**
+       @brief Write value of type T to the buffer.
 
-   /**
-      @brief Write value of type T to the buffer.
+       Copies the value into buffer, expanding it if needed,
+       and advances _curPtr by sizeof(T) bytes plus some padding
+       so that the data inside the buffer is always 32-bit aligned
+       Behavior is undefined if T is not trivially copyable (i.e. not contiguous in memory).
 
-      Copies the value into buffer, expanding it if needed,
-      and advances _curPtr by sizeof(T) bytes plus some padding
-      so that the data inside the buffer is always 32-bit aligned
-      Behavior is undefined if T is not trivially copyable (i.e. not contiguous in memory).
+       @param val value to be written
 
-      @param val value to be written
+       @return offset to the beginning of written value inside the buffer
+    */
+    template<typename T> uint32_t writeValue(const T &val)
+    {
+        static_assert(std::is_trivially_copyable<T>::value == true, "T must be trivially copyable.");
+        uint8_t paddingSize = static_cast<uint8_t>(OMR::alignNoCheck(sizeof(T), sizeof(uint32_t)) - sizeof(T));
+        return writeData(&val, sizeof(T), paddingSize);
+    }
 
-      @return offset to the beginning of written value inside the buffer
-   */
-   template <typename T>
-   uint32_t writeValue(const T &val)
-      {
-      static_assert(std::is_trivially_copyable<T>::value == true, "T must be trivially copyable.");
-      uint8_t paddingSize = static_cast<uint8_t>(OMR::alignNoCheck(sizeof(T), sizeof(uint32_t)) - sizeof(T));
-      return writeData(&val, sizeof(T), paddingSize);
-      }
+    /**
+       @brief Write a given number of bytes into the buffer.
 
-   /**
-      @brief Write a given number of bytes into the buffer.
+       Copies dataSize bytes from dataStart into the buffer, expanding it if needed,
+       and advances _curPtr by (dataSize + paddingSize) bytes.
 
-      Copies dataSize bytes from dataStart into the buffer, expanding it if needed,
-      and advances _curPtr by (dataSize + paddingSize) bytes.
+       @param dataStart pointer to the beginning of the data to be written
+       @param dataSize number of bytes of real data to be written
+       @param paddingSize number of bytes of padding
 
-      @param dataStart pointer to the beginning of the data to be written
-      @param dataSize number of bytes of real data to be written
-      @param paddingSize number of bytes of padding
+       @return offset to the beginning of written data inside the buffer
+    */
+    uint32_t writeData(const void *dataStart, uint32_t dataSize, uint8_t paddingSize);
 
-      @return offset to the beginning of written data inside the buffer
-   */
-   uint32_t writeData(const void *dataStart, uint32_t dataSize, uint8_t paddingSize);
+    /**
+       @brief Reserve memory for a value of type T.
 
-   /**
-      @brief Reserve memory for a value of type T.
+       Advances _curPtr by sizeof(T) bytes, expanding the
+       buffer if needed.
+       Behavior is undefined if T is not trivially copyable (i.e. not contiguous in memory).
 
-      Advances _curPtr by sizeof(T) bytes, expanding the
-      buffer if needed.
-      Behavior is undefined if T is not trivially copyable (i.e. not contiguous in memory).
+       @return offset to the beginning of the reserved memory block
+    */
+    template<typename T> uint32_t reserveValue()
+    {
+        expandIfNeeded(size() + sizeof(T));
+        char *valStart = _curPtr;
+        _curPtr += sizeof(T);
+        return offset(valStart);
+    }
 
-      @return offset to the beginning of the reserved memory block
-   */
-   template <typename T>
-   uint32_t reserveValue()
-      {
-      expandIfNeeded(size() + sizeof(T));
-      char *valStart = _curPtr;
-      _curPtr += sizeof(T);
-      return offset(valStart);
-      }
+    /**
+       @brief Read next value of type T from the buffer.
 
-   /**
-      @brief Read next value of type T from the buffer.
+       Assumes that the next unread value in the buffer is of type T.
+       Advances _curPtr by sizeof(T) bytes.
 
-      Assumes that the next unread value in the buffer is of type T.
-      Advances _curPtr by sizeof(T) bytes.
+       @return offset to the beginning of value
+    */
+    template<typename T> uint32_t readValue() { return readData(sizeof(T)); }
 
-      @return offset to the beginning of value
-   */
-   template <typename T>
-   uint32_t readValue()
-      {
-      return readData(sizeof(T));
-      }
+    /**
+       @brief "Read" next dataSize bytes from the buffer.
 
-   /**
-      @brief "Read" next dataSize bytes from the buffer.
+       Assumes that the buffer contains at least dataSize unread bytes.
+       Advances _curPtr by dataSize bytes ( this is considered a "read")
 
-      Assumes that the buffer contains at least dataSize unread bytes.
-      Advances _curPtr by dataSize bytes ( this is considered a "read")
+       @return offset to the beginning of data
+    */
+    uint32_t readData(uint32_t dataSize)
+    {
+        char *data = _curPtr;
+        _curPtr += dataSize; // Advance cursor
+        return offset(data); // Return offset before the advance
+    }
 
-      @return offset to the beginning of data
-   */
-   uint32_t readData(uint32_t dataSize)
-      {
-      char* data = _curPtr;
-      _curPtr += dataSize; // Advance cursor
-      return offset(data); // Return offset before the advance
-      }
+    void clear() { _curPtr = _storage; }
 
-   void clear() { _curPtr = _storage; }
+    /**
+       @brief Check to see if the current pointer in the MessageBuffer is 64-bit aligned.
+    */
+    bool is64BitAligned() { return ((uintptr_t)_curPtr & ((uintptr_t)0x7)) == 0; }
 
-   /**
-      @brief Check to see if the current pointer in the MessageBuffer is 64-bit aligned.
-   */
-   bool is64BitAligned() { return ((uintptr_t)_curPtr & ((uintptr_t)0x7)) == 0; }
+    /**
+       @brief Moves the current pointer in the MessageBuffer to achieve 64-bit alignment
 
-   /**
-      @brief Moves the current pointer in the MessageBuffer to achieve 64-bit alignment
+       @return returns the number of padding bytes required for alignment (0-7)
+    */
+    uint8_t alignCurrentPositionOn64Bit();
 
-      @return returns the number of padding bytes required for alignment (0-7)
-   */
-   uint8_t alignCurrentPositionOn64Bit();
+    /**
+       @brief Expand the underlying buffer if more than allocated memory is needed.
 
-   /**
-      @brief Expand the underlying buffer if more than allocated memory is needed.
+       @param requiredSize the number of bytes the buffer needs to fit.
+    */
+    void expandIfNeeded(uint32_t requiredSize);
 
-      @param requiredSize the number of bytes the buffer needs to fit.
-   */
-   void expandIfNeeded(uint32_t requiredSize);
+    /**
+       @brief Expand the underlying buffer to fit requiredSize and copy numBytesToCopy
+       from the old buffer to the new buffer when requiredSize is greater than
+       the capacity, and free the old buffer.
 
-   /**
-      @brief Expand the underlying buffer to fit requiredSize and copy numBytesToCopy
-      from the old buffer to the new buffer when requiredSize is greater than
-      the capacity, and free the old buffer.
+       If requiredSize is greater than _capacity, allocates a new buffer that can fit requiredSize
+       bytes rounded up to the nearest power of 2,
+       copies all existing data based on _curPtr location to the new buffer,
+       and frees the old buffer.
 
-      If requiredSize is greater than _capacity, allocates a new buffer that can fit requiredSize
-      bytes rounded up to the nearest power of 2,
-      copies all existing data based on _curPtr location to the new buffer,
-      and frees the old buffer.
+       @param requiredSize the number of bytes the buffer needs to fit.
+       @param numBytesToCopy the number of bytes that need to be copied over from the old buffer
+    */
+    void expand(uint32_t requiredSize, uint32_t numBytesToCopy);
 
-      @param requiredSize the number of bytes the buffer needs to fit.
-      @param numBytesToCopy the number of bytes that need to be copied over from the old buffer
-   */
-   void expand(uint32_t requiredSize, uint32_t numBytesToCopy);
+    uint32_t getCapacity() const { return _capacity; }
 
-   uint32_t getCapacity() const { return _capacity; }
+    // Must be called before any client-server communication takes place
+    static void initTotalBuffersMonitor()
+    {
+        _totalBuffersMonitor = TR::Monitor::create("JIT-JITServerTotalBuffersMonitor");
+    }
 
-   // Must be called before any client-server communication takes place
-   static void initTotalBuffersMonitor() { _totalBuffersMonitor = TR::Monitor::create("JIT-JITServerTotalBuffersMonitor"); }
-
-   // Try to free the custom persistent allocator for message buffers. This method does nothing
-   // if the JVM is not in client mode, or if there is at least one active message buffer.
-   static void tryFreePersistentAllocator();
+    // Try to free the custom persistent allocator for message buffers. This method does nothing
+    // if the JVM is not in client mode, or if there is at least one active message buffer.
+    static void tryFreePersistentAllocator();
 
 private:
-   static const size_t INITIAL_BUFFER_SIZE = 32768; // Initial buffer size is 32K
-   uint32_t offset(char *addr) const { return addr - _storage; }
-   char *allocateMemory(uint32_t capacity) { return static_cast<char *>(_allocator->allocate(capacity)); }
-   void freeMemory(char *storage) { _allocator->deallocate(storage); }
-   uint32_t computeRequiredCapacity(uint32_t requiredSize);
-   static TR::Monitor *getTotalBuffersMonitor() { return _totalBuffersMonitor; }
+    static const size_t INITIAL_BUFFER_SIZE = 32768; // Initial buffer size is 32K
 
-   uint32_t _capacity;
-   char *_storage;
-   char *_curPtr;
+    uint32_t offset(char *addr) const { return addr - _storage; }
 
-   static TR::Monitor *_totalBuffersMonitor;
-   static int _totalBuffers;
-   static TR::PersistentAllocator *_allocator;
-   };
+    char *allocateMemory(uint32_t capacity) { return static_cast<char *>(_allocator->allocate(capacity)); }
+
+    void freeMemory(char *storage) { _allocator->deallocate(storage); }
+
+    uint32_t computeRequiredCapacity(uint32_t requiredSize);
+
+    static TR::Monitor *getTotalBuffersMonitor() { return _totalBuffersMonitor; }
+
+    uint32_t _capacity;
+    char *_storage;
+    char *_curPtr;
+
+    static TR::Monitor *_totalBuffersMonitor;
+    static int _totalBuffers;
+    static TR::PersistentAllocator *_allocator;
 };
+}; // namespace JITServer
 #endif

@@ -29,32 +29,32 @@
 #include "runtime/JITServerAOTSerializationRecords.hpp"
 
 class TR_PersistentClassLoaderTable;
+
 namespace TR {
 class Compilation;
 class Monitor;
-}
+} // namespace TR
 
-struct DeserializerContext
-   {
-   DeserializerContext(TR::Compilation *comp)
-      : _vmThread(comp->j9VMThread())
-      , _fej9(comp->fej9())
-      , _trMemory(comp->trMemory())
-      , _comp(comp)
-      {}
+struct DeserializerContext {
+    DeserializerContext(TR::Compilation *comp)
+        : _vmThread(comp->j9VMThread())
+        , _fej9(comp->fej9())
+        , _trMemory(comp->trMemory())
+        , _comp(comp)
+    {}
 
-   DeserializerContext(J9VMThread * vmThread, TR_J9VMBase * fej9, TR_Memory *trMemory)
-      : _vmThread(vmThread)
-      , _fej9(fej9)
-      , _trMemory(trMemory)
-      , _comp(NULL)
-      {}
+    DeserializerContext(J9VMThread *vmThread, TR_J9VMBase *fej9, TR_Memory *trMemory)
+        : _vmThread(vmThread)
+        , _fej9(fej9)
+        , _trMemory(trMemory)
+        , _comp(NULL)
+    {}
 
-   J9VMThread * _vmThread;
-   TR_J9VMBase * _fej9;
-   TR_Memory * _trMemory;
-   TR::Compilation * _comp;
-   };
+    J9VMThread *_vmThread;
+    TR_J9VMBase *_fej9;
+    TR_Memory *_trMemory;
+    TR::Compilation *_comp;
+};
 
 // This class defines the base interface for the deserialization of cached AOT methods received from a JITServer,
 // and initializes certain elements common to the implementations. Its derived classes contain the actual
@@ -72,199 +72,229 @@ struct DeserializerContext
 //
 // A JIT client can reconnect to a different JITServer instance after the previous instance fails or shuts down.
 // Since AOT cache record IDs are specific to a JITServer instance, the deserializer cache must be purged
-// upon connecting to a new instance. This is done in the reset() function, which will be called by some compilation thread
-// in handleServerMessage(). To ensure that compilations on other threads are notified of a reset, the reset() function sets
-// a flag indicating a reset occurred in every compilation thread. Every lookup or store operation involving the deserializer's
-// caches will first acquire the appropriate monitor and check whether or not the current thread was notified of a reset.
-// If it was, the operations will set a bool &wasReset flag to notify the caller of that fact, so it can abort whatever it was doing.
-// The only exceptions are the invalidate* methods, which are called only when the current thread has exclusive VM access,
-// and so no compilation thread could possibly be attempting to reset the deserializer at the same time they are called.
+// upon connecting to a new instance. This is done in the reset() function, which will be called by some compilation
+// thread in handleServerMessage(). To ensure that compilations on other threads are notified of a reset, the reset()
+// function sets a flag indicating a reset occurred in every compilation thread. Every lookup or store operation
+// involving the deserializer's caches will first acquire the appropriate monitor and check whether or not the current
+// thread was notified of a reset. If it was, the operations will set a bool &wasReset flag to notify the caller of that
+// fact, so it can abort whatever it was doing. The only exceptions are the invalidate* methods, which are called only
+// when the current thread has exclusive VM access, and so no compilation thread could possibly be attempting to reset
+// the deserializer at the same time they are called.
 //
-// Certain functions in this class and in its subclasses take a bool &wasReset parameter. This is set to true when a concurrent reset
-// was detected before accessing the deserializer's cached data.
-class JITServerAOTDeserializer
-   {
+// Certain functions in this class and in its subclasses take a bool &wasReset parameter. This is set to true when a
+// concurrent reset was detected before accessing the deserializer's cached data.
+class JITServerAOTDeserializer {
 public:
-   TR_PERSISTENT_ALLOC(TR_Memory::JITServerAOTCache)
+    TR_PERSISTENT_ALLOC(TR_Memory::JITServerAOTCache)
 
-   JITServerAOTDeserializer(TR_PersistentClassLoaderTable *loaderTable, J9JITConfig *jitConfig);
-   ~JITServerAOTDeserializer();
+    JITServerAOTDeserializer(TR_PersistentClassLoaderTable *loaderTable, J9JITConfig *jitConfig);
+    ~JITServerAOTDeserializer();
 
-   TR_Memory &classLoadTRMemory();
+    TR_Memory &classLoadTRMemory();
 
-   bool cacheRecords(const uint8_t *records, size_t recordsSize, const DeserializerContext& context,
-                     bool ignoreFailures, bool &wasReset);
+    bool cacheRecords(const uint8_t *records, size_t recordsSize, const DeserializerContext &context,
+        bool ignoreFailures, bool &wasReset);
 
-   // Deserializes in place a serialized AOT method received from JITServer. Returns true on success.
-   // Caches new serialization records and adds their IDs to the set of new known IDs.
-   bool deserialize(SerializedAOTMethod *method, const std::vector<std::string> &records,
-                    const DeserializerContext& context, bool &usesSVM);
+    // Deserializes in place a serialized AOT method received from JITServer. Returns true on success.
+    // Caches new serialization records and adds their IDs to the set of new known IDs.
+    bool deserialize(SerializedAOTMethod *method, const std::vector<std::string> &records,
+        const DeserializerContext &context, bool &usesSVM);
 
-   void onClassLoad(J9Class *ramClass, J9VMThread *vmThread);
-   // Invalidation function called from the class unload JIT hook to invalidate class loader pointers
-   // cached by the deserializer
-   virtual void invalidateClassLoader(J9VMThread *vmThread, J9ClassLoader *loader) = 0;
-   // Invalidation function called from class unload and redefinition JIT hooks
-   // to invalidate RAMClass pointers cached by the deserializer. The oldClass
-   // is the class to be invalidated; the newClass is its replacement if the
-   // invalidation is due to redefinition. The newClass is used to ensure that
-   // the invalidated class's RAM methods are also all invalidated, if
-   // applicable.
-   virtual void invalidateClass(J9VMThread *vmThread, J9Class *oldClass, J9Class *newClass = NULL) = 0;
+    void onClassLoad(J9Class *ramClass, J9VMThread *vmThread);
+    // Invalidation function called from the class unload JIT hook to invalidate class loader pointers
+    // cached by the deserializer
+    virtual void invalidateClassLoader(J9VMThread *vmThread, J9ClassLoader *loader) = 0;
+    // Invalidation function called from class unload and redefinition JIT hooks
+    // to invalidate RAMClass pointers cached by the deserializer. The oldClass
+    // is the class to be invalidated; the newClass is its replacement if the
+    // invalidation is due to redefinition. The newClass is used to ensure that
+    // the invalidated class's RAM methods are also all invalidated, if
+    // applicable.
+    virtual void invalidateClass(J9VMThread *vmThread, J9Class *oldClass, J9Class *newClass = NULL) = 0;
 
-   // Invalidates all cached serialization records. Must be called when the client
-   // connects to a new server instance (e.g. upon receving a VM_getVMInfo message),
-   // before attempting to deserialize any method received from the new server instance
-   // or otherwise use the cached data in the deserializer
-   void reset(TR::CompilationInfoPerThread *compInfoPT);
+    // Invalidates all cached serialization records. Must be called when the client
+    // connects to a new server instance (e.g. upon receving a VM_getVMInfo message),
+    // before attempting to deserialize any method received from the new server instance
+    // or otherwise use the cached data in the deserializer
+    void reset(TR::CompilationInfoPerThread *compInfoPT);
 
-   // Adds the given IDs to the set of new known IDs maintained by the deserializer.
-   void addNewKnownIds(const Vector<uintptr_t> &newIds, const DeserializerContext& context);
+    // Adds the given IDs to the set of new known IDs maintained by the deserializer.
+    void addNewKnownIds(const Vector<uintptr_t> &newIds, const DeserializerContext &context);
 
-   // IDs of records newly cached during deserialization of an AOT method are sent to the JITServer with
-   // the next compilation request, so that the server can update its set of known IDs for this client.
-   // This function returns the list of IDs cached since the last call, and clears the set of new known IDs.
-   std::vector<uintptr_t/*idAndType*/> getNewKnownIds(const DeserializerContext& context);
+    // IDs of records newly cached during deserialization of an AOT method are sent to the JITServer with
+    // the next compilation request, so that the server can update its set of known IDs for this client.
+    // This function returns the list of IDs cached since the last call, and clears the set of new known IDs.
+    std::vector<uintptr_t /*idAndType*/> getNewKnownIds(const DeserializerContext &context);
 
-   // Find a runtime-generated class for given class loader, deterministic class name prefix, and ROMClass hash
-   J9Class *findGeneratedClass(J9ClassLoader *loader, const uint8_t *namePrefix, size_t namePrefixLength,
-                               const JITServerROMClassHash &hash, J9VMThread *vmThread);
-   // Find the stored hash for ramClass loaded by loader if it exists in the generated classes map.
-   std::string findGeneratedClassHash(J9ClassLoader *loader, J9Class *ramClass, TR_J9VM *fe, J9VMThread *vmThread);
-   // Get the RAMClass for a previously deserialized ROMClass offset for a runtime-generated class
-   virtual J9Class *getGeneratedClass(J9ClassLoader *loader, uintptr_t romClassSccOffset, const DeserializerContext& context) = 0;
+    // Find a runtime-generated class for given class loader, deterministic class name prefix, and ROMClass hash
+    J9Class *findGeneratedClass(J9ClassLoader *loader, const uint8_t *namePrefix, size_t namePrefixLength,
+        const JITServerROMClassHash &hash, J9VMThread *vmThread);
+    // Find the stored hash for ramClass loaded by loader if it exists in the generated classes map.
+    std::string findGeneratedClassHash(J9ClassLoader *loader, J9Class *ramClass, TR_J9VM *fe, J9VMThread *vmThread);
+    // Get the RAMClass for a previously deserialized ROMClass offset for a runtime-generated class
+    virtual J9Class *getGeneratedClass(J9ClassLoader *loader, uintptr_t romClassSccOffset,
+        const DeserializerContext &context)
+        = 0;
 
-   void incNumCacheBypasses() { ++_numCacheBypasses; }
-   void incNumCacheMisses() { ++_numCacheMisses; }
-   size_t getNumDeserializedMethods() const { return _numDeserializedMethods; }
+    void incNumCacheBypasses() { ++_numCacheBypasses; }
 
-   void printStats(FILE *f) const;
+    void incNumCacheMisses() { ++_numCacheMisses; }
 
-   virtual J9Class *getRAMClass(uintptr_t id, const DeserializerContext& context, bool &wasReset) = 0;
+    size_t getNumDeserializedMethods() const { return _numDeserializedMethods; }
 
-   void registerThreadToNotifyOnReset(J9VMThread *vmThread);
-   void unregisterThreadToNotifyOnReset(J9VMThread *vmThread);
+    void printStats(FILE *f) const;
+
+    virtual J9Class *getRAMClass(uintptr_t id, const DeserializerContext &context, bool &wasReset) = 0;
+
+    void registerThreadToNotifyOnReset(J9VMThread *vmThread);
+    void unregisterThreadToNotifyOnReset(J9VMThread *vmThread);
 
 protected:
-   // Keeps track of runtime-generated classes for a specific class loader and deterministic class name prefix.
-   // E.g., for lambdas there will be one instance of this struct for each host class that defines any lambdas.
-   struct GeneratedClassMap
-      {
-      GeneratedClassMap(uint8_t *namePrefix);
-      ~GeneratedClassMap();
+    // Keeps track of runtime-generated classes for a specific class loader and deterministic class name prefix.
+    // E.g., for lambdas there will be one instance of this struct for each host class that defines any lambdas.
+    struct GeneratedClassMap {
+        GeneratedClassMap(uint8_t *namePrefix);
+        ~GeneratedClassMap();
 
-      uint8_t *const _namePrefix;
-      PersistentUnorderedMap<JITServerROMClassHash, J9Class *> _classHashMap;
-      // This map is needed for invalidating unloaded classes
-      PersistentUnorderedMap<J9Class *, JITServerROMClassHash> _classPtrMap;
-      };
+        uint8_t * const _namePrefix;
+        PersistentUnorderedMap<JITServerROMClassHash, J9Class *> _classHashMap;
+        // This map is needed for invalidating unloaded classes
+        PersistentUnorderedMap<J9Class *, JITServerROMClassHash> _classPtrMap;
+    };
 
-   bool deserializerWasReset(TR_J9VMBase *vm, bool &wasReset);
-   bool deserializationFailure(const SerializedAOTMethod *method, const DeserializerContext& context, bool wasReset);
+    bool deserializerWasReset(TR_J9VMBase *vm, bool &wasReset);
+    bool deserializationFailure(const SerializedAOTMethod *method, const DeserializerContext &context, bool wasReset);
 
-   // Returns true if ROMClass hash matches the one in the serialization record
-   bool isClassMatching(const ClassSerializationRecord *record, J9Class *ramClass, const DeserializerContext& context);
+    // Returns true if ROMClass hash matches the one in the serialization record
+    bool isClassMatching(const ClassSerializationRecord *record, J9Class *ramClass, const DeserializerContext &context);
 
-   template<typename V> V
-   findInMap(const PersistentUnorderedMap<uintptr_t, V> &map, uintptr_t id, TR::Monitor *monitor, TR_J9VMBase *vm, bool &wasReset);
+    template<typename V>
+    V findInMap(const PersistentUnorderedMap<uintptr_t, V> &map, uintptr_t id, TR::Monitor *monitor, TR_J9VMBase *vm,
+        bool &wasReset);
 
-   TR_PersistentClassLoaderTable *const getClassLoaderTable() const { return _loaderTable; }
-   TR::Monitor *const getClassLoaderMonitor() const { return _classLoaderMonitor; }
-   TR::Monitor *const getClassMonitor() const { return _classMonitor; }
-   TR::Monitor *const getMethodMonitor() const { return _methodMonitor; }
-   TR::Monitor *const getClassChainMonitor() const { return _classChainMonitor; }
-   TR::Monitor *const getWellKnownClassesMonitor() const { return _wellKnownClassesMonitor; }
-   TR::Monitor *const getNewKnownIdsMonitor() const { return _newKnownIdsMonitor; }
-   TR::Monitor *const getResetMonitor() const { return _resetMonitor; }
+    TR_PersistentClassLoaderTable * const getClassLoaderTable() const { return _loaderTable; }
 
-   PersistentUnorderedSet<uintptr_t/*idAndType*/> &getNewKnownIds() { return _newKnownIds; }
-   TR_PersistentClassLoaderTable *getLoaderTable() const { return _loaderTable; }
+    TR::Monitor * const getClassLoaderMonitor() const { return _classLoaderMonitor; }
 
-   // Removes the class from the generated classes map and returns true if the class is generated, otherwise returns false
-   bool invalidateGeneratedClass(J9Class *ramClass);
+    TR::Monitor * const getClassMonitor() const { return _classMonitor; }
 
-   J9JITConfig *const _jitConfig;
+    TR::Monitor * const getMethodMonitor() const { return _methodMonitor; }
 
-   PersistentUnorderedMap<std::pair<J9ClassLoader *, StringKey/*namePrefix*/>, GeneratedClassMap> _generatedClasses;
-   TR::Monitor *const _generatedClassesMonitor;
+    TR::Monitor * const getClassChainMonitor() const { return _classChainMonitor; }
+
+    TR::Monitor * const getWellKnownClassesMonitor() const { return _wellKnownClassesMonitor; }
+
+    TR::Monitor * const getNewKnownIdsMonitor() const { return _newKnownIdsMonitor; }
+
+    TR::Monitor * const getResetMonitor() const { return _resetMonitor; }
+
+    PersistentUnorderedSet<uintptr_t /*idAndType*/> &getNewKnownIds() { return _newKnownIds; }
+
+    TR_PersistentClassLoaderTable *getLoaderTable() const { return _loaderTable; }
+
+    // Removes the class from the generated classes map and returns true if the class is generated, otherwise returns
+    // false
+    bool invalidateGeneratedClass(J9Class *ramClass);
+
+    J9JITConfig * const _jitConfig;
+
+    PersistentUnorderedMap<std::pair<J9ClassLoader *, StringKey /*namePrefix*/>, GeneratedClassMap> _generatedClasses;
+    TR::Monitor * const _generatedClassesMonitor;
 
 private:
-   // Clear the internal caches of the deserializer. Must be called with every monitor in hand
-   virtual void clearCachedData() = 0;
+    // Clear the internal caches of the deserializer. Must be called with every monitor in hand
+    virtual void clearCachedData() = 0;
 
-   // Deserializes/validates and caches an AOT serialization record.
-   // Returns true if the record is valid (e.g. class was found and its hash matches),
-   // and sets isNew to true if the record was newly cached (not already known).
-   // Returns false if the record is invalid (e.g. ROMClass hash doesn't match)
-   // or not yet valid (e.g. class has not been loaded yet).
-   bool cacheRecord(const AOTSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset);
+    // Deserializes/validates and caches an AOT serialization record.
+    // Returns true if the record is valid (e.g. class was found and its hash matches),
+    // and sets isNew to true if the record was newly cached (not already known).
+    // Returns false if the record is invalid (e.g. ROMClass hash doesn't match)
+    // or not yet valid (e.g. class has not been loaded yet).
+    bool cacheRecord(const AOTSerializationRecord *record, const DeserializerContext &context, bool &isNew,
+        bool &wasReset);
 
-   // Cache a ClassLoaderSerializationRecord by looking up a class loader in the current JVM with a first-loaded class name
-   // that matches what was recorded during compilation. This will be used to find candidate J9Classes when deserializing other
-   // records, and isn't guranteed to have any particular relationship with the actual compile-time class loader.
-   virtual bool cacheRecord(const ClassLoaderSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) = 0;
-   // Cache a ClassSerializationRecord by looking up a J9Class in the current JVM, using its associated ClassLoaderRecord, that
-   // has a name and ROM class hash that matches what was recorded at compile time. These are used to construct RAM class chains
-   // for class chain serialization records. The J9Classes found may not have any particular relationship with the ones recorded
-   // at compile time.
-   virtual bool cacheRecord(const ClassSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) = 0;
-   // Cache a MethodSerializationRecord by looking up its defining J9Class using its (already-cached) defining
-   // ClassSerializationRecord. No extra guarantees are provided beyond what the associated ClassSerializationRecord provides.
-   virtual bool cacheRecord(const MethodSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) = 0;
-   // Cache a ClassChainSerializationRecord by constructing a RAM class chain using its stored ClassSerializationRecord IDs.
-   // We then construct the actual RAM class chain of the first class in the ClassChainSerializationRecord, and make sure that
-   // the constructed and actual RAM class chains match. This ensures that the first class in the chain matches what was recorded
-   // at compile time, giving the same guarantees as J9SharedCache::classMatchesCachedVersion().
-   virtual bool cacheRecord(const ClassChainSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) = 0;
-   // Cache a WellKnownClassesSerializationRecord. No extra guarantees are provided beyond what the associated
-   // ClassChainSerializationRecords of the individual well-known classes chains provide.
-   virtual bool cacheRecord(const WellKnownClassesSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) = 0;
-   // Deserialize a ThunkSerializationRecord by installing it in the JVM if one cannot be found through the compilation frontend.
-   // No special validation or caching needs to be performed.
-   virtual bool cacheRecord(const ThunkSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) = 0;
+    // Cache a ClassLoaderSerializationRecord by looking up a class loader in the current JVM with a first-loaded class
+    // name that matches what was recorded during compilation. This will be used to find candidate J9Classes when
+    // deserializing other records, and isn't guranteed to have any particular relationship with the actual compile-time
+    // class loader.
+    virtual bool cacheRecord(const ClassLoaderSerializationRecord *record, const DeserializerContext &context,
+        bool &isNew, bool &wasReset)
+        = 0;
+    // Cache a ClassSerializationRecord by looking up a J9Class in the current JVM, using its associated
+    // ClassLoaderRecord, that has a name and ROM class hash that matches what was recorded at compile time. These are
+    // used to construct RAM class chains for class chain serialization records. The J9Classes found may not have any
+    // particular relationship with the ones recorded at compile time.
+    virtual bool cacheRecord(const ClassSerializationRecord *record, const DeserializerContext &context, bool &isNew,
+        bool &wasReset)
+        = 0;
+    // Cache a MethodSerializationRecord by looking up its defining J9Class using its (already-cached) defining
+    // ClassSerializationRecord. No extra guarantees are provided beyond what the associated ClassSerializationRecord
+    // provides.
+    virtual bool cacheRecord(const MethodSerializationRecord *record, const DeserializerContext &context, bool &isNew,
+        bool &wasReset)
+        = 0;
+    // Cache a ClassChainSerializationRecord by constructing a RAM class chain using its stored ClassSerializationRecord
+    // IDs. We then construct the actual RAM class chain of the first class in the ClassChainSerializationRecord, and
+    // make sure that the constructed and actual RAM class chains match. This ensures that the first class in the chain
+    // matches what was recorded at compile time, giving the same guarantees as
+    // J9SharedCache::classMatchesCachedVersion().
+    virtual bool cacheRecord(const ClassChainSerializationRecord *record, const DeserializerContext &context,
+        bool &isNew, bool &wasReset)
+        = 0;
+    // Cache a WellKnownClassesSerializationRecord. No extra guarantees are provided beyond what the associated
+    // ClassChainSerializationRecords of the individual well-known classes chains provide.
+    virtual bool cacheRecord(const WellKnownClassesSerializationRecord *record, const DeserializerContext &context,
+        bool &isNew, bool &wasReset)
+        = 0;
+    // Deserialize a ThunkSerializationRecord by installing it in the JVM if one cannot be found through the compilation
+    // frontend. No special validation or caching needs to be performed.
+    virtual bool cacheRecord(const ThunkSerializationRecord *record, const DeserializerContext &context, bool &isNew,
+        bool &wasReset)
+        = 0;
 
-   // Returns false on failure
-   virtual bool updateSCCOffsets(SerializedAOTMethod *method, const DeserializerContext& context, bool &wasReset, bool &usesSVM) = 0;
+    // Returns false on failure
+    virtual bool updateSCCOffsets(SerializedAOTMethod *method, const DeserializerContext &context, bool &wasReset,
+        bool &usesSVM)
+        = 0;
 
-   TR_PersistentClassLoaderTable *const _loaderTable;
+    TR_PersistentClassLoaderTable * const _loaderTable;
 
-   // Scratch memory used in the class load hook to pack generated ROMClasses. Synchronized with the class table mutex.
-   // This hard-coded limit covers the vast majority of cases since most lambdas and other generated classes are small.
-   static const size_t classLoadScratchMemoryLimit = 256 * 1024;
-   TR::RawAllocator _rawAllocator;
-   J9::SegmentAllocator _segmentAllocator;
-   J9::SystemSegmentProvider _segmentProvider;
-   TR::Region _classLoadRegion;
-   TR_Memory _classLoadTRMemory;
+    // Scratch memory used in the class load hook to pack generated ROMClasses. Synchronized with the class table mutex.
+    // This hard-coded limit covers the vast majority of cases since most lambdas and other generated classes are small.
+    static const size_t classLoadScratchMemoryLimit = 256 * 1024;
+    TR::RawAllocator _rawAllocator;
+    J9::SegmentAllocator _segmentAllocator;
+    J9::SystemSegmentProvider _segmentProvider;
+    TR::Region _classLoadRegion;
+    TR_Memory _classLoadTRMemory;
 
-   // NOTE: Locking hierarchy used in this class and its derivatives follows cycle-free dependency order
-   // between serialization record types and guarantees that there are no deadlocks:
-   // - _resetMonitor < _wellKnownClassesMonitor < _classChainMonitor < _classMonitor;
-   // - _methodMonitor < _classMonitor;
-   // - remaining monitors are "leafs".
+    // NOTE: Locking hierarchy used in this class and its derivatives follows cycle-free dependency order
+    // between serialization record types and guarantees that there are no deadlocks:
+    // - _resetMonitor < _wellKnownClassesMonitor < _classChainMonitor < _classMonitor;
+    // - _methodMonitor < _classMonitor;
+    // - remaining monitors are "leafs".
 
-   TR::Monitor *const _classLoaderMonitor;
-   TR::Monitor *const _classMonitor;
-   TR::Monitor *const _methodMonitor;
-   TR::Monitor *const _classChainMonitor;
-   TR::Monitor *const _wellKnownClassesMonitor;
-   TR::Monitor *const _newKnownIdsMonitor;
-   TR::Monitor *const _resetMonitor;
+    TR::Monitor * const _classLoaderMonitor;
+    TR::Monitor * const _classMonitor;
+    TR::Monitor * const _methodMonitor;
+    TR::Monitor * const _classChainMonitor;
+    TR::Monitor * const _wellKnownClassesMonitor;
+    TR::Monitor * const _newKnownIdsMonitor;
+    TR::Monitor * const _resetMonitor;
 
-   PersistentUnorderedSet<uintptr_t/*idAndType*/> _newKnownIds;
+    PersistentUnorderedSet<uintptr_t /*idAndType*/> _newKnownIds;
 
-   PersistentUnorderedSet<J9VMThread *> _threadsToNotifyOnReset;
+    PersistentUnorderedSet<J9VMThread *> _threadsToNotifyOnReset;
 
-   // Statistics
-   size_t _numCacheBypasses;
-   size_t _numCacheHits;
-   size_t _numCacheMisses;
-   size_t _numDeserializedMethods;
-   size_t _numDeserializationFailures;
-   size_t _numClassSizeMismatches;
-   size_t _numClassHashMismatches;
-   };
-
+    // Statistics
+    size_t _numCacheBypasses;
+    size_t _numCacheHits;
+    size_t _numCacheMisses;
+    size_t _numDeserializedMethods;
+    size_t _numDeserializationFailures;
+    size_t _numClassSizeMismatches;
+    size_t _numClassHashMismatches;
+};
 
 // This deserializer implements the following scheme:
 //
@@ -277,73 +307,81 @@ private:
 //
 // Methods deserialized with this deserializer must be relocated with a TR_J9SharedCache
 // in the frontend (i.e., with the shared cache not overridden in the frontend).
-class JITServerLocalSCCAOTDeserializer : public JITServerAOTDeserializer
-   {
+class JITServerLocalSCCAOTDeserializer : public JITServerAOTDeserializer {
 public:
-   TR_PERSISTENT_ALLOC(TR_Memory::JITServerAOTCache)
+    TR_PERSISTENT_ALLOC(TR_Memory::JITServerAOTCache)
 
-   JITServerLocalSCCAOTDeserializer(TR_PersistentClassLoaderTable *loaderTable, J9JITConfig *jitConfig);
+    JITServerLocalSCCAOTDeserializer(TR_PersistentClassLoaderTable *loaderTable, J9JITConfig *jitConfig);
 
-   virtual void invalidateClassLoader(J9VMThread *vmThread, J9ClassLoader *loader) override;
-   virtual void invalidateClass(J9VMThread *vmThread, J9Class *oldClass, J9Class *newClass = NULL) override;
+    virtual void invalidateClassLoader(J9VMThread *vmThread, J9ClassLoader *loader) override;
+    virtual void invalidateClass(J9VMThread *vmThread, J9Class *oldClass, J9Class *newClass = NULL) override;
 
-   virtual J9Class *getGeneratedClass(J9ClassLoader *loader, uintptr_t romClassSccOffset, const DeserializerContext& context) override;
+    virtual J9Class *getGeneratedClass(J9ClassLoader *loader, uintptr_t romClassSccOffset,
+        const DeserializerContext &context) override;
 
-   virtual J9Class *getRAMClass(uintptr_t id, const DeserializerContext& context, bool &wasReset) override;
+    virtual J9Class *getRAMClass(uintptr_t id, const DeserializerContext &context, bool &wasReset) override;
 
 private:
-   virtual void clearCachedData() override;
+    virtual void clearCachedData() override;
 
-   struct ClassLoaderEntry
-      {
-      J9ClassLoader *_loader;// NULL if class loader was unloaded
-      uintptr_t _loaderChainSCCOffset;
-      };
+    struct ClassLoaderEntry {
+        J9ClassLoader *_loader; // NULL if class loader was unloaded
+        uintptr_t _loaderChainSCCOffset;
+    };
 
-   struct ClassEntry
-      {
-      J9Class *_ramClass;// NULL if class ID is invalid (was not found or its hash didn't match), or class was unloaded
-      uintptr_t _romClassSCCOffset;// -1 if class ID is invalid
-      uintptr_t _loaderChainSCCOffset;
-      };
+    struct ClassEntry {
+        J9Class
+            *_ramClass; // NULL if class ID is invalid (was not found or its hash didn't match), or class was unloaded
+        uintptr_t _romClassSCCOffset; // -1 if class ID is invalid
+        uintptr_t _loaderChainSCCOffset;
+    };
 
-   virtual bool cacheRecord(const ClassLoaderSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const ClassSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const MethodSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const ClassChainSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const WellKnownClassesSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const ThunkSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) override;
+    virtual bool cacheRecord(const ClassLoaderSerializationRecord *record, const DeserializerContext &context,
+        bool &isNew, bool &wasReset) override;
+    virtual bool cacheRecord(const ClassSerializationRecord *record, const DeserializerContext &context, bool &isNew,
+        bool &wasReset) override;
+    virtual bool cacheRecord(const MethodSerializationRecord *record, const DeserializerContext &context, bool &isNew,
+        bool &wasReset) override;
+    virtual bool cacheRecord(const ClassChainSerializationRecord *record, const DeserializerContext &context,
+        bool &isNew, bool &wasReset) override;
+    virtual bool cacheRecord(const WellKnownClassesSerializationRecord *record, const DeserializerContext &context,
+        bool &isNew, bool &wasReset) override;
+    virtual bool cacheRecord(const ThunkSerializationRecord *record, const DeserializerContext &context, bool &isNew,
+        bool &wasReset) override;
 
-   // Returns the class loader for given class loader ID, either cached or
-   // looked up using the cached SCC offset if the class loader was unloaded.
-   // The SCC offset of the identifying class chain is returned in loaderSCCOffset.
-   J9ClassLoader *getClassLoader(uintptr_t id, uintptr_t &loaderSCCOffset, const DeserializerContext& context, bool &wasReset);
+    // Returns the class loader for given class loader ID, either cached or
+    // looked up using the cached SCC offset if the class loader was unloaded.
+    // The SCC offset of the identifying class chain is returned in loaderSCCOffset.
+    J9ClassLoader *getClassLoader(uintptr_t id, uintptr_t &loaderSCCOffset, const DeserializerContext &context,
+        bool &wasReset);
 
-   virtual bool updateSCCOffsets(SerializedAOTMethod *method, const DeserializerContext& context, bool &wasReset, bool &usesSVM) override;
+    virtual bool updateSCCOffsets(SerializedAOTMethod *method, const DeserializerContext &context, bool &wasReset,
+        bool &usesSVM) override;
 
-   // Returns -1 on failure
-   uintptr_t getSCCOffset(AOTSerializationRecordType type, uintptr_t id, const DeserializerContext& context, bool &wasReset);
+    // Returns -1 on failure
+    uintptr_t getSCCOffset(AOTSerializationRecordType type, uintptr_t id, const DeserializerContext &context,
+        bool &wasReset);
 
-   TR_J9SharedCache *const _sharedCache;
+    TR_J9SharedCache * const _sharedCache;
 
-   PersistentUnorderedMap<uintptr_t/*ID*/, ClassLoaderEntry> _classLoaderIdMap;
-   // This map is needed for invalidating unloaded class loaders
-   PersistentUnorderedMap<J9ClassLoader *, uintptr_t/*ID*/> _classLoaderPtrMap;
+    PersistentUnorderedMap<uintptr_t /*ID*/, ClassLoaderEntry> _classLoaderIdMap;
+    // This map is needed for invalidating unloaded class loaders
+    PersistentUnorderedMap<J9ClassLoader *, uintptr_t /*ID*/> _classLoaderPtrMap;
 
-   PersistentUnorderedMap<uintptr_t/*ID*/, ClassEntry> _classIdMap;
-   // This map is needed for invalidating unloaded classes
-   PersistentUnorderedMap<J9Class *, uintptr_t/*ID*/> _classPtrMap;
+    PersistentUnorderedMap<uintptr_t /*ID*/, ClassEntry> _classIdMap;
+    // This map is needed for invalidating unloaded classes
+    PersistentUnorderedMap<J9Class *, uintptr_t /*ID*/> _classPtrMap;
 
-   PersistentUnorderedMap<uintptr_t/*ID*/, uintptr_t/*SCC offset*/> _methodMap;
+    PersistentUnorderedMap<uintptr_t /*ID*/, uintptr_t /*SCC offset*/> _methodMap;
 
-   PersistentUnorderedMap<uintptr_t/*ID*/, uintptr_t/*SCC offset*/> _classChainMap;
+    PersistentUnorderedMap<uintptr_t /*ID*/, uintptr_t /*SCC offset*/> _classChainMap;
 
-   PersistentUnorderedMap<uintptr_t/*ID*/, uintptr_t/*SCC offset*/> _wellKnownClassesMap;
+    PersistentUnorderedMap<uintptr_t /*ID*/, uintptr_t /*SCC offset*/> _wellKnownClassesMap;
 
-   //NOTE: Synchronized using _classMonitor
-   PersistentUnorderedMap<std::pair<J9ClassLoader *, uintptr_t/*romClassSccOffset*/>, J9Class *> _generatedClassesSccMap;
-   };
-
+    // NOTE: Synchronized using _classMonitor
+    PersistentUnorderedMap<std::pair<J9ClassLoader *, uintptr_t /*romClassSccOffset*/>, J9Class *>
+        _generatedClassesSccMap;
+};
 
 // This deserializer implements the following scheme:
 //
@@ -351,80 +389,93 @@ private:
 // 2. The RAM entities are cached, to avoid deserializing the same record multiple times
 // 3. The offsets in the cached AOT method are updated with the idAndType of the corresponding
 //    serialization record, to act as "AOT cache offsets" in lieu of local SCC offsets.
-class JITServerNoSCCAOTDeserializer : public JITServerAOTDeserializer
-   {
+class JITServerNoSCCAOTDeserializer : public JITServerAOTDeserializer {
 public:
-   friend class TR_J9DeserializerSharedCache;
+    friend class TR_J9DeserializerSharedCache;
 
-   TR_PERSISTENT_ALLOC(TR_Memory::JITServerAOTCache)
+    TR_PERSISTENT_ALLOC(TR_Memory::JITServerAOTCache)
 
-   JITServerNoSCCAOTDeserializer(TR_PersistentClassLoaderTable *loaderTable, J9JITConfig *jitConfig);
+    JITServerNoSCCAOTDeserializer(TR_PersistentClassLoaderTable *loaderTable, J9JITConfig *jitConfig);
 
-   virtual void invalidateClassLoader(J9VMThread *vmThread, J9ClassLoader *loader) override;
-   virtual void invalidateClass(J9VMThread *vmThread, J9Class *oldClass, J9Class *newClass = NULL) override;
-   void invalidateMethod(J9Method *method);
+    virtual void invalidateClassLoader(J9VMThread *vmThread, J9ClassLoader *loader) override;
+    virtual void invalidateClass(J9VMThread *vmThread, J9Class *oldClass, J9Class *newClass = NULL) override;
+    void invalidateMethod(J9Method *method);
 
-   virtual J9Class *getGeneratedClass(J9ClassLoader *loader, uintptr_t romClassSccOffset, const DeserializerContext& context) override;
+    virtual J9Class *getGeneratedClass(J9ClassLoader *loader, uintptr_t romClassSccOffset,
+        const DeserializerContext &context) override;
 
-   virtual J9Class *getRAMClass(uintptr_t id, const DeserializerContext& context, bool &wasReset) override;
+    virtual J9Class *getRAMClass(uintptr_t id, const DeserializerContext &context, bool &wasReset) override;
 
-   static uintptr_t offsetId(uintptr_t offset)
-      { return AOTSerializationRecord::getId(offset); }
-   static AOTSerializationRecordType offsetType(uintptr_t offset)
-      { return AOTSerializationRecord::getType(offset); }
+    static uintptr_t offsetId(uintptr_t offset) { return AOTSerializationRecord::getId(offset); }
+
+    static AOTSerializationRecordType offsetType(uintptr_t offset) { return AOTSerializationRecord::getType(offset); }
 
 private:
-   struct ClassEntry
-      {
-      // NULL if class ID is invalid (was not found or its hash didn't match), or class was unloaded
-      J9Class *_ramClass;
-      uintptr_t _classLoaderId;
-      };
+    struct ClassEntry {
+        // NULL if class ID is invalid (was not found or its hash didn't match), or class was unloaded
+        J9Class *_ramClass;
+        uintptr_t _classLoaderId;
+    };
 
-   virtual void clearCachedData() override;
+    virtual void clearCachedData() override;
 
-   virtual bool cacheRecord(const ClassLoaderSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const ClassSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const MethodSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const ClassChainSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const WellKnownClassesSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) override;
-   virtual bool cacheRecord(const ThunkSerializationRecord *record, const DeserializerContext& context, bool &isNew, bool &wasReset) override;
+    virtual bool cacheRecord(const ClassLoaderSerializationRecord *record, const DeserializerContext &context,
+        bool &isNew, bool &wasReset) override;
+    virtual bool cacheRecord(const ClassSerializationRecord *record, const DeserializerContext &context, bool &isNew,
+        bool &wasReset) override;
+    virtual bool cacheRecord(const MethodSerializationRecord *record, const DeserializerContext &context, bool &isNew,
+        bool &wasReset) override;
+    virtual bool cacheRecord(const ClassChainSerializationRecord *record, const DeserializerContext &context,
+        bool &isNew, bool &wasReset) override;
+    virtual bool cacheRecord(const WellKnownClassesSerializationRecord *record, const DeserializerContext &context,
+        bool &isNew, bool &wasReset) override;
+    virtual bool cacheRecord(const ThunkSerializationRecord *record, const DeserializerContext &context, bool &isNew,
+        bool &wasReset) override;
 
-   virtual bool updateSCCOffsets(SerializedAOTMethod *method, const DeserializerContext& context, bool &wasReset, bool &usesSVM) override;
-   bool revalidateRecord(AOTSerializationRecordType type, uintptr_t id, TR_J9VMBase *vm, bool &wasReset);
+    virtual bool updateSCCOffsets(SerializedAOTMethod *method, const DeserializerContext &context, bool &wasReset,
+        bool &usesSVM) override;
+    bool revalidateRecord(AOTSerializationRecordType type, uintptr_t id, TR_J9VMBase *vm, bool &wasReset);
 
-   void getRAMClassChain(const DeserializerContext& context, J9Class *clazz, J9Class **chainBuffer, size_t &chainLength);
+    void getRAMClassChain(const DeserializerContext &context, J9Class *clazz, J9Class **chainBuffer,
+        size_t &chainLength);
 
-   J9ROMClass *romClassFromOffsetInSharedCache(uintptr_t offset, const DeserializerContext& context, bool &wasReset);
-   void *pointerFromOffsetInSharedCache(uintptr_t offset, const DeserializerContext& context, bool &wasReset);
-   J9ROMMethod *romMethodFromOffsetInSharedCache(uintptr_t offset, const DeserializerContext& context, bool &wasReset);
-   J9Class *classFromOffset(uintptr_t offset, const DeserializerContext& context, bool &wasReset);
+    J9ROMClass *romClassFromOffsetInSharedCache(uintptr_t offset, const DeserializerContext &context, bool &wasReset);
+    void *pointerFromOffsetInSharedCache(uintptr_t offset, const DeserializerContext &context, bool &wasReset);
+    J9ROMMethod *romMethodFromOffsetInSharedCache(uintptr_t offset, const DeserializerContext &context, bool &wasReset);
+    J9Class *classFromOffset(uintptr_t offset, const DeserializerContext &context, bool &wasReset);
 
-   static uintptr_t encodeOffset(const AOTSerializationRecord *record)
-      { return AOTSerializationRecord::idAndType(record->id(), record->type()); }
+    static uintptr_t encodeOffset(const AOTSerializationRecord *record)
+    {
+        return AOTSerializationRecord::idAndType(record->id(), record->type());
+    }
 
-   static uintptr_t encodeOffset(const SerializedSCCOffset &serializedOffset)
-      { return AOTSerializationRecord::idAndType(serializedOffset.recordId(), serializedOffset.recordType()); }
+    static uintptr_t encodeOffset(const SerializedSCCOffset &serializedOffset)
+    {
+        return AOTSerializationRecord::idAndType(serializedOffset.recordId(), serializedOffset.recordType());
+    }
 
-   static uintptr_t encodeClassOffset(uintptr_t id)
-      { return AOTSerializationRecord::idAndType(id, AOTSerializationRecordType::Class); }
+    static uintptr_t encodeClassOffset(uintptr_t id)
+    {
+        return AOTSerializationRecord::idAndType(id, AOTSerializationRecordType::Class);
+    }
 
-   static uintptr_t encodeClassChainOffset(uintptr_t id)
-      { return AOTSerializationRecord::idAndType(id, AOTSerializationRecordType::ClassChain); }
+    static uintptr_t encodeClassChainOffset(uintptr_t id)
+    {
+        return AOTSerializationRecord::idAndType(id, AOTSerializationRecordType::ClassChain);
+    }
 
-   PersistentUnorderedMap<uintptr_t/*ID*/, J9ClassLoader *> _classLoaderIdMap;
-   PersistentUnorderedMap<J9ClassLoader *, uintptr_t/*ID*/> _classLoaderPtrMap;
+    PersistentUnorderedMap<uintptr_t /*ID*/, J9ClassLoader *> _classLoaderIdMap;
+    PersistentUnorderedMap<J9ClassLoader *, uintptr_t /*ID*/> _classLoaderPtrMap;
 
-   PersistentUnorderedMap<uintptr_t/*ID*/, ClassEntry> _classIdMap;
-   PersistentUnorderedMap<J9Class *, uintptr_t/*ID*/> _classPtrMap;
+    PersistentUnorderedMap<uintptr_t /*ID*/, ClassEntry> _classIdMap;
+    PersistentUnorderedMap<J9Class *, uintptr_t /*ID*/> _classPtrMap;
 
-   PersistentUnorderedMap<uintptr_t/*ID*/, J9Method *> _methodIdMap;
-   PersistentUnorderedMap<J9Method *, uintptr_t> _methodPtrMap;
+    PersistentUnorderedMap<uintptr_t /*ID*/, J9Method *> _methodIdMap;
+    PersistentUnorderedMap<J9Method *, uintptr_t> _methodPtrMap;
 
-   PersistentUnorderedMap<uintptr_t/*ID*/, uintptr_t * /*deserializer chain*/> _classChainMap;
+    PersistentUnorderedMap<uintptr_t /*ID*/, uintptr_t * /*deserializer chain*/> _classChainMap;
 
-   PersistentUnorderedMap<uintptr_t/*ID*/, uintptr_t * /*deserializer chain offsets*/> _wellKnownClassesMap;
-   };
-
+    PersistentUnorderedMap<uintptr_t /*ID*/, uintptr_t * /*deserializer chain offsets*/> _wellKnownClassesMap;
+};
 
 #endif /* JITSERVER_AOT_DESERIALIZER_H */

@@ -28,10 +28,14 @@
  */
 #ifndef J9_UNRESOLVEDDATASNIPPET_CONNECTOR
 #define J9_UNRESOLVEDDATASNIPPET_CONNECTOR
+
 namespace J9 {
-namespace Power { class UnresolvedDataSnippet; }
-typedef J9::Power::UnresolvedDataSnippet UnresolvedDataSnippetConnector;
+namespace Power {
+class UnresolvedDataSnippet;
 }
+
+typedef J9::Power::UnresolvedDataSnippet UnresolvedDataSnippetConnector;
+} // namespace J9
 #else
 #error J9::Power::UnresolvedDataSnippet expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -49,71 +53,65 @@ class MemoryReference;
 class Node;
 class RealRegister;
 class Symbol;
-}
+} // namespace TR
 
-namespace J9
-{
+namespace J9 { namespace Power {
 
-namespace Power
-{
+class UnresolvedDataSnippet : public J9::UnresolvedDataSnippet {
+    TR::MemoryReference *_memoryReference;
+    TR::RealRegister *_dataRegister;
 
-class UnresolvedDataSnippet : public J9::UnresolvedDataSnippet
-   {
+public:
+    UnresolvedDataSnippet(TR::CodeGenerator *, TR::Node *, TR::SymbolReference *s, bool isStore, bool canCauseGC);
 
-   TR::MemoryReference  *_memoryReference;
-   TR::RealRegister     *_dataRegister;
+    virtual Kind getKind() { return IsUnresolvedData; }
 
-   public:
+    TR::Symbol *getDataSymbol() { return getDataSymbolReference()->getSymbol(); }
 
-   UnresolvedDataSnippet(TR::CodeGenerator *, TR::Node *, TR::SymbolReference *s, bool isStore, bool canCauseGC);
+    TR::MemoryReference *getMemoryReference() { return _memoryReference; }
 
-   virtual Kind getKind() { return IsUnresolvedData; }
+    TR::MemoryReference *setMemoryReference(TR::MemoryReference *mr) { return (_memoryReference = mr); }
 
-   TR::Symbol *getDataSymbol() {return getDataSymbolReference()->getSymbol();}
+    TR::RealRegister *getDataRegister() { return _dataRegister; }
 
-   TR::MemoryReference *getMemoryReference() {return _memoryReference;}
-   TR::MemoryReference *setMemoryReference(TR::MemoryReference *mr)
-      {return (_memoryReference = mr);}
+    void setDataRegister(TR::RealRegister *r) { _dataRegister = r; }
 
-   TR::RealRegister *getDataRegister() {return _dataRegister;}
-   void setDataRegister(TR::RealRegister *r) {_dataRegister = r;}
+    bool isSpecialDouble() { return _flags.testAll(TO_MASK32(IsSpecialDouble)); }
 
-   bool isSpecialDouble() {return _flags.testAll(TO_MASK32(IsSpecialDouble));}
-   void setIsSpecialDouble() {_flags.set(TO_MASK32(IsSpecialDouble));}
-   void resetIsSpecialDouble() {_flags.reset(TO_MASK32(IsSpecialDouble));}
+    void setIsSpecialDouble() { _flags.set(TO_MASK32(IsSpecialDouble)); }
 
-   bool inSyncSequence() {return _flags.testAll(TO_MASK32(InSyncSequence));}
-   void setInSyncSequence() {_flags.set(TO_MASK32(InSyncSequence));}
-   void resetInSyncSequence() {_flags.reset(TO_MASK32(InSyncSequence));}
+    void resetIsSpecialDouble() { _flags.reset(TO_MASK32(IsSpecialDouble)); }
 
-   bool is32BitLong() {return _flags.testAll(TO_MASK32(Is32BitLong));}
-   void setIs32BitLong() {_flags.set(TO_MASK32(Is32BitLong));}
-   void resetIs32BitLong() {_flags.reset(TO_MASK32(Is32BitLong));}
+    bool inSyncSequence() { return _flags.testAll(TO_MASK32(InSyncSequence)); }
 
-   uint8_t *getAddressOfDataReference();
+    void setInSyncSequence() { _flags.set(TO_MASK32(InSyncSequence)); }
 
-   virtual uint8_t *emitSnippetBody();
+    void resetInSyncSequence() { _flags.reset(TO_MASK32(InSyncSequence)); }
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
+    bool is32BitLong() { return _flags.testAll(TO_MASK32(Is32BitLong)); }
 
+    void setIs32BitLong() { _flags.set(TO_MASK32(Is32BitLong)); }
 
-   protected:
+    void resetIs32BitLong() { _flags.reset(TO_MASK32(Is32BitLong)); }
 
-   enum
-      {
-      IsSpecialDouble = J9::UnresolvedDataSnippet::NextSnippetFlag,
-      InSyncSequence,
-      Is32BitLong,
-      NextSnippetFlag
-      };
+    uint8_t *getAddressOfDataReference();
 
-   static_assert((int32_t)NextSnippetFlag <= (int32_t)J9::UnresolvedDataSnippet::MaxSnippetFlag,
-      "TR::UnresolvedDataSnippet too many flag bits for flag width");
+    virtual uint8_t *emitSnippetBody();
 
-   };
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
 
-}
+protected:
+    enum {
+        IsSpecialDouble = J9::UnresolvedDataSnippet::NextSnippetFlag,
+        InSyncSequence,
+        Is32BitLong,
+        NextSnippetFlag
+    };
 
-}
+    static_assert((int32_t)NextSnippetFlag <= (int32_t)J9::UnresolvedDataSnippet::MaxSnippetFlag,
+        "TR::UnresolvedDataSnippet too many flag bits for flag width");
+};
+
+}} // namespace J9::Power
 
 #endif

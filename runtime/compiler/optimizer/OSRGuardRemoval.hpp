@@ -31,19 +31,19 @@ namespace TR {
 class Block;
 }
 
-class TR_OSRGuardRemoval : public TR::Optimization
-   {
-   public:
-   TR_OSRGuardRemoval(TR::OptimizationManager *manager)
-      : TR::Optimization(manager)
-      {}
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_OSRGuardRemoval(manager);
-      }
+class TR_OSRGuardRemoval : public TR::Optimization {
+public:
+    TR_OSRGuardRemoval(TR::OptimizationManager *manager)
+        : TR::Optimization(manager)
+    {}
 
-   virtual int32_t perform();
-   virtual const char *optDetailString() const throw();
-   static bool findMatchingOSRGuard(TR::Compilation *comp, TR::TreeTop *tt);
-   };
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_OSRGuardRemoval(manager);
+    }
+
+    virtual int32_t perform();
+    virtual const char *optDetailString() const throw();
+    static bool findMatchingOSRGuard(TR::Compilation *comp, TR::TreeTop *tt);
+};
 #endif

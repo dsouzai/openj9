@@ -33,21 +33,20 @@
  *
  * It will perform the analysis and cache any blocks that contain yields within them.
  */
-TR_OSRGuardAnalysis::TR_OSRGuardAnalysis(TR::Compilation *comp, TR::Optimizer *optimizer, TR_Structure *rootStructure) :
-   TR_UnionSingleBitContainerAnalysis(comp, comp->getFlowGraph(), optimizer, false)
-   {
-   if (comp->getVisitCount() > 8000)
-      comp->resetVisitCounts(1);
+TR_OSRGuardAnalysis::TR_OSRGuardAnalysis(TR::Compilation *comp, TR::Optimizer *optimizer, TR_Structure *rootStructure)
+    : TR_UnionSingleBitContainerAnalysis(comp, comp->getFlowGraph(), optimizer, false)
+{
+    if (comp->getVisitCount() > 8000)
+        comp->resetVisitCounts(1);
 
-   _containsYields = new (trStackMemory()) TR_BitVector(0, trMemory(), stackAlloc, growable);
-   initializeBlockInfo();
-   
-   {
-   TR::StackMemoryRegion stackMemoryRegion(*trMemory());
-   performAnalysis(rootStructure, false);
-   }
+    _containsYields = new (trStackMemory()) TR_BitVector(0, trMemory(), stackAlloc, growable);
+    initializeBlockInfo();
 
-   }
+    {
+        TR::StackMemoryRegion stackMemoryRegion(*trMemory());
+        performAnalysis(rootStructure, false);
+    }
+}
 
 int32_t TR_OSRGuardAnalysis::getNumberOfBits() { return 1; }
 
@@ -55,92 +54,78 @@ bool TR_OSRGuardAnalysis::supportsGenAndKillSets() { return true; }
 
 TR_DataFlowAnalysis::Kind TR_OSRGuardAnalysis::getKind() { return OSRGuardAnalysis; }
 
-void TR_OSRGuardAnalysis::analyzeNode(TR::Node *node, vcount_t visitCount, TR_BlockStructure *block, TR_SingleBitContainer *bv) 
-   {
-   }
+void TR_OSRGuardAnalysis::analyzeNode(TR::Node *node, vcount_t visitCount, TR_BlockStructure *block,
+    TR_SingleBitContainer *bv)
+{}
 
-void TR_OSRGuardAnalysis::analyzeTreeTopsInBlockStructure(TR_BlockStructure *block)
-   {
-   }
+void TR_OSRGuardAnalysis::analyzeTreeTopsInBlockStructure(TR_BlockStructure *block) {}
 
 bool TR_OSRGuardAnalysis::shouldSkipBlock(TR::Block *block)
-   {
-   return block->isOSRCatchBlock() || block->isOSRCodeBlock() || block->isOSRInduceBlock();
-   }
+{
+    return block->isOSRCatchBlock() || block->isOSRCodeBlock() || block->isOSRInduceBlock();
+}
 
-bool TR_OSRGuardAnalysis::containsYields(TR::Block *block)
-   {
-   return _containsYields->get(block->getNumber());
-   }
+bool TR_OSRGuardAnalysis::containsYields(TR::Block *block) { return _containsYields->get(block->getNumber()); }
 
-bool TR_OSRGuardAnalysis::postInitializationProcessing()
-   {
-   return true;
-   }
+bool TR_OSRGuardAnalysis::postInitializationProcessing() { return true; }
 
 void TR_OSRGuardAnalysis::initializeGenAndKillSetInfo()
-   {
-   for (int32_t i = 0; i < comp()->getFlowGraph()->getNextNodeNumber(); ++i)
-      {
-      _regularGenSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),trMemory(), stackAlloc);
-      _exceptionGenSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),trMemory(), stackAlloc);
-      _regularKillSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),trMemory(), stackAlloc);
-      _exceptionKillSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(),trMemory(), stackAlloc);
-      }
+{
+    for (int32_t i = 0; i < comp()->getFlowGraph()->getNextNodeNumber(); ++i) {
+        _regularGenSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(), trMemory(), stackAlloc);
+        _exceptionGenSetInfo[i]
+            = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(), trMemory(), stackAlloc);
+        _regularKillSetInfo[i] = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(), trMemory(), stackAlloc);
+        _exceptionKillSetInfo[i]
+            = new (trStackMemory()) TR_SingleBitContainer(getNumberOfBits(), trMemory(), stackAlloc);
+    }
 
-   TR::Block *block = comp()->getStartTree()->getEnclosingBlock();
-   // The method entry generates fear, so set the first block as generating
-   _regularGenSetInfo[block->getNumber()]->setAll(getNumberOfBits());
-   _containsYields->set(block->getNumber());
+    TR::Block *block = comp()->getStartTree()->getEnclosingBlock();
+    // The method entry generates fear, so set the first block as generating
+    _regularGenSetInfo[block->getNumber()]->setAll(getNumberOfBits());
+    _containsYields->set(block->getNumber());
 
-   for (TR::TreeTop *treeTop = comp()->getStartTree(); treeTop; treeTop = treeTop->getNextTreeTop())
-      {
-      if (treeTop->getNode()->getOpCodeValue() == TR::BBStart)
-         {
-         block = treeTop->getEnclosingBlock();
-         if (shouldSkipBlock(block))
-            {
-            _regularKillSetInfo[block->getNumber()]->setAll(getNumberOfBits());
-            _exceptionKillSetInfo[block->getNumber()]->setAll(getNumberOfBits());
-            treeTop = block->getExit();
+    for (TR::TreeTop *treeTop = comp()->getStartTree(); treeTop; treeTop = treeTop->getNextTreeTop()) {
+        if (treeTop->getNode()->getOpCodeValue() == TR::BBStart) {
+            block = treeTop->getEnclosingBlock();
+            if (shouldSkipBlock(block)) {
+                _regularKillSetInfo[block->getNumber()]->setAll(getNumberOfBits());
+                _exceptionKillSetInfo[block->getNumber()]->setAll(getNumberOfBits());
+                treeTop = block->getExit();
             }
-         continue;
-         }
+            continue;
+        }
 
-      // An exception treetop could result in an edge to a catch block, which should
-      // require protection based on the current state of this block
-      if (treeTop->getNode()->getOpCode().canRaiseException())
-         {
-         *(_exceptionGenSetInfo[block->getNumber()]) |= *(_regularGenSetInfo[block->getNumber()]);
-         }
+        // An exception treetop could result in an edge to a catch block, which should
+        // require protection based on the current state of this block
+        if (treeTop->getNode()->getOpCode().canRaiseException()) {
+            *(_exceptionGenSetInfo[block->getNumber()]) |= *(_regularGenSetInfo[block->getNumber()]);
+        }
 
-      // Identify yield points, treetops that must be protected by OSR guards
-      if (comp()->isPotentialOSRPoint(treeTop->getNode()))
-         {
-         _regularGenSetInfo[block->getNumber()]->setAll(getNumberOfBits());
-         _containsYields->set(block->getNumber());
-         }
+        // Identify yield points, treetops that must be protected by OSR guards
+        if (comp()->isPotentialOSRPoint(treeTop->getNode())) {
+            _regularGenSetInfo[block->getNumber()]->setAll(getNumberOfBits());
+            _containsYields->set(block->getNumber());
+        }
 
-      // Identify OSR guards, treetops that implement the protection
-      else if (treeTop->getNode()->isOSRGuard())
-         {
-         _regularKillSetInfo[block->getNumber()]->setAll(getNumberOfBits());
-         _regularGenSetInfo[block->getNumber()]->empty();
-         if (block->isCatchBlock())
-            _exceptionKillSetInfo[block->getNumber()]->setAll(getNumberOfBits());
-         }
-
-      // Identify VG merged with OSR guards
-      else if (treeTop->getNode()->isTheVirtualGuardForAGuardedInlinedCall() && comp()->cg()->supportsMergingGuards())
-         {
-         TR_VirtualGuard *guardInfo = comp()->findVirtualGuardInfo(treeTop->getNode());
-         if (guardInfo->mergedWithOSRGuard())
-            {
+        // Identify OSR guards, treetops that implement the protection
+        else if (treeTop->getNode()->isOSRGuard()) {
             _regularKillSetInfo[block->getNumber()]->setAll(getNumberOfBits());
             _regularGenSetInfo[block->getNumber()]->empty();
             if (block->isCatchBlock())
-               _exceptionKillSetInfo[block->getNumber()]->setAll(getNumberOfBits());
+                _exceptionKillSetInfo[block->getNumber()]->setAll(getNumberOfBits());
+        }
+
+        // Identify VG merged with OSR guards
+        else if (treeTop->getNode()->isTheVirtualGuardForAGuardedInlinedCall()
+            && comp()->cg()->supportsMergingGuards()) {
+            TR_VirtualGuard *guardInfo = comp()->findVirtualGuardInfo(treeTop->getNode());
+            if (guardInfo->mergedWithOSRGuard()) {
+                _regularKillSetInfo[block->getNumber()]->setAll(getNumberOfBits());
+                _regularGenSetInfo[block->getNumber()]->empty();
+                if (block->isCatchBlock())
+                    _exceptionKillSetInfo[block->getNumber()]->setAll(getNumberOfBits());
             }
-         }
-      }
-   }
+        }
+    }
+}

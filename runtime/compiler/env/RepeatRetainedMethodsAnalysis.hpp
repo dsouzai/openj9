@@ -51,24 +51,23 @@
 #include <vector>
 
 struct J9JITExceptionTable;
+
 namespace TR {
 class Compilation;
 }
 class TR_ResolvedMethod;
 
-namespace J9 {
-namespace RepeatRetainedMethodsAnalysis {
+namespace J9 { namespace RepeatRetainedMethodsAnalysis {
 
 /**
  * \brief Attributes of a call site relevant to the repeat analysis.
  */
-struct InlinedSiteInfo
-   {
-   uint32_t _inlinedSiteIndex; ///< The index of the site.
-   TR_ResolvedMethod *_refinedMethod; ///< The call site refined method, if any.
-   bool _generatedKeepalive; ///< True if the server generated a keepalive.
-   bool _generatedBond; ///< True if the server generated a bond.
-   };
+struct InlinedSiteInfo {
+    uint32_t _inlinedSiteIndex; ///< The index of the site.
+    TR_ResolvedMethod *_refinedMethod; ///< The call site refined method, if any.
+    bool _generatedKeepalive; ///< True if the server generated a keepalive.
+    bool _generatedBond; ///< True if the server generated a bond.
+};
 
 /**
  * \brief Populate data needed for the client to repeat the analysis.
@@ -77,11 +76,8 @@ struct InlinedSiteInfo
  * \param[out] keepaliveMethods the remote mirrors of the server's keepalive methods
  * \param[out] bondMethods the remote mirrors of the server's bond methods
  */
-void getDataForClient(
-   TR::Compilation *comp,
-   std::vector<InlinedSiteInfo> &inlinedSiteInfo,
-   std::vector<TR_ResolvedMethod*> &keepaliveMethods,
-   std::vector<TR_ResolvedMethod*> &bondMethods);
+void getDataForClient(TR::Compilation *comp, std::vector<InlinedSiteInfo> &inlinedSiteInfo,
+    std::vector<TR_ResolvedMethod *> &keepaliveMethods, std::vector<TR_ResolvedMethod *> &bondMethods);
 
 /**
  * \brief Populate data needed for the client to repeat the analysis.
@@ -91,12 +87,9 @@ void getDataForClient(
  * \param[out] keepaliveMethods the remote mirrors of the server's keepalive methods
  * \param[out] bondMethods the remote mirrors of the server's bond methods
  */
-void getDataForClient(
-   TR::Compilation *comp,
-   std::vector<J9::ResolvedInlinedCallSite> &inliningTable,
-   std::vector<InlinedSiteInfo> &inlinedSiteInfo,
-   std::vector<TR_ResolvedMethod*> &keepaliveMethods,
-   std::vector<TR_ResolvedMethod*> &bondMethods);
+void getDataForClient(TR::Compilation *comp, std::vector<J9::ResolvedInlinedCallSite> &inliningTable,
+    std::vector<InlinedSiteInfo> &inlinedSiteInfo, std::vector<TR_ResolvedMethod *> &keepaliveMethods,
+    std::vector<TR_ResolvedMethod *> &bondMethods);
 
 /**
  * \brief Do the repeat analysis. This must only be called on the client.
@@ -107,12 +100,10 @@ void getDataForClient(
  * \param serverBondMethods the remote mirrors of the server's bond methods
  * \return the root retained method set resulting from analysis
  */
-OMR::RetainedMethodSet *analyzeOnClient(
-   TR::Compilation *comp,
-   const TR::vector<J9::ResolvedInlinedCallSite, TR::Region&> &inliningTable,
-   const std::vector<InlinedSiteInfo> &inlinedSiteInfo,
-   const std::vector<TR_ResolvedMethod*> &serverKeepaliveMethods,
-   const std::vector<TR_ResolvedMethod*> &serverBondMethods);
+OMR::RetainedMethodSet *analyzeOnClient(TR::Compilation *comp,
+    const TR::vector<J9::ResolvedInlinedCallSite, TR::Region &> &inliningTable,
+    const std::vector<InlinedSiteInfo> &inlinedSiteInfo, const std::vector<TR_ResolvedMethod *> &serverKeepaliveMethods,
+    const std::vector<TR_ResolvedMethod *> &serverBondMethods);
 
 /**
  * \brief Do the repeat analysis. This must only be called on the client.
@@ -123,14 +114,10 @@ OMR::RetainedMethodSet *analyzeOnClient(
  * \param serverBondMethods the remote mirrors of the server's bond methods
  * \return the root retained method set resulting from analysis
  */
-OMR::RetainedMethodSet *analyzeOnClient(
-   TR::Compilation *comp,
-   J9JITExceptionTable *metadata,
-   const std::vector<InlinedSiteInfo> &inlinedSiteInfo,
-   const std::vector<TR_ResolvedMethod*> &serverKeepaliveMethods,
-   const std::vector<TR_ResolvedMethod*> &serverBondMethods);
+OMR::RetainedMethodSet *analyzeOnClient(TR::Compilation *comp, J9JITExceptionTable *metadata,
+    const std::vector<InlinedSiteInfo> &inlinedSiteInfo, const std::vector<TR_ResolvedMethod *> &serverKeepaliveMethods,
+    const std::vector<TR_ResolvedMethod *> &serverBondMethods);
 
-} // namespace RepeatRetainedMethodsAnalysis
-} // namespace J9
+}} // namespace J9::RepeatRetainedMethodsAnalysis
 
 #endif // J9_REPEATRETAINEDMETHODSANALYSIS_INCL

@@ -27,17 +27,15 @@
 
 namespace TR {
 
-class JavaILValidator: public TR::ILValidator
-   {
-   typedef TR::ILValidator Super;
+class JavaILValidator : public TR::ILValidator {
+    typedef TR::ILValidator Super;
 
-   virtual void validateNode(Location &location);
+    virtual void validateNode(Location &location);
 
-   public: // Java-specific validity checks
+public: // Java-specific validity checks
+    void validateAsynccheck(Location &location);
+};
 
-   void validateAsynccheck(Location &location);
-   };
-
-}
+} // namespace TR
 
 #endif // JAVAILVALIDATOR_HPP

@@ -23,13 +23,11 @@
 #ifndef RECOGNIZEDMETHODS_INCL
 #define RECOGNIZEDMETHODS_INCL
 
-namespace TR
-   {
-      enum RecognizedMethod
-      {
-      #include "codegen/J9RecognizedMethodsEnum.hpp"
-      numRecognizedMethods
-      };
-   }
+namespace TR {
+enum RecognizedMethod {
+#include "codegen/J9RecognizedMethodsEnum.hpp"
+    numRecognizedMethods
+};
+} // namespace TR
 
 #endif

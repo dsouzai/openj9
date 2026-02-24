@@ -30,34 +30,28 @@
 #include "il/ILOpCodes.hpp"
 #include "infra/Annotations.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE Node : public J9::NodeConnector
-{
-
+class OMR_EXTENSIBLE Node : public J9::NodeConnector {
 public:
+    Node()
+        : J9::NodeConnector()
+    {}
 
-   Node()
-      : J9::NodeConnector()
-      {}
+    Node(TR::Node *originatingByteCodeNode, TR::ILOpCodes op, uint16_t numChildren)
+        : J9::NodeConnector(originatingByteCodeNode, op, numChildren)
+    {}
 
-   Node(TR::Node *originatingByteCodeNode, TR::ILOpCodes op,
-        uint16_t numChildren)
-      : J9::NodeConnector(originatingByteCodeNode, op, numChildren)
-      {}
+    Node(Node *from, uint16_t numChildren = 0)
+        : J9::NodeConnector(from, numChildren)
+    {}
 
-   Node(Node *from, uint16_t numChildren = 0)
-      : J9::NodeConnector(from, numChildren)
-      {}
-
-   Node(Node& from)
-      : J9::NodeConnector(from)
-      {}
-
+    Node(Node &from)
+        : J9::NodeConnector(from)
+    {}
 };
 
-}
+} // namespace TR
 
 #endif
 

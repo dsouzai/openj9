@@ -25,36 +25,34 @@ namespace TR {
 class NodeChecklist;
 }
 
-class TR_FearPointAnalysis : public TR_BackwardUnionSingleBitContainerAnalysis
-   {
-   public:
+class TR_FearPointAnalysis : public TR_BackwardUnionSingleBitContainerAnalysis {
+public:
+    TR_FearPointAnalysis(TR::Compilation *comp, TR::Optimizer *optimizer, TR_Structure *,
+        TR_BitVector &fearGeneratingNodes, bool topLevelFearOnly = false, bool trace = false);
 
-   TR_FearPointAnalysis(TR::Compilation *comp, TR::Optimizer *optimizer, TR_Structure *,
-      TR_BitVector &fearGeneratingNodes, bool topLevelFearOnly=false, bool trace=false);
+    virtual Kind getKind();
+    virtual TR_FearPointAnalysis *asFearPointAnalysis();
 
-   virtual Kind getKind();
-   virtual TR_FearPointAnalysis *asFearPointAnalysis();
+    virtual int32_t getNumberOfBits();
+    virtual bool supportsGenAndKillSets();
+    virtual void initializeGenAndKillSetInfo();
+    virtual void analyzeNode(TR::Node *, vcount_t, TR_BlockStructure *, TR_SingleBitContainer *);
+    virtual void analyzeTreeTopsInBlockStructure(TR_BlockStructure *);
+    virtual bool postInitializationProcessing();
+    TR_SingleBitContainer *generatedFear(TR::Node *node);
 
-   virtual int32_t getNumberOfBits();
-   virtual bool supportsGenAndKillSets();
-   virtual void initializeGenAndKillSetInfo();
-   virtual void analyzeNode(TR::Node *, vcount_t, TR_BlockStructure *, TR_SingleBitContainer *);
-   virtual void analyzeTreeTopsInBlockStructure(TR_BlockStructure *);
-   virtual bool postInitializationProcessing();
-   TR_SingleBitContainer *generatedFear(TR::Node *node);
+    static bool virtualGuardKillsFear(TR::Compilation *comp, TR::Node *virtualGuardNode);
 
-   static bool virtualGuardKillsFear(TR::Compilation *comp, TR::Node *virtualGuardNode);
-
-   private:
-   void computeFear(TR::Compilation *comp, TR::Node *node, TR::NodeChecklist &checklist);
-   void computeFearFromBitVector(TR::Compilation *comp);
-   TR_SingleBitContainer **_fearfulNodes;
-   TR_BitVector &_fearGeneratingNodes;
-   TR_SingleBitContainer _EMPTY;
-   bool _topLevelFearOnly;
-   bool _trace;
+private:
+    void computeFear(TR::Compilation *comp, TR::Node *node, TR::NodeChecklist &checklist);
+    void computeFearFromBitVector(TR::Compilation *comp);
+    TR_SingleBitContainer **_fearfulNodes;
+    TR_BitVector &_fearGeneratingNodes;
+    TR_SingleBitContainer _EMPTY;
+    bool _topLevelFearOnly;
+    bool _trace;
 
 #if defined(DEBUG) || defined(PROD_WITH_ASSUMES)
-   bool confirmFearFromBitVector(TR::Node *node);
+    bool confirmFearFromBitVector(TR::Node *node);
 #endif
-   };
+};

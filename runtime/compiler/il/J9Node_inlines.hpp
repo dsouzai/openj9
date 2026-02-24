@@ -26,19 +26,17 @@
 #include "il/J9Node.hpp"
 #include "il/OMRNode_inlines.hpp"
 
-float
-J9::Node::getFloat()
-   {
-   TR_ASSERT(self()->getOpCodeValue() == TR::fconst, "TR::Node::getFloat: used for a non fconst node");
-   return OMR::Node::getFloat();
-   }
+float J9::Node::getFloat()
+{
+    TR_ASSERT(self()->getOpCodeValue() == TR::fconst, "TR::Node::getFloat: used for a non fconst node");
+    return OMR::Node::getFloat();
+}
 
-float
-J9::Node::setFloat(float f)
-   {
-   TR_ASSERT(self()->getOpCodeValue() == TR::fconst, "TR::Node::setFloat: used for a non fconst node");
-   return OMR::Node::setFloat(f);
-   }
+float J9::Node::setFloat(float f)
+{
+    TR_ASSERT(self()->getOpCodeValue() == TR::fconst, "TR::Node::setFloat: used for a non fconst node");
+    return OMR::Node::setFloat(f);
+}
 
 #endif
 

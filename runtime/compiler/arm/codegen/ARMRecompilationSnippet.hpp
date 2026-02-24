@@ -24,32 +24,31 @@
 #define ARMRECOMPILATIONSNIPPET_INCL
 
 #include "codegen/Snippet.hpp"
-//#include "codegen/ARMLinkage.hpp"
+// #include "codegen/ARMLinkage.hpp"
 #include "codegen/Linkage.hpp"
-//#include "codegen/ARMMachine.hpp"
+// #include "codegen/ARMMachine.hpp"
 #include "codegen/Machine.hpp"
 #include "codegen/ARMInstruction.hpp"
 
 namespace TR {
 
-class ARMRecompilationSnippet : public TR::Snippet
-   {
-   TR::Instruction *branchToSnippet;
-   public:
+class ARMRecompilationSnippet : public TR::Snippet {
+    TR::Instruction *branchToSnippet;
 
-   ARMRecompilationSnippet(TR::LabelSymbol *snippetlab, TR::Instruction *bts, TR::CodeGenerator *cg)
-      : TR::Snippet(cg, 0, snippetlab, false), branchToSnippet(bts)
-      {
-      }
+public:
+    ARMRecompilationSnippet(TR::LabelSymbol *snippetlab, TR::Instruction *bts, TR::CodeGenerator *cg)
+        : TR::Snippet(cg, 0, snippetlab, false)
+        , branchToSnippet(bts)
+    {}
 
-   virtual Kind getKind() { return IsRecompilation; }
+    virtual Kind getKind() { return IsRecompilation; }
 
-   TR::Instruction *getBranchToSnippet() {return branchToSnippet;}
+    TR::Instruction *getBranchToSnippet() { return branchToSnippet; }
 
-   virtual uint8_t *emitSnippetBody();
+    virtual uint8_t *emitSnippetBody();
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-   };
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
+};
 
 /*
 class ARMEDORecompilationSnippet : public TR::Snippet
@@ -58,8 +57,8 @@ class ARMEDORecompilationSnippet : public TR::Snippet
    TR::LabelSymbol *_doneLabel;
    public:
 
-   ARMEDORecompilationSnippet(TR::LabelSymbol *snippetlab,  TR::LabelSymbol *doneLab, TR_Instruction *bts, TR::CodeGenerator *cg)
-      : _doneLabel(doneLab) , TR::Snippet(cg, 0, snippetlab, false), branchToSnippet(bts)
+   ARMEDORecompilationSnippet(TR::LabelSymbol *snippetlab,  TR::LabelSymbol *doneLab, TR_Instruction *bts,
+TR::CodeGenerator *cg) : _doneLabel(doneLab) , TR::Snippet(cg, 0, snippetlab, false), branchToSnippet(bts)
       {
       }
 
@@ -75,6 +74,6 @@ class ARMEDORecompilationSnippet : public TR::Snippet
    };
 */
 
-}
+} // namespace TR
 
 #endif

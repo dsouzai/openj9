@@ -21,13 +21,13 @@
  *******************************************************************************/
 
 #if defined(J9ZOS390)
-//On zOS XLC linker can't handle files with same name at link time
-//This workaround with pragma is needed. What this does is essentially
-//give a different name to the codesection (csect) for this file. So it
-//doesn't conflict with another file with same name.
-#pragma csect(CODE,"TRJ9InstBase#C")
-#pragma csect(STATIC,"TRJ9InstBase#S")
-#pragma csect(TEST,"TRJ9InstBase#T")
+// On zOS XLC linker can't handle files with same name at link time
+// This workaround with pragma is needed. What this does is essentially
+// give a different name to the codesection (csect) for this file. So it
+// doesn't conflict with another file with same name.
+#pragma csect(CODE, "TRJ9InstBase#C")
+#pragma csect(STATIC, "TRJ9InstBase#S")
+#pragma csect(TEST, "TRJ9InstBase#T")
 #endif
 
 #include "codegen/Instruction.hpp"
@@ -35,41 +35,28 @@
 #include "il/Node.hpp"
 #include "il/Node_inlines.hpp"
 
-J9::Instruction::Instruction(
-      TR::CodeGenerator *cg,
-      TR::InstOpCode::Mnemonic op,
-      TR::Node *node) :
-   OMR::InstructionConnector(cg, op, node)
-   {
-   if (self()->getPrev())
-      {
-      _liveLocals = cg->getLiveLocals();
-      _liveMonitors = cg->getLiveMonitors();
-      }
-   else
-      {
-      _liveLocals = 0;
-      _liveMonitors = 0;
-      }
-   }
+J9::Instruction::Instruction(TR::CodeGenerator *cg, TR::InstOpCode::Mnemonic op, TR::Node *node)
+    : OMR::InstructionConnector(cg, op, node)
+{
+    if (self()->getPrev()) {
+        _liveLocals = cg->getLiveLocals();
+        _liveMonitors = cg->getLiveMonitors();
+    } else {
+        _liveLocals = 0;
+        _liveMonitors = 0;
+    }
+}
 
-
-J9::Instruction::Instruction(
-      TR::CodeGenerator *cg,
-      TR::Instruction *precedingInstruction,
-      TR::InstOpCode::Mnemonic op,
-      TR::Node *node) :
-   OMR::InstructionConnector(cg, precedingInstruction, op, node)
-   {
-   if (precedingInstruction != 0)
-      {
-      _liveLocals = precedingInstruction->_liveLocals;
-      _liveMonitors = precedingInstruction->_liveMonitors;
-      }
-   else
-      {
-      _liveLocals = 0;
-      _liveMonitors = 0;
-      }
-   }
+J9::Instruction::Instruction(TR::CodeGenerator *cg, TR::Instruction *precedingInstruction, TR::InstOpCode::Mnemonic op,
+    TR::Node *node)
+    : OMR::InstructionConnector(cg, precedingInstruction, op, node)
+{
+    if (precedingInstruction != 0) {
+        _liveLocals = precedingInstruction->_liveLocals;
+        _liveMonitors = precedingInstruction->_liveMonitors;
+    } else {
+        _liveLocals = 0;
+        _liveMonitors = 0;
+    }
+}
 

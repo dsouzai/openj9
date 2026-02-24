@@ -21,9 +21,9 @@
  *******************************************************************************/
 
 #if defined(J9ZOS390)
-#pragma csect(CODE,"TRJ9CGBase#C")
-#pragma csect(STATIC,"TRJ9CGBase#S")
-#pragma csect(TEST,"TRJ9CGBase#T")
+#pragma csect(CODE, "TRJ9CGBase#C")
+#pragma csect(STATIC, "TRJ9CGBase#S")
+#pragma csect(TEST, "TRJ9CGBase#T")
 #endif
 
 #include <algorithm>
@@ -80,106 +80,82 @@
 
 #define OPT_DETAILS "O^O CODE GENERATION: "
 
-
-J9::CodeGenerator::CodeGenerator(TR::Compilation *comp) :
-      OMR::CodeGeneratorConnector(comp),
-   _gpuSymbolMap(comp->allocator()),
-   _stackLimitOffsetInMetaData(comp->fej9()->thisThreadGetStackLimitOffset()),
-   _uncommonedNodes(comp->trMemory(), stackAlloc),
-   _liveMonitors(NULL),
-   _nodesSpineCheckedList(getTypedAllocator<TR::Node*>(comp->allocator())),
-   _jniCallSites(getTypedAllocator<TR_Pair<TR_ResolvedMethod,TR::Instruction> *>(comp->allocator())),
-   _monitorMapping(std::less<ncount_t>(), MonitorMapAllocator(comp->trMemory()->heapMemoryRegion())),
-   _dummyTempStorageRefNode(NULL)
+J9::CodeGenerator::CodeGenerator(TR::Compilation *comp)
+    : OMR::CodeGeneratorConnector(comp)
+    , _gpuSymbolMap(comp->allocator())
+    , _stackLimitOffsetInMetaData(comp->fej9()->thisThreadGetStackLimitOffset())
+    , _uncommonedNodes(comp->trMemory(), stackAlloc)
+    , _liveMonitors(NULL)
+    , _nodesSpineCheckedList(getTypedAllocator<TR::Node *>(comp->allocator()))
+    , _jniCallSites(getTypedAllocator<TR_Pair<TR_ResolvedMethod, TR::Instruction> *>(comp->allocator()))
+    , _monitorMapping(std::less<ncount_t>(), MonitorMapAllocator(comp->trMemory()->heapMemoryRegion()))
+    , _dummyTempStorageRefNode(NULL)
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
-   , _invokeBasicCallSites(comp->region())
-   , _constRefOwningClasses(comp->region())
+    , _invokeBasicCallSites(comp->region())
+    , _constRefOwningClasses(comp->region())
 #endif
-   {
-   /**
-    * Do not add CodeGenerator initialization logic here.
-    * Use the \c initialize() method instead.
-    */
-   }
+{
+    /**
+     * Do not add CodeGenerator initialization logic here.
+     * Use the \c initialize() method instead.
+     */
+}
 
-void
-J9::CodeGenerator::initialize()
-   {
-   self()->OMR::CodeGeneratorConnector::initialize();
-   }
+void J9::CodeGenerator::initialize() { self()->OMR::CodeGeneratorConnector::initialize(); }
 
-TR_J9VMBase *
-J9::CodeGenerator::fej9()
-   {
-   return (TR_J9VMBase *)self()->fe();
-   }
+TR_J9VMBase *J9::CodeGenerator::fej9() { return (TR_J9VMBase *)self()->fe(); }
 
 // J9
-static TR::Node *lowerCASValues(
-      TR::Node *parent,
-      int32_t childNum,
-      TR::Node *address,
-      TR::Compilation *comp,
-      TR::Node *shftOffset,
-      bool isLowMem,
-      TR::Node *heapBase)
-   {
-   TR::Node *l2iNode = NULL;
+static TR::Node *lowerCASValues(TR::Node *parent, int32_t childNum, TR::Node *address, TR::Compilation *comp,
+    TR::Node *shftOffset, bool isLowMem, TR::Node *heapBase)
+{
+    TR::Node *l2iNode = NULL;
 
-   if ((address->getOpCodeValue() == TR::aconst) &&
-       (address->getAddress() == 0))
-      {
-      l2iNode = TR::Node::create(address, TR::iconst, 0, 0);
-      }
-   else
-      {
-      // -J9JIT_COMPRESSED_POINTER-
-      // if the value is known to be null or if using lowMemHeap, do not
-      // generate a compression sequence
-      //
-      TR::Node *a2lNode = TR::Node::create(TR::a2l, 1, address);
-      bool isNonNull = false;
-      if (address->isNonNull())
-         isNonNull = true;
+    if ((address->getOpCodeValue() == TR::aconst) && (address->getAddress() == 0)) {
+        l2iNode = TR::Node::create(address, TR::iconst, 0, 0);
+    } else {
+        // -J9JIT_COMPRESSED_POINTER-
+        // if the value is known to be null or if using lowMemHeap, do not
+        // generate a compression sequence
+        //
+        TR::Node *a2lNode = TR::Node::create(TR::a2l, 1, address);
+        bool isNonNull = false;
+        if (address->isNonNull())
+            isNonNull = true;
 
-      TR::Node *addNode = NULL;
+        TR::Node *addNode = NULL;
 
-      if (address->isNull() || isLowMem)
-         {
-         addNode = a2lNode;
-         }
-      else
-         {
-         if (isNonNull)
-            a2lNode->setIsNonZero(true);
-         addNode = TR::Node::create(TR::lsub, 2, a2lNode, heapBase);
-         addNode->setContainsCompressionSequence(true);
-         if (isNonNull)
+        if (address->isNull() || isLowMem) {
+            addNode = a2lNode;
+        } else {
+            if (isNonNull)
+                a2lNode->setIsNonZero(true);
+            addNode = TR::Node::create(TR::lsub, 2, a2lNode, heapBase);
+            addNode->setContainsCompressionSequence(true);
+            if (isNonNull)
+                addNode->setIsNonZero(true);
+        }
+
+        if (shftOffset) {
+            addNode = TR::Node::create(TR::lushr, 2, addNode, shftOffset);
+            addNode->setContainsCompressionSequence(true);
+        }
+
+        if (isNonNull)
             addNode->setIsNonZero(true);
-         }
 
-      if (shftOffset)
-         {
-         addNode = TR::Node::create(TR::lushr, 2, addNode, shftOffset);
-         addNode->setContainsCompressionSequence(true);
-         }
+        l2iNode = TR::Node::create(TR::l2i, 1, addNode);
+        if (isNonNull)
+            l2iNode->setIsNonZero(true);
 
-      if (isNonNull)
-         addNode->setIsNonZero(true);
+        if (address->isNull())
+            l2iNode->setIsNull(true);
+    }
 
-      l2iNode = TR::Node::create(TR::l2i, 1, addNode);
-      if (isNonNull)
-         l2iNode->setIsNonZero(true);
-
-      if (address->isNull())
-         l2iNode->setIsNull(true);
-      }
-
-   parent->setAndIncChild(childNum, l2iNode);
-   address->recursivelyDecReferenceCount();
-   return l2iNode;
-   }
-
+    parent->setAndIncChild(childNum, l2iNode);
+    address->recursivelyDecReferenceCount();
+    return l2iNode;
+}
 
 // J9
 //
@@ -193,2227 +169,1994 @@ static TR::Node *lowerCASValues(
 //        yl
 //        ==> luaddh             <=== replace dummy node with this third child to complete cycle
 //
-void
-J9::CodeGenerator::lowerDualOperator(
-      TR::Node *parent,
-      int32_t childNumber,
-      TR::TreeTop *treeTop)
-   {
-   if (parent == NULL)
-      {
-      // should never need to process treetops
-      return;
-      }
+void J9::CodeGenerator::lowerDualOperator(TR::Node *parent, int32_t childNumber, TR::TreeTop *treeTop)
+{
+    if (parent == NULL) {
+        // should never need to process treetops
+        return;
+    }
 
-   // any parent may have an adjunct
-   TR::Node *child = parent->getChild(childNumber);
-   if (child->isAdjunct())
-      {
-      TR_ASSERT(!child->isDualCyclic(), "Visitcount problem: trying to clone node %p when it has already been cloned.\n", child);
+    // any parent may have an adjunct
+    TR::Node *child = parent->getChild(childNumber);
+    if (child->isAdjunct()) {
+        TR_ASSERT(!child->isDualCyclic(),
+            "Visitcount problem: trying to clone node %p when it has already been cloned.\n", child);
 
-      // create clone with space for third child, but still with two children
-      TR::Node *clone = self()->createOrFindClonedNode(child, 3);
-      if (1 && performTransformation(self()->comp(), "%sCreating Cyclic Dual Representation, replacing %p (%s) by %p under %p (childNumber %d).\n",
-                                       OPT_DETAILS, child, child->getOpCode().getName(), clone, parent, childNumber))
-         {
-         child = clone;
-         parent->setChild(childNumber, child);
-         if (parent->isDualHigh() && (childNumber == 2))
-            {
-            // build cycle
-            TR_ASSERT(!parent->isDualCyclic(), "Attempting to lower a dual operator node %p that has already been lowered.\n", parent);
-            child->setNumChildren(3);
-            child->setAndIncChild(2, parent);
+        // create clone with space for third child, but still with two children
+        TR::Node *clone = self()->createOrFindClonedNode(child, 3);
+        if (1
+            && performTransformation(self()->comp(),
+                "%sCreating Cyclic Dual Representation, replacing %p (%s) by %p under %p (childNumber %d).\n",
+                OPT_DETAILS, child, child->getOpCode().getName(), clone, parent, childNumber)) {
+            child = clone;
+            parent->setChild(childNumber, child);
+            if (parent->isDualHigh() && (childNumber == 2)) {
+                // build cycle
+                TR_ASSERT(!parent->isDualCyclic(),
+                    "Attempting to lower a dual operator node %p that has already been lowered.\n", parent);
+                child->setNumChildren(3);
+                child->setAndIncChild(2, parent);
             }
-         }
-      }
-   }
-
+        }
+    }
+}
 
 // J9
-void
-J9::CodeGenerator::lowerCompressedRefs(
-      TR::TreeTop *treeTop,
-      TR::Node *node,
-      vcount_t visitCount,
-      TR_BitVector *childrenToBeLowered)
-   {
-   if (node->getOpCode().isCall() && childrenToBeLowered)
-      {
-      TR_BitVectorIterator bvi(*childrenToBeLowered);
-      while (bvi.hasMoreElements())
-         {
-         int32_t nextChild = bvi.getNextElement();
-         TR::Node *valueChild = node->getChild(nextChild);
-         if (valueChild->getOpCode().is8Byte())
-            {
-            TR::Node *shftOffset = NULL;
-            if (TR::Compiler->om.compressedReferenceShiftOffset() > 0)
-               {
-               shftOffset = TR::Node::create(node, TR::iconst, 0, TR::Compiler->om.compressedReferenceShiftOffset());
-               }
+void J9::CodeGenerator::lowerCompressedRefs(TR::TreeTop *treeTop, TR::Node *node, vcount_t visitCount,
+    TR_BitVector *childrenToBeLowered)
+{
+    if (node->getOpCode().isCall() && childrenToBeLowered) {
+        TR_BitVectorIterator bvi(*childrenToBeLowered);
+        while (bvi.hasMoreElements()) {
+            int32_t nextChild = bvi.getNextElement();
+            TR::Node *valueChild = node->getChild(nextChild);
+            if (valueChild->getOpCode().is8Byte()) {
+                TR::Node *shftOffset = NULL;
+                if (TR::Compiler->om.compressedReferenceShiftOffset() > 0) {
+                    shftOffset
+                        = TR::Node::create(node, TR::iconst, 0, TR::Compiler->om.compressedReferenceShiftOffset());
+                }
 
-            TR::Node *heapBase = TR::Node::create(node, TR::lconst, 0, 0);
-            lowerCASValues(node, nextChild, valueChild, self()->comp(), shftOffset, true, heapBase);
+                TR::Node *heapBase = TR::Node::create(node, TR::lconst, 0, 0);
+                lowerCASValues(node, nextChild, valueChild, self()->comp(), shftOffset, true, heapBase);
             }
-         }
+        }
 
-      return;
-      }
+        return;
+    }
+
+    TR::Node *loadOrStoreNode = node->getFirstChild();
+
+    /*
+     decompression:
+     actual = compress + heap_base
+
+     and compression:
+     compress = actual - heap_base
+
+     aloadi f      l2a
+       aload O       ladd
+                       lshl
+                         i2l
+                           iloadi f
+                             aload O
+                         iconst shftKonst
+                       lconst HB
+
+     -or- if the field is known to be null
+     l2a
+       i2l
+         iloadi f
+           aload O
 
 
-   TR::Node *loadOrStoreNode = node->getFirstChild();
+     astorei f     istorei f
+       aload O       aload O
+       value         l2i
+                       lshr
+                         lsub
+                           a2l
+                             aload O
+                           lconst HB
+                         iconst shftKonst
 
-   /*
-    decompression:
-    actual = compress + heap_base
+     -or- if the field is known to be null
+     istorei f
+       aload O
+       l2i
+         a2l      <- nop on most platforms
+           aload O
 
-    and compression:
-    compress = actual - heap_base
+     - J9JIT_COMPRESS_POINTER 32-bit -
 
-    aloadi f      l2a
-      aload O       ladd
-                      lshl
-                        i2l
-                          iloadi f
-                            aload O
-                        iconst shftKonst
-                      lconst HB
+     DEPRECATED - do *not* use, kept here for historical reasons
 
-    -or- if the field is known to be null
-    l2a
-      i2l
-        iloadi f
-          aload O
+     compress = actual - heapBase + shadowBase = actual + disp
+     actual = compress - disp
 
-
-    astorei f     istorei f
-      aload O       aload O
-      value         l2i
-                      lshr
-                        lsub
-                          a2l
-                            aload O
-                          lconst HB
-                        iconst shftKonst
-
-    -or- if the field is known to be null
-    istorei f
-      aload O
-      l2i
-        a2l      <- nop on most platforms
-          aload O
-
-    - J9JIT_COMPRESS_POINTER 32-bit -
-
-    DEPRECATED - do *not* use, kept here for historical reasons
-
-    compress = actual - heapBase + shadowBase = actual + disp
-    actual = compress - disp
-
-    aloadi f     i2a
-       aload O      isub
-                      iloadi f
-                       aload O
-                      iconst HB
-
-    astorei f    istorei f
-       aload O      aload O
-                   iushr            // iushr only there to distinguish between
-                     iadd           // real istoreis with iadds as the value
-                       a2i
-                         value
+     aloadi f     i2a
+        aload O      isub
+                       iloadi f
+                        aload O
                        iconst HB
-                     iconst 0
 
-    */
+     astorei f    istorei f
+        aload O      aload O
+                    iushr            // iushr only there to distinguish between
+                      iadd           // real istoreis with iadds as the value
+                        a2i
+                          value
+                        iconst HB
+                      iconst 0
 
-   // dont process loads/stores twice
-   // cannot use visitCounts because compressedRefs
-   // trees may appear after checks (in which case the node
-   // would have already been visited, preventing lowering)
-   //
-   TR::ILOpCodes convertOp = self()->comp()->target().is64Bit() ? TR::l2a : TR::i2a;
-   if (loadOrStoreNode->getOpCodeValue() == convertOp)
-      return;
-   else if (loadOrStoreNode->getOpCode().isStoreIndirect())
-      {
-      convertOp = self()->comp()->target().is64Bit() ? TR::l2i : TR::iushr;
-      if (loadOrStoreNode->getSecondChild()->getOpCodeValue() == convertOp)
-         return;
-      }
+     */
 
-   TR::Node *heapBase = node->getSecondChild();
+    // dont process loads/stores twice
+    // cannot use visitCounts because compressedRefs
+    // trees may appear after checks (in which case the node
+    // would have already been visited, preventing lowering)
+    //
+    TR::ILOpCodes convertOp = self()->comp()->target().is64Bit() ? TR::l2a : TR::i2a;
+    if (loadOrStoreNode->getOpCodeValue() == convertOp)
+        return;
+    else if (loadOrStoreNode->getOpCode().isStoreIndirect()) {
+        convertOp = self()->comp()->target().is64Bit() ? TR::l2i : TR::iushr;
+        if (loadOrStoreNode->getSecondChild()->getOpCodeValue() == convertOp)
+            return;
+    }
 
-   TR::SymbolReference *symRef = loadOrStoreNode->getSymbolReference();
-   TR::ILOpCodes loadOrStoreOp;
-   bool isLoad = true;
+    TR::Node *heapBase = node->getSecondChild();
 
-   TR::Node *address = NULL;
+    TR::SymbolReference *symRef = loadOrStoreNode->getSymbolReference();
+    TR::ILOpCodes loadOrStoreOp;
+    bool isLoad = true;
 
-   bool shouldBeCompressed = false;
-   if (loadOrStoreNode->getOpCode().isLoadIndirect() ||
-         loadOrStoreNode->getOpCode().isStoreIndirect() ||
-            loadOrStoreNode->getOpCodeValue() == TR::arrayset)
-      {
-      shouldBeCompressed = TR::TransformUtil::fieldShouldBeCompressed(loadOrStoreNode, self()->comp());
-      if (!shouldBeCompressed)
-         {
-         // catch cases when a compressedRefs anchor is created for specific
-         // unsafe loads by inliner
-         //
-         if (loadOrStoreNode->getSymbol()->isUnsafeShadowSymbol())
-            shouldBeCompressed = true;
-         }
-      // Don't de-compress loads created by dynamicLitPool
-      if (loadOrStoreNode->getOpCode().isLoadIndirect() &&
-            loadOrStoreNode->getSymbolReference()->isFromLiteralPool())
-         shouldBeCompressed = false;
-      }
+    TR::Node *address = NULL;
 
-   if (loadOrStoreNode->getOpCode().isLoadIndirect() && shouldBeCompressed)
-      {
-      if (self()->comp()->target().cpu.isZ() && TR::Compiler->om.readBarrierType() != gc_modron_readbar_none)
-         {
-         dumpOptDetails(self()->comp(), "converting to ardbari %p under concurrent scavenge on Z.\n", node);
-         self()->createReferenceReadBarrier(treeTop, loadOrStoreNode);
-         return;
-         }
+    bool shouldBeCompressed = false;
+    if (loadOrStoreNode->getOpCode().isLoadIndirect() || loadOrStoreNode->getOpCode().isStoreIndirect()
+        || loadOrStoreNode->getOpCodeValue() == TR::arrayset) {
+        shouldBeCompressed = TR::TransformUtil::fieldShouldBeCompressed(loadOrStoreNode, self()->comp());
+        if (!shouldBeCompressed) {
+            // catch cases when a compressedRefs anchor is created for specific
+            // unsafe loads by inliner
+            //
+            if (loadOrStoreNode->getSymbol()->isUnsafeShadowSymbol())
+                shouldBeCompressed = true;
+        }
+        // Don't de-compress loads created by dynamicLitPool
+        if (loadOrStoreNode->getOpCode().isLoadIndirect() && loadOrStoreNode->getSymbolReference()->isFromLiteralPool())
+            shouldBeCompressed = false;
+    }
 
-      // base object
-      address = loadOrStoreNode->getFirstChild();
-      loadOrStoreOp = TR::Compiler->om.readBarrierType() != gc_modron_readbar_none || loadOrStoreNode->getOpCode().isReadBar() ? self()->comp()->il.opCodeForIndirectReadBarrier(TR::Int32) :
-                                                                                                                                 self()->comp()->il.opCodeForIndirectLoad(TR::Int32);
-      }
-   else if ((loadOrStoreNode->getOpCode().isStoreIndirect() ||
-              loadOrStoreNode->getOpCodeValue() == TR::arrayset) &&
-                 shouldBeCompressed)
-      {
-      // store value
-      address = loadOrStoreNode->getSecondChild();
+    if (loadOrStoreNode->getOpCode().isLoadIndirect() && shouldBeCompressed) {
+        if (self()->comp()->target().cpu.isZ() && TR::Compiler->om.readBarrierType() != gc_modron_readbar_none) {
+            dumpOptDetails(self()->comp(), "converting to ardbari %p under concurrent scavenge on Z.\n", node);
+            self()->createReferenceReadBarrier(treeTop, loadOrStoreNode);
+            return;
+        }
 
-      loadOrStoreOp = self()->comp()->il.opCodeForIndirectStore(TR::Int32);
-      isLoad = false;
-      }
-   else
-      {
-      dumpOptDetails(self()->comp(), "compression sequence %p is not in required form\n", node);
-      return;
-      }
+        // base object
+        address = loadOrStoreNode->getFirstChild();
+        loadOrStoreOp
+            = TR::Compiler->om.readBarrierType() != gc_modron_readbar_none || loadOrStoreNode->getOpCode().isReadBar()
+            ? self()->comp()->il.opCodeForIndirectReadBarrier(TR::Int32)
+            : self()->comp()->il.opCodeForIndirectLoad(TR::Int32);
+    } else if ((loadOrStoreNode->getOpCode().isStoreIndirect() || loadOrStoreNode->getOpCodeValue() == TR::arrayset)
+        && shouldBeCompressed) {
+        // store value
+        address = loadOrStoreNode->getSecondChild();
 
-   // in future if shifted offsets are used, this value will be
-   // a positive non-zero constant
-   //
-   TR::Node *shftOffset = NULL;
-   if (TR::Compiler->om.compressedReferenceShiftOffset() > 0)
-      shftOffset = TR::Node::create(loadOrStoreNode, TR::iconst, 0, TR::Compiler->om.compressedReferenceShiftOffset());
+        loadOrStoreOp = self()->comp()->il.opCodeForIndirectStore(TR::Int32);
+        isLoad = false;
+    } else {
+        dumpOptDetails(self()->comp(), "compression sequence %p is not in required form\n", node);
+        return;
+    }
 
-   if (isLoad)
-      {
-      TR::Node *newLoad = TR::Node::createWithSymRef(loadOrStoreOp, 1, 1, address, symRef);
-      newLoad->setByteCodeInfo(loadOrStoreNode->getByteCodeInfo());
+    // in future if shifted offsets are used, this value will be
+    // a positive non-zero constant
+    //
+    TR::Node *shftOffset = NULL;
+    if (TR::Compiler->om.compressedReferenceShiftOffset() > 0)
+        shftOffset
+            = TR::Node::create(loadOrStoreNode, TR::iconst, 0, TR::Compiler->om.compressedReferenceShiftOffset());
 
-      if (loadOrStoreNode->isNonNull())
-         newLoad->setIsNonZero(true);
+    if (isLoad) {
+        TR::Node *newLoad = TR::Node::createWithSymRef(loadOrStoreOp, 1, 1, address, symRef);
+        newLoad->setByteCodeInfo(loadOrStoreNode->getByteCodeInfo());
 
-      // FIXME: this breaks commoning of address (which could be a regLoad)
-      // it would be nice to get the node flags on the original
-      //TR::Node *newLoad = loadOrStoreNode->duplicateTree();
-      //TR::Node::recreate(newLoad, loadOrStoreOp);
+        if (loadOrStoreNode->isNonNull())
+            newLoad->setIsNonZero(true);
 
-      // -J9JIT_COMPRESSED_POINTER-
-      //
-      TR::Node *iu2lNode = TR::Node::create(TR::iu2l, 1, newLoad);
+        // FIXME: this breaks commoning of address (which could be a regLoad)
+        // it would be nice to get the node flags on the original
+        // TR::Node *newLoad = loadOrStoreNode->duplicateTree();
+        // TR::Node::recreate(newLoad, loadOrStoreOp);
 
-      TR::Node *addNode = iu2lNode;
-      if (loadOrStoreNode->isNonNull())
-         addNode->setIsNonZero(true);
+        // -J9JIT_COMPRESSED_POINTER-
+        //
+        TR::Node *iu2lNode = TR::Node::create(TR::iu2l, 1, newLoad);
 
-      // if the load is known to be null or if using lowMemHeap, do not
-      // generate a compression sequence
-      addNode = iu2lNode;
-      if (shftOffset)
-         {
-         addNode = TR::Node::create(TR::lshl, 2, iu2lNode, shftOffset);
-         addNode->setContainsCompressionSequence(true);
-         }
+        TR::Node *addNode = iu2lNode;
+        if (loadOrStoreNode->isNonNull())
+            addNode->setIsNonZero(true);
 
-      TR::Node::recreate(loadOrStoreNode, TR::l2a);
-      address->decReferenceCount();
-      loadOrStoreNode->setAndIncChild(0, addNode);
-      loadOrStoreNode->setNumChildren(1);
-      }
-   else
-      {
-      // All evaluators makes an assumption that if we are loading or storing
-      // object references they will have decompression or compression sequence for
-      // the child being loaded or stored respectively. In case of storing
-      // object reference, in some cases it might need actual object decompressed
-      // address.
-      // Due to above assumptions made by the codegen we should not do any
-      // optimization here on compression/decompression sequence which could
-      // break this assumption and lead to undefined behaviour.
-      // See openj9#12597 for more details
+        // if the load is known to be null or if using lowMemHeap, do not
+        // generate a compression sequence
+        addNode = iu2lNode;
+        if (shftOffset) {
+            addNode = TR::Node::create(TR::lshl, 2, iu2lNode, shftOffset);
+            addNode->setContainsCompressionSequence(true);
+        }
 
-      // -J9JIT_COMPRESSED_POINTER-
-      // if the value is known to be null or if using lowMemHeap, do not
-      // generate a compression sequence
-      //
-      TR::Node *a2lNode = TR::Node::create(TR::a2l, 1, address);
-      bool isNonNull = address->isNonNull();
+        TR::Node::recreate(loadOrStoreNode, TR::l2a);
+        address->decReferenceCount();
+        loadOrStoreNode->setAndIncChild(0, addNode);
+        loadOrStoreNode->setNumChildren(1);
+    } else {
+        // All evaluators makes an assumption that if we are loading or storing
+        // object references they will have decompression or compression sequence for
+        // the child being loaded or stored respectively. In case of storing
+        // object reference, in some cases it might need actual object decompressed
+        // address.
+        // Due to above assumptions made by the codegen we should not do any
+        // optimization here on compression/decompression sequence which could
+        // break this assumption and lead to undefined behaviour.
+        // See openj9#12597 for more details
 
-      // This will be the compressed value in the low half and zero in the high
-      // half (once it's been shifted if necessary).
-      TR::Node *longCompressedNode = a2lNode;
+        // -J9JIT_COMPRESSED_POINTER-
+        // if the value is known to be null or if using lowMemHeap, do not
+        // generate a compression sequence
+        //
+        TR::Node *a2lNode = TR::Node::create(TR::a2l, 1, address);
+        bool isNonNull = address->isNonNull();
 
-      bool isNull = address->isNull();
-      if (shftOffset != NULL && !isNull) // the shift does nothing to zero (null)
-         {
-         longCompressedNode = TR::Node::create(TR::lushr, 2, longCompressedNode, shftOffset);
-         longCompressedNode->setContainsCompressionSequence(true);
-         }
+        // This will be the compressed value in the low half and zero in the high
+        // half (once it's been shifted if necessary).
+        TR::Node *longCompressedNode = a2lNode;
 
-      longCompressedNode->setIsHighWordZero(true);
+        bool isNull = address->isNull();
+        if (shftOffset != NULL && !isNull) // the shift does nothing to zero (null)
+        {
+            longCompressedNode = TR::Node::create(TR::lushr, 2, longCompressedNode, shftOffset);
+            longCompressedNode->setContainsCompressionSequence(true);
+        }
 
-      TR::Node *l2iNode = TR::Node::create(TR::l2i, 1, longCompressedNode);
+        longCompressedNode->setIsHighWordZero(true);
 
-      if (isNonNull)
-         {
-         a2lNode->setIsNonZero(true);
-         longCompressedNode->setIsNonZero(true);
-         l2iNode->setIsNonZero(true);
-         }
-      else if (isNull)
-         {
-         a2lNode->setIsZero(true);
-         longCompressedNode->setIsZero(true);
-         l2iNode->setIsZero(true);
-         }
+        TR::Node *l2iNode = TR::Node::create(TR::l2i, 1, longCompressedNode);
 
-      // recreating an arrayset node will replace the TR::arrayset with an istorei, which is undesired
-      // as arrayset nodes can set indirect references
-      if (!loadOrStoreNode->getOpCode().isWrtBar() && loadOrStoreNode->getOpCodeValue() != TR::arrayset)
-         {
-         TR::Node::recreate(loadOrStoreNode, loadOrStoreOp);
-         }
+        if (isNonNull) {
+            a2lNode->setIsNonZero(true);
+            longCompressedNode->setIsNonZero(true);
+            l2iNode->setIsNonZero(true);
+        } else if (isNull) {
+            a2lNode->setIsZero(true);
+            longCompressedNode->setIsZero(true);
+            l2iNode->setIsZero(true);
+        }
 
-      loadOrStoreNode->setAndIncChild(1, l2iNode);
-      address->recursivelyDecReferenceCount();
-      }
-   }
+        // recreating an arrayset node will replace the TR::arrayset with an istorei, which is undesired
+        // as arrayset nodes can set indirect references
+        if (!loadOrStoreNode->getOpCode().isWrtBar() && loadOrStoreNode->getOpCodeValue() != TR::arrayset) {
+            TR::Node::recreate(loadOrStoreNode, loadOrStoreOp);
+        }
 
-bool
-J9::CodeGenerator::supportVMInternalNatives()
-   {
-   return !self()->comp()->compileRelocatableCode();
-   }
+        loadOrStoreNode->setAndIncChild(1, l2iNode);
+        address->recursivelyDecReferenceCount();
+    }
+}
+
+bool J9::CodeGenerator::supportVMInternalNatives() { return !self()->comp()->compileRelocatableCode(); }
 
 static bool scanForNativeMethodsUntilMonitorNode(TR::TreeTop *firstTree, TR::Compilation *comp)
-   {
-   TR::TreeTop *currTree = firstTree;
-   while (currTree)
-      {
-      TR::Node *currNode = currTree->getNode();
+{
+    TR::TreeTop *currTree = firstTree;
+    while (currTree) {
+        TR::Node *currNode = currTree->getNode();
 
-      if ((currNode->getOpCodeValue() == TR::monexit) ||
-          (currNode->getOpCodeValue() == TR::monent))
-         {
-         return false;
-         }
-      else if (currNode->getNumChildren() > 0 &&
-               currNode->getFirstChild()->getNumChildren() > 0 &&
-               ((currNode->getFirstChild()->getOpCodeValue() == TR::monexit) ||
-                (currNode->getFirstChild()->getOpCodeValue() == TR::monent))
-               )
-         {
-         return false;
-         }
+        if ((currNode->getOpCodeValue() == TR::monexit) || (currNode->getOpCodeValue() == TR::monent)) {
+            return false;
+        } else if (currNode->getNumChildren() > 0 && currNode->getFirstChild()->getNumChildren() > 0
+            && ((currNode->getFirstChild()->getOpCodeValue() == TR::monexit)
+                || (currNode->getFirstChild()->getOpCodeValue() == TR::monent))) {
+            return false;
+        }
 
+        TR::Node *callTestNode = NULL;
 
-      TR::Node *callTestNode = NULL;
+        if (currNode->getOpCode().isCall() && !currNode->getSymbolReference()->isUnresolved()
+            && currNode->getSymbol()->castToMethodSymbol()->isNative()) {
+            callTestNode = currNode;
+        } else if (currNode->getNumChildren() > 0 && currNode->getFirstChild()->getOpCode().isCall()
+            && !currNode->getFirstChild()->getSymbolReference()->isUnresolved()
+            && currNode->getFirstChild()->getSymbol()->castToMethodSymbol()->isNative()) {
+            callTestNode = currNode->getFirstChild();
+        }
 
-      if (currNode->getOpCode().isCall() &&
-         !currNode->getSymbolReference()->isUnresolved() &&
-          currNode->getSymbol()->castToMethodSymbol()->isNative())
-         {
-         callTestNode = currNode;
-         }
-      else if (currNode->getNumChildren() > 0 &&
-               currNode->getFirstChild()->getOpCode().isCall() &&
-              !currNode->getFirstChild()->getSymbolReference()->isUnresolved() &&
-               currNode->getFirstChild()->getSymbol()->castToMethodSymbol()->isNative())
-         {
-         callTestNode = currNode->getFirstChild();
-         }
+        if (callTestNode) {
+            TR::ResolvedMethodSymbol *symbol = callTestNode->getSymbol()->castToResolvedMethodSymbol();
+            if (strstr(symbol->signature(comp->trMemory()), "java/lang/Object.notify")
+                || strstr(symbol->signature(comp->trMemory()), "java/lang/Object.wait"))
+                return true;
+        }
 
-      if (callTestNode)
-         {
-         TR::ResolvedMethodSymbol *symbol = callTestNode->getSymbol()->castToResolvedMethodSymbol();
-         if (strstr(symbol->signature(comp->trMemory()), "java/lang/Object.notify") ||
-             strstr(symbol->signature(comp->trMemory()), "java/lang/Object.wait"))
-            return true;
-         }
+        currTree = currTree->getNextTreeTop();
+    }
 
-      currTree = currTree->getNextTreeTop();
-      }
+    return false;
+}
 
-   return false;
-   }
+void J9::CodeGenerator::preLowerTrees()
+{
+    OMR::CodeGeneratorConnector::preLowerTrees();
 
+    /*
+     * These initializations should move from OMR to J9
 
-void
-J9::CodeGenerator::preLowerTrees()
-   {
+       int32_t symRefCount = comp()->getSymRefCount();
+       _localsThatAreStored = new (comp()->trHeapMemory()) TR_BitVector(symRefCount, comp()->trMemory(), heapAlloc);
+       _numLocalsWhenStoreAnalysisWasDone = symRefCount;
+    */
 
-   OMR::CodeGeneratorConnector::preLowerTrees();
+    // For dual operator lowering
+    _uncommonedNodes.reset();
+    _uncommonedNodes.init(64, true);
+}
 
-/*
- * These initializations should move from OMR to J9
+void J9::CodeGenerator::lowerTreesPreTreeTopVisit(TR::TreeTop *tt, vcount_t visitCount)
+{
+    OMR::CodeGeneratorConnector::lowerTreesPreTreeTopVisit(tt, visitCount);
 
-   int32_t symRefCount = comp()->getSymRefCount();
-   _localsThatAreStored = new (comp()->trHeapMemory()) TR_BitVector(symRefCount, comp()->trMemory(), heapAlloc);
-   _numLocalsWhenStoreAnalysisWasDone = symRefCount;
-*/
+    TR::Node *node = tt->getNode();
 
-   // For dual operator lowering
-   _uncommonedNodes.reset();
-   _uncommonedNodes.init(64, true);
-   }
+    if (self()->getSupportsBDLLHardwareOverflowCheck() && node->getNumChildren() > 0 && node->getFirstChild()
+        && node->getFirstChild()->getOpCodeValue() == TR::icall && node->getFirstChild()->getSymbol()
+        && (node->getFirstChild()->getSymbol()->castToMethodSymbol()->getRecognizedMethod()
+            == TR::java_math_BigDecimal_noLLOverflowAdd)) {
+        node->getFirstChild()->getChild(2)->setNodeRequiresConditionCodes(true);
+    }
+}
 
+void J9::CodeGenerator::lowerTreesPreChildrenVisit(TR::Node *parent, TR::TreeTop *treeTop, vcount_t visitCount)
+{
+    OMR::CodeGeneratorConnector::lowerTreesPreChildrenVisit(parent, treeTop, visitCount);
 
-void
-J9::CodeGenerator::lowerTreesPreTreeTopVisit(TR::TreeTop *tt, vcount_t visitCount)
-   {
-   OMR::CodeGeneratorConnector::lowerTreesPreTreeTopVisit(tt, visitCount);
+    /*
+       rip out a SpineCHK under two conditions.
+       1. If the first child has been the first child of another SpineCHK
+       2. If the first child is not an array access. This can happens when
+       an array access node is changed by common sub expression
+    */
 
-   TR::Node *node = tt->getNode();
+    bool doIt = false;
 
-   if (self()->getSupportsBDLLHardwareOverflowCheck() && node->getNumChildren() > 0 &&
-       node->getFirstChild() && node->getFirstChild()->getOpCodeValue() == TR::icall &&
-       node->getFirstChild()->getSymbol() &&
-       (node->getFirstChild()->getSymbol()->castToMethodSymbol()->getRecognizedMethod() == TR::java_math_BigDecimal_noLLOverflowAdd))
-      {
-      node->getFirstChild()->getChild(2)->setNodeRequiresConditionCodes(true);
-      }
+    if ((parent->getOpCodeValue() == TR::BNDCHKwithSpineCHK) || (parent->getOpCodeValue() == TR::SpineCHK)) {
+        TR::Node *firstChild = parent->getFirstChild();
+        TR::ILOpCode opcode = firstChild->getOpCode();
 
-   }
-
-
-void
-J9::CodeGenerator::lowerTreesPreChildrenVisit(TR::Node *parent, TR::TreeTop *treeTop, vcount_t visitCount)
-   {
-   OMR::CodeGeneratorConnector::lowerTreesPreChildrenVisit(parent, treeTop, visitCount);
-
-   /*
-      rip out a SpineCHK under two conditions.
-      1. If the first child has been the first child of another SpineCHK
-      2. If the first child is not an array access. This can happens when
-      an array access node is changed by common sub expression
-   */
-
-   bool doIt = false;
-
-   if ( (parent->getOpCodeValue() == TR::BNDCHKwithSpineCHK) ||  (parent->getOpCodeValue() == TR::SpineCHK) )
-      {
-      TR::Node *firstChild = parent->getFirstChild();
-      TR::ILOpCode opcode = firstChild->getOpCode();
-
-      if( ( (opcode.isLoad() || opcode.isStore() ) && opcode.hasSymbolReference() && firstChild->getSymbolReference() != NULL &&
-         firstChild->getSymbolReference()->getSymbol()->isArrayShadowSymbol()) || opcode.isArrayRef())
-         {
-         //first child of SpineCHK is an array load or store, check if this is the first time we evaluate this node
-         bool found = (std::find(_nodesSpineCheckedList.begin(), _nodesSpineCheckedList.end(), firstChild) != _nodesSpineCheckedList.end());
-         if ( (firstChild->getVisitCount() == visitCount) && found )
-            {
-            // we have check this array access before, rip out SpineCHK
+        if (((opcode.isLoad() || opcode.isStore()) && opcode.hasSymbolReference()
+                && firstChild->getSymbolReference() != NULL
+                && firstChild->getSymbolReference()->getSymbol()->isArrayShadowSymbol())
+            || opcode.isArrayRef()) {
+            // first child of SpineCHK is an array load or store, check if this is the first time we evaluate this node
+            bool found = (std::find(_nodesSpineCheckedList.begin(), _nodesSpineCheckedList.end(), firstChild)
+                != _nodesSpineCheckedList.end());
+            if ((firstChild->getVisitCount() == visitCount) && found) {
+                // we have check this array access before, rip out SpineCHK
+                doIt = true;
+            } else {
+                _nodesSpineCheckedList.push_front(firstChild);
+            }
+        } else {
+            // the first child is not an array access, rip out SpineCHK
             doIt = true;
+        }
+
+        if (doIt) {
+            int32_t i = 0;
+            int32_t numChildren = parent->getNumChildren();
+            TR::TreeTop *prevTreeTop = treeTop;
+            TR::TreeTop *nextTreeTop = treeTop->getNextTreeTop();
+            while (i < numChildren) {
+                TR::Node *childToBeAnchored = parent->getChild(i);
+                TR::TreeTop *anchorTree = TR::TreeTop::create(self()->comp(),
+                    TR::Node::create(TR::treetop, 1, childToBeAnchored), NULL, NULL);
+                prevTreeTop->join(anchorTree);
+                anchorTree->join(nextTreeTop);
+                prevTreeTop = anchorTree;
+                i++;
             }
-         else
-            {
-            _nodesSpineCheckedList.push_front(firstChild);
+            TR::TransformUtil::removeTree(self()->comp(), treeTop);
+            return;
+        }
+    }
+
+    if (parent->getOpCode().isFunctionCall()) {
+        /* J9
+         *
+         * Hiding compressedref logic from CodeGen isn't a good practice, and the evaluator still needs the
+         * uncompressedref node for write barriers. Therefore, this part is deprecated. It can only be activated on X, P
+         * or Z with the TR_UseOldCompareAndSwapObject envvar.
+         *
+         * If TR_DisableCAEInlining is set to disable inlining of compareAndExchange, compressedref logic will not be
+         * hidden for compareAndExchange calls even if TR_UseOldCompareAndSwapObject is set. The reason is that
+         * TR_DisableCAEInlining takes priority over TR_UseOldCompareAndSwapObject so neither the old nor new version of
+         * the inlined compareAndExchange are used and the non-inlined version expects that the compressedrefs are not
+         * hidden.
+         *
+         * Similarly, TR_DisableCASInlining can be used to disable inlining of compareAndSet. This also takes priority
+         * over TR_UseOldCompareAndSwapObject. Once again, the compressedrefs logic will not be hidden since it is
+         * expected by the non-inlined version.
+         */
+        static bool useOldCompareAndSwapObject = (bool)feGetEnv("TR_UseOldCompareAndSwapObject");
+        if ((self()->comp()->target().cpu.isX86() || self()->comp()->target().cpu.isPower()
+                || self()->comp()->target().cpu.isZ())
+            && self()->comp()->useCompressedPointers() && useOldCompareAndSwapObject) {
+            TR::MethodSymbol *methodSymbol = parent->getSymbol()->castToMethodSymbol();
+
+            bool disableCASInlining = !self()->getSupportsInlineUnsafeCompareAndSet();
+            bool disableCAEIntrinsic = !self()->getSupportsInlineUnsafeCompareAndExchange();
+
+            // In Java9 Unsafe could be the jdk.internal JNI method or the sun.misc ordinary method wrapper,
+            // while in Java8 it can only be the sun.misc package which will itself contain the JNI method.
+            // Test for isNative to distinguish between them.
+            if ((((methodSymbol->getRecognizedMethod()
+                      == TR::sun_misc_Unsafe_compareAndSwapObject_jlObjectJjlObjectjlObject_Z)
+                     && !disableCASInlining)
+                    || ((methodSymbol->getRecognizedMethod() == TR::jdk_internal_misc_Unsafe_compareAndExchangeObject)
+                        && !disableCAEIntrinsic)
+                    || ((methodSymbol->getRecognizedMethod()
+                            == TR::jdk_internal_misc_Unsafe_compareAndExchangeReference)
+                        && !disableCAEIntrinsic))
+                && methodSymbol->isNative()
+                && (!TR::Compiler->om.canGenerateArraylets() || parent->isUnsafeGetPutCASCallOnNonArray())
+                && parent->isSafeForCGToFastPathUnsafeCall()) {
+                TR_BitVector childrenToBeLowered(parent->getNumChildren(), self()->comp()->trMemory(), stackAlloc);
+                childrenToBeLowered.set(3);
+                childrenToBeLowered.set(4);
+                self()->lowerCompressedRefs(treeTop, parent, visitCount, &childrenToBeLowered);
             }
-         }
-      else
-         {
-         // the first child is not an array access, rip out SpineCHK
-         doIt = true;
-         }
+        }
+    }
 
-      if( doIt )
-         {
-         int32_t i = 0;
-         int32_t numChildren = parent->getNumChildren();
-         TR::TreeTop *prevTreeTop = treeTop;
-         TR::TreeTop *nextTreeTop = treeTop->getNextTreeTop();
-         while (i < numChildren)
-            {
-            TR::Node *childToBeAnchored = parent->getChild(i);
-            TR::TreeTop *anchorTree = TR::TreeTop::create(self()->comp(), TR::Node::create(TR::treetop, 1, childToBeAnchored), NULL, NULL);
-            prevTreeTop->join(anchorTree);
-            anchorTree->join(nextTreeTop);
-            prevTreeTop = anchorTree;
-            i++;
+    // J9
+    //
+    if (parent->getOpCode().hasSymbolReference()
+        && (parent->getSymbolReference() == self()->comp()->getSymRefTab()->findThisRangeExtensionSymRef()))
+        TR::Node::recreate(parent, TR::treetop);
+
+    // J9
+    //
+    if (parent->getOpCode().isCall() && !parent->getSymbolReference()->isUnresolved()
+        && parent->getSymbolReference()->getSymbol()->getMethodSymbol()
+        && !parent->getSymbolReference()->getSymbol()->castToMethodSymbol()->isHelper()
+        && !parent->getSymbolReference()->getSymbol()->castToMethodSymbol()->isSystemLinkageDispatch()
+        && parent->getSymbolReference()->getSymbol()->getResolvedMethodSymbol()) {
+        // this code should match the one in genInvoke (Walker.cpp)
+        if (parent->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getRecognizedMethod()
+                == TR::com_ibm_jit_JITHelpers_getAddressAsPrimitive32
+            || parent->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getRecognizedMethod()
+                == TR::com_ibm_jit_JITHelpers_getAddressAsPrimitive64)
+            parent->removeChild(0);
+
+        if (parent->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getRecognizedMethod()
+            == TR::com_ibm_jit_JITHelpers_getAddressAsPrimitive32)
+            TR::Node::recreate(parent, TR::a2i);
+        else if (parent->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getRecognizedMethod()
+            == TR::com_ibm_jit_JITHelpers_getAddressAsPrimitive64)
+            TR::Node::recreate(parent, TR::a2l);
+    }
+
+    // J9
+    //
+    if (self()->comp()->useCompressedPointers()) {
+        if (parent->getOpCodeValue() == TR::compressedRefs)
+            self()->lowerCompressedRefs(treeTop, parent, visitCount, NULL);
+    } else if (TR::Compiler->om.readBarrierType() != gc_modron_readbar_none) {
+        self()->createReferenceReadBarrier(treeTop, parent);
+    }
+
+    // J9
+    //
+    // Prepare to lower dual operators
+    //
+    for (int32_t childCount = 0; childCount < parent->getNumChildren(); childCount++) {
+        self()->lowerDualOperator(parent, childCount, treeTop);
+    }
+}
+
+void J9::CodeGenerator::createReferenceReadBarrier(TR::TreeTop *treeTop, TR::Node *parent)
+{
+    if (parent->getOpCodeValue() != TR::aloadi)
+        return;
+
+    TR::Symbol *symbol = parent->getSymbolReference()->getSymbol();
+    // isCollectedReference() responds false to generic int shadows because their type
+    // is int. However, address type generic int shadows refer to collected slots.
+
+    if (symbol == self()->comp()->getSymRefTab()->findGenericIntShadowSymbol() || symbol->isCollectedReference()) {
+        TR::Node::recreate(parent, TR::ardbari);
+        if (treeTop->getNode()->getOpCodeValue() == TR::NULLCHK
+            && treeTop->getNode()->getChild(0)->getOpCodeValue() != TR::PassThrough
+            && treeTop->getNode()->getChild(0)->getChild(0) == parent) {
+            treeTop->insertBefore(TR::TreeTop::create(self()->comp(),
+                TR::Node::createWithSymRef(TR::NULLCHK, 1, 1, TR::Node::create(TR::PassThrough, 1, parent),
+                    treeTop->getNode()->getSymbolReference())));
+            treeTop->getNode()->setSymbolReference(NULL);
+            TR::Node::recreate(treeTop->getNode(), TR::treetop);
+        } else if (treeTop->getNode()->getOpCodeValue() == TR::NULLCHK && treeTop->getNode()->getChild(0) == parent) {
+            treeTop->insertBefore(TR::TreeTop::create(self()->comp(),
+                TR::Node::createWithSymRef(TR::NULLCHK, 1, 1, TR::Node::create(TR::PassThrough, 1, parent->getChild(0)),
+                    treeTop->getNode()->getSymbolReference())));
+            treeTop->getNode()->setSymbolReference(NULL);
+            TR::Node::recreate(treeTop->getNode(), TR::treetop);
+        } else {
+            treeTop->insertBefore(
+                TR::TreeTop::create(self()->comp(), TR::Node::create(parent, TR::treetop, 1, parent)));
+        }
+    }
+}
+
+void J9::CodeGenerator::lowerTreeIfNeeded(TR::Node *node, int32_t childNumberOfNode, TR::Node *parent, TR::TreeTop *tt)
+{
+    TR::Compilation *comp = self()->comp();
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(comp->fe());
+    OMR::CodeGeneratorConnector::lowerTreeIfNeeded(node, childNumberOfNode, parent, tt);
+
+    if (node->getOpCode().isCall() && !node->getSymbol()->castToMethodSymbol()->isHelper()) {
+        TR::RecognizedMethod rm = node->getSymbol()->castToMethodSymbol()->getMandatoryRecognizedMethod();
+
+        // There's no need to set tempSlot for invokeBasic(). The number of stack
+        // slots for the arguments will be available from the JIT body metadata.
+
+        if (rm == TR::java_lang_invoke_MethodHandle_linkToStatic
+            || rm == TR::java_lang_invoke_MethodHandle_linkToSpecial
+            || rm == TR::java_lang_invoke_MethodHandle_linkToVirtual
+            || rm == TR::java_lang_invoke_MethodHandle_linkToInterface) {
+            // linkTo* is signature-polymorphic, so the VM needs to know the number of argument slots for the INL call
+            // in order to locate the start of the arguments on the stack. The arg slot count is stored in
+            // vmThread.tempSlot.
+            //
+            // Furthermore, for unresolved invokedynamic and invokehandle bytecodes, we create a dummy TR_ResolvedMethod
+            // call to linkToStatic. The appendix object in the invoke cache array entry could be NULL, which we cannot
+            // determine at compile time when the callSite/invokeCache table entries are unresolved. The VM would have
+            // to remove the appendix object, which would require knowing the number of stack slots of the ROM method
+            // signature plus the slots occupied by the receiver object (for invokehandle only) and appendix object.
+            // This would be equivalent to the number of parameter slots of the linkToStatic call - 1. To pass that
+            // information, we store to vmThread.floatTemp1 field. The name of the field is misleading, as it is an
+            // lconst/iconst being stored. If the linkToStatic call is not for an unresolved invokedynamic/invokehandle,
+            // then the JIT would not create a push of a null appendix object, so the VM would not need to do any stack
+            // adjustments. In those cases, -1 is stored in floatTemp1. This is also done for linkToSpecial, as it
+            // shares the same handling mechanism in the VM. No stack adjustments are necessary for linkToSpecial, so
+            // the value stored in floatTemp1 will always be -1.
+            TR::Node *numArgsNode = NULL;
+            TR::Node *numArgSlotsNode = NULL;
+            TR::Node *tempSlotStoreNode = NULL;
+            TR::Node *floatTemp1StoreNode = NULL;
+            bool is64Bit = comp->target().is64Bit();
+            TR::ILOpCodes storeOpCode;
+            int32_t numParameterStackSlots = node->getSymbol()->castToResolvedMethodSymbol()->getNumParameterSlots();
+            if (is64Bit) {
+                storeOpCode = TR::lstore;
+                numArgSlotsNode = TR::Node::lconst(node, numParameterStackSlots);
+            } else {
+                storeOpCode = TR::istore;
+                numArgSlotsNode = TR::Node::iconst(node, numParameterStackSlots);
             }
-         TR::TransformUtil::removeTree(self()->comp(), treeTop);
-         return;
-         }
-      }
+            tempSlotStoreNode = TR::Node::createStore(
+                comp->getSymRefTab()->findOrCreateVMThreadTempSlotFieldSymbolRef(), numArgSlotsNode, storeOpCode);
+            tempSlotStoreNode->setByteCodeIndex(node->getByteCodeIndex());
+            TR::TreeTop::create(comp, tt->getPrevTreeTop(), tempSlotStoreNode);
 
-   if (parent->getOpCode().isFunctionCall())
-      {
-      /* J9
-       *
-       * Hiding compressedref logic from CodeGen isn't a good practice, and the evaluator still needs the uncompressedref node for write barriers.
-       * Therefore, this part is deprecated. It can only be activated on X, P or Z with the TR_UseOldCompareAndSwapObject envvar.
-       *
-       * If TR_DisableCAEInlining is set to disable inlining of compareAndExchange, compressedref logic will not be hidden for compareAndExchange
-       * calls even if TR_UseOldCompareAndSwapObject is set. The reason is that TR_DisableCAEInlining takes priority over TR_UseOldCompareAndSwapObject
-       * so neither the old nor new version of the inlined compareAndExchange are used and the non-inlined version expects that the compressedrefs are
-       * not hidden.
-       *
-       * Similarly, TR_DisableCASInlining can be used to disable inlining of compareAndSet. This also takes priority over TR_UseOldCompareAndSwapObject.
-       * Once again, the compressedrefs logic will not be hidden since it is expected by the non-inlined version.
-       */
-      static bool useOldCompareAndSwapObject = (bool)feGetEnv("TR_UseOldCompareAndSwapObject");
-      if ((self()->comp()->target().cpu.isX86() || self()->comp()->target().cpu.isPower() || self()->comp()->target().cpu.isZ()) &&
-          self()->comp()->useCompressedPointers() && useOldCompareAndSwapObject)
-         {
-         TR::MethodSymbol *methodSymbol = parent->getSymbol()->castToMethodSymbol();
+            if (rm == TR::java_lang_invoke_MethodHandle_linkToStatic
+                || rm == TR::java_lang_invoke_MethodHandle_linkToSpecial) {
+                int32_t numArgs;
+                if (node->getSymbolReference()->getSymbol()->isDummyResolvedMethod())
+                    numArgs = numParameterStackSlots - 1;
+                else
+                    numArgs = -1;
 
-         bool disableCASInlining = !self()->getSupportsInlineUnsafeCompareAndSet();
-         bool disableCAEIntrinsic = !self()->getSupportsInlineUnsafeCompareAndExchange();
+                numArgsNode = is64Bit ? TR::Node::lconst(node, numArgs) : TR::Node::iconst(node, numArgs);
 
-         // In Java9 Unsafe could be the jdk.internal JNI method or the sun.misc ordinary method wrapper,
-         // while in Java8 it can only be the sun.misc package which will itself contain the JNI method.
-         // Test for isNative to distinguish between them.
-         if ((((methodSymbol->getRecognizedMethod() == TR::sun_misc_Unsafe_compareAndSwapObject_jlObjectJjlObjectjlObject_Z) && !disableCASInlining) ||
-              ((methodSymbol->getRecognizedMethod() == TR::jdk_internal_misc_Unsafe_compareAndExchangeObject) && !disableCAEIntrinsic) ||
-              ((methodSymbol->getRecognizedMethod() == TR::jdk_internal_misc_Unsafe_compareAndExchangeReference) && !disableCAEIntrinsic)) &&
-               methodSymbol->isNative() &&
-               (!TR::Compiler->om.canGenerateArraylets() || parent->isUnsafeGetPutCASCallOnNonArray()) && parent->isSafeForCGToFastPathUnsafeCall())
-            {
-            TR_BitVector childrenToBeLowered(parent->getNumChildren(), self()->comp()->trMemory(), stackAlloc);
-            childrenToBeLowered.set(3);
-            childrenToBeLowered.set(4);
-            self()->lowerCompressedRefs(treeTop, parent, visitCount, &childrenToBeLowered);
+                floatTemp1StoreNode = TR::Node::createStore(
+                    comp->getSymRefTab()->findOrCreateVMThreadFloatTemp1SymbolRef(), numArgsNode, storeOpCode);
+                floatTemp1StoreNode->setByteCodeIndex(node->getByteCodeIndex());
+                TR::TreeTop::create(comp, tt->getPrevTreeTop(), floatTemp1StoreNode);
             }
-         }
-      }
+        } else if (rm == TR::java_lang_invoke_MethodHandle_linkToNative) {
+            // The interpreter will push one extra argument (the appendix) for the
+            // callee to accept. This dummy null argument reserves space for the
+            // appendix on the stack. The interpreter will pop it before
+            // rearranging the arguments and pushing the appendix.
+            //
+            // Without reserving space in this way, pushing the appendix would
+            // introduce an unexpected offset into the stack pointer. Effectively,
+            // the VM would think that all of the arguments were passed from the
+            // JIT frame, resulting in an incorrect stack pointer on return or
+            // during stack walking.
+            //
+            // Note that while linkToNative() is also signature-polymorphic, it is
+            // not necessary to store the argument count into tempSlot. The VM has
+            // an alternative way to determine it.
+            //
+            TR::Node *dummyNull = TR::Node::aconst(node, 0);
+            node->addChildren(&dummyNull, 1);
+        }
+    }
 
-   // J9
-   //
-   if (parent->getOpCode().hasSymbolReference() &&
-       (parent->getSymbolReference() == self()->comp()->getSymRefTab()->findThisRangeExtensionSymRef()))
-      TR::Node::recreate(parent, TR::treetop);
+    if (node->getOpCode().isCall() && node->getSymbol()->getMethodSymbol()->isNative()
+        && comp->canTransformUnsafeCopyToArrayCopy()) {
+        TR::RecognizedMethod rm = node->getSymbol()->castToMethodSymbol()->getRecognizedMethod();
 
-
-   // J9
-   //
-   if (parent->getOpCode().isCall() &&
-       !parent->getSymbolReference()->isUnresolved() &&
-       parent->getSymbolReference()->getSymbol()->getMethodSymbol() &&
-       !parent->getSymbolReference()->getSymbol()->castToMethodSymbol()->isHelper() &&
-       !parent->getSymbolReference()->getSymbol()->castToMethodSymbol()->isSystemLinkageDispatch() &&
-       parent->getSymbolReference()->getSymbol()->getResolvedMethodSymbol())
-      {
-      //this code should match the one in genInvoke (Walker.cpp)
-      if (parent->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getRecognizedMethod() == TR::com_ibm_jit_JITHelpers_getAddressAsPrimitive32 ||
-            parent->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getRecognizedMethod() == TR::com_ibm_jit_JITHelpers_getAddressAsPrimitive64
-         )
-         parent->removeChild(0);
-
-      if (parent->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getRecognizedMethod() == TR::com_ibm_jit_JITHelpers_getAddressAsPrimitive32)
-         TR::Node::recreate(parent, TR::a2i);
-      else if (parent->getSymbolReference()->getSymbol()->castToResolvedMethodSymbol()->getRecognizedMethod() == TR::com_ibm_jit_JITHelpers_getAddressAsPrimitive64)
-         TR::Node::recreate(parent, TR::a2l);
-      }
-
-   // J9
-   //
-   if (self()->comp()->useCompressedPointers())
-      {
-      if (parent->getOpCodeValue() == TR::compressedRefs)
-         self()->lowerCompressedRefs(treeTop, parent, visitCount, NULL);
-      }
-   else if (TR::Compiler->om.readBarrierType() != gc_modron_readbar_none)
-      {
-      self()->createReferenceReadBarrier(treeTop, parent);
-      }
-
-   // J9
-   //
-   // Prepare to lower dual operators
-   //
-   for (int32_t childCount = 0; childCount < parent->getNumChildren(); childCount++)
-      {
-      self()->lowerDualOperator(parent, childCount, treeTop);
-      }
-
-   }
-
-void
-J9::CodeGenerator::createReferenceReadBarrier(TR::TreeTop* treeTop, TR::Node* parent)
-   {
-   if (parent->getOpCodeValue() != TR::aloadi)
-      return;
-
-   TR::Symbol* symbol = parent->getSymbolReference()->getSymbol();
-   // isCollectedReference() responds false to generic int shadows because their type
-   // is int. However, address type generic int shadows refer to collected slots.
-
-   if (symbol == self()->comp()->getSymRefTab()->findGenericIntShadowSymbol() || symbol->isCollectedReference())
-      {
-      TR::Node::recreate(parent, TR::ardbari);
-      if (treeTop->getNode()->getOpCodeValue() == TR::NULLCHK                  &&
-          treeTop->getNode()->getChild(0)->getOpCodeValue() != TR::PassThrough &&
-          treeTop->getNode()->getChild(0)->getChild(0) == parent)
-         {
-         treeTop->insertBefore(TR::TreeTop::create(self()->comp(),
-                                                   TR::Node::createWithSymRef(TR::NULLCHK, 1, 1,
-                                                                              TR::Node::create(TR::PassThrough, 1, parent),
-                                                                              treeTop->getNode()->getSymbolReference())));
-         treeTop->getNode()->setSymbolReference(NULL);
-         TR::Node::recreate(treeTop->getNode(), TR::treetop);
-         }
-      else if (treeTop->getNode()->getOpCodeValue() == TR::NULLCHK &&
-               treeTop->getNode()->getChild(0) == parent)
-         {
-         treeTop->insertBefore(TR::TreeTop::create(self()->comp(),
-                                                   TR::Node::createWithSymRef(TR::NULLCHK, 1, 1,
-                                                                              TR::Node::create(TR::PassThrough, 1, parent->getChild(0)),
-                                                                              treeTop->getNode()->getSymbolReference())));
-         treeTop->getNode()->setSymbolReference(NULL);
-         TR::Node::recreate(treeTop->getNode(), TR::treetop);
-         }
-      else
-         {
-         treeTop->insertBefore(TR::TreeTop::create(self()->comp(), TR::Node::create(parent, TR::treetop, 1, parent)));
-         }
-      }
-
-   }
-
-void
-J9::CodeGenerator::lowerTreeIfNeeded(
-      TR::Node *node,
-      int32_t childNumberOfNode,
-      TR::Node *parent,
-      TR::TreeTop *tt)
-   {
-   TR::Compilation *comp = self()->comp();
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(comp->fe());
-   OMR::CodeGeneratorConnector::lowerTreeIfNeeded(node, childNumberOfNode, parent, tt);
-
-   if (node->getOpCode().isCall() &&
-       !node->getSymbol()->castToMethodSymbol()->isHelper())
-      {
-      TR::RecognizedMethod rm = node->getSymbol()->castToMethodSymbol()->getMandatoryRecognizedMethod();
-
-      // There's no need to set tempSlot for invokeBasic(). The number of stack
-      // slots for the arguments will be available from the JIT body metadata.
-
-      if(rm == TR::java_lang_invoke_MethodHandle_linkToStatic ||
-        rm == TR::java_lang_invoke_MethodHandle_linkToSpecial ||
-        rm == TR::java_lang_invoke_MethodHandle_linkToVirtual ||
-        rm == TR::java_lang_invoke_MethodHandle_linkToInterface)
-         {
-         // linkTo* is signature-polymorphic, so the VM needs to know the number of argument slots for the INL call in order to
-         // locate the start of the arguments on the stack. The arg slot count is stored in vmThread.tempSlot.
-         //
-         // Furthermore, for unresolved invokedynamic and invokehandle bytecodes, we create a dummy TR_ResolvedMethod call to
-         // linkToStatic. The appendix object in the invoke cache array entry could be NULL, which we cannot determine at compile
-         // time when the callSite/invokeCache table entries are unresolved. The VM would have to remove the appendix
-         // object, which would require knowing the number of stack slots of the ROM method signature plus the slots occupied
-         // by the receiver object (for invokehandle only) and appendix object. This would be equivalent to the number of
-         // parameter slots of the linkToStatic call - 1.
-         // To pass that information, we store to vmThread.floatTemp1 field. The name of the field is
-         // misleading, as it is an lconst/iconst being stored. If the linkToStatic call is not for an unresolved
-         // invokedynamic/invokehandle, then the JIT would not create a push of a null appendix object, so the VM would not
-         // need to do any stack adjustments. In those cases, -1 is stored in floatTemp1. This is also done for linkToSpecial,
-         // as it shares the same handling mechanism in the VM. No stack adjustments are necessary for linkToSpecial, so the value
-         // stored in floatTemp1 will always be -1.
-         TR::Node * numArgsNode = NULL;
-         TR::Node * numArgSlotsNode = NULL;
-         TR::Node * tempSlotStoreNode = NULL;
-         TR::Node * floatTemp1StoreNode = NULL;
-         bool is64Bit = comp->target().is64Bit();
-         TR::ILOpCodes storeOpCode;
-         int32_t numParameterStackSlots = node->getSymbol()->castToResolvedMethodSymbol()->getNumParameterSlots();
-         if (is64Bit)
-            {
-            storeOpCode = TR::lstore;
-            numArgSlotsNode = TR::Node::lconst(node, numParameterStackSlots);
-            }
-         else
-            {
-            storeOpCode = TR::istore;
-            numArgSlotsNode = TR::Node::iconst(node, numParameterStackSlots);
-            }
-         tempSlotStoreNode = TR::Node::createStore(comp->getSymRefTab()->findOrCreateVMThreadTempSlotFieldSymbolRef(),
-                                                   numArgSlotsNode,
-                                                   storeOpCode);
-         tempSlotStoreNode->setByteCodeIndex(node->getByteCodeIndex());
-         TR::TreeTop::create(comp, tt->getPrevTreeTop(), tempSlotStoreNode);
-
-         if (rm == TR::java_lang_invoke_MethodHandle_linkToStatic || rm ==  TR::java_lang_invoke_MethodHandle_linkToSpecial)
-            {
-            int32_t numArgs;
-            if (node->getSymbolReference()->getSymbol()->isDummyResolvedMethod())
-               numArgs = numParameterStackSlots - 1 ;
-            else
-               numArgs = -1;
-
-            numArgsNode = is64Bit ? TR::Node::lconst(node, numArgs) :
-                                    TR::Node::iconst(node, numArgs);
-
-            floatTemp1StoreNode = TR::Node::createStore(comp->getSymRefTab()->findOrCreateVMThreadFloatTemp1SymbolRef(),
-                                                      numArgsNode,
-                                                      storeOpCode);
-            floatTemp1StoreNode->setByteCodeIndex(node->getByteCodeIndex());
-            TR::TreeTop::create(comp, tt->getPrevTreeTop(), floatTemp1StoreNode);
-            }
-         }
-      else if (rm == TR::java_lang_invoke_MethodHandle_linkToNative)
-         {
-         // The interpreter will push one extra argument (the appendix) for the
-         // callee to accept. This dummy null argument reserves space for the
-         // appendix on the stack. The interpreter will pop it before
-         // rearranging the arguments and pushing the appendix.
-         //
-         // Without reserving space in this way, pushing the appendix would
-         // introduce an unexpected offset into the stack pointer. Effectively,
-         // the VM would think that all of the arguments were passed from the
-         // JIT frame, resulting in an incorrect stack pointer on return or
-         // during stack walking.
-         //
-         // Note that while linkToNative() is also signature-polymorphic, it is
-         // not necessary to store the argument count into tempSlot. The VM has
-         // an alternative way to determine it.
-         //
-         TR::Node *dummyNull = TR::Node::aconst(node, 0);
-         node->addChildren(&dummyNull, 1);
-         }
-      }
-
-   if (node->getOpCode().isCall() &&
-         node->getSymbol()->getMethodSymbol()->isNative() &&
-         comp->canTransformUnsafeCopyToArrayCopy())
-      {
-      TR::RecognizedMethod rm = node->getSymbol()->castToMethodSymbol()->getRecognizedMethod();
-
-      if ((rm == TR::sun_misc_Unsafe_copyMemory || rm == TR::jdk_internal_misc_Unsafe_copyMemory0) &&
-            performTransformation(comp, "O^O Call arraycopy instead of Unsafe.copyMemory: %s\n", self()->getDebug()->getName(node)))
-         {
-
+        if ((rm == TR::sun_misc_Unsafe_copyMemory || rm == TR::jdk_internal_misc_Unsafe_copyMemory0)
+            && performTransformation(comp, "O^O Call arraycopy instead of Unsafe.copyMemory: %s\n",
+                self()->getDebug()->getName(node))) {
 #if defined(J9VM_GC_SPARSE_HEAP_ALLOCATION)
-         if (TR::Compiler->om.isOffHeapAllocationEnabled())
-            TR::TransformUtil::transformUnsafeCopyMemorytoArrayCopyForOffHeap(comp, tt, node);
-         else
+            if (TR::Compiler->om.isOffHeapAllocationEnabled())
+                TR::TransformUtil::transformUnsafeCopyMemorytoArrayCopyForOffHeap(comp, tt, node);
+            else
 #endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
-         {
-            TR::Node *src = node->getChild(1);
-            TR::Node *srcOffset = node->getChild(2);
-            TR::Node *dest = node->getChild(3);
-            TR::Node *destOffset = node->getChild(4);
-            TR::Node *len = node->getChild(5);
-
-            if (comp->target().is32Bit())
-               {
-               srcOffset = TR::Node::create(TR::l2i, 1, srcOffset);
-               destOffset = TR::Node::create(TR::l2i, 1, destOffset);
-               len = TR::Node::create(TR::l2i, 1, len);
-               src = TR::Node::create(TR::aiadd, 2, src, srcOffset);
-               dest = TR::Node::create(TR::aiadd, 2, dest, destOffset);
-               }
-            else
-               {
-               src = TR::Node::create(TR::aladd, 2, src, srcOffset);
-               dest = TR::Node::create(TR::aladd, 2, dest, destOffset);
-               }
-
-            TR::Node *arraycopyNode = TR::Node::createArraycopy(src, dest, len);
-            TR::TreeTop *arrayCopyTT = TR::TreeTop::create(comp, arraycopyNode, tt->getNextTreeTop(), tt->getPrevTreeTop());
-
-            tt->getPrevTreeTop()->setNextTreeTop(arrayCopyTT);
-            tt->getNextTreeTop()->setPrevTreeTop(arrayCopyTT);
-
-            for (int i = 0; i <= 5; i++)
-               {
-               node->getChild(i)->decReferenceCount();
-               }
-
-         }
-
-         return;
-         }
-      }
-
-   // J9
-   if (!comp->getOption(TR_DisableUnsafe) &&
-       node->getOpCode().isCall() &&
-       node->getOpCodeValue() == TR::call &&
-       !TR::Compiler->om.canGenerateArraylets() &&
-       ((node->getSymbol()->castToMethodSymbol()->getRecognizedMethod() == TR::java_nio_Bits_copyToByteArray) ||
-        (node->getSymbol()->castToMethodSymbol()->getRecognizedMethod() == TR::java_nio_Bits_copyFromByteArray)) &&
-       !fej9->isAnyMethodTracingEnabled(node->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod()->getPersistentIdentifier()) &&
-       performTransformation(comp, "%s Change recognized nio call to arraycopy [%p] \n", OPT_DETAILS, node))
-      {
-      bool from = false;
-      if (node->getSymbol()->castToMethodSymbol()->getRecognizedMethod() == TR::java_nio_Bits_copyFromByteArray)
-         from = true;
-
-      TR::Node *nativeSrc;
-      TR::Node *javaTarget;
-      TR::Node *nativeOffset;
-
-      if (from)
-         {
-         nativeSrc = node->getChild(2);
-         javaTarget = node->getFirstChild();
-         nativeOffset = node->getSecondChild();
-         }
-      else
-         {
-         nativeSrc = node->getFirstChild();
-         javaTarget = node->getSecondChild();
-         nativeOffset = node->getChild(2);
-         }
-
-      TR::Node *javaOffset;
-      if (comp->target().is64Bit())
-         javaOffset = TR::Node::lconst(node, (int64_t) TR::Compiler->om.contiguousArrayHeaderSizeInBytes());
-      else
-         javaOffset = TR::Node::iconst(node, TR::Compiler->om.contiguousArrayHeaderSizeInBytes());
-
-      TR::Node *len = node->getChild(3);
-
-      TR::Node *oldNativeSrc = nativeSrc;
-      TR::Node *oldNativeOffset = nativeOffset;
-      TR::Node *oldLen = len;
-
-      if (comp->target().is32Bit())
-         {
-         nativeSrc = TR::Node::create(TR::l2i, 1, nativeSrc);
-         nativeOffset = TR::Node::create(TR::l2i, 1, nativeOffset);
-         len = TR::Node::create(TR::l2i, 1, len);
-         }
-
-      TR::Node::recreate(node, TR::arraycopy);
-
-      TR::Node *nativeAddr;
-      TR::Node *javaAddr;
-
-      if (comp->target().is32Bit())
-         {
-         nativeAddr = nativeSrc;
-         javaOffset = TR::Node::create(TR::iadd, 2, javaOffset, nativeOffset);
-         javaAddr = TR::Node::create(TR::aiadd, 2, javaTarget, javaOffset);
-         }
-      else
-         {
-         nativeAddr = nativeSrc;
-         javaOffset = TR::Node::create(TR::ladd, 2, javaOffset, nativeOffset);
-         javaAddr = TR::Node::create(TR::aladd, 2, javaTarget, javaOffset);
-         }
-
-      node->setNumChildren(3);
-
-      if (from)
-         {
-         node->setAndIncChild(0, javaAddr);
-         node->setAndIncChild(1, nativeAddr);
-         node->setAndIncChild(2, len);
-         }
-      else
-         {
-         node->setAndIncChild(0, nativeAddr);
-         node->setAndIncChild(1, javaAddr);
-         node->setAndIncChild(2, len);
-         }
-
-      javaTarget->recursivelyDecReferenceCount();
-      oldNativeSrc->recursivelyDecReferenceCount();
-      oldNativeOffset->recursivelyDecReferenceCount();
-      oldLen->recursivelyDecReferenceCount();
-
-      node->setArrayCopyElementType(TR::Int8);
-      node->setForwardArrayCopy(true);
-      }
-
-   // J9
-   if (comp->compileRelocatableCode() && (node->getOpCodeValue() == TR::loadaddr) && parent && ((parent->getOpCodeValue() == TR::instanceof) || (parent->getOpCodeValue() == TR::checkcast)))
-      {
-      TR::TreeTop::create(comp, tt->getPrevTreeTop(), TR::Node::create(TR::treetop, 1, node));
-      }
-
-   // J9
-   if (node->getOpCode().hasSymbolReference() &&
-       (node->getOpCode().isLoad() ||
-        node->getOpCode().isStore()))
-      {
-      TR::SymbolReference *symRef = node->getSymbolReference();
-      TR::Symbol *symbol = symRef->getSymbol();
-      // bitwise atomicity is required for opaque or stronger memory semantics
-      if (symbol->isAtLeastOrStrongerThanOpaque() && node->getDataType() == TR::Int64 && !symRef->isUnresolved() && comp->target().is32Bit() &&
-          !self()->getSupportsInlinedAtomicLongVolatiles())
-         {
-         bool isLoad = false;
-         TR::SymbolReference * volatileLongSymRef = NULL;
-         if (node->getOpCode().isLoadVar())
             {
-            volatileLongSymRef = comp->getSymRefTab()->findOrCreateRuntimeHelper(TR_volatileReadLong, false, false, true);
-            isLoad = true;
-            }
-         else
-            volatileLongSymRef = comp->getSymRefTab()->findOrCreateRuntimeHelper(TR_volatileWriteLong, false, false, true);
+                TR::Node *src = node->getChild(1);
+                TR::Node *srcOffset = node->getChild(2);
+                TR::Node *dest = node->getChild(3);
+                TR::Node *destOffset = node->getChild(4);
+                TR::Node *len = node->getChild(5);
 
-         node->setSymbolReference(volatileLongSymRef);
+                if (comp->target().is32Bit()) {
+                    srcOffset = TR::Node::create(TR::l2i, 1, srcOffset);
+                    destOffset = TR::Node::create(TR::l2i, 1, destOffset);
+                    len = TR::Node::create(TR::l2i, 1, len);
+                    src = TR::Node::create(TR::aiadd, 2, src, srcOffset);
+                    dest = TR::Node::create(TR::aiadd, 2, dest, destOffset);
+                } else {
+                    src = TR::Node::create(TR::aladd, 2, src, srcOffset);
+                    dest = TR::Node::create(TR::aladd, 2, dest, destOffset);
+                }
 
-         TR::Node * address = NULL;
-         if (node->getOpCode().isIndirect())
-            address = node->getFirstChild();
+                TR::Node *arraycopyNode = TR::Node::createArraycopy(src, dest, len);
+                TR::TreeTop *arrayCopyTT
+                    = TR::TreeTop::create(comp, arraycopyNode, tt->getNextTreeTop(), tt->getPrevTreeTop());
 
-         TR::Node * addrNode = NULL;
-         if (address)
-            {
-            if (symRef->getOffset() == 0)
-               addrNode = address;
-            else
-               {
-               addrNode = TR::Node::create(TR::aiadd, 2, address,
-                                TR::Node::create(node, TR::iconst, 0, symRef->getOffset()));
-               addrNode->setIsInternalPointer(true);
-               }
+                tt->getPrevTreeTop()->setNextTreeTop(arrayCopyTT);
+                tt->getNextTreeTop()->setPrevTreeTop(arrayCopyTT);
+
+                for (int i = 0; i <= 5; i++) {
+                    node->getChild(i)->decReferenceCount();
+                }
             }
 
-         if (isLoad)
-            {
+            return;
+        }
+    }
+
+    // J9
+    if (!comp->getOption(TR_DisableUnsafe) && node->getOpCode().isCall() && node->getOpCodeValue() == TR::call
+        && !TR::Compiler->om.canGenerateArraylets()
+        && ((node->getSymbol()->castToMethodSymbol()->getRecognizedMethod() == TR::java_nio_Bits_copyToByteArray)
+            || (node->getSymbol()->castToMethodSymbol()->getRecognizedMethod() == TR::java_nio_Bits_copyFromByteArray))
+        && !fej9->isAnyMethodTracingEnabled(
+            node->getSymbol()->castToResolvedMethodSymbol()->getResolvedMethod()->getPersistentIdentifier())
+        && performTransformation(comp, "%s Change recognized nio call to arraycopy [%p] \n", OPT_DETAILS, node)) {
+        bool from = false;
+        if (node->getSymbol()->castToMethodSymbol()->getRecognizedMethod() == TR::java_nio_Bits_copyFromByteArray)
+            from = true;
+
+        TR::Node *nativeSrc;
+        TR::Node *javaTarget;
+        TR::Node *nativeOffset;
+
+        if (from) {
+            nativeSrc = node->getChild(2);
+            javaTarget = node->getFirstChild();
+            nativeOffset = node->getSecondChild();
+        } else {
+            nativeSrc = node->getFirstChild();
+            javaTarget = node->getSecondChild();
+            nativeOffset = node->getChild(2);
+        }
+
+        TR::Node *javaOffset;
+        if (comp->target().is64Bit())
+            javaOffset = TR::Node::lconst(node, (int64_t)TR::Compiler->om.contiguousArrayHeaderSizeInBytes());
+        else
+            javaOffset = TR::Node::iconst(node, TR::Compiler->om.contiguousArrayHeaderSizeInBytes());
+
+        TR::Node *len = node->getChild(3);
+
+        TR::Node *oldNativeSrc = nativeSrc;
+        TR::Node *oldNativeOffset = nativeOffset;
+        TR::Node *oldLen = len;
+
+        if (comp->target().is32Bit()) {
+            nativeSrc = TR::Node::create(TR::l2i, 1, nativeSrc);
+            nativeOffset = TR::Node::create(TR::l2i, 1, nativeOffset);
+            len = TR::Node::create(TR::l2i, 1, len);
+        }
+
+        TR::Node::recreate(node, TR::arraycopy);
+
+        TR::Node *nativeAddr;
+        TR::Node *javaAddr;
+
+        if (comp->target().is32Bit()) {
+            nativeAddr = nativeSrc;
+            javaOffset = TR::Node::create(TR::iadd, 2, javaOffset, nativeOffset);
+            javaAddr = TR::Node::create(TR::aiadd, 2, javaTarget, javaOffset);
+        } else {
+            nativeAddr = nativeSrc;
+            javaOffset = TR::Node::create(TR::ladd, 2, javaOffset, nativeOffset);
+            javaAddr = TR::Node::create(TR::aladd, 2, javaTarget, javaOffset);
+        }
+
+        node->setNumChildren(3);
+
+        if (from) {
+            node->setAndIncChild(0, javaAddr);
+            node->setAndIncChild(1, nativeAddr);
+            node->setAndIncChild(2, len);
+        } else {
+            node->setAndIncChild(0, nativeAddr);
+            node->setAndIncChild(1, javaAddr);
+            node->setAndIncChild(2, len);
+        }
+
+        javaTarget->recursivelyDecReferenceCount();
+        oldNativeSrc->recursivelyDecReferenceCount();
+        oldNativeOffset->recursivelyDecReferenceCount();
+        oldLen->recursivelyDecReferenceCount();
+
+        node->setArrayCopyElementType(TR::Int8);
+        node->setForwardArrayCopy(true);
+    }
+
+    // J9
+    if (comp->compileRelocatableCode() && (node->getOpCodeValue() == TR::loadaddr) && parent
+        && ((parent->getOpCodeValue() == TR:: instanceof) || (parent->getOpCodeValue() == TR::checkcast))) {
+        TR::TreeTop::create(comp, tt->getPrevTreeTop(), TR::Node::create(TR::treetop, 1, node));
+    }
+
+    // J9
+    if (node->getOpCode().hasSymbolReference() && (node->getOpCode().isLoad() || node->getOpCode().isStore())) {
+        TR::SymbolReference *symRef = node->getSymbolReference();
+        TR::Symbol *symbol = symRef->getSymbol();
+        // bitwise atomicity is required for opaque or stronger memory semantics
+        if (symbol->isAtLeastOrStrongerThanOpaque() && node->getDataType() == TR::Int64 && !symRef->isUnresolved()
+            && comp->target().is32Bit() && !self()->getSupportsInlinedAtomicLongVolatiles()) {
+            bool isLoad = false;
+            TR::SymbolReference *volatileLongSymRef = NULL;
+            if (node->getOpCode().isLoadVar()) {
+                volatileLongSymRef
+                    = comp->getSymRefTab()->findOrCreateRuntimeHelper(TR_volatileReadLong, false, false, true);
+                isLoad = true;
+            } else
+                volatileLongSymRef
+                    = comp->getSymRefTab()->findOrCreateRuntimeHelper(TR_volatileWriteLong, false, false, true);
+
+            node->setSymbolReference(volatileLongSymRef);
+
+            TR::Node *address = NULL;
             if (node->getOpCode().isIndirect())
-               {
-               if (tt->getNode()->getOpCodeValue() == TR::NULLCHK)
-                  {
-                  TR::Node * nullchkNode =
-                      TR::Node::createWithSymRef(TR::NULLCHK, 1, 1, TR::Node::create(TR::PassThrough, 1, address), tt->getNode()->getSymbolReference());
-                  tt->getPrevTreeTop()->insertAfter(TR::TreeTop::create(comp, nullchkNode));
-                  TR::Node::recreate(tt->getNode(), TR::treetop);
-                  }
-               node->setNumChildren(1);
-               node->setAndIncChild(0, addrNode);
-               }
-            else
-               {
-               TR::Node * statics = TR::Node::createWithSymRef(node, TR::loadaddr, 0, symRef);
-               node->setNumChildren(1);
-               node->setAndIncChild(0, statics);
-               }
+                address = node->getFirstChild();
 
-            if ((tt->getNode()->getOpCodeValue() != TR::treetop) ||
-                (tt->getNode()->getFirstChild() != node))
-               {
-               TR::Node * ttNode = TR::Node::create(TR::treetop, 1, node);
-               tt->getPrevTreeTop()->insertAfter(TR::TreeTop::create(comp, ttNode));
-               }
-            }
-         else
-            {
-            if (node->getOpCode().isIndirect())
-               {
-               if (tt->getNode()->getOpCodeValue() == TR::NULLCHK)
-                  {
-                  TR::Node * nullchkNode =
-                      TR::Node::createWithSymRef(TR::NULLCHK, 1, 1, TR::Node::create(TR::PassThrough, 1, address), tt->getNode()->getSymbolReference());
-                  tt->getPrevTreeTop()->insertAfter(TR::TreeTop::create(comp, nullchkNode));
-                  TR::Node::recreate(tt->getNode(), TR::treetop);
-                  }
-
-               node->setNumChildren(2);
-               node->setChild(0, node->getSecondChild());
-               node->setAndIncChild(1, addrNode);
-               }
-            else
-               {
-               TR::Node * statics = TR::Node::createWithSymRef(node, TR::loadaddr, 0, symRef);
-                node->setNumChildren(2);
-               node->setAndIncChild(1, statics);
-               }
-
-            TR::Node * ttNode = tt->getNode();
-            if (ttNode == node)
-               {
-               TR::Node * newTTNode = TR::Node::create(TR::treetop, 1, ttNode);
-               tt->setNode(newTTNode);
-               }
+            TR::Node *addrNode = NULL;
+            if (address) {
+                if (symRef->getOffset() == 0)
+                    addrNode = address;
+                else {
+                    addrNode = TR::Node::create(TR::aiadd, 2, address,
+                        TR::Node::create(node, TR::iconst, 0, symRef->getOffset()));
+                    addrNode->setIsInternalPointer(true);
+                }
             }
 
-         if (isLoad)
-            TR::Node::recreate(node, TR::lcall);
-         else
-            TR::Node::recreate(node, TR::call);
+            if (isLoad) {
+                if (node->getOpCode().isIndirect()) {
+                    if (tt->getNode()->getOpCodeValue() == TR::NULLCHK) {
+                        TR::Node *nullchkNode = TR::Node::createWithSymRef(TR::NULLCHK, 1, 1,
+                            TR::Node::create(TR::PassThrough, 1, address), tt->getNode()->getSymbolReference());
+                        tt->getPrevTreeTop()->insertAfter(TR::TreeTop::create(comp, nullchkNode));
+                        TR::Node::recreate(tt->getNode(), TR::treetop);
+                    }
+                    node->setNumChildren(1);
+                    node->setAndIncChild(0, addrNode);
+                } else {
+                    TR::Node *statics = TR::Node::createWithSymRef(node, TR::loadaddr, 0, symRef);
+                    node->setNumChildren(1);
+                    node->setAndIncChild(0, statics);
+                }
 
-         if (address)
-            address->recursivelyDecReferenceCount();
-         }
-      }
+                if ((tt->getNode()->getOpCodeValue() != TR::treetop) || (tt->getNode()->getFirstChild() != node)) {
+                    TR::Node *ttNode = TR::Node::create(TR::treetop, 1, node);
+                    tt->getPrevTreeTop()->insertAfter(TR::TreeTop::create(comp, ttNode));
+                }
+            } else {
+                if (node->getOpCode().isIndirect()) {
+                    if (tt->getNode()->getOpCodeValue() == TR::NULLCHK) {
+                        TR::Node *nullchkNode = TR::Node::createWithSymRef(TR::NULLCHK, 1, 1,
+                            TR::Node::create(TR::PassThrough, 1, address), tt->getNode()->getSymbolReference());
+                        tt->getPrevTreeTop()->insertAfter(TR::TreeTop::create(comp, nullchkNode));
+                        TR::Node::recreate(tt->getNode(), TR::treetop);
+                    }
 
-   // J9 (currentTimeMillis & OSR)
-   if (node->getOpCode().isStore())
-      {
-      if ((node->getType().isInt64() &&
-           node->isNOPLongStore()) ||
-          (node->getSymbol()->isAutoOrParm() &&
-          node->storedValueIsIrrelevant()))
-         {
-         TR_ASSERT(node == tt->getNode(), "A store is expected to be the root of its treetop");
+                    node->setNumChildren(2);
+                    node->setChild(0, node->getSecondChild());
+                    node->setAndIncChild(1, addrNode);
+                } else {
+                    TR::Node *statics = TR::Node::createWithSymRef(node, TR::loadaddr, 0, symRef);
+                    node->setNumChildren(2);
+                    node->setAndIncChild(1, statics);
+                }
 
-         // Remove this treetop
-         tt->getPrevTreeTop()->setNextTreeTop(tt->getNextTreeTop());
-         tt->getNextTreeTop()->setPrevTreeTop(tt->getPrevTreeTop());
-         node->recursivelyDecReferenceCount();
-         }
-      else
-         {
-         // Needed for OSR
-         //
-         _localsThatAreStored->set(node->getSymbolReference()->getReferenceNumber());
-         }
-      }
-   // J9
-   else if (node->getOpCodeValue() == TR::monent ||
-            node->getOpCodeValue() == TR::monexit ||
-            node->getOpCodeValue() == TR::tstart )
-      {
-      TR_OpaqueClassBlock * monClass = node->getMonitorClass(comp->getCurrentMethod());
-      if (monClass)
-         self()->addMonClass(node, monClass);
-      //Clear the hidden second child that may be used by code generation
-      node->setMonitorClassInNode(NULL);
-      }
+                TR::Node *ttNode = tt->getNode();
+                if (ttNode == node) {
+                    TR::Node *newTTNode = TR::Node::create(TR::treetop, 1, ttNode);
+                    tt->setNode(newTTNode);
+                }
+            }
 
+            if (isLoad)
+                TR::Node::recreate(node, TR::lcall);
+            else
+                TR::Node::recreate(node, TR::call);
 
-   // J9
-   if (comp->getOption(TR_ReservingLocks) &&
-       node->getOpCodeValue() == TR::monent)
-      {
-      TR_OpaqueMethodBlock *owningMethod = node->getOwningMethod();
-      TR_OpaqueClassBlock  *classPointer = fej9->getClassOfMethod(owningMethod);
-      TR_PersistentClassInfo * persistentClassInfo =
-         comp->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(classPointer, comp);
+            if (address)
+                address->recursivelyDecReferenceCount();
+        }
+    }
 
-      if (persistentClassInfo && persistentClassInfo->isReservable())
-         {
-         bool allowedToReserve = !scanForNativeMethodsUntilMonitorNode(tt->getNextTreeTop(), comp);
-         if (!allowedToReserve)
-            {
-            persistentClassInfo->setReservable(false);
+    // J9 (currentTimeMillis & OSR)
+    if (node->getOpCode().isStore()) {
+        if ((node->getType().isInt64() && node->isNOPLongStore())
+            || (node->getSymbol()->isAutoOrParm() && node->storedValueIsIrrelevant())) {
+            TR_ASSERT(node == tt->getNode(), "A store is expected to be the root of its treetop");
+
+            // Remove this treetop
+            tt->getPrevTreeTop()->setNextTreeTop(tt->getNextTreeTop());
+            tt->getNextTreeTop()->setPrevTreeTop(tt->getPrevTreeTop());
+            node->recursivelyDecReferenceCount();
+        } else {
+            // Needed for OSR
+            //
+            _localsThatAreStored->set(node->getSymbolReference()->getReferenceNumber());
+        }
+    }
+    // J9
+    else if (node->getOpCodeValue() == TR::monent || node->getOpCodeValue() == TR::monexit
+        || node->getOpCodeValue() == TR::tstart) {
+        TR_OpaqueClassBlock *monClass = node->getMonitorClass(comp->getCurrentMethod());
+        if (monClass)
+            self()->addMonClass(node, monClass);
+        // Clear the hidden second child that may be used by code generation
+        node->setMonitorClassInNode(NULL);
+    }
+
+    // J9
+    if (comp->getOption(TR_ReservingLocks) && node->getOpCodeValue() == TR::monent) {
+        TR_OpaqueMethodBlock *owningMethod = node->getOwningMethod();
+        TR_OpaqueClassBlock *classPointer = fej9->getClassOfMethod(owningMethod);
+        TR_PersistentClassInfo *persistentClassInfo
+            = comp->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(classPointer, comp);
+
+        if (persistentClassInfo && persistentClassInfo->isReservable()) {
+            bool allowedToReserve = !scanForNativeMethodsUntilMonitorNode(tt->getNextTreeTop(), comp);
+            if (!allowedToReserve) {
+                persistentClassInfo->setReservable(false);
 #if defined(J9VM_OPT_JITSERVER)
-            // This is currently the only place where this flag gets cleared. For JITServer, we should propagate it to the client,
-            // to avoid having to call scanForNativeMethodsUntilMonitorNode again.
-            if (auto stream = comp->getStream())
-               {
-               stream->write(JITServer::MessageType::CHTable_clearReservable, classPointer);
-               stream->read<JITServer::Void>();
-               }
+                // This is currently the only place where this flag gets cleared. For JITServer, we should propagate it
+                // to the client, to avoid having to call scanForNativeMethodsUntilMonitorNode again.
+                if (auto stream = comp->getStream()) {
+                    stream->write(JITServer::MessageType::CHTable_clearReservable, classPointer);
+                    stream->read<JITServer::Void>();
+                }
 #endif /* defined(J9VM_OPT_JITSERVER) */
             }
-         }
-      }
+        }
+    }
 
-   // J9
-   if (  comp->getOptions()->enableDebugCounters()
-      && node->getOpCode().isCall()
-      && node->getSymbol()->getMethodSymbol() // compjazz 45988: zEmulator arrayset currently isCall and uses a generic int shadow.  Can't assume it's a method.
-      && !node->getSymbol()->castToMethodSymbol()->isHelper())
-      {
-      bool insertByteCode = TR::Options::_debugCounterInsertByteCode;
-      bool insertJittedBody = TR::Options::_debugCounterInsertJittedBody;
-      bool insertMethod = TR::Options::_debugCounterInsertMethod;
+    // J9
+    if (comp->getOptions()->enableDebugCounters() && node->getOpCode().isCall()
+        && node->getSymbol()->getMethodSymbol() // compjazz 45988: zEmulator arrayset currently isCall and uses a
+                                                // generic int shadow.  Can't assume it's a method.
+        && !node->getSymbol()->castToMethodSymbol()->isHelper()) {
+        bool insertByteCode = TR::Options::_debugCounterInsertByteCode;
+        bool insertJittedBody = TR::Options::_debugCounterInsertJittedBody;
+        bool insertMethod = TR::Options::_debugCounterInsertMethod;
 
-      const char *caller = comp->signature();
-      const char *callee = node->getSymbol()->castToMethodSymbol()->getMethod()->signature(self()->trMemory(), stackAlloc);
-      TR_ByteCodeInfo &bcInfo = node->getByteCodeInfo();
-      if (insertByteCode)
-         {
-         TR::DebugCounter::prependDebugCounter(comp, TR::DebugCounter::debugCounterName(comp,
-               "compilationReport.instructions:byByteCode.numInvocations.(%s)=%d", caller, node->getByteCodeInfo().getByteCodeIndex()), tt);
-         }
-      if (insertJittedBody)
-         {
-         TR::DebugCounter::prependDebugCounter(comp, TR::DebugCounter::debugCounterName(comp,
-               "compilationReport.instructions:byJittedBody.numInvocations.(%s).%s", caller, comp->getHotnessName()), tt);
-         }
-      if (insertMethod)
-         {
-         TR::DebugCounter::prependDebugCounter(comp, TR::DebugCounter::debugCounterName(comp,
-               "compilationReport.instructions:byMethod.numInvocations.(%s)", caller), tt);
-         }
-      TR::DebugCounter::prependDebugCounter(comp, TR::DebugCounter::debugCounterName(comp, "callers/(%s)/%d=%d", caller, bcInfo.getCallerIndex(), bcInfo.getByteCodeIndex()), tt);
-      TR::DebugCounter::prependDebugCounter(comp, TR::DebugCounter::debugCounterName(comp, "callees/(%s)/(%s)/%d=%d", callee, caller, bcInfo.getCallerIndex(), bcInfo.getByteCodeIndex()), tt);
-      }
+        const char *caller = comp->signature();
+        const char *callee
+            = node->getSymbol()->castToMethodSymbol()->getMethod()->signature(self()->trMemory(), stackAlloc);
+        TR_ByteCodeInfo &bcInfo = node->getByteCodeInfo();
+        if (insertByteCode) {
+            TR::DebugCounter::prependDebugCounter(comp,
+                TR::DebugCounter::debugCounterName(comp,
+                    "compilationReport.instructions:byByteCode.numInvocations.(%s)=%d", caller,
+                    node->getByteCodeInfo().getByteCodeIndex()),
+                tt);
+        }
+        if (insertJittedBody) {
+            TR::DebugCounter::prependDebugCounter(comp,
+                TR::DebugCounter::debugCounterName(comp,
+                    "compilationReport.instructions:byJittedBody.numInvocations.(%s).%s", caller,
+                    comp->getHotnessName()),
+                tt);
+        }
+        if (insertMethod) {
+            TR::DebugCounter::prependDebugCounter(comp,
+                TR::DebugCounter::debugCounterName(comp, "compilationReport.instructions:byMethod.numInvocations.(%s)",
+                    caller),
+                tt);
+        }
+        TR::DebugCounter::prependDebugCounter(comp,
+            TR::DebugCounter::debugCounterName(comp, "callers/(%s)/%d=%d", caller, bcInfo.getCallerIndex(),
+                bcInfo.getByteCodeIndex()),
+            tt);
+        TR::DebugCounter::prependDebugCounter(comp,
+            TR::DebugCounter::debugCounterName(comp, "callees/(%s)/(%s)/%d=%d", callee, caller, bcInfo.getCallerIndex(),
+                bcInfo.getByteCodeIndex()),
+            tt);
+    }
 
-   // J9
-   //
-   // We uncommon all the address children of a direct to JNI call
-   // because if the loadaddr is commoned across a GC point, we cannot mark the register
-   // as collected (since it is not a Java object) and we can have a problem if we do not
-   // mark in some other way if the stack grows (and is moved) at the GC point. The problem
-   // will be that the register will continue to point at the old stack.
-   //
-   if (node->getOpCode().isCall() &&
-       node->getSymbol()->getMethodSymbol() &&
-       node->isPreparedForDirectJNI())
-      {
-      int32_t i;
-      for (i = 0; i < node->getNumChildren(); ++i)
-         {
-         TR::Node * n = node->getChild(i);
-         if (n->getDataType() == TR::Address)
-            {
-            //TR_ASSERT((n->getOpCodeValue() == TR::loadaddr), "Address child of JNI call is not a loadaddr\n");
-            if ((n->getOpCodeValue() == TR::loadaddr) &&
-                (n->getReferenceCount() > 1) &&
-                n->getSymbol()->isAutoOrParm())
-               {
-               TR::Node *dupChild = n->duplicateTree();
-               node->setAndIncChild(i, dupChild);
-               n->recursivelyDecReferenceCount();
-               }
+    // J9
+    //
+    // We uncommon all the address children of a direct to JNI call
+    // because if the loadaddr is commoned across a GC point, we cannot mark the register
+    // as collected (since it is not a Java object) and we can have a problem if we do not
+    // mark in some other way if the stack grows (and is moved) at the GC point. The problem
+    // will be that the register will continue to point at the old stack.
+    //
+    if (node->getOpCode().isCall() && node->getSymbol()->getMethodSymbol() && node->isPreparedForDirectJNI()) {
+        int32_t i;
+        for (i = 0; i < node->getNumChildren(); ++i) {
+            TR::Node *n = node->getChild(i);
+            if (n->getDataType() == TR::Address) {
+                // TR_ASSERT((n->getOpCodeValue() == TR::loadaddr), "Address child of JNI call is not a loadaddr\n");
+                if ((n->getOpCodeValue() == TR::loadaddr) && (n->getReferenceCount() > 1)
+                    && n->getSymbol()->isAutoOrParm()) {
+                    TR::Node *dupChild = n->duplicateTree();
+                    node->setAndIncChild(i, dupChild);
+                    n->recursivelyDecReferenceCount();
+                }
             }
-         }
-      }
+        }
+    }
 
-   // J9
-   // code to push recompilation of methods whose caller is scorching
-   if (comp->getOption(TR_EnableRecompilationPushing)                 &&
-       !self()->getCurrentBlock()->isCold()                                   &&
-       comp->allowRecompilation()                                     &&
-       comp->getMethodHotness()>=veryHot                              &&
-       node->getOpCode().isCall()                                       &&
-       comp->getPersistentInfo()->getNumLoadedClasses() < TR::Options::_bigAppThreshold &&
-       node->getSymbol()->getMethodSymbol()                             &&
-      !node->isPreparedForDirectJNI())
-      {
-      bool pushCall = true;
-      TR::MethodSymbol *methodSymbol = node->getSymbol()->getMethodSymbol();
-      TR::SymbolReference  *methodSymRef  = node->getSymbolReference();
+    // J9
+    // code to push recompilation of methods whose caller is scorching
+    if (comp->getOption(TR_EnableRecompilationPushing) && !self()->getCurrentBlock()->isCold()
+        && comp->allowRecompilation() && comp->getMethodHotness() >= veryHot && node->getOpCode().isCall()
+        && comp->getPersistentInfo()->getNumLoadedClasses() < TR::Options::_bigAppThreshold
+        && node->getSymbol()->getMethodSymbol() && !node->isPreparedForDirectJNI()) {
+        bool pushCall = true;
+        TR::MethodSymbol *methodSymbol = node->getSymbol()->getMethodSymbol();
+        TR::SymbolReference *methodSymRef = node->getSymbolReference();
 
-      if (methodSymRef->isUnresolved())
-         {
-         pushCall = false;
-         }
-      else if (!node->getOpCode().isCallDirect() || methodSymbol->isVirtual())
-         {
-         TR_ResolvedMethod *resolvedMethod = node->getSymbol()->getResolvedMethodSymbol()->getResolvedMethod();
-         if (!resolvedMethod || node->isTheVirtualCallNodeForAGuardedInlinedCall() ||
-             resolvedMethod->virtualMethodIsOverridden()        ||
-             resolvedMethod->isAbstract() ||
-             (resolvedMethod == comp->getCurrentMethod()))
-            {
+        if (methodSymRef->isUnresolved()) {
             pushCall = false;
+        } else if (!node->getOpCode().isCallDirect() || methodSymbol->isVirtual()) {
+            TR_ResolvedMethod *resolvedMethod = node->getSymbol()->getResolvedMethodSymbol()->getResolvedMethod();
+            if (!resolvedMethod || node->isTheVirtualCallNodeForAGuardedInlinedCall()
+                || resolvedMethod->virtualMethodIsOverridden() || resolvedMethod->isAbstract()
+                || (resolvedMethod == comp->getCurrentMethod())) {
+                pushCall = false;
             }
-         }
+        }
 
-      if (pushCall)
-         {
-         if (!((methodSymbol && methodSymbol->getResolvedMethodSymbol() &&
-               methodSymbol->getResolvedMethodSymbol()->getResolvedMethod() &&
-               methodSymbol->getResolvedMethodSymbol()->getResolvedMethod()->isInterpretedForHeuristics()) ||
-               methodSymbol->isVMInternalNative()      ||
-               methodSymbol->isHelper()                ||
-               methodSymbol->isNative()                ||
-               methodSymbol->isSystemLinkageDispatch() ||
-               methodSymbol->isJITInternalNative())    &&
-               methodSymbol->getResolvedMethodSymbol() &&
-               methodSymbol->getResolvedMethodSymbol()->getResolvedMethod())
-            {
-            TR_PersistentJittedBodyInfo * bodyInfo = ((TR_ResolvedJ9Method*) methodSymbol->getResolvedMethodSymbol()->getResolvedMethod())->getExistingJittedBodyInfo();
-            if (bodyInfo &&
-                bodyInfo->getHotness() <= warm && !bodyInfo->getIsProfilingBody())
-               {
-               TR_ResolvedMethod *method = methodSymbol->castToResolvedMethodSymbol()->getResolvedMethod();
-               int isInLoop = -1;
-               TR::Block * block = self()->getCurrentBlock();
+        if (pushCall) {
+            if (!((methodSymbol && methodSymbol->getResolvedMethodSymbol()
+                      && methodSymbol->getResolvedMethodSymbol()->getResolvedMethod()
+                      && methodSymbol->getResolvedMethodSymbol()->getResolvedMethod()->isInterpretedForHeuristics())
+                    || methodSymbol->isVMInternalNative() || methodSymbol->isHelper() || methodSymbol->isNative()
+                    || methodSymbol->isSystemLinkageDispatch() || methodSymbol->isJITInternalNative())
+                && methodSymbol->getResolvedMethodSymbol()
+                && methodSymbol->getResolvedMethodSymbol()->getResolvedMethod()) {
+                TR_PersistentJittedBodyInfo *bodyInfo
+                    = ((TR_ResolvedJ9Method *)methodSymbol->getResolvedMethodSymbol()->getResolvedMethod())
+                          ->getExistingJittedBodyInfo();
+                if (bodyInfo && bodyInfo->getHotness() <= warm && !bodyInfo->getIsProfilingBody()) {
+                    TR_ResolvedMethod *method = methodSymbol->castToResolvedMethodSymbol()->getResolvedMethod();
+                    int isInLoop = -1;
+                    TR::Block *block = self()->getCurrentBlock();
 
-               TR_BlockStructure * blockStructure = block->getStructureOf();
-               if (blockStructure)
-                  {
-                  TR_Structure *parentStructure = blockStructure->getParent();
-                  while (parentStructure)
-                     {
-                     TR_RegionStructure *region = parentStructure->asRegion();
-                     if (region->isNaturalLoop() ||
-                         region->containsInternalCycles())
-                        {
-                        isInLoop =  region->getNumber();
-                        break;
+                    TR_BlockStructure *blockStructure = block->getStructureOf();
+                    if (blockStructure) {
+                        TR_Structure *parentStructure = blockStructure->getParent();
+                        while (parentStructure) {
+                            TR_RegionStructure *region = parentStructure->asRegion();
+                            if (region->isNaturalLoop() || region->containsInternalCycles()) {
+                                isInLoop = region->getNumber();
+                                break;
+                            }
+                            parentStructure = parentStructure->getParent();
                         }
-                     parentStructure = parentStructure->getParent();
-                     }
-                  }
+                    }
 
-               if ((self()->getCurrentBlock()->getFrequency() > MAX_COLD_BLOCK_COUNT) || (isInLoop && self()->getCurrentBlock()->getFrequency()==0))
-                  {
-                  bodyInfo->setCounter(1);
-                  bodyInfo->setIsPushedForRecompilation();
-                  }
-               }
+                    if ((self()->getCurrentBlock()->getFrequency() > MAX_COLD_BLOCK_COUNT)
+                        || (isInLoop && self()->getCurrentBlock()->getFrequency() == 0)) {
+                        bodyInfo->setCounter(1);
+                        bodyInfo->setIsPushedForRecompilation();
+                    }
+                }
             }
-         }
-      }
+        }
+    }
 
-   // J9
-   if (node->getOpCodeValue() == TR::instanceof)
-      {
-      TR::Node * topNode = tt->getNode();
-      if (topNode->getNumChildren() > 0)
-         topNode = topNode->getFirstChild();
+    // J9
+    if (node->getOpCodeValue() == TR:: instanceof) {
+        TR::Node *topNode = tt->getNode();
+        if (topNode->getNumChildren() > 0)
+            topNode = topNode->getFirstChild();
 
-      if (topNode->getOpCode().isCall() &&
-          topNode->getSymbol()->getMethodSymbol() &&
-          (topNode->getSymbol()->getMethodSymbol()->isSystemLinkageDispatch() ||
-           topNode->isPreparedForDirectJNI()))
-         {
-         TR::Node * ttNode = TR::Node::create(TR::treetop, 1, node);
-         tt->getPrevTreeTop()->insertAfter(TR::TreeTop::create(comp, ttNode));
-         }
-      }
+        if (topNode->getOpCode().isCall() && topNode->getSymbol()->getMethodSymbol()
+            && (topNode->getSymbol()->getMethodSymbol()->isSystemLinkageDispatch()
+                || topNode->isPreparedForDirectJNI())) {
+            TR::Node *ttNode = TR::Node::create(TR::treetop, 1, node);
+            tt->getPrevTreeTop()->insertAfter(TR::TreeTop::create(comp, ttNode));
+        }
+    }
 
-   // J9
-   if (node->getOpCodeValue() == TR::NULLCHK)
-      {
-      if ((node->getFirstChild()->getReferenceCount() == 1) &&
-          node->getFirstChild()->getOpCode().isLoadVar() &&
-          node->getFirstChild()->getSymbolReference()->getSymbol()->isTransparent())
-         {
-         TR::Node::recreate(node->getFirstChild(), TR::PassThrough);
-         }
-      }
+    // J9
+    if (node->getOpCodeValue() == TR::NULLCHK) {
+        if ((node->getFirstChild()->getReferenceCount() == 1) && node->getFirstChild()->getOpCode().isLoadVar()
+            && node->getFirstChild()->getSymbolReference()->getSymbol()->isTransparent()) {
+            TR::Node::recreate(node->getFirstChild(), TR::PassThrough);
+        }
+    }
 
-   // J9
-   //
-   //Anchoring node to either extract register pressure(performance)
-   //or ensure instanceof doesn't have a parent node of CALL (correctness)
-   //
-   const char *anchoringReason = "register hog";
-   switch (node->getOpCodeValue())
-      {
-      // Extract heavy register pressure trees when dictated at the start of the walk
-      // (typically IA32 on system linkage calls when there is one fewer register).
-      case TR::ldiv:
-      case TR::lrem:
-      case TR::lcmp:
-        {
+    // J9
+    //
+    // Anchoring node to either extract register pressure(performance)
+    // or ensure instanceof doesn't have a parent node of CALL (correctness)
+    //
+    const char *anchoringReason = "register hog";
+    switch (node->getOpCodeValue()) {
+        // Extract heavy register pressure trees when dictated at the start of the walk
+        // (typically IA32 on system linkage calls when there is one fewer register).
+        case TR::ldiv:
+        case TR::lrem:
+        case TR::lcmp: {
+            if (!self()->removeRegisterHogsInLowerTreesWalk())
+                break;
+        }
+        // Instanceof might requires this transformation for the reason of either register pressure
+        // or ensure no parent node of CALL
+        case TR:: instanceof: {
+            //  For correctness, all we really need here is to ensure instanceof
+            //  doesn't have a parent of native call. But even java call would
+            //  create control flow to setup linkage, which might cause conflict
+            //  with the instanceof control flow.
+            if (parent->getOpCode().isCall()) {
+                anchoringReason = "call-like";
+            }
 
-         if (!self()->removeRegisterHogsInLowerTreesWalk())
+            else if (!self()->removeRegisterHogsInLowerTreesWalk())
+                break;
+
+            TR::Node *ttNode = TR::Node::create(TR::treetop, 1, node);
+            tt->getPrevTreeTop()->insertAfter(TR::TreeTop::create(comp, ttNode));
+            logprintf(comp->getOption(TR_TraceCG), comp->log(), "Anchoring %s node %s [%p] under treetop [%p]\n",
+                anchoringReason, node->getOpCode().getName(), node, ttNode);
             break;
         }
-      // Instanceof might requires this transformation for the reason of either register pressure
-      // or ensure no parent node of CALL
-      case TR::instanceof:
-        {
-         //  For correctness, all we really need here is to ensure instanceof
-         //  doesn't have a parent of native call. But even java call would
-         //  create control flow to setup linkage, which might cause conflict
-         //  with the instanceof control flow.
-         if(parent->getOpCode().isCall())
-            {
-            anchoringReason = "call-like";
-            }
-
-         else if (!self()->removeRegisterHogsInLowerTreesWalk())
+        default:
             break;
-
-         TR::Node *ttNode = TR::Node::create(TR::treetop, 1, node);
-         tt->getPrevTreeTop()->insertAfter(TR::TreeTop::create(comp, ttNode));
-         logprintf(comp->getOption(TR_TraceCG), comp->log(), "Anchoring %s node %s [%p] under treetop [%p]\n", anchoringReason, node->getOpCode().getName(), node, ttNode);
-         break;
-         }
-      default:
-         break;
-
-      }
-
-   }
-
+    }
+}
 
 static bool isArraySizeSymbolRef(TR::SymbolReference *s, TR::SymbolReferenceTable *symRefTab)
-   {
-   // TODO: Move to compile/SymbolReferenceTable.hpp
-   return (s!=NULL) && (s == symRefTab->findContiguousArraySizeSymbolRef() || s == symRefTab->findDiscontiguousArraySizeSymbolRef());
-   }
+{
+    // TODO: Move to compile/SymbolReferenceTable.hpp
+    return (s != NULL)
+        && (s == symRefTab->findContiguousArraySizeSymbolRef()
+            || s == symRefTab->findDiscontiguousArraySizeSymbolRef());
+}
 
-
-void
-J9::CodeGenerator::moveUpArrayLengthStores(TR::TreeTop *insertionPoint)
-   {
-   // 174954: Until TR::arraylength has a symref with proper aliasing, we have to
-   // make sure that stores to the array length field occur before all arraylength
-   // trees.  Good news is that all such stores are inserted by escape
-   // analysis, so they always have a loadaddr as one child and a constant as
-   // the other, so they can be trivially moved to the top of the block.
-   //
-   for (TR::TreeTop *tt = insertionPoint->getNextTreeTop(); tt; tt = tt->getNextTreeTop())
-      {
-      if (tt->getNode()->getOpCodeValue() == TR::BBStart && !tt->getNode()->getBlock()->isExtensionOfPreviousBlock())
-         break;
-      TR::Node *store = tt->getNode()->getStoreNode();
-      if (store && store->getOpCode().isStoreIndirect() && isArraySizeSymbolRef(store->getSymbolReference(), self()->symRefTab()))
-         {
-         if (store->getFirstChild()->getOpCodeValue() != TR::loadaddr)
-            {
-            dumpOptDetails(self()->comp(), "MOVE UP ARRAY LENGTH STORES: WARNING! First child of %p is %s; expected loadaddr\n", store, store->getFirstChild()->getOpCode().getName());
-            }
-         else if (!store->getSecondChild()->getOpCode().isLoadConst())
-            {
-            dumpOptDetails(self()->comp(), "MOVE UP ARRAY LENGTH STORES: WARNING! Second child of %p is %s; expected const\n", store, store->getSecondChild()->getOpCode().getName());
-            }
-         else
-            {
-            dumpOptDetails(self()->comp(), "MOVE UP ARRAY LENGTH STORES: Moving %s %p up after %p\n", tt->getNode()->getOpCode().getName(), tt->getNode(), insertionPoint->getNode());
-            tt->unlink(false);
-            insertionPoint->insertAfter(tt);
-            insertionPoint = tt;
-            }
-         }
-      }
-   }
-
-
-void
-J9::CodeGenerator::zeroOutAutoOnEdge(
-      TR::SymbolReference *liveAutoSymRef,
-      TR::Block *block,
-      TR::Block *succBlock,
-      TR::list<TR::Block*> *newBlocks,
-      TR_ScratchList<TR::Node> *fsdStores)
-   {
-   TR::Compilation *comp = self()->comp();
-   OMR::Logger *log = comp->log();
-   bool trace = comp->getOption(TR_TraceCG);
-   TR::Block *storeBlock = NULL;
-   if ((succBlock->getPredecessors().size() == 1))
-      storeBlock = succBlock;
-   else
-      {
-      for (auto blocksIt = newBlocks->begin(); blocksIt != newBlocks->end(); ++blocksIt)
-         {
-         if ((*blocksIt)->getSuccessors().front()->getTo()->asBlock() == succBlock)
-            {
-            storeBlock = *blocksIt;
+void J9::CodeGenerator::moveUpArrayLengthStores(TR::TreeTop *insertionPoint)
+{
+    // 174954: Until TR::arraylength has a symref with proper aliasing, we have to
+    // make sure that stores to the array length field occur before all arraylength
+    // trees.  Good news is that all such stores are inserted by escape
+    // analysis, so they always have a loadaddr as one child and a constant as
+    // the other, so they can be trivially moved to the top of the block.
+    //
+    for (TR::TreeTop *tt = insertionPoint->getNextTreeTop(); tt; tt = tt->getNextTreeTop()) {
+        if (tt->getNode()->getOpCodeValue() == TR::BBStart && !tt->getNode()->getBlock()->isExtensionOfPreviousBlock())
             break;
+        TR::Node *store = tt->getNode()->getStoreNode();
+        if (store && store->getOpCode().isStoreIndirect()
+            && isArraySizeSymbolRef(store->getSymbolReference(), self()->symRefTab())) {
+            if (store->getFirstChild()->getOpCodeValue() != TR::loadaddr) {
+                dumpOptDetails(self()->comp(),
+                    "MOVE UP ARRAY LENGTH STORES: WARNING! First child of %p is %s; expected loadaddr\n", store,
+                    store->getFirstChild()->getOpCode().getName());
+            } else if (!store->getSecondChild()->getOpCode().isLoadConst()) {
+                dumpOptDetails(self()->comp(),
+                    "MOVE UP ARRAY LENGTH STORES: WARNING! Second child of %p is %s; expected const\n", store,
+                    store->getSecondChild()->getOpCode().getName());
+            } else {
+                dumpOptDetails(self()->comp(), "MOVE UP ARRAY LENGTH STORES: Moving %s %p up after %p\n",
+                    tt->getNode()->getOpCode().getName(), tt->getNode(), insertionPoint->getNode());
+                tt->unlink(false);
+                insertionPoint->insertAfter(tt);
+                insertionPoint = tt;
             }
-         }
-      }
+        }
+    }
+}
 
-   if (!storeBlock)
-      {
-      TR::TreeTop * startTT = succBlock->getEntry();
-      TR::Node * startNode = startTT->getNode();
-      TR::Node * glRegDeps = NULL;
-      if (startNode->getNumChildren() > 0)
-         glRegDeps = startNode->getFirstChild();
-
-      TR::Block * newBlock = block->splitEdge(block, succBlock, comp, NULL, false);
-
-      if (debug("traceFSDSplit"))
-         diagnostic("\nSplitting edge, create new intermediate block_%d", newBlock->getNumber());
-
-      if (glRegDeps)
-         {
-         TR::Node *duplicateGlRegDeps = glRegDeps->duplicateTree();
-         TR::Node *origDuplicateGlRegDeps = duplicateGlRegDeps;
-         duplicateGlRegDeps = TR::Node::copy(duplicateGlRegDeps);
-         newBlock->getEntry()->getNode()->setNumChildren(1);
-         newBlock->getEntry()->getNode()->setAndIncChild(0, origDuplicateGlRegDeps);
-         for (int32_t i = origDuplicateGlRegDeps->getNumChildren() - 1; i >= 0; --i)
-            {
-            TR::Node * dep = origDuplicateGlRegDeps->getChild(i);
-            if(comp->getOption(TR_MimicInterpreterFrameShape) || comp->getOption(TR_PoisonDeadSlots))
-               dep->setRegister(NULL); // basically need to do prepareNodeForInstructionSelection
-            duplicateGlRegDeps->setAndIncChild(i, dep);
+void J9::CodeGenerator::zeroOutAutoOnEdge(TR::SymbolReference *liveAutoSymRef, TR::Block *block, TR::Block *succBlock,
+    TR::list<TR::Block *> *newBlocks, TR_ScratchList<TR::Node> *fsdStores)
+{
+    TR::Compilation *comp = self()->comp();
+    OMR::Logger *log = comp->log();
+    bool trace = comp->getOption(TR_TraceCG);
+    TR::Block *storeBlock = NULL;
+    if ((succBlock->getPredecessors().size() == 1))
+        storeBlock = succBlock;
+    else {
+        for (auto blocksIt = newBlocks->begin(); blocksIt != newBlocks->end(); ++blocksIt) {
+            if ((*blocksIt)->getSuccessors().front()->getTo()->asBlock() == succBlock) {
+                storeBlock = *blocksIt;
+                break;
             }
-         if(comp->getOption(TR_MimicInterpreterFrameShape) || comp->getOption(TR_PoisonDeadSlots))
-            {
-            TR::Node *glRegDepsParent;
-            if (  (newBlock->getSuccessors().size() == 1)
-               && newBlock->getSuccessors().front()->getTo()->asBlock()->getEntry() == newBlock->getExit()->getNextTreeTop())
-               {
-               glRegDepsParent = newBlock->getExit()->getNode();
-               }
-            else
-               {
-               glRegDepsParent = newBlock->getExit()->getPrevTreeTop()->getNode();
-               TR_ASSERT(glRegDepsParent->getOpCodeValue() == TR::Goto, "Expected block to fall through or end in goto; it ends with %s %s\n",
-                  self()->getDebug()->getName(glRegDepsParent->getOpCodeValue()), self()->getDebug()->getName(glRegDepsParent));
-               }
-            logprintf(trace, log, "zeroOutAutoOnEdge: glRegDepsParent is %s\n", self()->getDebug()->getName(glRegDepsParent));
-            glRegDepsParent->setNumChildren(1);
-            glRegDepsParent->setAndIncChild(0, duplicateGlRegDeps);
+        }
+    }
+
+    if (!storeBlock) {
+        TR::TreeTop *startTT = succBlock->getEntry();
+        TR::Node *startNode = startTT->getNode();
+        TR::Node *glRegDeps = NULL;
+        if (startNode->getNumChildren() > 0)
+            glRegDeps = startNode->getFirstChild();
+
+        TR::Block *newBlock = block->splitEdge(block, succBlock, comp, NULL, false);
+
+        if (debug("traceFSDSplit"))
+            diagnostic("\nSplitting edge, create new intermediate block_%d", newBlock->getNumber());
+
+        if (glRegDeps) {
+            TR::Node *duplicateGlRegDeps = glRegDeps->duplicateTree();
+            TR::Node *origDuplicateGlRegDeps = duplicateGlRegDeps;
+            duplicateGlRegDeps = TR::Node::copy(duplicateGlRegDeps);
+            newBlock->getEntry()->getNode()->setNumChildren(1);
+            newBlock->getEntry()->getNode()->setAndIncChild(0, origDuplicateGlRegDeps);
+            for (int32_t i = origDuplicateGlRegDeps->getNumChildren() - 1; i >= 0; --i) {
+                TR::Node *dep = origDuplicateGlRegDeps->getChild(i);
+                if (comp->getOption(TR_MimicInterpreterFrameShape) || comp->getOption(TR_PoisonDeadSlots))
+                    dep->setRegister(NULL); // basically need to do prepareNodeForInstructionSelection
+                duplicateGlRegDeps->setAndIncChild(i, dep);
             }
-         else           //original path
-            {
-            newBlock->getExit()->getNode()->setNumChildren(1);
-            newBlock->getExit()->getNode()->setAndIncChild(0, duplicateGlRegDeps);
-            }
-         }
-
-      newBlock->setLiveLocals(new (self()->trHeapMemory()) TR_BitVector(*succBlock->getLiveLocals()));
-      newBlock->getEntry()->getNode()->setLabel(generateLabelSymbol(self()));
-
-
-      if (comp->getOption(TR_PoisonDeadSlots))
-         {
-         logprintf(trace, log, "POISON DEAD SLOTS --- New Block Created %d\n", newBlock->getNumber());
-         newBlock->setIsCreatedAtCodeGen();
-         }
-
-      newBlocks->push_front(newBlock);
-      storeBlock = newBlock;
-      }
-   TR::Node *storeNode;
-
-   if (comp->getOption(TR_PoisonDeadSlots))
-      storeNode = self()->generatePoisonNode(block, liveAutoSymRef);
-   else
-      storeNode = TR::Node::createStore(liveAutoSymRef, TR::Node::aconst(block->getEntry()->getNode(), 0));
-
-   if (storeNode)
-      {
-      TR::TreeTop *storeTree = TR::TreeTop::create(comp, storeNode);
-      storeBlock->prepend(storeTree);
-      fsdStores->add(storeNode);
-      }
-   }
-
-
-void
-J9::CodeGenerator::doInstructionSelection()
-   {
-   TR::Compilation *comp = self()->comp();
-   OMR::Logger *log = comp->log();
-   bool traceCG = comp->getOption(TR_TraceCG);
-
-   J9::SetMonitorStateOnBlockEntry::LiveMonitorStacks liveMonitorStacks(
-      (J9::SetMonitorStateOnBlockEntry::LiveMonitorStacksComparator()),
-      J9::SetMonitorStateOnBlockEntry::LiveMonitorStacksAllocator(comp->trMemory()->heapMemoryRegion()));
-
-   // Set default value for pre-prologue size
-   //
-   TR::ResolvedMethodSymbol * methodSymbol = comp->getJittedMethodSymbol();
-   self()->setPrePrologueSize(4 + (methodSymbol->isJNI() ? 4 : 0));
-
-   if (comp->getOption(TR_TraceCG))
-      diagnostic("\n<selection>");
-
-   if (comp->getOption(TR_TraceCG))
-      comp->getDebug()->setupToDumpTreesAndInstructions(log, "Performing Instruction Selection");
-
-   self()->beginInstructionSelection();
-
-   {
-   TR::StackMemoryRegion stackMemoryRegion(*self()->trMemory());
-
-   TR_BitVector * liveLocals = self()->getLiveLocals();
-   TR_BitVector nodeChecklistBeforeDump(comp->getNodeCount(), self()->trMemory(), stackAlloc, growable);
-
-   /*
-     To enable instruction scheduling (both in the compiler and in out-of-order hardware),
-     we would prefer not to reuse the same memory to represent multiple temps inside
-     a tight loop. At higher opt levels, therefore, we only free variable size symrefs at
-     back edges. To prevent pathological cases from consuming too much stack space, we set a
-     cap on the number of extended basic blocks before we stop waiting for a back edge and free
-     our temps anyway.
-    */
-   const uint32_t MAX_EBBS_BEFORE_FREEING_VARIABLE_SIZED_SYMREFS = 10;
-   uint32_t numEBBsSinceFreeingVariableSizeSymRefs = 0;
-
-   TR_BitVector * liveMonitors = 0;
-   TR_Stack<TR::SymbolReference *> * liveMonitorStack = 0;
-   int32_t numMonitorLocals = 0;
-   static bool traceLiveMonEnv = feGetEnv("TR_traceLiveMonitors") ? true : false;
-   bool traceLiveMon = comp->getOption(TR_TraceLiveMonitorMetadata) || traceLiveMonEnv;
-
-   _lmmdFailed = false;
-   if (comp->getMethodSymbol()->mayContainMonitors())
-      {
-      logprints(traceLiveMon, log, "In doInstructionSelection: Method may contain monitors\n");
-
-      if (!liveLocals)
-         comp->getMethodSymbol()->resetLiveLocalIndices();
-
-      ListIterator<TR::AutomaticSymbol> locals(&comp->getMethodSymbol()->getAutomaticList());
-      for (TR::AutomaticSymbol * a = locals.getFirst(); a; a = locals.getNext())
-         if (a->holdsMonitoredObject())
-            {
-            logprintf(traceLiveMon, log, "\tSymbol %p contains monitored object\n", a);
-            if (!liveLocals)
-               {
-               logprintf(traceLiveMon, log, "\tsetting LiveLocalIndex to %d on symbol %p\n", numMonitorLocals+1, a);
-               a->setLiveLocalIndex(numMonitorLocals++, self()->fe());
-               }
-            else if (a->getLiveLocalIndex() + 1 > numMonitorLocals)
-               {
-               logprintf(traceLiveMon, log, "\tsetting numMonitorLocals to %d while considering symbol %p\n", a->getLiveLocalIndex()+1, a);
-               numMonitorLocals = a->getLiveLocalIndex() + 1;
-               }
-            }
-
-      if (numMonitorLocals)
-         {
-         J9::SetMonitorStateOnBlockEntry monitorState(comp, &liveMonitorStacks);
-
-         logprintf(traceLiveMon, log, "\tCreated monitorState %p\n", &monitorState);
-
-         monitorState.set(_lmmdFailed, traceLiveMon);
-         logprintf(traceLiveMon, log, "found numMonitorLocals %d\n", numMonitorLocals);
-         }
-      else
-         logprintf(traceLiveMon, log, "\tnumMonitorLocals = %d\n",numMonitorLocals);
-      }
-
-   TR::SymbolReference **liveLocalSyms = NULL;
-   TR_BitVector *unsharedSymsBitVector = NULL;
-   int32_t maxLiveLocalIndex = -1;
-   TR::list<TR::Block*> newBlocks(getTypedAllocator<TR::Block*>(comp->allocator()));
-   TR_ScratchList<TR::Node> fsdStores(self()->trMemory());
-   if (comp->getOption(TR_MimicInterpreterFrameShape) || comp->getOption(TR_PoisonDeadSlots))
-      {
-      if (comp->areSlotsSharedByRefAndNonRef() || comp->getOption(TR_PoisonDeadSlots))
-         {
-         TR_ScratchList<TR::SymbolReference> participatingLocals(self()->trMemory());
-
-         TR::SymbolReference *autoSymRef = NULL;
-         int32_t symRefNumber;
-         int32_t symRefCount = comp->getSymRefCount();
-         TR::SymbolReferenceTable *symRefTab = comp->getSymRefTab();
-         for (symRefNumber = symRefTab->getIndexOfFirstSymRef(); symRefNumber < symRefCount; symRefNumber++)
-            {
-            autoSymRef = symRefTab->getSymRef(symRefNumber);
-            if (autoSymRef &&
-                autoSymRef->getSymbol() &&
-                autoSymRef->getSymbol()->isAuto() &&
-                (autoSymRef->getSymbol()->castToAutoSymbol()->getLiveLocalIndex() != (uint16_t)-1))
-                {
-                TR::AutomaticSymbol * autoSym = autoSymRef->getSymbol()->castToAutoSymbol();
-                if (methodSymbol->getAutomaticList().find(autoSym))
-                   {
-                   participatingLocals.add(autoSymRef);
-
-                   if (autoSym->getLiveLocalIndex() > maxLiveLocalIndex)
-                      maxLiveLocalIndex = autoSym->getLiveLocalIndex();
-                   }
+            if (comp->getOption(TR_MimicInterpreterFrameShape) || comp->getOption(TR_PoisonDeadSlots)) {
+                TR::Node *glRegDepsParent;
+                if ((newBlock->getSuccessors().size() == 1)
+                    && newBlock->getSuccessors().front()->getTo()->asBlock()->getEntry()
+                        == newBlock->getExit()->getNextTreeTop()) {
+                    glRegDepsParent = newBlock->getExit()->getNode();
+                } else {
+                    glRegDepsParent = newBlock->getExit()->getPrevTreeTop()->getNode();
+                    TR_ASSERT(glRegDepsParent->getOpCodeValue() == TR::Goto,
+                        "Expected block to fall through or end in goto; it ends with %s %s\n",
+                        self()->getDebug()->getName(glRegDepsParent->getOpCodeValue()),
+                        self()->getDebug()->getName(glRegDepsParent));
                 }
-             }
-
-         liveLocalSyms = (TR::SymbolReference **)self()->trMemory()->allocateStackMemory((maxLiveLocalIndex+1)*sizeof(TR::SymbolReference *));
-         memset(liveLocalSyms, 0, (maxLiveLocalIndex+1)*sizeof(TR::SymbolReference *));
-         unsharedSymsBitVector = new (self()->trStackMemory()) TR_BitVector(maxLiveLocalIndex+1, self()->trMemory(), stackAlloc);
-
-         ListIterator<TR::SymbolReference> participatingLocalsIt(&participatingLocals);
-         for (autoSymRef = participatingLocalsIt.getFirst(); autoSymRef; autoSymRef = participatingLocalsIt.getNext())
+                logprintf(trace, log, "zeroOutAutoOnEdge: glRegDepsParent is %s\n",
+                    self()->getDebug()->getName(glRegDepsParent));
+                glRegDepsParent->setNumChildren(1);
+                glRegDepsParent->setAndIncChild(0, duplicateGlRegDeps);
+            } else // original path
             {
-            TR::AutomaticSymbol * autoSym = autoSymRef->getSymbol()->castToAutoSymbol();
-            liveLocalSyms[autoSym->getLiveLocalIndex()] = autoSymRef;
-            if (!autoSym->isSlotSharedByRefAndNonRef())
-               {
-               //dumpOptDetails("Unshared symRef %d live local index %d\n", autoSymRef->getReferenceNumber(), autoSym->getLiveLocalIndex());
-               unsharedSymsBitVector->set(autoSym->getLiveLocalIndex());
-               }
+                newBlock->getExit()->getNode()->setNumChildren(1);
+                newBlock->getExit()->getNode()->setAndIncChild(0, duplicateGlRegDeps);
             }
-         }
-      else
-         liveLocals = NULL;
-      }
+        }
 
-   bool fixedUpBlock = false;
+        newBlock->setLiveLocals(new (self()->trHeapMemory()) TR_BitVector(*succBlock->getLiveLocals()));
+        newBlock->getEntry()->getNode()->setLabel(generateLabelSymbol(self()));
 
-   if (comp->getOption(TR_SplitWarmAndColdBlocks) &&
-       !comp->compileRelocatableCode())
-      {
-      setInstructionSelectionInWarmCodeCache();
-      }
+        if (comp->getOption(TR_PoisonDeadSlots)) {
+            logprintf(trace, log, "POISON DEAD SLOTS --- New Block Created %d\n", newBlock->getNumber());
+            newBlock->setIsCreatedAtCodeGen();
+        }
 
-   for (TR::TreeTop *tt = comp->getStartTree(); tt; tt = self()->getCurrentEvaluationTreeTop()->getNextTreeTop())
-      {
-      logprintf(traceLiveMon, log, "\tWalking TreeTops at tt %p with node %p\n", tt, tt->getNode());
+        newBlocks->push_front(newBlock);
+        storeBlock = newBlock;
+    }
+    TR::Node *storeNode;
 
-      TR::Instruction *prevInstr = self()->getAppendInstruction();
-      TR::Node * node = tt->getNode();
-      TR::ILOpCodes opCode = node->getOpCodeValue();
+    if (comp->getOption(TR_PoisonDeadSlots))
+        storeNode = self()->generatePoisonNode(block, liveAutoSymRef);
+    else
+        storeNode = TR::Node::createStore(liveAutoSymRef, TR::Node::aconst(block->getEntry()->getNode(), 0));
 
-      TR::Node * firstChild = node->getNumChildren() > 0 ? node->getFirstChild() : 0;
+    if (storeNode) {
+        TR::TreeTop *storeTree = TR::TreeTop::create(comp, storeNode);
+        storeBlock->prepend(storeTree);
+        fsdStores->add(storeNode);
+    }
+}
 
-      if (opCode == TR::BBStart)
-         {
-         fixedUpBlock = false;
-         TR::Block *block = node->getBlock();
-         self()->setCurrentEvaluationBlock(block);
-         self()->resetMethodModifiedByRA();
+void J9::CodeGenerator::doInstructionSelection()
+{
+    TR::Compilation *comp = self()->comp();
+    OMR::Logger *log = comp->log();
+    bool traceCG = comp->getOption(TR_TraceCG);
 
-         liveMonitorStack = (liveMonitorStacks.find(block->getNumber()) != liveMonitorStacks.end()) ?
-            liveMonitorStacks[block->getNumber()] :
-            NULL;
+    J9::SetMonitorStateOnBlockEntry::LiveMonitorStacks liveMonitorStacks(
+        (J9::SetMonitorStateOnBlockEntry::LiveMonitorStacksComparator()),
+        J9::SetMonitorStateOnBlockEntry::LiveMonitorStacksAllocator(comp->trMemory()->heapMemoryRegion()));
 
-         if (!block->isExtensionOfPreviousBlock())
-            {
-            // If we are keeping track of live locals, set up the live locals for
-            // this block
-            //
-            if (liveLocals)
-               {
-               if (block->getLiveLocals())
-                  liveLocals = new (self()->trHeapMemory()) TR_BitVector(*block->getLiveLocals());
-               else
-                  {
-                  liveLocals = new (self()->trHeapMemory()) TR_BitVector(*liveLocals);
-                  liveLocals->empty();
-                  }
+    // Set default value for pre-prologue size
+    //
+    TR::ResolvedMethodSymbol *methodSymbol = comp->getJittedMethodSymbol();
+    self()->setPrePrologueSize(4 + (methodSymbol->isJNI() ? 4 : 0));
 
-               if (comp->areSlotsSharedByRefAndNonRef() && unsharedSymsBitVector)
-                  {
-                  *liveLocals |= *unsharedSymsBitVector;
-                  }
-               }
+    if (comp->getOption(TR_TraceCG))
+        diagnostic("\n<selection>");
 
+    if (comp->getOption(TR_TraceCG))
+        comp->getDebug()->setupToDumpTreesAndInstructions(log, "Performing Instruction Selection");
 
-            if (liveMonitorStack)
-               {
-               liveMonitors = new (self()->trHeapMemory()) TR_BitVector(numMonitorLocals, self()->trMemory());
-               logprintf(traceLiveMon, log, "created liveMonitors bitvector at block_%d for stack  %p size %d\n",
-                     block->getNumber(), liveMonitorStack, liveMonitorStack->size());
-               for (int32_t i = liveMonitorStack->size() - 1; i >= 0; --i)
-                  {
-                  logprintf(traceLiveMon, log, "about to set liveMonitors for symbol %p\n", (*liveMonitorStack)[i]->getSymbol());
-                  liveMonitors->set((*liveMonitorStack)[i]->getSymbol()->castToRegisterMappedSymbol()->getLiveLocalIndex());
-                  logprintf(traceLiveMon, log, "setting livemonitor %d at block_%d\n",
-                        (*liveMonitorStack)[i]->getSymbol()->castToRegisterMappedSymbol()->getLiveLocalIndex(), block->getNumber());
-                  }
-               }
-           else
-               {
-               liveMonitors = 0;
-               logprintf(traceLiveMon, log, "no liveMonitorStack for block_%d\n", block->getNumber());
-               }
-            numEBBsSinceFreeingVariableSizeSymRefs++;
-            }
+    self()->beginInstructionSelection();
 
-         if (self()->getDebug())
-            self()->getDebug()->roundAddressEnumerationCounters();
+    {
+        TR::StackMemoryRegion stackMemoryRegion(*self()->trMemory());
+
+        TR_BitVector *liveLocals = self()->getLiveLocals();
+        TR_BitVector nodeChecklistBeforeDump(comp->getNodeCount(), self()->trMemory(), stackAlloc, growable);
+
+        /*
+          To enable instruction scheduling (both in the compiler and in out-of-order hardware),
+          we would prefer not to reuse the same memory to represent multiple temps inside
+          a tight loop. At higher opt levels, therefore, we only free variable size symrefs at
+          back edges. To prevent pathological cases from consuming too much stack space, we set a
+          cap on the number of extended basic blocks before we stop waiting for a back edge and free
+          our temps anyway.
+         */
+        const uint32_t MAX_EBBS_BEFORE_FREEING_VARIABLE_SIZED_SYMREFS = 10;
+        uint32_t numEBBsSinceFreeingVariableSizeSymRefs = 0;
+
+        TR_BitVector *liveMonitors = 0;
+        TR_Stack<TR::SymbolReference *> *liveMonitorStack = 0;
+        int32_t numMonitorLocals = 0;
+        static bool traceLiveMonEnv = feGetEnv("TR_traceLiveMonitors") ? true : false;
+        bool traceLiveMon = comp->getOption(TR_TraceLiveMonitorMetadata) || traceLiveMonEnv;
+
+        _lmmdFailed = false;
+        if (comp->getMethodSymbol()->mayContainMonitors()) {
+            logprints(traceLiveMon, log, "In doInstructionSelection: Method may contain monitors\n");
+
+            if (!liveLocals)
+                comp->getMethodSymbol()->resetLiveLocalIndices();
+
+            ListIterator<TR::AutomaticSymbol> locals(&comp->getMethodSymbol()->getAutomaticList());
+            for (TR::AutomaticSymbol *a = locals.getFirst(); a; a = locals.getNext())
+                if (a->holdsMonitoredObject()) {
+                    logprintf(traceLiveMon, log, "\tSymbol %p contains monitored object\n", a);
+                    if (!liveLocals) {
+                        logprintf(traceLiveMon, log, "\tsetting LiveLocalIndex to %d on symbol %p\n",
+                            numMonitorLocals + 1, a);
+                        a->setLiveLocalIndex(numMonitorLocals++, self()->fe());
+                    } else if (a->getLiveLocalIndex() + 1 > numMonitorLocals) {
+                        logprintf(traceLiveMon, log, "\tsetting numMonitorLocals to %d while considering symbol %p\n",
+                            a->getLiveLocalIndex() + 1, a);
+                        numMonitorLocals = a->getLiveLocalIndex() + 1;
+                    }
+                }
+
+            if (numMonitorLocals) {
+                J9::SetMonitorStateOnBlockEntry monitorState(comp, &liveMonitorStacks);
+
+                logprintf(traceLiveMon, log, "\tCreated monitorState %p\n", &monitorState);
+
+                monitorState.set(_lmmdFailed, traceLiveMon);
+                logprintf(traceLiveMon, log, "found numMonitorLocals %d\n", numMonitorLocals);
+            } else
+                logprintf(traceLiveMon, log, "\tnumMonitorLocals = %d\n", numMonitorLocals);
+        }
+
+        TR::SymbolReference **liveLocalSyms = NULL;
+        TR_BitVector *unsharedSymsBitVector = NULL;
+        int32_t maxLiveLocalIndex = -1;
+        TR::list<TR::Block *> newBlocks(getTypedAllocator<TR::Block *>(comp->allocator()));
+        TR_ScratchList<TR::Node> fsdStores(self()->trMemory());
+        if (comp->getOption(TR_MimicInterpreterFrameShape) || comp->getOption(TR_PoisonDeadSlots)) {
+            if (comp->areSlotsSharedByRefAndNonRef() || comp->getOption(TR_PoisonDeadSlots)) {
+                TR_ScratchList<TR::SymbolReference> participatingLocals(self()->trMemory());
+
+                TR::SymbolReference *autoSymRef = NULL;
+                int32_t symRefNumber;
+                int32_t symRefCount = comp->getSymRefCount();
+                TR::SymbolReferenceTable *symRefTab = comp->getSymRefTab();
+                for (symRefNumber = symRefTab->getIndexOfFirstSymRef(); symRefNumber < symRefCount; symRefNumber++) {
+                    autoSymRef = symRefTab->getSymRef(symRefNumber);
+                    if (autoSymRef && autoSymRef->getSymbol() && autoSymRef->getSymbol()->isAuto()
+                        && (autoSymRef->getSymbol()->castToAutoSymbol()->getLiveLocalIndex() != (uint16_t)-1)) {
+                        TR::AutomaticSymbol *autoSym = autoSymRef->getSymbol()->castToAutoSymbol();
+                        if (methodSymbol->getAutomaticList().find(autoSym)) {
+                            participatingLocals.add(autoSymRef);
+
+                            if (autoSym->getLiveLocalIndex() > maxLiveLocalIndex)
+                                maxLiveLocalIndex = autoSym->getLiveLocalIndex();
+                        }
+                    }
+                }
+
+                liveLocalSyms = (TR::SymbolReference **)self()->trMemory()->allocateStackMemory(
+                    (maxLiveLocalIndex + 1) * sizeof(TR::SymbolReference *));
+                memset(liveLocalSyms, 0, (maxLiveLocalIndex + 1) * sizeof(TR::SymbolReference *));
+                unsharedSymsBitVector
+                    = new (self()->trStackMemory()) TR_BitVector(maxLiveLocalIndex + 1, self()->trMemory(), stackAlloc);
+
+                ListIterator<TR::SymbolReference> participatingLocalsIt(&participatingLocals);
+                for (autoSymRef = participatingLocalsIt.getFirst(); autoSymRef;
+                     autoSymRef = participatingLocalsIt.getNext()) {
+                    TR::AutomaticSymbol *autoSym = autoSymRef->getSymbol()->castToAutoSymbol();
+                    liveLocalSyms[autoSym->getLiveLocalIndex()] = autoSymRef;
+                    if (!autoSym->isSlotSharedByRefAndNonRef()) {
+                        // dumpOptDetails("Unshared symRef %d live local index %d\n", autoSymRef->getReferenceNumber(),
+                        // autoSym->getLiveLocalIndex());
+                        unsharedSymsBitVector->set(autoSym->getLiveLocalIndex());
+                    }
+                }
+            } else
+                liveLocals = NULL;
+        }
+
+        bool fixedUpBlock = false;
+
+        if (comp->getOption(TR_SplitWarmAndColdBlocks) && !comp->compileRelocatableCode()) {
+            setInstructionSelectionInWarmCodeCache();
+        }
+
+        for (TR::TreeTop *tt = comp->getStartTree(); tt; tt = self()->getCurrentEvaluationTreeTop()->getNextTreeTop()) {
+            logprintf(traceLiveMon, log, "\tWalking TreeTops at tt %p with node %p\n", tt, tt->getNode());
+
+            TR::Instruction *prevInstr = self()->getAppendInstruction();
+            TR::Node *node = tt->getNode();
+            TR::ILOpCodes opCode = node->getOpCodeValue();
+
+            TR::Node *firstChild = node->getNumChildren() > 0 ? node->getFirstChild() : 0;
+
+            if (opCode == TR::BBStart) {
+                fixedUpBlock = false;
+                TR::Block *block = node->getBlock();
+                self()->setCurrentEvaluationBlock(block);
+                self()->resetMethodModifiedByRA();
+
+                liveMonitorStack = (liveMonitorStacks.find(block->getNumber()) != liveMonitorStacks.end())
+                    ? liveMonitorStacks[block->getNumber()]
+                    : NULL;
+
+                if (!block->isExtensionOfPreviousBlock()) {
+                    // If we are keeping track of live locals, set up the live locals for
+                    // this block
+                    //
+                    if (liveLocals) {
+                        if (block->getLiveLocals())
+                            liveLocals = new (self()->trHeapMemory()) TR_BitVector(*block->getLiveLocals());
+                        else {
+                            liveLocals = new (self()->trHeapMemory()) TR_BitVector(*liveLocals);
+                            liveLocals->empty();
+                        }
+
+                        if (comp->areSlotsSharedByRefAndNonRef() && unsharedSymsBitVector) {
+                            *liveLocals |= *unsharedSymsBitVector;
+                        }
+                    }
+
+                    if (liveMonitorStack) {
+                        liveMonitors = new (self()->trHeapMemory()) TR_BitVector(numMonitorLocals, self()->trMemory());
+                        logprintf(traceLiveMon, log,
+                            "created liveMonitors bitvector at block_%d for stack  %p size %d\n", block->getNumber(),
+                            liveMonitorStack, liveMonitorStack->size());
+                        for (int32_t i = liveMonitorStack->size() - 1; i >= 0; --i) {
+                            logprintf(traceLiveMon, log, "about to set liveMonitors for symbol %p\n",
+                                (*liveMonitorStack)[i]->getSymbol());
+                            liveMonitors->set(
+                                (*liveMonitorStack)[i]->getSymbol()->castToRegisterMappedSymbol()->getLiveLocalIndex());
+                            logprintf(traceLiveMon, log, "setting livemonitor %d at block_%d\n",
+                                (*liveMonitorStack)[i]->getSymbol()->castToRegisterMappedSymbol()->getLiveLocalIndex(),
+                                block->getNumber());
+                        }
+                    } else {
+                        liveMonitors = 0;
+                        logprintf(traceLiveMon, log, "no liveMonitorStack for block_%d\n", block->getNumber());
+                    }
+                    numEBBsSinceFreeingVariableSizeSymRefs++;
+                }
+
+                if (self()->getDebug())
+                    self()->getDebug()->roundAddressEnumerationCounters();
 
 #if DEBUG
-         // Verify that we are only being more conservative by inheriting the live
-         // local information from the previous block.
-         //
-         else if (liveLocals && debug("checkBlockEntryLiveLocals"))
-            {
-            TR_BitVector *extendedBlockLocals = new (self()->trStackMemory()) TR_BitVector(*(block->getLiveLocals()));
-            *extendedBlockLocals -= *(liveLocals);
+                // Verify that we are only being more conservative by inheriting the live
+                // local information from the previous block.
+                //
+                else if (liveLocals && debug("checkBlockEntryLiveLocals")) {
+                    TR_BitVector *extendedBlockLocals
+                        = new (self()->trStackMemory()) TR_BitVector(*(block->getLiveLocals()));
+                    *extendedBlockLocals -= *(liveLocals);
 
-            TR_ASSERT(extendedBlockLocals->isEmpty(),
-                   "Live local information is *less* pessimistic!\n");
-            }
+                    TR_ASSERT(extendedBlockLocals->isEmpty(), "Live local information is *less* pessimistic!\n");
+                }
 #endif
-         }
-      else if (opCode == TR::BBEnd)
-         {
-         TR::Block *b = self()->getCurrentEvaluationBlock();
+            } else if (opCode == TR::BBEnd) {
+                TR::Block *b = self()->getCurrentEvaluationBlock();
 
-         // checks for consistent monitorStack
-         //
-         for (auto e = b->getSuccessors().begin(); e != b->getSuccessors().end(); ++e)
-            if ((*e)->getTo() == comp->getFlowGraph()->getEnd())
-               {
-               // block could end in a throw,
-               //
-               TR::TreeTop *lastRealTT = b->getLastRealTreeTop();
-               // last warm blocks could end in a goto
-               //
-               if (lastRealTT->getNode()->getOpCode().isGoto())
-                  lastRealTT = lastRealTT->getPrevTreeTop();
+                // checks for consistent monitorStack
+                //
+                for (auto e = b->getSuccessors().begin(); e != b->getSuccessors().end(); ++e)
+                    if ((*e)->getTo() == comp->getFlowGraph()->getEnd()) {
+                        // block could end in a throw,
+                        //
+                        TR::TreeTop *lastRealTT = b->getLastRealTreeTop();
+                        // last warm blocks could end in a goto
+                        //
+                        if (lastRealTT->getNode()->getOpCode().isGoto())
+                            lastRealTT = lastRealTT->getPrevTreeTop();
 
-               TR::Node *n = lastRealTT->getNode();
-               if (n->getOpCodeValue() == TR::treetop ||
-                     n->getOpCode().isCheck())
-                  n = n->getFirstChild();
+                        TR::Node *n = lastRealTT->getNode();
+                        if (n->getOpCodeValue() == TR::treetop || n->getOpCode().isCheck())
+                            n = n->getFirstChild();
 
-               bool endsInThrow = false;
-               if (n->getOpCode().isCall() &&
-                     (n->getSymbolReference()->getReferenceNumber() == TR_aThrow))
-                  endsInThrow = true;
-               else if (n->getOpCodeValue() == TR::Return)
-                  {
-                  // a check that is going to fail
-                  //
-                  TR::TreeTop *prev = lastRealTT->getPrevTreeTop();
-                  if ((prev->getNode()->getOpCodeValue() == TR::asynccheck) ||
-                        (prev->getNode()->getOpCodeValue() == TR::treetop))
-                     prev = prev->getPrevTreeTop();
-                  if (prev->getNode()->getOpCode().isCheck())
-                     endsInThrow = true;
-                  }
+                        bool endsInThrow = false;
+                        if (n->getOpCode().isCall() && (n->getSymbolReference()->getReferenceNumber() == TR_aThrow))
+                            endsInThrow = true;
+                        else if (n->getOpCodeValue() == TR::Return) {
+                            // a check that is going to fail
+                            //
+                            TR::TreeTop *prev = lastRealTT->getPrevTreeTop();
+                            if ((prev->getNode()->getOpCodeValue() == TR::asynccheck)
+                                || (prev->getNode()->getOpCodeValue() == TR::treetop))
+                                prev = prev->getPrevTreeTop();
+                            if (prev->getNode()->getOpCode().isCheck())
+                                endsInThrow = true;
+                        }
 
-               if (liveMonitorStack &&
-                     liveMonitorStack->size() != 0 &&
-                     !endsInThrow)
-                  dumpOptDetails(comp, "liveMonitorStack must be empty, unbalanced monitors found! %d\n",
-                                                                           liveMonitorStack->size());
+                        if (liveMonitorStack && liveMonitorStack->size() != 0 && !endsInThrow)
+                            dumpOptDetails(comp, "liveMonitorStack must be empty, unbalanced monitors found! %d\n",
+                                liveMonitorStack->size());
 
-               if (traceLiveMon)
-                  {
-                  log->printf("liveMonitorStack %p at CFG end (syncMethod %d)", liveMonitorStack, comp->getMethodSymbol()->isSynchronised());
-                  if (liveMonitorStack)
-                     log->printf("   size %d\n", liveMonitorStack->size());
-                  else
-                     log->prints("   size empty\n");
-                  }
-               break;
-               }
+                        if (traceLiveMon) {
+                            log->printf("liveMonitorStack %p at CFG end (syncMethod %d)", liveMonitorStack,
+                                comp->getMethodSymbol()->isSynchronised());
+                            if (liveMonitorStack)
+                                log->printf("   size %d\n", liveMonitorStack->size());
+                            else
+                                log->prints("   size empty\n");
+                        }
+                        break;
+                    }
 
-         bool endOfEBB = !(b->getNextBlock() && b->getNextBlock()->isExtensionOfPreviousBlock());
-         if (endOfEBB &&
-             (b->branchesBackwards() ||
-              numEBBsSinceFreeingVariableSizeSymRefs > MAX_EBBS_BEFORE_FREEING_VARIABLE_SIZED_SYMREFS))
-            {
-            if (self()->traceBCDCodeGen())
-               log->printf("\tblock_%d branches backwards, so free all symbols in the _variableSizeSymRefPendingFreeList\n",b->getNumber());
-            self()->freeAllVariableSizeSymRefs();
-            numEBBsSinceFreeingVariableSizeSymRefs = 0;
+                bool endOfEBB = !(b->getNextBlock() && b->getNextBlock()->isExtensionOfPreviousBlock());
+                if (endOfEBB
+                    && (b->branchesBackwards()
+                        || numEBBsSinceFreeingVariableSizeSymRefs > MAX_EBBS_BEFORE_FREEING_VARIABLE_SIZED_SYMREFS)) {
+                    if (self()->traceBCDCodeGen())
+                        log->printf("\tblock_%d branches backwards, so free all symbols in the "
+                                    "_variableSizeSymRefPendingFreeList\n",
+                            b->getNumber());
+                    self()->freeAllVariableSizeSymRefs();
+                    numEBBsSinceFreeingVariableSizeSymRefs = 0;
+                }
             }
-         }
 
-      if (((opCode == TR::BBEnd) && !fixedUpBlock) ||
-          node->getOpCode().isBranch() ||
-          node->getOpCode().isSwitch())
-         {
-         fixedUpBlock = true;
-         //GCMAP
-         if ( (comp->getOption(TR_MimicInterpreterFrameShape) && comp->areSlotsSharedByRefAndNonRef() ) || comp->getOption(TR_PoisonDeadSlots))
-            {
-            // TODO : look at last warm block code above
-            //
-            if ((!comp->getOption(TR_PoisonDeadSlots)&& liveLocals) || (comp->getOption(TR_PoisonDeadSlots) &&  self()->getCurrentEvaluationBlock()->getLiveLocals()))
-               {
-               newBlocks.clear();
-               TR::Block *block = self()->getCurrentEvaluationBlock();
+            if (((opCode == TR::BBEnd) && !fixedUpBlock) || node->getOpCode().isBranch()
+                || node->getOpCode().isSwitch()) {
+                fixedUpBlock = true;
+                // GCMAP
+                if ((comp->getOption(TR_MimicInterpreterFrameShape) && comp->areSlotsSharedByRefAndNonRef())
+                    || comp->getOption(TR_PoisonDeadSlots)) {
+                    // TODO : look at last warm block code above
+                    //
+                    if ((!comp->getOption(TR_PoisonDeadSlots) && liveLocals)
+                        || (comp->getOption(TR_PoisonDeadSlots)
+                            && self()->getCurrentEvaluationBlock()->getLiveLocals())) {
+                        newBlocks.clear();
+                        TR::Block *block = self()->getCurrentEvaluationBlock();
 
-               TR_BitVectorIterator bvi(comp->getOption(TR_PoisonDeadSlots) ? *block->getLiveLocals(): *liveLocals);
-
-               if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
-                  log->printf("POISON DEAD SLOTS --- Parent Block Number: %d\n", block->getNumber());
-
-
-               while (bvi.hasMoreElements())
-                  {
-                  int32_t liveLocalIndex = bvi.getNextElement();
-                  TR_ASSERT((liveLocalIndex <= maxLiveLocalIndex), "Symbol has live local index higher than computed max\n");
-                  TR::SymbolReference * liveAutoSymRef = liveLocalSyms[liveLocalIndex];
-
-                  if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
-                     log->printf("POISON DEAD SLOTS --- Parent Block: %d, Maintained Live Local: %d\n", block->getNumber(), liveAutoSymRef->getReferenceNumber());
-
-                  if(comp->getOption(TR_PoisonDeadSlots) && (!liveAutoSymRef || block->isCreatedAtCodeGen()))
-                  {
-                     //Don't process a block we created to poison a dead slot.
-                     continue;
-                  }
-
-                  if(!liveAutoSymRef)
-                     {
-                     continue;
-                     }
-                  TR::AutomaticSymbol * liveAutoSym = liveAutoSymRef->getSymbol()->castToAutoSymbol();
-
-                  //For slot poisoning, a monitored object is still in the GCMaps even if its liveness has ended.
-                  //
-                  if ((liveAutoSym->getType().isAddress() && liveAutoSym->isSlotSharedByRefAndNonRef()) || (comp->getOption(TR_PoisonDeadSlots) && !liveAutoSymRef->getSymbol()->holdsMonitoredObject()))
-                     {
-                     for (auto succ = block->getSuccessors().begin(); succ != block->getSuccessors().end();)
-                        {
-                        auto next = succ;
-                        ++next;
-                        if ((*succ)->getTo() == comp->getFlowGraph()->getEnd())
-                           {
-                           succ = next;
-                           continue;
-                           }
-                        TR::Block *succBlock = (*succ)->getTo()->asBlock();
-
-                        if (comp->getOption(TR_PoisonDeadSlots) && succBlock->isExtensionOfPreviousBlock())
-                           {
-                           if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
-                              log->printf("POISON DEAD SLOTS --- Successor Block Number %d is extension of Parent Block %d ... skipping \n", succBlock->getNumber(), block->getNumber());
-                           succ = next;
-                           continue;  //We cannot poison in an extended block as gcmaps are still live for maintained live locals  !!!! if target of jump, ignore, could be extension
-                           }
+                        TR_BitVectorIterator bvi(
+                            comp->getOption(TR_PoisonDeadSlots) ? *block->getLiveLocals() : *liveLocals);
 
                         if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
-                           log->printf("POISON DEAD SLOTS --- Successor Block Number %d, of Parent Block %d \n", succBlock->getNumber(), block->getNumber());
+                            log->printf("POISON DEAD SLOTS --- Parent Block Number: %d\n", block->getNumber());
 
-                        TR_BitVector *succLiveLocals = succBlock->getLiveLocals();
-                        if (succLiveLocals && !succLiveLocals->get(liveLocalIndex)) //added
-                           {
-                           bool zeroOut = true;
-                           TR_BitVectorIterator sbvi(*succLiveLocals);
-                           while (sbvi.hasMoreElements())
-                              {
-                              int32_t succLiveLocalIndex = sbvi.getNextElement();
-                              TR_ASSERT((succLiveLocalIndex <= maxLiveLocalIndex), "Symbol has live local index higher than computed max\n");
-                              TR::SymbolReference * succLiveAutoSymRef = liveLocalSyms[succLiveLocalIndex];
-                              if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
-                                 log->printf("POISON DEAD SLOTS --- Successor Block %d contains live local %d\n", succBlock->getNumber(), succLiveAutoSymRef->getReferenceNumber());
+                        while (bvi.hasMoreElements()) {
+                            int32_t liveLocalIndex = bvi.getNextElement();
+                            TR_ASSERT((liveLocalIndex <= maxLiveLocalIndex),
+                                "Symbol has live local index higher than computed max\n");
+                            TR::SymbolReference *liveAutoSymRef = liveLocalSyms[liveLocalIndex];
 
-                              TR::AutomaticSymbol * succLiveAutoSym = succLiveAutoSymRef->getSymbol()->castToAutoSymbol();
-                              if ( (succLiveAutoSym->getType().isAddress() && succLiveAutoSym->isSlotSharedByRefAndNonRef()) || comp->getOption(TR_PoisonDeadSlots))
-                                 {
-                                 if ((succLiveAutoSym->getGCMapIndex() == liveAutoSym->getGCMapIndex()) ||
-                                     ((TR::Symbol::convertTypeToNumberOfSlots(succLiveAutoSym->getDataType()) == 2) &&
-                                      ((succLiveAutoSym->getGCMapIndex()+1) == liveAutoSym->getGCMapIndex())))
-                                    {
-                                    zeroOut = false;
-                                    break;
+                            if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
+                                log->printf("POISON DEAD SLOTS --- Parent Block: %d, Maintained Live Local: %d\n",
+                                    block->getNumber(), liveAutoSymRef->getReferenceNumber());
+
+                            if (comp->getOption(TR_PoisonDeadSlots)
+                                && (!liveAutoSymRef || block->isCreatedAtCodeGen())) {
+                                // Don't process a block we created to poison a dead slot.
+                                continue;
+                            }
+
+                            if (!liveAutoSymRef) {
+                                continue;
+                            }
+                            TR::AutomaticSymbol *liveAutoSym = liveAutoSymRef->getSymbol()->castToAutoSymbol();
+
+                            // For slot poisoning, a monitored object is still in the GCMaps even if its liveness has
+                            // ended.
+                            //
+                            if ((liveAutoSym->getType().isAddress() && liveAutoSym->isSlotSharedByRefAndNonRef())
+                                || (comp->getOption(TR_PoisonDeadSlots)
+                                    && !liveAutoSymRef->getSymbol()->holdsMonitoredObject())) {
+                                for (auto succ = block->getSuccessors().begin();
+                                     succ != block->getSuccessors().end();) {
+                                    auto next = succ;
+                                    ++next;
+                                    if ((*succ)->getTo() == comp->getFlowGraph()->getEnd()) {
+                                        succ = next;
+                                        continue;
                                     }
-                                 }
-                              }
+                                    TR::Block *succBlock = (*succ)->getTo()->asBlock();
 
-                           if (zeroOut)
-                              {
-                              comp->getFlowGraph()->setStructure(0);
-                              self()->zeroOutAutoOnEdge(liveAutoSymRef, block, succBlock, &newBlocks, &fsdStores);
-                              }
-                           }
-                        succ = next;
+                                    if (comp->getOption(TR_PoisonDeadSlots)
+                                        && succBlock->isExtensionOfPreviousBlock()) {
+                                        if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
+                                            log->printf("POISON DEAD SLOTS --- Successor Block Number %d is extension "
+                                                        "of Parent Block %d ... skipping \n",
+                                                succBlock->getNumber(), block->getNumber());
+                                        succ = next;
+                                        continue; // We cannot poison in an extended block as gcmaps are still live for
+                                                  // maintained live locals  !!!! if target of jump, ignore, could be
+                                                  // extension
+                                    }
+
+                                    if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
+                                        log->printf(
+                                            "POISON DEAD SLOTS --- Successor Block Number %d, of Parent Block %d \n",
+                                            succBlock->getNumber(), block->getNumber());
+
+                                    TR_BitVector *succLiveLocals = succBlock->getLiveLocals();
+                                    if (succLiveLocals && !succLiveLocals->get(liveLocalIndex)) // added
+                                    {
+                                        bool zeroOut = true;
+                                        TR_BitVectorIterator sbvi(*succLiveLocals);
+                                        while (sbvi.hasMoreElements()) {
+                                            int32_t succLiveLocalIndex = sbvi.getNextElement();
+                                            TR_ASSERT((succLiveLocalIndex <= maxLiveLocalIndex),
+                                                "Symbol has live local index higher than computed max\n");
+                                            TR::SymbolReference *succLiveAutoSymRef = liveLocalSyms[succLiveLocalIndex];
+                                            if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
+                                                log->printf(
+                                                    "POISON DEAD SLOTS --- Successor Block %d contains live local %d\n",
+                                                    succBlock->getNumber(), succLiveAutoSymRef->getReferenceNumber());
+
+                                            TR::AutomaticSymbol *succLiveAutoSym
+                                                = succLiveAutoSymRef->getSymbol()->castToAutoSymbol();
+                                            if ((succLiveAutoSym->getType().isAddress()
+                                                    && succLiveAutoSym->isSlotSharedByRefAndNonRef())
+                                                || comp->getOption(TR_PoisonDeadSlots)) {
+                                                if ((succLiveAutoSym->getGCMapIndex() == liveAutoSym->getGCMapIndex())
+                                                    || ((TR::Symbol::convertTypeToNumberOfSlots(
+                                                             succLiveAutoSym->getDataType())
+                                                            == 2)
+                                                        && ((succLiveAutoSym->getGCMapIndex() + 1)
+                                                            == liveAutoSym->getGCMapIndex()))) {
+                                                    zeroOut = false;
+                                                    break;
+                                                }
+                                            }
+                                        }
+
+                                        if (zeroOut) {
+                                            comp->getFlowGraph()->setStructure(0);
+                                            self()->zeroOutAutoOnEdge(liveAutoSymRef, block, succBlock, &newBlocks,
+                                                &fsdStores);
+                                        }
+                                    }
+                                    succ = next;
+                                }
+
+                                // TODO : Think about exc edges case below
+                                //
+                                for (auto esucc = block->getExceptionSuccessors().begin();
+                                     esucc != block->getExceptionSuccessors().end(); ++esucc) {
+                                    TR::Block *esuccBlock = (*esucc)->getTo()->asBlock();
+                                    // since we have asked the liveness analysis to assume that uses in the OSR block
+                                    // don't exist in certain cases, this code thinks that some locals are dead in the
+                                    // OSR block so it tries to zero them out. But we don't want that to happen
+                                    if (esuccBlock->isOSRCodeBlock() || esuccBlock->isOSRCatchBlock())
+                                        continue;
+                                    TR_BitVector *esuccLiveLocals = esuccBlock->getLiveLocals();
+                                    TR_ASSERT(esuccLiveLocals, "No live locals for successor block\n");
+                                    if (!esuccLiveLocals->get(liveLocalIndex)) {
+                                        bool zeroOut = true;
+                                        TR_BitVectorIterator sbvi(*esuccLiveLocals);
+                                        while (sbvi.hasMoreElements()) {
+                                            int32_t succLiveLocalIndex = sbvi.getNextElement();
+                                            TR_ASSERT((succLiveLocalIndex <= maxLiveLocalIndex),
+                                                "Symbol has live local index higher than computed max\n");
+                                            TR::SymbolReference *succLiveAutoSymRef = liveLocalSyms[succLiveLocalIndex];
+                                            TR::AutomaticSymbol *succLiveAutoSym
+                                                = succLiveAutoSymRef->getSymbol()->castToAutoSymbol();
+                                            if (succLiveAutoSym->getType().isAddress()
+                                                && (succLiveAutoSym->isSlotSharedByRefAndNonRef()
+                                                    || comp->getOption(TR_PoisonDeadSlots))) {
+                                                if ((succLiveAutoSym->getGCMapIndex() == liveAutoSym->getGCMapIndex())
+                                                    || ((TR::Symbol::convertTypeToNumberOfSlots(
+                                                             succLiveAutoSym->getDataType())
+                                                            == 2)
+                                                        && ((succLiveAutoSym->getGCMapIndex() + 1)
+                                                            == liveAutoSym->getGCMapIndex()))) {
+                                                    zeroOut = false;
+                                                    break;
+                                                }
+                                            }
+                                        }
+
+                                        if (zeroOut) {
+                                            TR::TreeTop *cursorTree = esuccBlock->getEntry()->getNextTreeTop();
+                                            TR::TreeTop *endTree = esuccBlock->getExit();
+                                            bool storeExists = false;
+                                            while (cursorTree != endTree) {
+                                                TR::Node *cursorNode = cursorTree->getNode();
+                                                if (cursorNode->getOpCode().isStore()) {
+                                                    if ((cursorNode->getSymbolReference() == liveAutoSymRef)
+                                                        && (cursorNode->getFirstChild()->getOpCodeValue() == TR::aconst)
+                                                        && (cursorNode->getFirstChild()->getAddress() == 0
+                                                            || cursorNode->getFirstChild()->getAddress()
+                                                                == 0xdeadf00d)) {
+                                                        storeExists = true;
+                                                        break;
+                                                    }
+                                                } else
+                                                    break;
+
+                                                cursorTree = cursorTree->getNextTreeTop();
+                                            }
+
+                                            if (!storeExists) {
+                                                TR::Node *storeNode;
+                                                if (comp->getOption(TR_PoisonDeadSlots))
+                                                    storeNode = self()->generatePoisonNode(block, liveAutoSymRef);
+                                                else
+                                                    storeNode = TR::Node::createStore(liveAutoSymRef,
+                                                        TR::Node::aconst(block->getEntry()->getNode(), 0));
+                                                if (storeNode) {
+                                                    TR::TreeTop *storeTree = TR::TreeTop::create(comp, storeNode);
+                                                    esuccBlock->prepend(storeTree);
+                                                    fsdStores.add(storeNode);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
+                    }
+                }
+            }
 
-                     // TODO : Think about exc edges case below
-                     //
-                     for (auto esucc = block->getExceptionSuccessors().begin(); esucc != block->getExceptionSuccessors().end(); ++esucc)
-                        {
-                        TR::Block *esuccBlock = (*esucc)->getTo()->asBlock();
-                        //since we have asked the liveness analysis to assume that uses in the OSR block don't exist
-                        //in certain cases, this code thinks that some locals are dead in the OSR block so it tries
-                        //to zero them out. But we don't want that to happen
-                        if (esuccBlock->isOSRCodeBlock() || esuccBlock->isOSRCatchBlock())
-                           continue;
-                        TR_BitVector *esuccLiveLocals = esuccBlock->getLiveLocals();
-                        TR_ASSERT(esuccLiveLocals, "No live locals for successor block\n");
-                        if (!esuccLiveLocals->get(liveLocalIndex))
-                           {
-                           bool zeroOut = true;
-                           TR_BitVectorIterator sbvi(*esuccLiveLocals);
-                           while (sbvi.hasMoreElements())
-                              {
-                              int32_t succLiveLocalIndex = sbvi.getNextElement();
-                              TR_ASSERT((succLiveLocalIndex <= maxLiveLocalIndex), "Symbol has live local index higher than computed max\n");
-                              TR::SymbolReference * succLiveAutoSymRef = liveLocalSyms[succLiveLocalIndex];
-                              TR::AutomaticSymbol * succLiveAutoSym = succLiveAutoSymRef->getSymbol()->castToAutoSymbol();
-                              if ( succLiveAutoSym->getType().isAddress() && ( succLiveAutoSym->isSlotSharedByRefAndNonRef() || comp->getOption(TR_PoisonDeadSlots)))
-                                 {
-                                 if ((succLiveAutoSym->getGCMapIndex() == liveAutoSym->getGCMapIndex()) ||
-                                     ((TR::Symbol::convertTypeToNumberOfSlots(succLiveAutoSym->getDataType()) == 2) &&
-                                      ((succLiveAutoSym->getGCMapIndex()+1) == liveAutoSym->getGCMapIndex())))
-                                    {
-                                    zeroOut = false;
-                                    break;
-                                    }
-                                 }
-                              }
+            self()->setLiveLocals(liveLocals);
+            self()->setLiveMonitors(liveMonitors);
 
-                           if (zeroOut)
-                              {
-                              TR::TreeTop *cursorTree = esuccBlock->getEntry()->getNextTreeTop();
-                              TR::TreeTop *endTree = esuccBlock->getExit();
-                              bool storeExists = false;
-                              while (cursorTree != endTree)
-                                 {
-                                 TR::Node *cursorNode = cursorTree->getNode();
-                                 if (cursorNode->getOpCode().isStore())
-                                    {
-                                    if ((cursorNode->getSymbolReference() == liveAutoSymRef) &&
-                                        (cursorNode->getFirstChild()->getOpCodeValue() == TR::aconst) &&
-                                        (cursorNode->getFirstChild()->getAddress() == 0 || cursorNode->getFirstChild()->getAddress() == 0xdeadf00d ))
-                                       {
-                                       storeExists = true;
-                                       break;
-                                       }
-                                    }
-                                 else
-                                    break;
+            if (comp->getOption(TR_TraceCG)) {
+                // any evaluator that handles multiple trees will need to dump
+                // the others
+                comp->getDebug()->saveNodeChecklist(nodeChecklistBeforeDump);
+                comp->getDebug()->dumpSingleTreeWithInstrs(log, tt, NULL, true, false, true, true);
+                log->prints("\n------------------------------\n");
+                log->flush();
+            }
 
-                                 cursorTree = cursorTree->getNextTreeTop();
-                                 }
+            self()->setLastInstructionBeforeCurrentEvaluationTreeTop(self()->getAppendInstruction());
+            self()->setCurrentEvaluationTreeTop(tt);
+            self()->setImplicitExceptionPoint(NULL);
 
-                              if (!storeExists)
-                                 {
-                                 TR::Node *storeNode;
-                                 if (comp->getOption(TR_PoisonDeadSlots))
-                                    storeNode = self()->generatePoisonNode(block, liveAutoSymRef);
-                                 else
-                                    storeNode = TR::Node::createStore(liveAutoSymRef, TR::Node::aconst(block->getEntry()->getNode(), 0));
-                                 if (storeNode)
-                                    {
+            bool doEvaluation = true;
+            if ((node->getOpCode().isStore() && node->getSymbol()->holdsMonitoredObject()
+                    && !node->isLiveMonitorInitStore())
+                || node->getOpCode().getOpCodeValue() == TR::monexitfence) {
+                if (traceLiveMon) {
+                    log->printf("liveMonitorStack %p ", liveMonitorStack);
+                    if (liveMonitorStack)
+                        log->printf("   size %d\n", liveMonitorStack->size());
+                    else
+                        log->prints("   size empty\n");
+                    log->printf("Looking at Node %p with symbol %p", node, node->getSymbol());
+                }
+                bool isMonent = node->getOpCode().getOpCodeValue() != TR::monexitfence;
+                if (isMonent) {
+                    // monent
+                    if (liveMonitors)
+                        liveMonitors = new (self()->trHeapMemory()) TR_BitVector(*liveMonitors);
+                    else
+                        liveMonitors = new (self()->trHeapMemory()) TR_BitVector(numMonitorLocals, self()->trMemory());
+
+                    // add this monent to the block's stack
+                    //
+                    if (liveMonitorStack) {
+                        liveMonitorStack->push(node->getSymbolReference());
+                        logprintf(traceLiveMon, log, "pushing symref %p (#%u) onto monitor stack\n",
+                            node->getSymbolReference(), node->getSymbolReference()->getReferenceNumber());
+                    }
+
+                    liveMonitors->set(node->getSymbol()->castToRegisterMappedSymbol()->getLiveLocalIndex());
+
+                    logprintf(traceLiveMon, log, "monitor %p went live at node %p\n", node->getSymbol(), node);
+                } else if (!isMonent) {
+                    if (liveMonitorStack) {
+                        // monexit
+                        TR_ASSERT(liveMonitors, "inconsistent live monitor state");
+
+                        // pop this monexit from the block's stack
+                        //
+                        if (!liveMonitorStack->isEmpty()) {
+                            liveMonitors = new (self()->trHeapMemory()) TR_BitVector(*liveMonitors);
+
+                            if (comp->getOption(TR_PoisonDeadSlots)) {
+                                TR::SymbolReference *symRef = liveMonitorStack->pop();
+                                liveMonitors->reset(
+                                    symRef->getSymbol()->castToRegisterMappedSymbol()->getLiveLocalIndex());
+                                TR::Node *storeNode = NULL;
+
+                                if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
+                                    log->printf("POISON DEAD SLOTS --- MonExit Block Number: %d\n",
+                                        self()->getCurrentEvaluationBlock()->getNumber());
+
+                                storeNode = self()->generatePoisonNode(self()->getCurrentEvaluationBlock(), symRef);
+                                if (storeNode) {
                                     TR::TreeTop *storeTree = TR::TreeTop::create(comp, storeNode);
-                                    esuccBlock->prepend(storeTree);
+                                    self()->getCurrentEvaluationBlock()->prepend(storeTree);
                                     fsdStores.add(storeNode);
-                                   }
-                                 }
-                              }
-                           }
+                                }
+                            } else {
+                                TR::SymbolReference *symref = liveMonitorStack->pop();
+
+                                logprintf(traceLiveMon, log, "popping symref %p (#%u) off monitor stack\n", symref,
+                                    symref->getReferenceNumber());
+                                liveMonitors->reset(
+                                    symref->getSymbol()->castToRegisterMappedSymbol()->getLiveLocalIndex());
+                            }
+
+                        } else {
+                            dumpOptDetails(comp, "liveMonitorStack %p is inconsistently empty at node %p!\n",
+                                liveMonitorStack, node);
+                            if (liveMonitors)
+                                liveMonitors->empty();
                         }
-                     }
-                  }
-               }
+
+                        logprintf(traceLiveMon, log, "monitor %p went dead at node %p\n", node->getSymbol(), node);
+                    }
+                    // no need to generate code for this store
+                    //
+                    doEvaluation = false;
+                }
             }
-         }
-
-      self()->setLiveLocals(liveLocals);
-      self()->setLiveMonitors(liveMonitors);
-
-      if (comp->getOption(TR_TraceCG))
-         {
-         // any evaluator that handles multiple trees will need to dump
-         // the others
-         comp->getDebug()->saveNodeChecklist(nodeChecklistBeforeDump);
-         comp->getDebug()->dumpSingleTreeWithInstrs(log, tt, NULL, true, false, true, true);
-         log->prints("\n------------------------------\n");
-         log->flush();
-         }
-
-      self()->setLastInstructionBeforeCurrentEvaluationTreeTop(self()->getAppendInstruction());
-      self()->setCurrentEvaluationTreeTop(tt);
-      self()->setImplicitExceptionPoint(NULL);
-
-      bool doEvaluation = true;
-      if ((node->getOpCode().isStore() &&
-            node->getSymbol()->holdsMonitoredObject() &&
-            !node->isLiveMonitorInitStore()) || node->getOpCode().getOpCodeValue() == TR::monexitfence)
-         {
-         if (traceLiveMon)
-            {
-            log->printf("liveMonitorStack %p ", liveMonitorStack);
-            if (liveMonitorStack)
-               log->printf("   size %d\n", liveMonitorStack->size());
-            else
-               log->prints("   size empty\n");
-            log->printf("Looking at Node %p with symbol %p",node,node->getSymbol());
-            }
-         bool isMonent = node->getOpCode().getOpCodeValue() != TR::monexitfence;
-         if (isMonent)
-            {
-            // monent
-            if (liveMonitors)
-               liveMonitors = new (self()->trHeapMemory()) TR_BitVector(*liveMonitors);
-            else
-               liveMonitors = new (self()->trHeapMemory()) TR_BitVector(numMonitorLocals, self()->trMemory());
-
-            // add this monent to the block's stack
-            //
-            if (liveMonitorStack)
-               {
-               liveMonitorStack->push(node->getSymbolReference());
-               logprintf(traceLiveMon, log, "pushing symref %p (#%u) onto monitor stack\n", node->getSymbolReference(), node->getSymbolReference()->getReferenceNumber());
-               }
-
-            liveMonitors->set(node->getSymbol()->castToRegisterMappedSymbol()->getLiveLocalIndex());
-
-            logprintf(traceLiveMon, log, "monitor %p went live at node %p\n", node->getSymbol(), node);
-            }
-         else if (!isMonent)
-            {
-            if (liveMonitorStack)
-               {
-               // monexit
-               TR_ASSERT(liveMonitors, "inconsistent live monitor state");
-
-               // pop this monexit from the block's stack
-               //
-               if (!liveMonitorStack->isEmpty())
-                  {
-                  liveMonitors = new (self()->trHeapMemory()) TR_BitVector(*liveMonitors);
-
-                  if (comp->getOption(TR_PoisonDeadSlots))
-                     {
-                     TR::SymbolReference *symRef = liveMonitorStack->pop();
-                     liveMonitors->reset(symRef->getSymbol()->castToRegisterMappedSymbol()->getLiveLocalIndex());
-                     TR::Node *storeNode = NULL;
-
-                     if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
-                        log->printf("POISON DEAD SLOTS --- MonExit Block Number: %d\n", self()->getCurrentEvaluationBlock()->getNumber());
-
-                     storeNode = self()->generatePoisonNode(self()->getCurrentEvaluationBlock(), symRef);
-                     if (storeNode)
-                        {
-                        TR::TreeTop *storeTree = TR::TreeTop::create(comp, storeNode);
-                        self()->getCurrentEvaluationBlock()->prepend(storeTree);
-                        fsdStores.add(storeNode);
-                        }
-                     }
-                  else
-                     {
-                     TR::SymbolReference *symref = liveMonitorStack->pop();
-
-                     logprintf(traceLiveMon, log, "popping symref %p (#%u) off monitor stack\n", symref, symref->getReferenceNumber());
-                     liveMonitors->reset(symref->getSymbol()->castToRegisterMappedSymbol()->getLiveLocalIndex());
-                     }
-
-                  }
-               else
-                  {
-                  dumpOptDetails(comp, "liveMonitorStack %p is inconsistently empty at node %p!\n", liveMonitorStack, node);
-                  if (liveMonitors)
-                     liveMonitors->empty();
-                  }
-
-               logprintf(traceLiveMon, log, "monitor %p went dead at node %p\n", node->getSymbol(), node);
-               }
-            // no need to generate code for this store
-            //
-            doEvaluation = false;
-            }
-         }
 
 #ifdef TR_TARGET_S390
-      if (self()->getAddStorageReferenceHints())
-         self()->addStorageReferenceHints(node);
+            if (self()->getAddStorageReferenceHints())
+                self()->addStorageReferenceHints(node);
 #endif
 
+            if (doEvaluation)
+                self()->evaluate(node);
 
-      if (doEvaluation)
-         self()->evaluate(node);
+            if (comp->getOption(TR_SplitWarmAndColdBlocks) && opCode == TR::BBEnd) {
+                TR::Block *b = self()->getCurrentEvaluationBlock();
 
-      if (comp->getOption(TR_SplitWarmAndColdBlocks) &&
-          opCode == TR::BBEnd)
-         {
-         TR::Block *b = self()->getCurrentEvaluationBlock();
+                if (b->isLastWarmBlock()) {
+                    resetInstructionSelectionInWarmCodeCache();
+                    // Mark the split point between warm and cold instructions, so they
+                    // can be allocated in different code sections.
+                    //
+                    TR::Instruction *lastInstr = b->getLastInstruction();
 
-         if (b->isLastWarmBlock())
-            {
-            resetInstructionSelectionInWarmCodeCache();
-            // Mark the split point between warm and cold instructions, so they
-            // can be allocated in different code sections.
-            //
-            TR::Instruction *lastInstr = b->getLastInstruction();
+                    logprintf(traceCG, log, "%s Last warm instruction is %p\n", SPLIT_WARM_COLD_STRING, lastInstr);
 
-            logprintf(traceCG, log, "%s Last warm instruction is %p\n", SPLIT_WARM_COLD_STRING, lastInstr);
-
-            lastInstr->setLastWarmInstruction(true);
-            self()->setLastWarmInstruction(lastInstr);
-            }
-         }
-
-      if (comp->getOption(TR_TraceCG) || debug("traceGRA"))
-         {
-         TR::Instruction *lastInstr = self()->getAppendInstruction();
-         tt->setLastInstruction(lastInstr == prevInstr ? 0 : lastInstr);
-         }
-
-      if (liveLocals)
-         {
-         TR::AutomaticSymbol * liveSym = 0;
-         if (debug("checkBlockEntryLiveLocals"))
-            {
-            // Check for a store into a local.
-            // If so, this local becomes live at this point.
-            //
-            if (node->getOpCode().isStore())
-               {
-               liveSym = node->getSymbol()->getAutoSymbol();
-               }
-
-            // Check for a loadaddr of a local object.
-            // If so, this local object becomes live at this point.
-            //
-            else if (opCode == TR::treetop)
-               {
-               if (firstChild->getOpCodeValue() == TR::loadaddr)
-                  liveSym = firstChild->getSymbol()->getLocalObjectSymbol();
-               }
-            if (liveSym && liveSym->getLiveLocalIndex() == (uint16_t)-1)
-               liveSym = NULL;
-            }
-         else
-            {
-            // Check for a store into a collected local reference.
-            // If so, this local becomes live at this point.
-            //
-            if ((opCode == TR::astore) &&
-                ((!comp->getOption(TR_MimicInterpreterFrameShape)) ||
-                 (!comp->areSlotsSharedByRefAndNonRef()) ||
-                 (!fsdStores.find(node))))
-               {
-               liveSym = node->getSymbol()->getAutoSymbol();
-               }
-
-            // Check for a loadaddr of a local object containing collected references.
-            // If so, this local object becomes live at this point.
-            //
-            else if (opCode == TR::treetop)
-               {
-               if (firstChild->getOpCodeValue() == TR::loadaddr)
-                  liveSym = firstChild->getSymbol()->getLocalObjectSymbol();
-               }
-            if (liveSym && !liveSym->isCollectedReference())
-               liveSym = NULL;
+                    lastInstr->setLastWarmInstruction(true);
+                    self()->setLastWarmInstruction(lastInstr);
+                }
             }
 
-         bool newLiveLocals = false;
-         if (liveSym)
-            {
-            liveLocals = new (self()->trHeapMemory()) TR_BitVector(*liveLocals);
-            newLiveLocals = true;
-            if (liveSym)
-               liveLocals->set(liveSym->getLiveLocalIndex());
+            if (comp->getOption(TR_TraceCG) || debug("traceGRA")) {
+                TR::Instruction *lastInstr = self()->getAppendInstruction();
+                tt->setLastInstruction(lastInstr == prevInstr ? 0 : lastInstr);
             }
 
-         // In interpreter-frame mode a reference can share a slot with a nonreference so when we see a store to a nonreference
-         // we need to make sure that any reference that it shares a slot with is marked as dead
-         //
-         if (comp->getOption(TR_MimicInterpreterFrameShape) && node->getOpCode().isStore() && opCode != TR::astore)
-            {
-            TR::AutomaticSymbol * nonRefStoreSym = node->getSymbol()->getAutoSymbol();
-            if (nonRefStoreSym && (nonRefStoreSym->getGCMapIndex() != -1))  //defect 147894: don't check this for GCMapIndex = -1
-               {
-               bool isTwoSlots = ( TR::Symbol::convertTypeToNumberOfSlots(nonRefStoreSym->getDataType()) == 2);
-               if (isTwoSlots || nonRefStoreSym->isSlotSharedByRefAndNonRef())
-                  {
-                  ListIterator<TR::AutomaticSymbol> autoIterator(&methodSymbol->getAutomaticList());
-                  if (!newLiveLocals)
-                     liveLocals = new (self()->trHeapMemory()) TR_BitVector(*liveLocals);
-                  for (TR::AutomaticSymbol * autoSym = autoIterator.getFirst(); autoSym; autoSym = autoIterator.getNext())
-                     if (autoSym->getType().isAddress() && autoSym->getLiveLocalIndex() != (uint16_t)-1)
-                        {
-                        if (autoSym->getGCMapIndex() == nonRefStoreSym->getGCMapIndex())
-                           liveLocals->reset(autoSym->getLiveLocalIndex());
-                        else if (isTwoSlots && autoSym->getGCMapIndex() == nonRefStoreSym->getGCMapIndex() + 1)
-                           liveLocals->reset(autoSym->getLiveLocalIndex());
+            if (liveLocals) {
+                TR::AutomaticSymbol *liveSym = 0;
+                if (debug("checkBlockEntryLiveLocals")) {
+                    // Check for a store into a local.
+                    // If so, this local becomes live at this point.
+                    //
+                    if (node->getOpCode().isStore()) {
+                        liveSym = node->getSymbol()->getAutoSymbol();
+                    }
+
+                    // Check for a loadaddr of a local object.
+                    // If so, this local object becomes live at this point.
+                    //
+                    else if (opCode == TR::treetop) {
+                        if (firstChild->getOpCodeValue() == TR::loadaddr)
+                            liveSym = firstChild->getSymbol()->getLocalObjectSymbol();
+                    }
+                    if (liveSym && liveSym->getLiveLocalIndex() == (uint16_t)-1)
+                        liveSym = NULL;
+                } else {
+                    // Check for a store into a collected local reference.
+                    // If so, this local becomes live at this point.
+                    //
+                    if ((opCode == TR::astore)
+                        && ((!comp->getOption(TR_MimicInterpreterFrameShape)) || (!comp->areSlotsSharedByRefAndNonRef())
+                            || (!fsdStores.find(node)))) {
+                        liveSym = node->getSymbol()->getAutoSymbol();
+                    }
+
+                    // Check for a loadaddr of a local object containing collected references.
+                    // If so, this local object becomes live at this point.
+                    //
+                    else if (opCode == TR::treetop) {
+                        if (firstChild->getOpCodeValue() == TR::loadaddr)
+                            liveSym = firstChild->getSymbol()->getLocalObjectSymbol();
+                    }
+                    if (liveSym && !liveSym->isCollectedReference())
+                        liveSym = NULL;
+                }
+
+                bool newLiveLocals = false;
+                if (liveSym) {
+                    liveLocals = new (self()->trHeapMemory()) TR_BitVector(*liveLocals);
+                    newLiveLocals = true;
+                    if (liveSym)
+                        liveLocals->set(liveSym->getLiveLocalIndex());
+                }
+
+                // In interpreter-frame mode a reference can share a slot with a nonreference so when we see a store to
+                // a nonreference we need to make sure that any reference that it shares a slot with is marked as dead
+                //
+                if (comp->getOption(TR_MimicInterpreterFrameShape) && node->getOpCode().isStore()
+                    && opCode != TR::astore) {
+                    TR::AutomaticSymbol *nonRefStoreSym = node->getSymbol()->getAutoSymbol();
+                    if (nonRefStoreSym
+                        && (nonRefStoreSym->getGCMapIndex()
+                            != -1)) // defect 147894: don't check this for GCMapIndex = -1
+                    {
+                        bool isTwoSlots = (TR::Symbol::convertTypeToNumberOfSlots(nonRefStoreSym->getDataType()) == 2);
+                        if (isTwoSlots || nonRefStoreSym->isSlotSharedByRefAndNonRef()) {
+                            ListIterator<TR::AutomaticSymbol> autoIterator(&methodSymbol->getAutomaticList());
+                            if (!newLiveLocals)
+                                liveLocals = new (self()->trHeapMemory()) TR_BitVector(*liveLocals);
+                            for (TR::AutomaticSymbol *autoSym = autoIterator.getFirst(); autoSym;
+                                 autoSym = autoIterator.getNext())
+                                if (autoSym->getType().isAddress() && autoSym->getLiveLocalIndex() != (uint16_t)-1) {
+                                    if (autoSym->getGCMapIndex() == nonRefStoreSym->getGCMapIndex())
+                                        liveLocals->reset(autoSym->getLiveLocalIndex());
+                                    else if (isTwoSlots
+                                        && autoSym->getGCMapIndex() == nonRefStoreSym->getGCMapIndex() + 1)
+                                        liveLocals->reset(autoSym->getLiveLocalIndex());
+                                }
                         }
-                  }
-               }
-            }
-         }
-
-      bool compactVSSStack = false;
-      if (!comp->getOption(TR_DisableVSSStackCompaction))
-         {
-         if (comp->getMethodHotness() < hot)
-            compactVSSStack = true;
-         else if (comp->getOption(TR_ForceVSSStackCompaction))
-            compactVSSStack = true;
-         }
-
-      if (compactVSSStack && !_variableSizeSymRefPendingFreeList.empty())
-         {
-         TR::Node *ttNode = (node->getOpCodeValue() == TR::treetop) ? node->getFirstChild() : node;
-         auto it = _variableSizeSymRefPendingFreeList.begin();
-         TR::SymbolReference *symRef;
-         while (it != _variableSizeSymRefPendingFreeList.end())
-            {
-            //Element is removed within freeVariableSizeSymRef. Need a reference to next element
-            auto next = it;
-            ++next;
-            TR_ASSERT((*it)->getSymbol()->isVariableSizeSymbol(),"symRef #%d must contain a variable size symbol\n",(*it)->getReferenceNumber());
-            auto *sym = (*it)->getSymbol()->getVariableSizeSymbol();
-            bool found = (std::find(_variableSizeSymRefFreeList.begin(), _variableSizeSymRefFreeList.end(), (*it)) != _variableSizeSymRefFreeList.end());
-            if (self()->traceBCDCodeGen())
-               {
-               if (sym->getNodeToFreeAfter())
-                  log->printf("pending free temps : looking at symRef #%d (%s) refCount %d sym->getNodeToFreeAfter() %p ttNode %p (find sym in list %d)\n",
-                     (*it)->getReferenceNumber(),self()->getDebug()->getName(sym),sym->getReferenceCount(),
-                     sym->getNodeToFreeAfter(),ttNode,found);
-               else
-                  log->printf("pending free temps : looking at symRef #%d (%s) refCount %d (find sym in list %d)\n",
-                     (*it)->getReferenceNumber(),self()->getDebug()->getName(sym),sym->getReferenceCount(),found);
-               }
-            if (!sym->isAddressTaken() && !found)
-               {
-               TR::Node *nodeToFreeAfter = sym->getNodeToFreeAfter();
-               bool nodeToFreeAfterIsCurrentNode = nodeToFreeAfter && (ttNode==nodeToFreeAfter);
-               if (sym->getReferenceCount() == 0 &&
-                  (!nodeToFreeAfter || nodeToFreeAfterIsCurrentNode))
-                  {
-                  self()->freeVariableSizeSymRef(*it);  // will also remove sym from the pending free list
-                  }
-               else if (sym->getReferenceCount() > 0 && nodeToFreeAfterIsCurrentNode)
-                  {
-                  logprintf(self()->traceBCDCodeGen(), log, "\treset nodeToFreeAfter %p->NULL for sym %p with refCount %d > 0\n", nodeToFreeAfter, sym, sym->getReferenceCount());
-                  sym->setNodeToFreeAfter(NULL);
-                  }
-               else
-                  {
-                  // We'd like to assert the following, but refcounts are unsigned, so we can't
-                  //TR_ASSERT(sym->getReferenceCount() >= 0,"sym %p refCount %d should be >= 0\n",sym,sym->getReferenceCount());
-                  }
-               }
-            it = next;
-            }
-         }
-
-      if (traceCG)
-         {
-         comp->getDebug()->restoreNodeChecklist(nodeChecklistBeforeDump);
-
-         if (tt == self()->getCurrentEvaluationTreeTop())
-            {
-            log->prints("------------------------------\n");
-            comp->getDebug()->dumpSingleTreeWithInstrs(log, tt, prevInstr->getNext(), true, true, true, false);
-            }
-         else
-            {
-            // dump all the trees that the evaluator handled
-            log->prints("------------------------------");
-            for (TR::TreeTop *dumptt = tt; dumptt != self()->getCurrentEvaluationTreeTop()->getNextTreeTop(); dumptt = dumptt->getNextTreeTop())
-               {
-               log->println();
-               comp->getDebug()->dumpSingleTreeWithInstrs(log, dumptt, NULL, true, false, true, false);
-               }
-
-            // all instructions are on the tt tree
-            comp->getDebug()->dumpSingleTreeWithInstrs(log, tt, prevInstr->getNext(), false, true, false, false);
+                    }
+                }
             }
 
-         log->flush();
-         }
-      }
+            bool compactVSSStack = false;
+            if (!comp->getOption(TR_DisableVSSStackCompaction)) {
+                if (comp->getMethodHotness() < hot)
+                    compactVSSStack = true;
+                else if (comp->getOption(TR_ForceVSSStackCompaction))
+                    compactVSSStack = true;
+            }
 
-   logprints(self()->traceBCDCodeGen(), log, "\tinstruction selection is complete so free all symbols in the _variableSizeSymRefPendingFreeList\n");
+            if (compactVSSStack && !_variableSizeSymRefPendingFreeList.empty()) {
+                TR::Node *ttNode = (node->getOpCodeValue() == TR::treetop) ? node->getFirstChild() : node;
+                auto it = _variableSizeSymRefPendingFreeList.begin();
+                TR::SymbolReference *symRef;
+                while (it != _variableSizeSymRefPendingFreeList.end()) {
+                    // Element is removed within freeVariableSizeSymRef. Need a reference to next element
+                    auto next = it;
+                    ++next;
+                    TR_ASSERT((*it)->getSymbol()->isVariableSizeSymbol(),
+                        "symRef #%d must contain a variable size symbol\n", (*it)->getReferenceNumber());
+                    auto *sym = (*it)->getSymbol()->getVariableSizeSymbol();
+                    bool found
+                        = (std::find(_variableSizeSymRefFreeList.begin(), _variableSizeSymRefFreeList.end(), (*it))
+                            != _variableSizeSymRefFreeList.end());
+                    if (self()->traceBCDCodeGen()) {
+                        if (sym->getNodeToFreeAfter())
+                            log->printf("pending free temps : looking at symRef #%d (%s) refCount %d "
+                                        "sym->getNodeToFreeAfter() %p ttNode %p (find sym in list %d)\n",
+                                (*it)->getReferenceNumber(), self()->getDebug()->getName(sym), sym->getReferenceCount(),
+                                sym->getNodeToFreeAfter(), ttNode, found);
+                        else
+                            log->printf(
+                                "pending free temps : looking at symRef #%d (%s) refCount %d (find sym in list %d)\n",
+                                (*it)->getReferenceNumber(), self()->getDebug()->getName(sym), sym->getReferenceCount(),
+                                found);
+                    }
+                    if (!sym->isAddressTaken() && !found) {
+                        TR::Node *nodeToFreeAfter = sym->getNodeToFreeAfter();
+                        bool nodeToFreeAfterIsCurrentNode = nodeToFreeAfter && (ttNode == nodeToFreeAfter);
+                        if (sym->getReferenceCount() == 0 && (!nodeToFreeAfter || nodeToFreeAfterIsCurrentNode)) {
+                            self()->freeVariableSizeSymRef(*it); // will also remove sym from the pending free list
+                        } else if (sym->getReferenceCount() > 0 && nodeToFreeAfterIsCurrentNode) {
+                            logprintf(self()->traceBCDCodeGen(), log,
+                                "\treset nodeToFreeAfter %p->NULL for sym %p with refCount %d > 0\n", nodeToFreeAfter,
+                                sym, sym->getReferenceCount());
+                            sym->setNodeToFreeAfter(NULL);
+                        } else {
+                            // We'd like to assert the following, but refcounts are unsigned, so we can't
+                            // TR_ASSERT(sym->getReferenceCount() >= 0,"sym %p refCount %d should be >=
+                            // 0\n",sym,sym->getReferenceCount());
+                        }
+                    }
+                    it = next;
+                }
+            }
 
-   self()->freeAllVariableSizeSymRefs();
+            if (traceCG) {
+                comp->getDebug()->restoreNodeChecklist(nodeChecklistBeforeDump);
+
+                if (tt == self()->getCurrentEvaluationTreeTop()) {
+                    log->prints("------------------------------\n");
+                    comp->getDebug()->dumpSingleTreeWithInstrs(log, tt, prevInstr->getNext(), true, true, true, false);
+                } else {
+                    // dump all the trees that the evaluator handled
+                    log->prints("------------------------------");
+                    for (TR::TreeTop *dumptt = tt; dumptt != self()->getCurrentEvaluationTreeTop()->getNextTreeTop();
+                         dumptt = dumptt->getNextTreeTop()) {
+                        log->println();
+                        comp->getDebug()->dumpSingleTreeWithInstrs(log, dumptt, NULL, true, false, true, false);
+                    }
+
+                    // all instructions are on the tt tree
+                    comp->getDebug()->dumpSingleTreeWithInstrs(log, tt, prevInstr->getNext(), false, true, false,
+                        false);
+                }
+
+                log->flush();
+            }
+        }
+
+        logprints(self()->traceBCDCodeGen(), log,
+            "\tinstruction selection is complete so free all symbols in the _variableSizeSymRefPendingFreeList\n");
+
+        self()->freeAllVariableSizeSymRefs();
 
 #if defined(TR_TARGET_S390)
-   // Virtual function insertInstructionPrefetches is implemented only for s390 platform,
-   // for all other platforms the function is empty
-   //
-   self()->insertInstructionPrefetches();
+        // Virtual function insertInstructionPrefetches is implemented only for s390 platform,
+        // for all other platforms the function is empty
+        //
+        self()->insertInstructionPrefetches();
 #endif
-   } // Stack memory region ends
+    } // Stack memory region ends
 
-   if (comp->getOption(TR_TraceCG) || debug("traceGRA"))
-      comp->incVisitCount();
+    if (comp->getOption(TR_TraceCG) || debug("traceGRA"))
+        comp->incVisitCount();
 
-   if (self()->getDebug())
-      self()->getDebug()->roundAddressEnumerationCounters();
+    if (self()->getDebug())
+        self()->getDebug()->roundAddressEnumerationCounters();
 
-   self()->endInstructionSelection();
+    self()->endInstructionSelection();
 
-   if (comp->getOption(TR_TraceCG))
-      diagnostic("</selection>\n");
-   }
+    if (comp->getOption(TR_TraceCG))
+        diagnostic("</selection>\n");
+}
 
-bool
-J9::CodeGenerator::allowGuardMerging()
-   {
-   return self()->fej9()->supportsGuardMerging();
-   }
+bool J9::CodeGenerator::allowGuardMerging() { return self()->fej9()->supportsGuardMerging(); }
 
-void
-J9::CodeGenerator::populateOSRBuffer()
-   {
-   TR::Compilation *comp = self()->comp();
-   OMR::Logger *log = comp->log();
+void J9::CodeGenerator::populateOSRBuffer()
+{
+    TR::Compilation *comp = self()->comp();
+    OMR::Logger *log = comp->log();
 
-   if (!comp->getOption(TR_EnableOSR))
-      return;
+    if (!comp->getOption(TR_EnableOSR))
+        return;
 
-//The following struct definitions are coming from VM include files and are intended as
-//a legend for OSR buffer
+    // The following struct definitions are coming from VM include files and are intended as
+    // a legend for OSR buffer
 
     // typedef struct J9OSRBuffer {
     //   U_32 numberOfFrames;
@@ -2427,1571 +2170,1354 @@ J9::CodeGenerator::populateOSRBuffer()
     //   // stack slots here - reachable by "(UDATA*)(frame + 1)"
     // } J9OSRFrame;
 
-   comp->getOSRCompilationData()->buildSymRefOrderMap();
-   const TR_Array<TR_OSRMethodData *>& methodDataArray = comp->getOSRCompilationData()->getOSRMethodDataArray();
-   bool traceOSR = comp->getOption(TR_TraceOSR);
-   uint32_t maxScratchBufferSize = 0;
-   const int firstSymChildIndex = 2;
+    comp->getOSRCompilationData()->buildSymRefOrderMap();
+    const TR_Array<TR_OSRMethodData *> &methodDataArray = comp->getOSRCompilationData()->getOSRMethodDataArray();
+    bool traceOSR = comp->getOption(TR_TraceOSR);
+    uint32_t maxScratchBufferSize = 0;
+    const int firstSymChildIndex = 2;
 
-/*
-   for (int32_t i = 0; i < methodDataArray.size(); ++i)
-      for (int32_t j = i+1; j < methodDataArray.size(); ++j)
-         TR_ASSERT((methodDataArray[i] == NULL && methodDataArray[j] == NULL) || (methodDataArray[i] != methodDataArray[j]),
-                 "methodDataArray elements %d and %d are equal\n", i, j);
-*/
+    /*
+       for (int32_t i = 0; i < methodDataArray.size(); ++i)
+          for (int32_t j = i+1; j < methodDataArray.size(); ++j)
+             TR_ASSERT((methodDataArray[i] == NULL && methodDataArray[j] == NULL) || (methodDataArray[i] !=
+       methodDataArray[j]), "methodDataArray elements %d and %d are equal\n", i, j);
+    */
 
-   TR::Block * block = NULL;
-   for(TR::TreeTop * tt = comp->getStartTree(); tt; tt = tt->getNextTreeTop())
-      {
-      // Write pending pushes, parms, and locals to vmthread's OSR buffer
+    TR::Block *block = NULL;
+    for (TR::TreeTop *tt = comp->getStartTree(); tt; tt = tt->getNextTreeTop()) {
+        // Write pending pushes, parms, and locals to vmthread's OSR buffer
 
-      TR::Node* n = tt->getNode();
-      if (n->getOpCodeValue() == TR::BBStart)
-         {
-         block = n->getBlock();
-         continue;
-         }
-      if (n->getOpCodeValue() == TR::treetop && n->getNumChildren() == 1)
-         n = n->getFirstChild();
-      else
-         continue;
-      if (n->getOpCodeValue() != TR::call ||
-          n->getSymbolReference()->getReferenceNumber() != TR_prepareForOSR)
-         continue;
+        TR::Node *n = tt->getNode();
+        if (n->getOpCodeValue() == TR::BBStart) {
+            block = n->getBlock();
+            continue;
+        }
+        if (n->getOpCodeValue() == TR::treetop && n->getNumChildren() == 1)
+            n = n->getFirstChild();
+        else
+            continue;
+        if (n->getOpCodeValue() != TR::call || n->getSymbolReference()->getReferenceNumber() != TR_prepareForOSR)
+            continue;
 
-      TR::Node *callNode = n;
-      TR_OSRMethodData* osrMethodData = methodDataArray[callNode->getChild(1)->getInt()+1];
-      TR_ASSERT(osrMethodData != NULL && osrMethodData->getOSRCodeBlock() != NULL,
-             "osr method data or its block is NULL\n");
+        TR::Node *callNode = n;
+        TR_OSRMethodData *osrMethodData = methodDataArray[callNode->getChild(1)->getInt() + 1];
+        TR_ASSERT(osrMethodData != NULL && osrMethodData->getOSRCodeBlock() != NULL,
+            "osr method data or its block is NULL\n");
 
-      logprintf(traceOSR, log, "Lowering trees in OSR block_%d...\n", block->getNumber());
+        logprintf(traceOSR, log, "Lowering trees in OSR block_%d...\n", block->getNumber());
 
-      //osrFrameIndex is a field in the vmThread that is initialized by the VM to the offset
-      //of the start of the first (deepest) frame in the OSR buffer
-      //Once we are done with generating code that populates the current frame, we generate code
-      //that advances this field to the point to the next frame at the end of the OSR code block
-      //of each frame
-      TR::ResolvedMethodSymbol *methSym = osrMethodData->getMethodSymbol();
-      TR::Node *osrBufferNode = TR::Node::createLoad(callNode, self()->symRefTab()->findOrCreateOSRBufferSymbolRef());
-      TR::Node *osrFrameIndex = TR::Node::createLoad(callNode, self()->symRefTab()->findOrCreateOSRFrameIndexSymbolRef());
-      TR::Node *osrScratchBufferNode =  TR::Node::createLoad(callNode, self()->symRefTab()->findOrCreateOSRScratchBufferSymbolRef());
+        // osrFrameIndex is a field in the vmThread that is initialized by the VM to the offset
+        // of the start of the first (deepest) frame in the OSR buffer
+        // Once we are done with generating code that populates the current frame, we generate code
+        // that advances this field to the point to the next frame at the end of the OSR code block
+        // of each frame
+        TR::ResolvedMethodSymbol *methSym = osrMethodData->getMethodSymbol();
+        TR::Node *osrBufferNode = TR::Node::createLoad(callNode, self()->symRefTab()->findOrCreateOSRBufferSymbolRef());
+        TR::Node *osrFrameIndex
+            = TR::Node::createLoad(callNode, self()->symRefTab()->findOrCreateOSRFrameIndexSymbolRef());
+        TR::Node *osrScratchBufferNode
+            = TR::Node::createLoad(callNode, self()->symRefTab()->findOrCreateOSRScratchBufferSymbolRef());
 
-      TR::TreeTop* insertionPoint = tt->getPrevRealTreeTop();
-      bool inlinesAnyMethod = osrMethodData->inlinesAnyMethod();
+        TR::TreeTop *insertionPoint = tt->getPrevRealTreeTop();
+        bool inlinesAnyMethod = osrMethodData->inlinesAnyMethod();
 
-      logprintf(traceOSR, log, "callerIndex %d: max pending push slots=%d, # of auto slots=%d, # of arg slots=%d\n",
+        logprintf(traceOSR, log, "callerIndex %d: max pending push slots=%d, # of auto slots=%d, # of arg slots=%d\n",
             osrMethodData->getInlinedSiteIndex(), methSym->getNumPPSlots(),
             methSym->getResolvedMethod()->numberOfTemps(), methSym->getNumParameterSlots());
 
-      uint32_t numOfSymsThatShareSlot = 0;
-      int32_t scratchBufferOffset = 0;
-      for (int32_t child = firstSymChildIndex; child+2 < callNode->getNumChildren(); child += 3)
-         {
-         TR::Node* loadNode = callNode->getChild(child);
-         int32_t symRefNumber = callNode->getChild(child+1)->getInt();
-         int32_t symRefOrder = callNode->getChild(child+2)->getInt();
-         TR::SymbolReference* symRef = self()->symRefTab()->getSymRef(symRefNumber);
+        uint32_t numOfSymsThatShareSlot = 0;
+        int32_t scratchBufferOffset = 0;
+        for (int32_t child = firstSymChildIndex; child + 2 < callNode->getNumChildren(); child += 3) {
+            TR::Node *loadNode = callNode->getChild(child);
+            int32_t symRefNumber = callNode->getChild(child + 1)->getInt();
+            int32_t symRefOrder = callNode->getChild(child + 2)->getInt();
+            TR::SymbolReference *symRef = self()->symRefTab()->getSymRef(symRefNumber);
 
-         int32_t specialCasedSlotIndex = -1;
-         //if (methSym->getSyncObjectTemp() == symRef)
-         if (symRef->getSymbol()->holdsMonitoredObject())
-            specialCasedSlotIndex = methSym->getSyncObjectTempIndex();
-         //else if (methSym->getThisTempForObjectCtor() == symRef)
-         else if (symRef->getSymbol()->isThisTempForObjectCtor())
-            specialCasedSlotIndex = methSym->getThisTempForObjectCtorIndex();
-         //else if (methSym->getATCDeferredCountTemp() == symRef)
+            int32_t specialCasedSlotIndex = -1;
+            // if (methSym->getSyncObjectTemp() == symRef)
+            if (symRef->getSymbol()->holdsMonitoredObject())
+                specialCasedSlotIndex = methSym->getSyncObjectTempIndex();
+            // else if (methSym->getThisTempForObjectCtor() == symRef)
+            else if (symRef->getSymbol()->isThisTempForObjectCtor())
+                specialCasedSlotIndex = methSym->getThisTempForObjectCtorIndex();
+            // else if (methSym->getATCDeferredCountTemp() == symRef)
 
-         int32_t slotIndex = symRef->getCPIndex() >= methSym->getFirstJitTempIndex()
-            ? methSym->getFirstJitTempIndex()
-            : symRef->getCPIndex();
+            int32_t slotIndex = symRef->getCPIndex() >= methSym->getFirstJitTempIndex()
+                ? methSym->getFirstJitTempIndex()
+                : symRef->getCPIndex();
 
-         if (symRef->getCPIndex() >= methSym->getFirstJitTempIndex())
-            {
-            TR_ASSERT(((slotIndex == methSym->getSyncObjectTempIndex()) ||
-                     (slotIndex == methSym->getThisTempForObjectCtorIndex())), "Unknown temp sym ref being written to the OSR buffer; probably needs special casing\n");
+            if (symRef->getCPIndex() >= methSym->getFirstJitTempIndex()) {
+                TR_ASSERT(((slotIndex == methSym->getSyncObjectTempIndex())
+                              || (slotIndex == methSym->getThisTempForObjectCtorIndex())),
+                    "Unknown temp sym ref being written to the OSR buffer; probably needs special casing\n");
             }
 
-         if (specialCasedSlotIndex != -1)
-            slotIndex = specialCasedSlotIndex;
+            if (specialCasedSlotIndex != -1)
+                slotIndex = specialCasedSlotIndex;
 
-         int32_t symSize = symRef->getSymbol()->getSize();
-         bool sharedSlot = (symRefOrder != -1);
-         if (sharedSlot)
-            {
-            insertionPoint = self()->genSymRefStoreToArray(callNode, osrScratchBufferNode, NULL, loadNode, scratchBufferOffset, insertionPoint);
-            osrMethodData->addScratchBufferOffset(slotIndex, symRefOrder, scratchBufferOffset);
-            scratchBufferOffset += symSize;
+            int32_t symSize = symRef->getSymbol()->getSize();
+            bool sharedSlot = (symRefOrder != -1);
+            if (sharedSlot) {
+                insertionPoint = self()->genSymRefStoreToArray(callNode, osrScratchBufferNode, NULL, loadNode,
+                    scratchBufferOffset, insertionPoint);
+                osrMethodData->addScratchBufferOffset(slotIndex, symRefOrder, scratchBufferOffset);
+                scratchBufferOffset += symSize;
+                numOfSymsThatShareSlot++;
+            } else {
+                TR::DataType dt = symRef->getSymbol()->getDataType();
+                bool takesTwoSlots = dt == TR::Int64 || dt == TR::Double;
+                int32_t offset = osrMethodData->slotIndex2OSRBufferIndex(slotIndex, symSize, takesTwoSlots);
+                insertionPoint = self()->genSymRefStoreToArray(callNode, osrBufferNode, osrFrameIndex, loadNode, offset,
+                    insertionPoint);
+            }
+        }
+
+        /*
+         * dead slots are bookkept together with shared slots under involuntary OSR
+         * increase this number to indicate the existence of entries for dead slots
+         */
+        if (osrMethodData->hasSlotSharingOrDeadSlotsInfo() && numOfSymsThatShareSlot == 0)
             numOfSymsThatShareSlot++;
-            }
-         else
-            {
-            TR::DataType dt = symRef->getSymbol()->getDataType();
-            bool takesTwoSlots = dt == TR::Int64 || dt == TR::Double;
-            int32_t offset = osrMethodData->slotIndex2OSRBufferIndex(slotIndex, symSize, takesTwoSlots);
-            insertionPoint = self()->genSymRefStoreToArray(callNode, osrBufferNode, osrFrameIndex, loadNode, offset, insertionPoint);
-            }
-         }
 
-      /*
-       * dead slots are bookkept together with shared slots under involuntary OSR
-       * increase this number to indicate the existence of entries for dead slots
-       */
-      if (osrMethodData->hasSlotSharingOrDeadSlotsInfo() && numOfSymsThatShareSlot == 0)
-         numOfSymsThatShareSlot++;
+        osrMethodData->setNumOfSymsThatShareSlot(numOfSymsThatShareSlot);
+        maxScratchBufferSize
+            = (maxScratchBufferSize > scratchBufferOffset) ? maxScratchBufferSize : scratchBufferOffset;
 
-      osrMethodData->setNumOfSymsThatShareSlot(numOfSymsThatShareSlot);
-      maxScratchBufferSize = (maxScratchBufferSize > scratchBufferOffset) ? maxScratchBufferSize : scratchBufferOffset;
-
-      logprintf(traceOSR, log, "%s %s %s: written out bytes in OSR buffer\n",
+        logprintf(traceOSR, log, "%s %s %s: written out bytes in OSR buffer\n",
             osrMethodData->getInlinedSiteIndex() == -1 ? "Method," : "Inlined method,",
-            inlinesAnyMethod? "inlines another method,": "doesn't inline any method,",
+            inlinesAnyMethod ? "inlines another method," : "doesn't inline any method,",
             methSym->signature(self()->trMemory()));
 
-      int32_t totalNumOfSlots = osrMethodData->getTotalNumOfSlots();
-      //The OSR helper call will print the contents of the OSR buffer (if trace option is on)
-      //and populate the OSR buffer with the correct values of the shared slots (if there is any)
-      bool emitCall = false;
+        int32_t totalNumOfSlots = osrMethodData->getTotalNumOfSlots();
+        // The OSR helper call will print the contents of the OSR buffer (if trace option is on)
+        // and populate the OSR buffer with the correct values of the shared slots (if there is any)
+        bool emitCall = false;
 
-      if ((numOfSymsThatShareSlot > 0) ||
-          comp->getOption(TR_EnablePrepareForOSREvenIfThatDoesNothing))
-         emitCall = true;
+        if ((numOfSymsThatShareSlot > 0) || comp->getOption(TR_EnablePrepareForOSREvenIfThatDoesNothing))
+            emitCall = true;
 
-      int32_t startIndex = 0;
-      if (emitCall)
-         startIndex = firstSymChildIndex;
+        int32_t startIndex = 0;
+        if (emitCall)
+            startIndex = firstSymChildIndex;
 
-      for (int32_t i = startIndex; i < callNode->getNumChildren(); i++)
-         callNode->getChild(i)->recursivelyDecReferenceCount();
+        for (int32_t i = startIndex; i < callNode->getNumChildren(); i++)
+            callNode->getChild(i)->recursivelyDecReferenceCount();
 
-      if (emitCall)
-         {
-         callNode->setNumChildren(firstSymChildIndex+1);
-         TR_ASSERT(totalNumOfSlots < (1 << 16) - 1, "only 16 bits are reserved for number of slots");
-         TR_ASSERT(numOfSymsThatShareSlot < (1 << 16) -1, "only 16 bits are reserved for number of syms that share slots");
-         callNode->setAndIncChild(firstSymChildIndex,
-            TR::Node::create(callNode, TR::iconst, 0, totalNumOfSlots | (numOfSymsThatShareSlot << 16)));
-         insertionPoint = tt;
-         }
-      else
-         {
-         TR::TreeTop *prev = tt->getPrevTreeTop();
-         TR::TreeTop *next = tt->getNextTreeTop();
-         prev->join(next);
-         insertionPoint = prev;
-         }
+        if (emitCall) {
+            callNode->setNumChildren(firstSymChildIndex + 1);
+            TR_ASSERT(totalNumOfSlots < (1 << 16) - 1, "only 16 bits are reserved for number of slots");
+            TR_ASSERT(numOfSymsThatShareSlot < (1 << 16) - 1,
+                "only 16 bits are reserved for number of syms that share slots");
+            callNode->setAndIncChild(firstSymChildIndex,
+                TR::Node::create(callNode, TR::iconst, 0, totalNumOfSlots | (numOfSymsThatShareSlot << 16)));
+            insertionPoint = tt;
+        } else {
+            TR::TreeTop *prev = tt->getPrevTreeTop();
+            TR::TreeTop *next = tt->getNextTreeTop();
+            prev->join(next);
+            insertionPoint = prev;
+        }
 
-      //at the end of each OSR code block, we need to advance osrFrameIndex such that
-      //it points to the beginning of the next osr frame
-      //osrFrameIndex += osrMethodData->getTotalDataSize();
-      TR::TreeTop* osrFrameIndexAdvanceTreeTop = TR::TreeTop::create(comp,
-         TR::Node::createStore(self()->symRefTab()->findOrCreateOSRFrameIndexSymbolRef(),
-            TR::Node::create(TR::iadd, 2, osrFrameIndex,
-                            TR::Node::create(callNode, TR::iconst, 0, osrMethodData->getTotalDataSize())
-               )
-            )
-         );
-      insertionPoint->insertTreeTopsAfterMe(osrFrameIndexAdvanceTreeTop);
-      }
+        // at the end of each OSR code block, we need to advance osrFrameIndex such that
+        // it points to the beginning of the next osr frame
+        // osrFrameIndex += osrMethodData->getTotalDataSize();
+        TR::TreeTop *osrFrameIndexAdvanceTreeTop = TR::TreeTop::create(comp,
+            TR::Node::createStore(self()->symRefTab()->findOrCreateOSRFrameIndexSymbolRef(),
+                TR::Node::create(TR::iadd, 2, osrFrameIndex,
+                    TR::Node::create(callNode, TR::iconst, 0, osrMethodData->getTotalDataSize()))));
+        insertionPoint->insertTreeTopsAfterMe(osrFrameIndexAdvanceTreeTop);
+    }
 
+    for (int32_t i = 0; i < methodDataArray.size(); i++) {
+        TR_OSRMethodData *osrMethodData = methodDataArray[i];
+        // osrMethodData can be NULL when the inlined method didn't cause a call to ILGen (e.g., a jni method)
+        if (methodDataArray[i] == NULL)
+            continue;
+        // Initialize the number of syms that share slots to zero if it's hasn't been already initialized.
+        if (osrMethodData->getNumOfSymsThatShareSlot() == -1) {
+            osrMethodData->setNumOfSymsThatShareSlot(0);
+        }
+    }
 
-   for (int32_t i = 0; i < methodDataArray.size(); i++)
-      {
-      TR_OSRMethodData* osrMethodData = methodDataArray[i];
-      //osrMethodData can be NULL when the inlined method didn't cause a call to ILGen (e.g., a jni method)
-      if (methodDataArray[i] == NULL)
-         continue;
-      //Initialize the number of syms that share slots to zero if it's hasn't been already initialized.
-      if (osrMethodData->getNumOfSymsThatShareSlot() == -1)
-         {
-         osrMethodData->setNumOfSymsThatShareSlot(0);
-         }
-      }
-
-   comp->getOSRCompilationData()->setMaxScratchBufferSize(maxScratchBufferSize);
-   }
+    comp->getOSRCompilationData()->setMaxScratchBufferSize(maxScratchBufferSize);
+}
 
 static void addValidationRecords(TR::CodeGenerator *cg)
-   {
-   TR::Compilation *comp = cg->comp();
-   OMR::Logger *log = comp->log();
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(comp->fe());
-   bool trace = comp->getOption(TR_TraceCG);
+{
+    TR::Compilation *comp = cg->comp();
+    OMR::Logger *log = comp->log();
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(comp->fe());
+    bool trace = comp->getOption(TR_TraceCG);
 
-   TR::list<TR::AOTClassInfo*>* classInfo = comp->_aotClassInfo;
-   if (!classInfo->empty())
-      {
-      for (auto info = classInfo->begin(); info != classInfo->end(); ++info)
-         {
-         if (trace)
-            {
-            log->printf("processing AOT class info: %p in %s\n", *info, comp->signature());
-            log->printf("ramMethod: %p cp: %p cpIndex: %x relo %d\n", (*info)->_method, (*info)->_constantPool, (*info)->_cpIndex, (*info)->_reloKind);
-            log->printf("clazz: %p classChainOffset: %" OMR_PRIuPTR "\n", (*info)->_clazz, (*info)->_classChainOffset);
+    TR::list<TR::AOTClassInfo *> *classInfo = comp->_aotClassInfo;
+    if (!classInfo->empty()) {
+        for (auto info = classInfo->begin(); info != classInfo->end(); ++info) {
+            if (trace) {
+                log->printf("processing AOT class info: %p in %s\n", *info, comp->signature());
+                log->printf("ramMethod: %p cp: %p cpIndex: %x relo %d\n", (*info)->_method, (*info)->_constantPool,
+                    (*info)->_cpIndex, (*info)->_reloKind);
+                log->printf("clazz: %p classChainOffset: %" OMR_PRIuPTR "\n", (*info)->_clazz,
+                    (*info)->_classChainOffset);
             }
 
-         TR_OpaqueMethodBlock *ramMethod = (*info)->_method;
+            TR_OpaqueMethodBlock *ramMethod = (*info)->_method;
 
-         int32_t siteIndex = -1;
+            int32_t siteIndex = -1;
 
-         if (ramMethod != comp->getCurrentMethod()->getPersistentIdentifier()) // && info->_reloKind != TR_ValidateArbitraryClass)
+            if (ramMethod
+                != comp->getCurrentMethod()
+                       ->getPersistentIdentifier()) // && info->_reloKind != TR_ValidateArbitraryClass)
             {
-            int32_t i;
-            for (i = 0; i < comp->getNumInlinedCallSites(); i++)
-               {
-               TR_InlinedCallSite &ics = comp->getInlinedCallSite(i);
-               TR_OpaqueMethodBlock *inlinedMethod = fej9->getInlinedCallSiteMethod(&ics);
+                int32_t i;
+                for (i = 0; i < comp->getNumInlinedCallSites(); i++) {
+                    TR_InlinedCallSite &ics = comp->getInlinedCallSite(i);
+                    TR_OpaqueMethodBlock *inlinedMethod = fej9->getInlinedCallSiteMethod(&ics);
 
-               logprintf(trace, log, "\tinline site %d inlined method %p\n", i, inlinedMethod);
-               if (ramMethod == inlinedMethod)
-                  {
-                  logprints(trace, log, "\t\tmatch!\n");
-                  siteIndex = i;
-                  break;
-                  }
-               }
+                    logprintf(trace, log, "\tinline site %d inlined method %p\n", i, inlinedMethod);
+                    if (ramMethod == inlinedMethod) {
+                        logprints(trace, log, "\t\tmatch!\n");
+                        siteIndex = i;
+                        break;
+                    }
+                }
 
-            if (i >= (int32_t) comp->getNumInlinedCallSites())
-               {
-               // this assumption isn't associated with a method directly in the compilation
-               // so we can't use a constant pool approach to validate: transform into TR_ValidateArbitraryClass
-               // kind of overkill for TR_ValidateStaticField, but still correct
-               (*info)->_reloKind = TR_ValidateArbitraryClass;
-               siteIndex = -1;   // invalidate main compiled method
-               logprints(trace, log, "\ttransformed into TR_ValidateArbitraryClass\n");
-               }
+                if (i >= (int32_t)comp->getNumInlinedCallSites()) {
+                    // this assumption isn't associated with a method directly in the compilation
+                    // so we can't use a constant pool approach to validate: transform into TR_ValidateArbitraryClass
+                    // kind of overkill for TR_ValidateStaticField, but still correct
+                    (*info)->_reloKind = TR_ValidateArbitraryClass;
+                    siteIndex = -1; // invalidate main compiled method
+                    logprints(trace, log, "\ttransformed into TR_ValidateArbitraryClass\n");
+                }
             }
 
-         logprintf(trace, log, "Found inlined site %d\n", siteIndex);
+            logprintf(trace, log, "Found inlined site %d\n", siteIndex);
 
-         TR_ASSERT(siteIndex < (int32_t) comp->getNumInlinedCallSites(), "did not find AOTClassInfo %p method in inlined site table", *info);
+            TR_ASSERT(siteIndex < (int32_t)comp->getNumInlinedCallSites(),
+                "did not find AOTClassInfo %p method in inlined site table", *info);
 
-         cg->addExternalRelocation(
-            TR::ExternalRelocation::create(
-               NULL,
-               (uint8_t *)(intptr_t)siteIndex,
-               (uint8_t *)(*info),
-               (*info)->_reloKind,
-               cg),
-            __FILE__,
-            __LINE__,
-            NULL);
-         }
-      }
-   }
+            cg->addExternalRelocation(TR::ExternalRelocation::create(NULL, (uint8_t *)(intptr_t)siteIndex,
+                                          (uint8_t *)(*info), (*info)->_reloKind, cg),
+                __FILE__, __LINE__, NULL);
+        }
+    }
+}
 
 static void addSVMValidationRecords(TR::CodeGenerator *cg)
-   {
-   TR::SymbolValidationManager::SymbolValidationRecordList &validationRecords = cg->comp()->getSymbolValidationManager()->getValidationRecordList();
-   if (cg->comp()->getOption(TR_UseSymbolValidationManager))
-      {
-      // Add the flags in TR_AOTMethodHeader on the compile run
-      TR_AOTMethodHeader *aotMethodHeaderEntry = cg->comp()->getAotMethodHeaderEntry();
-      aotMethodHeaderEntry->flags |= TR_AOTMethodHeader_UsesSymbolValidationManager;
+{
+    TR::SymbolValidationManager::SymbolValidationRecordList &validationRecords
+        = cg->comp()->getSymbolValidationManager()->getValidationRecordList();
+    if (cg->comp()->getOption(TR_UseSymbolValidationManager)) {
+        // Add the flags in TR_AOTMethodHeader on the compile run
+        TR_AOTMethodHeader *aotMethodHeaderEntry = cg->comp()->getAotMethodHeaderEntry();
+        aotMethodHeaderEntry->flags |= TR_AOTMethodHeader_UsesSymbolValidationManager;
 
-      for (auto it = validationRecords.begin(); it != validationRecords.end(); it++)
-         {
-         cg->addExternalRelocation(
-            TR::ExternalRelocation::create(
-               NULL,
-               (uint8_t *)(*it),
-               (*it)->_kind,
-               cg),
-            __FILE__,
-            __LINE__,
-            NULL);
-         }
-      }
-   }
+        for (auto it = validationRecords.begin(); it != validationRecords.end(); it++) {
+            cg->addExternalRelocation(TR::ExternalRelocation::create(NULL, (uint8_t *)(*it), (*it)->_kind, cg),
+                __FILE__, __LINE__, NULL);
+        }
+    }
+}
 
 static TR_ExternalRelocationTargetKind getReloKindFromGuardSite(TR::CodeGenerator *cg, TR_AOTGuardSite *site)
-   {
-   TR::Compilation *comp = cg->comp();
-   OMR::Logger *log = comp->log();
-   bool trace = comp->getOption(TR_TraceCG);
-   TR_ExternalRelocationTargetKind type;
+{
+    TR::Compilation *comp = cg->comp();
+    OMR::Logger *log = comp->log();
+    bool trace = comp->getOption(TR_TraceCG);
+    TR_ExternalRelocationTargetKind type;
 
-   switch (site->getType())
-      {
-      case TR_DirectMethodGuard:
-         if (site->getGuard()->getSymbolReference()->getSymbol()->getMethodSymbol()->isStatic())
-            type = TR_InlinedStaticMethodWithNopGuard;
-         else if (site->getGuard()->getSymbolReference()->getSymbol()->getMethodSymbol()->isSpecial())
-            type = TR_InlinedSpecialMethodWithNopGuard;
-         else if (site->getGuard()->getSymbolReference()->getSymbol()->getMethodSymbol()->isVirtual())
-            type = TR_InlinedVirtualMethodWithNopGuard;
-         else
-            TR_ASSERT(0, "unexpected AOTDirectMethodGuard method symbol");
-         break;
-
-      case TR_NonoverriddenGuard:
-         type = TR_InlinedVirtualMethodWithNopGuard;
-         break;
-
-      case TR_InterfaceGuard:
-         type = TR_InlinedInterfaceMethodWithNopGuard;
-         break;
-
-      case TR_AbstractGuard:
-         type = TR_InlinedAbstractMethodWithNopGuard;
-         break;
-
-      case TR_HCRGuard:
-         // devinmp: TODO/FIXME this should arrange to create an AOT
-         // relocation which, when loaded, creates a
-         // TR_PatchNOPedGuardSiteOnClassRedefinition or similar.
-         // Here we would previously create a TR_HCR relocation,
-         // which is for replacing J9Class or J9Method pointers.
-         // These would be the 'unresolved' variant
-         // (TR_RedefinedClassUPicSite), which would (hopefully) never
-         // get patched. If it were patched, it seems like it would
-         // replace code with a J9Method pointer.
-         if (!comp->getOption(TR_UseOldHCRGuardAOTRelocations))
-            type = TR_NoRelocation;
-         else
-            type = TR_HCR;
-         break;
-
-      case TR_MethodEnterExitGuard:
-         if (site->getGuard()->getCallNode()->getOpCodeValue() == TR::MethodEnterHook)
-            type = TR_CheckMethodEnter;
-         else if (site->getGuard()->getCallNode()->getOpCodeValue() == TR::MethodExitHook)
-            type = TR_CheckMethodExit;
-         else
-            TR_ASSERT(0,"Unexpected TR_MethodEnterExitGuard at site %p guard %p node %p\n",
-                              site, site->getGuard(), site->getGuard()->getCallNode());
-         break;
-
-      case TR_ProfiledGuard:
-         if (site->getGuard()->getTestType() == TR_MethodTest)
-            {
-            type = TR_ProfiledMethodGuardRelocation;
-            logprints(trace, log, "TR_ProfiledMethodGuardRelocation\n");
-            }
-         else if (site->getGuard()->getTestType() == TR_VftTest)
-            {
-            type = TR_ProfiledClassGuardRelocation;
-            logprints(trace, log, "TR_ProfiledClassGuardRelocation\n");
-            }
-         else
-            TR_ASSERT(false, "unexpected profiled guard test type");
-         break;
-
-      case TR_BreakpointGuard:
-         logprints(trace, log, "TR_Breakpoint\n");
-         type = TR_Breakpoint;
-         break;
-
-      default:
-         TR_ASSERT(false, "got a unknown/non-AOT guard at AOT site");
-         comp->failCompilation<J9::AOTRelocationRecordGenerationFailure>("Unknown/non-AOT guard at AOT site");
-         break;
-      }
-
-   return type;
-   }
-
-static void processAOTGuardSites(TR::CodeGenerator *cg, uint32_t inlinedCallSize, TR_InlinedSiteHashTableEntry *orderedInlinedSiteListTable)
-   {
-   TR::list<TR_AOTGuardSite*> *aotGuardSites = cg->comp()->getAOTGuardPatchSites();
-   for(auto it = aotGuardSites->begin(); it != aotGuardSites->end(); ++it)
-      {
-      // first, figure out the appropriate relocation record type from the guard type and symbol
-      TR_ExternalRelocationTargetKind type = getReloKindFromGuardSite(cg, (*it));
-
-      switch (type)  // relocation record type
-         {
-         case TR_InlinedStaticMethodWithNopGuard:
-         case TR_InlinedSpecialMethodWithNopGuard:
-         case TR_InlinedVirtualMethodWithNopGuard:
-         case TR_InlinedInterfaceMethodWithNopGuard:
-         case TR_InlinedAbstractMethodWithNopGuard:
-         case TR_ProfiledClassGuardRelocation:
-         case TR_ProfiledMethodGuardRelocation:
-         case TR_ProfiledInlinedMethodRelocation:
-         case TR_InlinedVirtualMethod:
-         case TR_InlinedInterfaceMethod:
-            {
-            TR_ASSERT(inlinedCallSize, "TR_AOT expect inlinedCallSize to be larger than 0\n");
-            intptr_t inlinedSiteIndex = (intptr_t)(*it)->getGuard()->getCurrentInlinedSiteIndex();
-            TR_InlinedSiteLinkedListEntry *entry = (TR_InlinedSiteLinkedListEntry *)cg->comp()->trMemory()->allocateMemory(sizeof(TR_InlinedSiteLinkedListEntry), heapAlloc);
-
-            entry->reloType = type;
-            entry->location = (uint8_t *)(*it)->getLocation();
-            entry->destination = (uint8_t *)(*it)->getDestination();
-            entry->guard = (uint8_t *)(*it)->getGuard();
-            entry->next = NULL;
-
-            if (orderedInlinedSiteListTable[inlinedSiteIndex].first)
-               {
-               orderedInlinedSiteListTable[inlinedSiteIndex].last->next = entry;
-               orderedInlinedSiteListTable[inlinedSiteIndex].last = entry;
-               }
+    switch (site->getType()) {
+        case TR_DirectMethodGuard:
+            if (site->getGuard()->getSymbolReference()->getSymbol()->getMethodSymbol()->isStatic())
+                type = TR_InlinedStaticMethodWithNopGuard;
+            else if (site->getGuard()->getSymbolReference()->getSymbol()->getMethodSymbol()->isSpecial())
+                type = TR_InlinedSpecialMethodWithNopGuard;
+            else if (site->getGuard()->getSymbolReference()->getSymbol()->getMethodSymbol()->isVirtual())
+                type = TR_InlinedVirtualMethodWithNopGuard;
             else
-               {
-               orderedInlinedSiteListTable[inlinedSiteIndex].first = entry;
-               orderedInlinedSiteListTable[inlinedSiteIndex].last = entry;
-               }
-            }
+                TR_ASSERT(0, "unexpected AOTDirectMethodGuard method symbol");
             break;
 
-         case TR_CheckMethodEnter:
-         case TR_CheckMethodExit:
-         case TR_HCR:
-            cg->addExternalRelocation(
-               TR::ExternalRelocation::create(
-                  (uint8_t *)(*it)->getLocation(),
-                  (uint8_t *)(*it)->getDestination(),
-                  type,
-                  cg),
-               __FILE__,
-               __LINE__,
-               NULL);
+        case TR_NonoverriddenGuard:
+            type = TR_InlinedVirtualMethodWithNopGuard;
             break;
 
-         case TR_Breakpoint:
-            cg->addExternalRelocation(
-               TR::ExternalRelocation::create(
-                  (uint8_t *)(*it)->getLocation(),
-                  (uint8_t *)(intptr_t)(*it)->getGuard()->getCurrentInlinedSiteIndex(),
-                  (uint8_t *)(*it)->getDestination(),
-                  type,
-                  cg),
-               __FILE__,
-               __LINE__,
-               NULL);
+        case TR_InterfaceGuard:
+            type = TR_InlinedInterfaceMethodWithNopGuard;
             break;
 
-         case TR_NoRelocation:
+        case TR_AbstractGuard:
+            type = TR_InlinedAbstractMethodWithNopGuard;
             break;
 
-         default:
+        case TR_HCRGuard:
+            // devinmp: TODO/FIXME this should arrange to create an AOT
+            // relocation which, when loaded, creates a
+            // TR_PatchNOPedGuardSiteOnClassRedefinition or similar.
+            // Here we would previously create a TR_HCR relocation,
+            // which is for replacing J9Class or J9Method pointers.
+            // These would be the 'unresolved' variant
+            // (TR_RedefinedClassUPicSite), which would (hopefully) never
+            // get patched. If it were patched, it seems like it would
+            // replace code with a J9Method pointer.
+            if (!comp->getOption(TR_UseOldHCRGuardAOTRelocations))
+                type = TR_NoRelocation;
+            else
+                type = TR_HCR;
+            break;
+
+        case TR_MethodEnterExitGuard:
+            if (site->getGuard()->getCallNode()->getOpCodeValue() == TR::MethodEnterHook)
+                type = TR_CheckMethodEnter;
+            else if (site->getGuard()->getCallNode()->getOpCodeValue() == TR::MethodExitHook)
+                type = TR_CheckMethodExit;
+            else
+                TR_ASSERT(0, "Unexpected TR_MethodEnterExitGuard at site %p guard %p node %p\n", site, site->getGuard(),
+                    site->getGuard()->getCallNode());
+            break;
+
+        case TR_ProfiledGuard:
+            if (site->getGuard()->getTestType() == TR_MethodTest) {
+                type = TR_ProfiledMethodGuardRelocation;
+                logprints(trace, log, "TR_ProfiledMethodGuardRelocation\n");
+            } else if (site->getGuard()->getTestType() == TR_VftTest) {
+                type = TR_ProfiledClassGuardRelocation;
+                logprints(trace, log, "TR_ProfiledClassGuardRelocation\n");
+            } else
+                TR_ASSERT(false, "unexpected profiled guard test type");
+            break;
+
+        case TR_BreakpointGuard:
+            logprints(trace, log, "TR_Breakpoint\n");
+            type = TR_Breakpoint;
+            break;
+
+        default:
             TR_ASSERT(false, "got a unknown/non-AOT guard at AOT site");
-            cg->comp()->failCompilation<J9::AOTRelocationRecordGenerationFailure>("Unknown/non-AOT guard at AOT site");
+            comp->failCompilation<J9::AOTRelocationRecordGenerationFailure>("Unknown/non-AOT guard at AOT site");
             break;
-         }
-      }
-   }
+    }
 
-static void addInlinedSiteRelocation(TR::CodeGenerator *cg,
-                                     TR_ExternalRelocationTargetKind reloType,
-                                     uint8_t *reloLocation,
-                                     int32_t inlinedSiteIndex,
-                                     TR::SymbolReference *callSymref,
-                                     TR_OpaqueClassBlock *receiver,
-                                     uint8_t *destinationAddress)
-   {
-   TR_ASSERT_FATAL(reloType != TR_NoRelocation, "TR_NoRelocation specified as reloType for inlinedSiteIndex=%d, reloLocation=%p, callSymref=%p, receiver=%p",
-                   inlinedSiteIndex, reloLocation, callSymref, receiver);
+    return type;
+}
 
-   TR_RelocationRecordInformation *info = new (cg->comp()->trHeapMemory()) TR_RelocationRecordInformation();
-   info->data1 = static_cast<uintptr_t>(inlinedSiteIndex);
-   info->data2 = reinterpret_cast<uintptr_t>(callSymref);
-   info->data3 = reinterpret_cast<uintptr_t>(receiver);
-   info->data4 = reinterpret_cast<uintptr_t>(destinationAddress);
+static void processAOTGuardSites(TR::CodeGenerator *cg, uint32_t inlinedCallSize,
+    TR_InlinedSiteHashTableEntry *orderedInlinedSiteListTable)
+{
+    TR::list<TR_AOTGuardSite *> *aotGuardSites = cg->comp()->getAOTGuardPatchSites();
+    for (auto it = aotGuardSites->begin(); it != aotGuardSites->end(); ++it) {
+        // first, figure out the appropriate relocation record type from the guard type and symbol
+        TR_ExternalRelocationTargetKind type = getReloKindFromGuardSite(cg, (*it));
 
-   cg->addExternalRelocation(
-      TR::ExternalRelocation::create(
-         reloLocation,
-         (uint8_t *)info,
-         reloType,
-         cg),
-      __FILE__,
-      __LINE__,
-      NULL);
-   }
+        switch (type) // relocation record type
+        {
+            case TR_InlinedStaticMethodWithNopGuard:
+            case TR_InlinedSpecialMethodWithNopGuard:
+            case TR_InlinedVirtualMethodWithNopGuard:
+            case TR_InlinedInterfaceMethodWithNopGuard:
+            case TR_InlinedAbstractMethodWithNopGuard:
+            case TR_ProfiledClassGuardRelocation:
+            case TR_ProfiledMethodGuardRelocation:
+            case TR_ProfiledInlinedMethodRelocation:
+            case TR_InlinedVirtualMethod:
+            case TR_InlinedInterfaceMethod: {
+                TR_ASSERT(inlinedCallSize, "TR_AOT expect inlinedCallSize to be larger than 0\n");
+                intptr_t inlinedSiteIndex = (intptr_t)(*it)->getGuard()->getCurrentInlinedSiteIndex();
+                TR_InlinedSiteLinkedListEntry *entry
+                    = (TR_InlinedSiteLinkedListEntry *)cg->comp()->trMemory()->allocateMemory(
+                        sizeof(TR_InlinedSiteLinkedListEntry), heapAlloc);
 
-static void addInliningTableRelocations(TR::CodeGenerator *cg, uint32_t inlinedCallSize, TR_InlinedSiteHashTableEntry *orderedInlinedSiteListTable)
-   {
-   // If have inlined calls, now add the relocation records in descending order
-   // of inlined site index (at relocation time, the order is reverse)
-   if (inlinedCallSize > 0)
-      {
-      for (int32_t counter = inlinedCallSize - 1; counter >= 0 ; counter--)
-         {
-         TR_InlinedSiteLinkedListEntry *currentSite = orderedInlinedSiteListTable[counter].first;
+                entry->reloType = type;
+                entry->location = (uint8_t *)(*it)->getLocation();
+                entry->destination = (uint8_t *)(*it)->getDestination();
+                entry->guard = (uint8_t *)(*it)->getGuard();
+                entry->next = NULL;
 
-         if (currentSite)
-            {
-            do
-               {
-               TR_VirtualGuard *guard = reinterpret_cast<TR_VirtualGuard *>(currentSite->guard);
+                if (orderedInlinedSiteListTable[inlinedSiteIndex].first) {
+                    orderedInlinedSiteListTable[inlinedSiteIndex].last->next = entry;
+                    orderedInlinedSiteListTable[inlinedSiteIndex].last = entry;
+                } else {
+                    orderedInlinedSiteListTable[inlinedSiteIndex].first = entry;
+                    orderedInlinedSiteListTable[inlinedSiteIndex].last = entry;
+                }
+            } break;
 
-               addInlinedSiteRelocation(cg, currentSite->reloType, currentSite->location, counter, guard->getSymbolReference(), guard->getThisClass(), currentSite->destination);
+            case TR_CheckMethodEnter:
+            case TR_CheckMethodExit:
+            case TR_HCR:
+                cg->addExternalRelocation(TR::ExternalRelocation::create((uint8_t *)(*it)->getLocation(),
+                                              (uint8_t *)(*it)->getDestination(), type, cg),
+                    __FILE__, __LINE__, NULL);
+                break;
 
-               currentSite = currentSite->next;
-               }
-            while(currentSite);
+            case TR_Breakpoint:
+                cg->addExternalRelocation(TR::ExternalRelocation::create((uint8_t *)(*it)->getLocation(),
+                                              (uint8_t *)(intptr_t)(*it)->getGuard()->getCurrentInlinedSiteIndex(),
+                                              (uint8_t *)(*it)->getDestination(), type, cg),
+                    __FILE__, __LINE__, NULL);
+                break;
+
+            case TR_NoRelocation:
+                break;
+
+            default:
+                TR_ASSERT(false, "got a unknown/non-AOT guard at AOT site");
+                cg->comp()->failCompilation<J9::AOTRelocationRecordGenerationFailure>(
+                    "Unknown/non-AOT guard at AOT site");
+                break;
+        }
+    }
+}
+
+static void addInlinedSiteRelocation(TR::CodeGenerator *cg, TR_ExternalRelocationTargetKind reloType,
+    uint8_t *reloLocation, int32_t inlinedSiteIndex, TR::SymbolReference *callSymref, TR_OpaqueClassBlock *receiver,
+    uint8_t *destinationAddress)
+{
+    TR_ASSERT_FATAL(reloType != TR_NoRelocation,
+        "TR_NoRelocation specified as reloType for inlinedSiteIndex=%d, reloLocation=%p, callSymref=%p, receiver=%p",
+        inlinedSiteIndex, reloLocation, callSymref, receiver);
+
+    TR_RelocationRecordInformation *info = new (cg->comp()->trHeapMemory()) TR_RelocationRecordInformation();
+    info->data1 = static_cast<uintptr_t>(inlinedSiteIndex);
+    info->data2 = reinterpret_cast<uintptr_t>(callSymref);
+    info->data3 = reinterpret_cast<uintptr_t>(receiver);
+    info->data4 = reinterpret_cast<uintptr_t>(destinationAddress);
+
+    cg->addExternalRelocation(TR::ExternalRelocation::create(reloLocation, (uint8_t *)info, reloType, cg), __FILE__,
+        __LINE__, NULL);
+}
+
+static void addInliningTableRelocations(TR::CodeGenerator *cg, uint32_t inlinedCallSize,
+    TR_InlinedSiteHashTableEntry *orderedInlinedSiteListTable)
+{
+    // If have inlined calls, now add the relocation records in descending order
+    // of inlined site index (at relocation time, the order is reverse)
+    if (inlinedCallSize > 0) {
+        for (int32_t counter = inlinedCallSize - 1; counter >= 0; counter--) {
+            TR_InlinedSiteLinkedListEntry *currentSite = orderedInlinedSiteListTable[counter].first;
+
+            if (currentSite) {
+                do {
+                    TR_VirtualGuard *guard = reinterpret_cast<TR_VirtualGuard *>(currentSite->guard);
+
+                    addInlinedSiteRelocation(cg, currentSite->reloType, currentSite->location, counter,
+                        guard->getSymbolReference(), guard->getThisClass(), currentSite->destination);
+
+                    currentSite = currentSite->next;
+                } while (currentSite);
+            } else {
+                TR_AOTMethodInfo *methodInfo = cg->comp()->getInlinedAOTMethodInfo(counter);
+
+                addInlinedSiteRelocation(cg, methodInfo->reloKind, NULL, counter, methodInfo->callSymRef,
+                    methodInfo->receiver, NULL);
             }
-         else
-            {
-            TR_AOTMethodInfo *methodInfo = cg->comp()->getInlinedAOTMethodInfo(counter);
+        }
+    }
+}
 
-            addInlinedSiteRelocation(cg, methodInfo->reloKind, NULL, counter, methodInfo->callSymRef, methodInfo->receiver, NULL);
-            }
-         }
-      }
-   }
+void J9::CodeGenerator::processRelocations()
+{
+    // Project neutral non-AOT processRelocation
+    // This should be done first to ensure that the
+    // external relocations are generated after the
+    // code is in its final form.
+    OMR::CodeGeneratorConnector::processRelocations();
 
-void
-J9::CodeGenerator::processRelocations()
-   {
-   // Project neutral non-AOT processRelocation
-   // This should be done first to ensure that the
-   // external relocations are generated after the
-   // code is in its final form.
-   OMR::CodeGeneratorConnector::processRelocations();
+    if (self()->comp()->compileRelocatableCode()) {
+        uint32_t inlinedCallSize = self()->comp()->getNumInlinedCallSites();
 
-   if (self()->comp()->compileRelocatableCode())
-      {
-      uint32_t inlinedCallSize = self()->comp()->getNumInlinedCallSites();
+        // Create temporary hashtable for ordering AOT guard relocations
+        TR_InlinedSiteHashTableEntry *orderedInlinedSiteListTable = NULL;
+        if (inlinedCallSize > 0) {
+            orderedInlinedSiteListTable = (TR_InlinedSiteHashTableEntry *)self()->comp()->trMemory()->allocateMemory(
+                sizeof(TR_InlinedSiteHashTableEntry) * inlinedCallSize, heapAlloc);
+            memset(orderedInlinedSiteListTable, 0, sizeof(TR_InlinedSiteHashTableEntry) * inlinedCallSize);
+        }
 
-      // Create temporary hashtable for ordering AOT guard relocations
-      TR_InlinedSiteHashTableEntry *orderedInlinedSiteListTable = NULL;
-      if (inlinedCallSize > 0)
-         {
-         orderedInlinedSiteListTable= (TR_InlinedSiteHashTableEntry*)self()->comp()->trMemory()->allocateMemory(sizeof(TR_InlinedSiteHashTableEntry) * inlinedCallSize, heapAlloc);
-         memset(orderedInlinedSiteListTable, 0, sizeof(TR_InlinedSiteHashTableEntry)*inlinedCallSize);
-         }
+        // Traverse list of AOT-specific guards and create relocation records
+        processAOTGuardSites(self(), inlinedCallSize, orderedInlinedSiteListTable);
 
-      // Traverse list of AOT-specific guards and create relocation records
-      processAOTGuardSites(self(), inlinedCallSize, orderedInlinedSiteListTable);
+        // Add non-SVM validation records
+        addValidationRecords(self());
 
-      // Add non-SVM validation records
-      addValidationRecords(self());
-
-      // If have inlined calls, now add the relocation records in descending order of inlined site index (at relocation time, the order is reverse)
-      addInliningTableRelocations(self(), inlinedCallSize, orderedInlinedSiteListTable);
-      }
+        // If have inlined calls, now add the relocation records in descending order of inlined site index (at
+        // relocation time, the order is reverse)
+        addInliningTableRelocations(self(), inlinedCallSize, orderedInlinedSiteListTable);
+    }
 
 #if defined(J9VM_OPT_JITSERVER)
-   if (self()->comp()->compileRelocatableCode() || self()->comp()->isOutOfProcessCompilation())
+    if (self()->comp()->compileRelocatableCode() || self()->comp()->isOutOfProcessCompilation())
 #else
-   if (self()->comp()->compileRelocatableCode())
+    if (self()->comp()->compileRelocatableCode())
 #endif /* defined(J9VM_OPT_JITSERVER) */
-      {
-      // Add SVM validation records
-      addSVMValidationRecords(self());
+    {
+        // Add SVM validation records
+        addSVMValidationRecords(self());
 
-      // Now call the platform specific processing of relocations
-      self()->getAheadOfTimeCompile()->processRelocations();
-      }
+        // Now call the platform specific processing of relocations
+        self()->getAheadOfTimeCompile()->processRelocations();
+    }
 
-   // Traverse the AOT/external labels
-   for (auto aotIterator = self()->getExternalRelocationList().begin(); aotIterator != self()->getExternalRelocationList().end(); ++aotIterator)
-      {
-      (*aotIterator)->apply(self());
-      }
-   }
+    // Traverse the AOT/external labels
+    for (auto aotIterator = self()->getExternalRelocationList().begin();
+         aotIterator != self()->getExternalRelocationList().end(); ++aotIterator) {
+        (*aotIterator)->apply(self());
+    }
+}
 
 #if defined(J9VM_OPT_JITSERVER)
-void J9::CodeGenerator::addExternalRelocation(TR::Relocation *r, const char *generatingFileName, uintptr_t generatingLineNumber, TR::Node *node, TR::ExternalRelocationPositionRequest where)
-   {
-   TR_ASSERT(generatingFileName, "External relocation location has improper NULL filename specified");
-   if (self()->comp()->compileRelocatableCode() || self()->comp()->isOutOfProcessCompilation())
-      {
-      TR::RelocationDebugInfo *genData = new(self()->trHeapMemory()) TR::RelocationDebugInfo;
-      genData->file = generatingFileName;
-      genData->line = generatingLineNumber;
-      genData->node = node;
-      self()->addExternalRelocation(r, genData, where);
-      }
-   }
+void J9::CodeGenerator::addExternalRelocation(TR::Relocation *r, const char *generatingFileName,
+    uintptr_t generatingLineNumber, TR::Node *node, TR::ExternalRelocationPositionRequest where)
+{
+    TR_ASSERT(generatingFileName, "External relocation location has improper NULL filename specified");
+    if (self()->comp()->compileRelocatableCode() || self()->comp()->isOutOfProcessCompilation()) {
+        TR::RelocationDebugInfo *genData = new (self()->trHeapMemory()) TR::RelocationDebugInfo;
+        genData->file = generatingFileName;
+        genData->line = generatingLineNumber;
+        genData->node = node;
+        self()->addExternalRelocation(r, genData, where);
+    }
+}
 
-void J9::CodeGenerator::addExternalRelocation(TR::Relocation *r, TR::RelocationDebugInfo* info, TR::ExternalRelocationPositionRequest where)
-   {
-   if (self()->comp()->compileRelocatableCode() || self()->comp()->isOutOfProcessCompilation())
-      {
-      TR_ASSERT(info, "External relocation location does not have associated debug information");
-      r->setDebugInfo(info);
-      switch (where)
-         {
-         case TR::ExternalRelocationAtFront:
-            _externalRelocationList.push_front(r);
-            break;
+void J9::CodeGenerator::addExternalRelocation(TR::Relocation *r, TR::RelocationDebugInfo *info,
+    TR::ExternalRelocationPositionRequest where)
+{
+    if (self()->comp()->compileRelocatableCode() || self()->comp()->isOutOfProcessCompilation()) {
+        TR_ASSERT(info, "External relocation location does not have associated debug information");
+        r->setDebugInfo(info);
+        switch (where) {
+            case TR::ExternalRelocationAtFront:
+                _externalRelocationList.push_front(r);
+                break;
 
-         case TR::ExternalRelocationAtBack:
-            _externalRelocationList.push_back(r);
-            break;
+            case TR::ExternalRelocationAtBack:
+                _externalRelocationList.push_back(r);
+                break;
 
-         default:
-            TR_ASSERT_FATAL(
-               false,
-               "invalid TR::ExternalRelocationPositionRequest %d",
-               where);
-            break;
-         }
-      }
-   }
+            default:
+                TR_ASSERT_FATAL(false, "invalid TR::ExternalRelocationPositionRequest %d", where);
+                break;
+        }
+    }
+}
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
 void J9::CodeGenerator::addProjectSpecializedRelocation(uint8_t *location, uint8_t *target, uint8_t *target2,
-      TR_ExternalRelocationTargetKind kind, const char *generatingFileName, uintptr_t generatingLineNumber, TR::Node *node)
-   {
-   (target2 == NULL) ?
-         self()->addExternalRelocation(
-            TR::ExternalRelocation::create(
-               location,
-               target,
-               kind,
-               self()),
-            generatingFileName,
-            generatingLineNumber,
-            node) :
-         self()->addExternalRelocation(
-            TR::ExternalRelocation::create(
-               location,
-               target,
-               target2,
-               kind,
-               self()),
-            generatingFileName,
-            generatingLineNumber,
-            node);
-   }
+    TR_ExternalRelocationTargetKind kind, const char *generatingFileName, uintptr_t generatingLineNumber,
+    TR::Node *node)
+{
+    (target2 == NULL)
+        ? self()->addExternalRelocation(TR::ExternalRelocation::create(location, target, kind, self()),
+              generatingFileName, generatingLineNumber, node)
+        : self()->addExternalRelocation(TR::ExternalRelocation::create(location, target, target2, kind, self()),
+              generatingFileName, generatingLineNumber, node);
+}
 
 void J9::CodeGenerator::addProjectSpecializedRelocation(TR::Instruction *instr, uint8_t *target, uint8_t *target2,
-      TR_ExternalRelocationTargetKind kind, const char *generatingFileName, uintptr_t generatingLineNumber, TR::Node *node)
-   {
-   (target2 == NULL) ?
-         self()->addExternalRelocation(new (self()->trHeapMemory()) TR::BeforeBinaryEncodingExternalRelocation(instr, target, kind, self()),
-               generatingFileName, generatingLineNumber, node) :
-         self()->addExternalRelocation(new (self()->trHeapMemory()) TR::BeforeBinaryEncodingExternalRelocation(instr, target, target2, kind, self()),
-               generatingFileName, generatingLineNumber, node);
-   }
+    TR_ExternalRelocationTargetKind kind, const char *generatingFileName, uintptr_t generatingLineNumber,
+    TR::Node *node)
+{
+    (target2 == NULL)
+        ? self()->addExternalRelocation(new (self()->trHeapMemory())
+                                            TR::BeforeBinaryEncodingExternalRelocation(instr, target, kind, self()),
+              generatingFileName, generatingLineNumber, node)
+        : self()->addExternalRelocation(new (self()->trHeapMemory()) TR::BeforeBinaryEncodingExternalRelocation(instr,
+                                            target, target2, kind, self()),
+              generatingFileName, generatingLineNumber, node);
+}
 
 void J9::CodeGenerator::addProjectSpecializedPairRelocation(uint8_t *location, uint8_t *location2, uint8_t *target,
-      TR_ExternalRelocationTargetKind kind, const char *generatingFileName, uintptr_t generatingLineNumber, TR::Node *node)
-   {
-   self()->addExternalRelocation(new (self()->trHeapMemory()) TR::ExternalOrderedPair32BitRelocation(location, location2, target, kind, self()),
-         generatingFileName, generatingLineNumber, node);
-   }
+    TR_ExternalRelocationTargetKind kind, const char *generatingFileName, uintptr_t generatingLineNumber,
+    TR::Node *node)
+{
+    self()->addExternalRelocation(new (self()->trHeapMemory())
+                                      TR::ExternalOrderedPair32BitRelocation(location, location2, target, kind, self()),
+        generatingFileName, generatingLineNumber, node);
+}
 
+TR::Node *J9::CodeGenerator::createOrFindClonedNode(TR::Node *node, int32_t numChildren)
+{
+    TR_HashId index;
+    if (!_uncommonedNodes.locate(node->getGlobalIndex(), index)) {
+        // has not been uncommoned already, clone and store for later
+        TR::Node *clone = TR::Node::copy(node, numChildren);
+        _uncommonedNodes.add(node->getGlobalIndex(), index, clone);
+        node = clone;
+    } else {
+        // found previously cloned node
+        node = (TR::Node *)_uncommonedNodes.getData(index);
+    }
+    return node;
+}
 
-TR::Node *
-J9::CodeGenerator::createOrFindClonedNode(TR::Node *node, int32_t numChildren)
-   {
-   TR_HashId index;
-   if (!_uncommonedNodes.locate(node->getGlobalIndex(), index))
-      {
-      // has not been uncommoned already, clone and store for later
-      TR::Node *clone = TR::Node::copy(node, numChildren);
-      _uncommonedNodes.add(node->getGlobalIndex(), index, clone);
-      node = clone;
-      }
-   else
-      {
-      // found previously cloned node
-      node = (TR::Node *) _uncommonedNodes.getData(index);
-      }
-   return node;
-   }
-
-
-void
-J9::CodeGenerator::jitAddUnresolvedAddressMaterializationToPatchOnClassRedefinition(void *firstInstruction)
-   {
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(self()->fe());
+void J9::CodeGenerator::jitAddUnresolvedAddressMaterializationToPatchOnClassRedefinition(void *firstInstruction)
+{
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(self()->fe());
 #if defined(J9VM_OPT_JITSERVER)
-   if (self()->comp()->compileRelocatableCode() || self()->comp()->isOutOfProcessCompilation())
+    if (self()->comp()->compileRelocatableCode() || self()->comp()->isOutOfProcessCompilation())
 #else
-   if (self()->comp()->compileRelocatableCode())
+    if (self()->comp()->compileRelocatableCode())
 #endif /* defined(J9VM_OPT_JITSERVER) */
-      {
-      self()->addExternalRelocation(
-         TR::ExternalRelocation::create(
-            (uint8_t *)firstInstruction,
-            0,
-            TR_HCR,
-            self()),
-         __FILE__,
-         __LINE__,
-         NULL);
-      }
-   else
-      {
-      createClassRedefinitionPicSite((void*)-1, firstInstruction, 1 /* see OMR::RuntimeAssumption::isForAddressMaterializationSequence */, true, self()->comp()->getMetadataAssumptionList());
-      self()->comp()->setHasClassRedefinitionAssumptions();
-      }
-   }
-
+    {
+        self()->addExternalRelocation(TR::ExternalRelocation::create((uint8_t *)firstInstruction, 0, TR_HCR, self()),
+            __FILE__, __LINE__, NULL);
+    } else {
+        createClassRedefinitionPicSite((void *)-1, firstInstruction,
+            1 /* see OMR::RuntimeAssumption::isForAddressMaterializationSequence */, true,
+            self()->comp()->getMetadataAssumptionList());
+        self()->comp()->setHasClassRedefinitionAssumptions();
+    }
+}
 
 // J9
 //
-void
-J9::CodeGenerator::compressedReferenceRematerialization()
-   {
-   TR::TreeTop * tt;
-   TR::Node *node;
-   TR::Compilation *comp = self()->comp();
-   OMR::Logger *log = comp->log();
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(self()->fe());
-   bool trace = comp->getOption(TR_TraceCG);
+void J9::CodeGenerator::compressedReferenceRematerialization()
+{
+    TR::TreeTop *tt;
+    TR::Node *node;
+    TR::Compilation *comp = self()->comp();
+    OMR::Logger *log = comp->log();
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(self()->fe());
+    bool trace = comp->getOption(TR_TraceCG);
 
-   static bool disableRematforCP = feGetEnv("TR_DisableWrtBarOpt") != NULL;
+    static bool disableRematforCP = feGetEnv("TR_DisableWrtBarOpt") != NULL;
 
-   // The compressedrefs remat opt removes decompression/compression sequences from
-   // loads/stores where there doesn't exist a gc point between the load and the store,
-   // and the load doesn't need to be dereferenced.
-   // The opt needs to be disabled for the following cases:
-   // 1. In Guarded Storage, we can't not do a guarded load because the object that is loaded may
-   // not be in the root set, and as a consequence, may get moved.
-   // 2. For read barriers in field watch, the vmhelpers are GC points and therefore the object might be moved
-   if (TR::Compiler->om.readBarrierType() != gc_modron_readbar_none || comp->getOption(TR_EnableFieldWatch))
-      {
-      if ((TR::Compiler->om.readBarrierType() != gc_modron_readbar_none) && trace)
-         log->prints("The compressedrefs remat opt is disabled because Concurrent Scavenger is enabled\n");
-      if (comp->getOption(TR_EnableFieldWatch) && trace)
-         log->prints("The compressedrefs remat opt is disabled because field watch is enabled\n");
-      disableRematforCP = true;
-      }
+    // The compressedrefs remat opt removes decompression/compression sequences from
+    // loads/stores where there doesn't exist a gc point between the load and the store,
+    // and the load doesn't need to be dereferenced.
+    // The opt needs to be disabled for the following cases:
+    // 1. In Guarded Storage, we can't not do a guarded load because the object that is loaded may
+    // not be in the root set, and as a consequence, may get moved.
+    // 2. For read barriers in field watch, the vmhelpers are GC points and therefore the object might be moved
+    if (TR::Compiler->om.readBarrierType() != gc_modron_readbar_none || comp->getOption(TR_EnableFieldWatch)) {
+        if ((TR::Compiler->om.readBarrierType() != gc_modron_readbar_none) && trace)
+            log->prints("The compressedrefs remat opt is disabled because Concurrent Scavenger is enabled\n");
+        if (comp->getOption(TR_EnableFieldWatch) && trace)
+            log->prints("The compressedrefs remat opt is disabled because field watch is enabled\n");
+        disableRematforCP = true;
+    }
 
-   // no need to rematerialize for lowMemHeap
-   if (comp->useCompressedPointers() &&
-         (TR::Compiler->om.compressedReferenceShift() != 0) &&
-         !disableRematforCP)
-      {
-      if (comp->getOption(TR_TraceCG))
-         comp->dumpMethodTrees(log, "Trees before this remat phase", comp->getMethodSymbol());
+    // no need to rematerialize for lowMemHeap
+    if (comp->useCompressedPointers() && (TR::Compiler->om.compressedReferenceShift() != 0) && !disableRematforCP) {
+        if (comp->getOption(TR_TraceCG))
+            comp->dumpMethodTrees(log, "Trees before this remat phase", comp->getMethodSymbol());
 
-      List<TR::Node> rematerializedNodes(self()->trMemory());
-      vcount_t visitCount = comp->incVisitCount();
-      TR::SymbolReference *autoSymRef = NULL;
-      for (tt = comp->getStartTree(); tt; tt = tt->getNextTreeTop())
-         {
-         node = tt->getNode();
-         if (node->getOpCodeValue() == TR::BBStart && !node->getBlock()->isExtensionOfPreviousBlock())
-            {
-
-            ListIterator<TR::Node> nodesIt(&rematerializedNodes);
-            for (TR::Node * rematNode = nodesIt.getFirst(); rematNode != NULL; rematNode = nodesIt.getNext())
-               {
-               if (rematNode->getReferenceCount() == 0)
-                  rematNode->getFirstChild()->recursivelyDecReferenceCount();
-               }
-
-            rematerializedNodes.deleteAll();
-            }
-
-        bool alreadyVisitedFirstChild = false;
-        if ((node->getOpCodeValue() == TR::compressedRefs) &&
-            (node->getFirstChild()->getOpCodeValue() == TR::l2a))
-           {
-           if (node->getFirstChild()->getVisitCount() == visitCount)
-              alreadyVisitedFirstChild = true;
-           }
-
-         self()->rematerializeCompressedRefs(autoSymRef, tt, NULL, -1, node, visitCount, &rematerializedNodes);
-
-         if ((node->getOpCodeValue() == TR::compressedRefs) &&
-             (node->getFirstChild()->getOpCodeValue() == TR::l2a))
-            {
-            TR::TreeTop *prevTree = tt->getPrevTreeTop();
-            TR::TreeTop *nextTree = tt->getNextTreeTop();
-            if (node->getFirstChild()->getReferenceCount() > 1)
-               {
-               if (!alreadyVisitedFirstChild)
-                  {
-                  if (!rematerializedNodes.find(node->getFirstChild()))
-                     {
-                     rematerializedNodes.add(node->getFirstChild());
-                     }
-                  node->getFirstChild()->setVisitCount(visitCount-1);
-                  }
-
-
-               if (rematerializedNodes.find(node->getFirstChild()))
-                  {
-                  TR::Node *cursorNode = node->getFirstChild()->getFirstChild();
-                  while (cursorNode &&
-                         (cursorNode->getOpCodeValue() != TR::iu2l))
-                     cursorNode = cursorNode->getFirstChild();
-
-                  TR::Node *ttNode = TR::Node::create(TR::treetop, 1, cursorNode);
-
-                  TR::TreeTop *treeTop = TR::TreeTop::create(comp, ttNode);
-                  TR::TreeTop *prevTreeTop = tt->getPrevTreeTop();
-                  prevTreeTop->join(treeTop);
-                  treeTop->join(tt);
-                  prevTree = treeTop;
-                  }
-               }
-
-            node->getFirstChild()->recursivelyDecReferenceCount();
-            node->getSecondChild()->recursivelyDecReferenceCount();
-            prevTree->join(nextTree);
-            }
-
-         if (node->canGCandReturn(comp))
-            {
-            ListIterator<TR::Node> nodesIt(&rematerializedNodes);
-            for (TR::Node * rematNode = nodesIt.getFirst(); rematNode != NULL; rematNode = nodesIt.getNext())
-               {
-               if (rematNode->getVisitCount() != visitCount)
-                  {
-                  rematNode->setVisitCount(visitCount);
-                  TR::Node *ttNode = TR::Node::create(TR::treetop, 1, rematNode);
-
-                  TR::TreeTop *treeTop = TR::TreeTop::create(comp, ttNode);
-                  TR::TreeTop *prevTree = tt->getPrevTreeTop();
-                  prevTree->join(treeTop);
-                  treeTop->join(tt);
-                  }
-               }
-            rematerializedNodes.deleteAll();
-            }
-         }
-      if (comp->getOption(TR_TraceCG))
-         comp->dumpMethodTrees(log, "Trees after this remat phase", comp->getMethodSymbol());
-
-      if (self()->shouldYankCompressedRefs())
-         {
-         visitCount = comp->incVisitCount();
-         vcount_t secondVisitCount = comp->incVisitCount();
-         TR::TreeTop *nextTree = NULL;
-         for (tt = comp->getStartTree(); tt; tt = nextTree)
-            {
+        List<TR::Node> rematerializedNodes(self()->trMemory());
+        vcount_t visitCount = comp->incVisitCount();
+        TR::SymbolReference *autoSymRef = NULL;
+        for (tt = comp->getStartTree(); tt; tt = tt->getNextTreeTop()) {
             node = tt->getNode();
-            nextTree = tt->getNextTreeTop();
-            self()->yankCompressedRefs(tt, NULL, -1, node, visitCount, secondVisitCount);
+            if (node->getOpCodeValue() == TR::BBStart && !node->getBlock()->isExtensionOfPreviousBlock()) {
+                ListIterator<TR::Node> nodesIt(&rematerializedNodes);
+                for (TR::Node *rematNode = nodesIt.getFirst(); rematNode != NULL; rematNode = nodesIt.getNext()) {
+                    if (rematNode->getReferenceCount() == 0)
+                        rematNode->getFirstChild()->recursivelyDecReferenceCount();
+                }
+
+                rematerializedNodes.deleteAll();
             }
 
-         if (comp->getOption(TR_TraceCG))
-            comp->dumpMethodTrees(log, "Trees after this yank phase", comp->getMethodSymbol());
-         }
-      }
-
-   if (comp->useCompressedPointers() &&
-         !disableRematforCP)
-      {
-      for (tt = comp->getStartTree(); tt; tt = tt->getNextTreeTop())
-         {
-         node = tt->getNode();
-
-         if ((node->getOpCodeValue() == TR::compressedRefs) &&
-            (node->getFirstChild()->getOpCodeValue() == TR::l2a))
-            {
-            TR::TreeTop *prevTree = tt->getPrevTreeTop();
-            TR::TreeTop *nextTree = tt->getNextTreeTop();
-
-            if (nextTree->getNode()->getOpCode().isNullCheck())
-               {
-               TR::Node *firstChild = nextTree->getNode()->getFirstChild();
-               TR::Node *reference = NULL;
-               if (firstChild->getOpCodeValue() == TR::l2a)
-                  {
-                  TR::ILOpCodes loadOp = comp->il.opCodeForIndirectLoad(TR::Int32);
-                  while (firstChild->getOpCodeValue() != loadOp)
-                     firstChild = firstChild->getFirstChild();
-                  reference = firstChild->getFirstChild();
-                  }
-               else
-                  reference = nextTree->getNode()->getNullCheckReference();
-
-               if (reference == node->getFirstChild())
-                  {
-                  node->getFirstChild()->recursivelyDecReferenceCount();
-                  node->getSecondChild()->recursivelyDecReferenceCount();
-                  prevTree->join(nextTree);
-                  }
-               }
-            }
-         }
-      }
-
-   }
-
-
-
-void
-J9::CodeGenerator::rematerializeCompressedRefs(
-      TR::SymbolReference * & autoSymRef,
-      TR::TreeTop *tt,
-      TR::Node *parent,
-      int32_t childNum,
-      TR::Node *node,
-      vcount_t visitCount,
-      List<TR::Node> *rematerializedNodes)
-   {
-   if (node->getVisitCount() == visitCount)
-      return;
-
-   TR::Compilation *comp = self()->comp();
-
-   node->setVisitCount(visitCount);
-
-   bool alreadyVisitedNullCheckReference = false;
-   bool alreadyVisitedReferenceInNullTest = false;
-   bool alreadyVisitedReferenceInStore = false;
-
-   TR::Node *reference = NULL;
-   TR::Node *address = NULL;
-
-   if (node->getOpCode().isNullCheck())
-      {
-      // check for either
-      // a) HB!=0
-      //    l2a
-      //      ladd (compressionSequence)
-      // b) HB=0, shifted offsets
-      //    l2a
-      //      lshl
-      //
-      if ((node->getFirstChild()->getOpCodeValue() == TR::l2a) &&
-          (((node->getFirstChild()->getFirstChild()->getOpCodeValue() == TR::ladd) &&
-          node->getFirstChild()->getFirstChild()->containsCompressionSequence()) ||
-           (node->getFirstChild()->getFirstChild()->getOpCodeValue() == TR::lshl)))
-         {
-         TR::ILOpCodes loadOp = comp->il.opCodeForIndirectLoad(TR::Int32);
-         TR::Node *n = node->getFirstChild();
-         while (n->getOpCodeValue() != loadOp)
-            n = n->getFirstChild();
-         reference = n->getFirstChild();
-         }
-      else
-         {
-         reference = node->getNullCheckReference();
-         }
-
-      if (reference->getVisitCount() == visitCount)
-         alreadyVisitedNullCheckReference = true;
-      }
-
-   if ((node->getOpCodeValue() == TR::ifacmpeq) ||
-       (node->getOpCodeValue() == TR::ifacmpne))
-      {
-      TR::Node *cmpValue = node->getFirstChild();
-      if (cmpValue->getVisitCount() == visitCount)
-        alreadyVisitedReferenceInNullTest = true;
-      }
-
-   if (node->getOpCode().isStoreIndirect())
-      {
-      // check for either
-      // a) HB!=0
-      //    l2a
-      //      lsub (compressionSequence)
-      // b) HB=0, shifted offsets
-      //    l2a
-      //      lshr
-      //
-      bool isCompressed = false;
-      if ((node->getSecondChild()->getOpCodeValue() == TR::l2i) &&
-          (((node->getSecondChild()->getFirstChild()->getOpCodeValue() == TR::lsub) ||
-            (node->getSecondChild()->getFirstChild()->getOpCodeValue() == TR::lushr)) &&
-     node->getSecondChild()->getFirstChild()->containsCompressionSequence()))
-         {
-         TR::Node *n = node->getSecondChild()->getFirstChild();
-         while (n->getOpCodeValue() != TR::a2l)
-            n = n->getFirstChild();
-         address = n->getFirstChild();
-         isCompressed = true;
-         }
-
-      if (address && (address->getVisitCount() == visitCount))
-         alreadyVisitedReferenceInStore = true;
-
-      // check for loads that have occurred before this store
-      // if so, anchor the load right before the store
-      //
-      self()->anchorRematNodesIfNeeded(node, tt, rematerializedNodes);
-      }
-   else if ((node->getOpCodeValue() == TR::arraycopy) || (node->getOpCodeValue() == TR::arrayset))
-      {
-      self()->anchorRematNodesIfNeeded(node, tt, rematerializedNodes);
-      }
-
-   if (node->getOpCodeValue() == TR::l2a)
-      {
-      rematerializedNodes->remove(node);
-      }
-
-   if ((node->getOpCodeValue() == TR::l2a) &&
-      ((node->getFirstChild()->getOpCodeValue() == TR::ladd &&
-       node->getFirstChild()->containsCompressionSequence()) ||
-       ((node->getFirstChild()->getOpCodeValue() == TR::lshl) &&
-        self()->isAddressScaleIndexSupported((1 << TR::Compiler->om.compressedReferenceShiftOffset())))))
-      {
-      if (parent &&
-          (node->getReferenceCount() > 1) &&
-          ((parent->getOpCode().isStoreIndirect() && (childNum == 0)) ||
-           parent->getOpCode().isLoadVar() ||
-           (self()->getSupportsConstantOffsetInAddressing() && parent->getOpCode().isArrayRef() &&
-            (self()->canFoldLargeOffsetInAddressing() || parent->getSecondChild()->getOpCode().isLoadConst()))) &&
-          performTransformation(comp, "%sRematerializing node %p(%s) in decompression sequence\n", OPT_DETAILS, node, node->getOpCode().getName()))
-         {
-         if ((node->getReferenceCount() > 1) &&
-             !rematerializedNodes->find(node))
-            {
-            rematerializedNodes->add(node);
+            bool alreadyVisitedFirstChild = false;
+            if ((node->getOpCodeValue() == TR::compressedRefs)
+                && (node->getFirstChild()->getOpCodeValue() == TR::l2a)) {
+                if (node->getFirstChild()->getVisitCount() == visitCount)
+                    alreadyVisitedFirstChild = true;
             }
 
-         TR::Node *dupNode= NULL;//
-         TR::Node *cursorNode = node;
-         TR::Node *cursorParent = parent;
-         int32_t cursorChildNum = childNum;
-         while (cursorNode &&
-                ((cursorNode->getOpCodeValue() != TR::iu2l) ||
-                 (cursorNode->getFirstChild()->getOpCodeValue() != TR::iloadi)))
-            {
-            TR::Node *copyCursorNode = TR::Node::copy(cursorNode);
-            copyCursorNode->setReferenceCount(0);
-            if (cursorNode == node)
-               dupNode = copyCursorNode;
+            self()->rematerializeCompressedRefs(autoSymRef, tt, NULL, -1, node, visitCount, &rematerializedNodes);
 
-            for (int32_t j = 0; j < cursorNode->getNumChildren(); ++j)
-               {
-               TR::Node *cursorChild = cursorNode->getChild(j);
-               copyCursorNode->setAndIncChild(j, cursorChild);
-               }
-
-            cursorParent->setAndIncChild(cursorChildNum, copyCursorNode);
-            cursorNode->decReferenceCount();
-
-            cursorParent = cursorNode;
-            cursorChildNum = 0;
-            cursorNode = cursorNode->getFirstChild();
-            }
-
-         node->setVisitCount(visitCount-1);
-         dupNode->setVisitCount(visitCount);
-         node = dupNode;
-         }
-      else
-         {
-         if (node->getReferenceCount() > 1)
-            {
-            // on x86, prevent remat of the l2a again thereby allowing
-            // nodes to use the result of the add already done
-            //
-            if (!self()->canFoldLargeOffsetInAddressing())
-               {
-               if (!rematerializedNodes->find(node))
-                  rematerializedNodes->add(node);
-               node->setVisitCount(visitCount-1);
-               }
-            }
-         else
-            rematerializedNodes->remove(node);
-
-         if (parent &&
-             ((parent->getOpCode().isArrayRef() &&
-               !self()->canFoldLargeOffsetInAddressing() &&
-               !parent->getSecondChild()->getOpCode().isLoadConst()) ||
-               !self()->getSupportsConstantOffsetInAddressing()) &&
-              performTransformation(comp, "%sYanking %p(%s) in decompression sequence\n", OPT_DETAILS, node, node->getOpCode().getName()))
-            {
-            if ((node->getOpCodeValue() == TR::l2a) &&
-                (node->getFirstChild()->getOpCodeValue() == TR::ladd))
-               {
-               TR::TreeTop *cursorTree = tt;
-               while (cursorTree)
-                  {
-                  bool addTree = false;
-                  TR::Node *cursorNode = cursorTree->getNode();
-                  if (cursorNode->getOpCodeValue() == TR::NULLCHK)
-                     {
-                     TR::Node *nullchkRef = cursorNode->getNullCheckReference();
-                     if ((nullchkRef->getOpCodeValue() == TR::l2a) &&
-                         (nullchkRef->getFirstChild() == node->getFirstChild()->getFirstChild()))
-                        {
-                        addTree = true;
+            if ((node->getOpCodeValue() == TR::compressedRefs)
+                && (node->getFirstChild()->getOpCodeValue() == TR::l2a)) {
+                TR::TreeTop *prevTree = tt->getPrevTreeTop();
+                TR::TreeTop *nextTree = tt->getNextTreeTop();
+                if (node->getFirstChild()->getReferenceCount() > 1) {
+                    if (!alreadyVisitedFirstChild) {
+                        if (!rematerializedNodes.find(node->getFirstChild())) {
+                            rematerializedNodes.add(node->getFirstChild());
                         }
-                     }
-
-                  if (!addTree && (cursorNode->getOpCodeValue() == TR::treetop) &&
-                      (cursorNode->getFirstChild() == node->getFirstChild()->getFirstChild()))
-                     {
-                     addTree = true;
-                     }
-
-                  if (addTree)
-                     {
-                     TR::Node *ttNode = TR::Node::create(TR::treetop, 1, node);
-
-                     logprintf(comp->getOption(TR_TraceCG), comp->log(), "Placing treetop %p (to hide delay) after tree %p for l2a %p\n", ttNode, cursorNode, node);
-
-                     TR::TreeTop *treeTop = TR::TreeTop::create(comp, ttNode);
-                     TR::TreeTop *nextTT = cursorTree->getNextTreeTop();
-                     cursorTree->join(treeTop);
-                     treeTop->join(nextTT);
-                     break;
-                     }
-                  else
-                     {
-                     if ((cursorNode->getOpCodeValue() == TR::BBStart) &&
-                         (!cursorNode->getBlock()->isExtensionOfPreviousBlock()))
-                        break;
-                     }
-
-                  cursorTree = cursorTree->getPrevTreeTop();
-                  }
-               }
-            }
-         }
-      }
-
-   for (int32_t i = 0; i < node->getNumChildren(); ++i)
-      {
-      TR::Node *child = node->getChild(i);
-      self()->rematerializeCompressedRefs(autoSymRef, tt, node, i, child, visitCount, rematerializedNodes);
-      }
-
-   static bool disableBranchlessPassThroughNULLCHK = feGetEnv("TR_disableBranchlessPassThroughNULLCHK") != NULL;
-   if (node->getOpCode().isNullCheck() && reference &&
-          (self()->performsChecksExplicitly() || (disableBranchlessPassThroughNULLCHK && node->getFirstChild()->getOpCodeValue() == TR::PassThrough)) &&
-          ((node->getFirstChild()->getOpCodeValue() == TR::l2a) ||
-           (reference->getOpCodeValue() == TR::l2a)) &&
-         performTransformation(comp, "%sTransforming null check reference %p in null check node %p to be checked explicitly\n", OPT_DETAILS, reference, node))
-      {
-      if (node->getFirstChild()->getOpCodeValue() != TR::PassThrough)
-         {
-         TR::Node *immChild = node->getFirstChild();
-         TR::Node *ttNode = NULL;
-         bool addedToList = false;
-         if (node->getOpCode().isResolveCheck())
-            {
-            ttNode = TR::Node::createWithSymRef(TR::ResolveCHK, 1, 1, immChild, node->getSymbolReference());
-            TR::Node::recreate(node, TR::NULLCHK);
-            }
-         else
-            {
-            if (immChild->getOpCodeValue() == TR::l2a)
-               {
-               if ((immChild->getReferenceCount() > 1) &&
-                   !rematerializedNodes->find(immChild))
-                  {
-                  rematerializedNodes->add(immChild);
-                  addedToList = true;
-                  }
-
-               immChild->setVisitCount(visitCount-1);
-               TR::Node *anchorNode = TR::Node::create(TR::treetop, 1, immChild->getFirstChild()->getFirstChild());
-               TR::TreeTop *anchorTree = TR::TreeTop::create(comp, anchorNode);
-               immChild->getFirstChild()->getFirstChild()->setVisitCount(visitCount-1);
-               TR::TreeTop *nextTT = tt->getNextTreeTop();
-               tt->join(anchorTree);
-               anchorTree->join(nextTT);
-
-               TR::Node *n = immChild->getFirstChild();
-                  {
-                  while ((n != reference) &&
-                        (n->getOpCodeValue() != TR::l2a))
-                     {
-                     n->setVisitCount(visitCount-1);
-                     n = n->getFirstChild();
-                     }
-                  }
-               }
-            else
-               ttNode = TR::Node::create(TR::treetop, 1, immChild);
-            }
-
-         if (ttNode)
-            {
-            TR::TreeTop *treeTop = TR::TreeTop::create(comp, ttNode);
-            immChild->setVisitCount(visitCount-1);
-            TR::TreeTop *nextTT = tt->getNextTreeTop();
-            tt->join(treeTop);
-            treeTop->join(nextTT);
-            }
-
-         TR::Node *passThroughNode = TR::Node::create(TR::PassThrough, 1, reference);
-         passThroughNode->setVisitCount(visitCount);
-         node->setAndIncChild(0, passThroughNode);
-         if (ttNode || !addedToList)
-            immChild->recursivelyDecReferenceCount();
-         else
-            immChild->decReferenceCount();
-         }
-
-      if ((reference->getOpCodeValue() == TR::l2a) &&
-          (!alreadyVisitedNullCheckReference || (reference->getReferenceCount() == 1)) &&
-          (((reference->getFirstChild()->getOpCodeValue() == TR::ladd) &&
-          reference->getFirstChild()->containsCompressionSequence()) ||
-           reference->getFirstChild()->getOpCodeValue() == TR::lshl) &&
-          performTransformation(comp, "%sStrength reducing null check reference %p in null check node %p \n", OPT_DETAILS, reference, node))
-          {
-          bool addedToList = false;
-          if (node->getFirstChild()->getOpCodeValue() == TR::PassThrough)
-             {
-             if ((reference->getReferenceCount() > 1) &&
-                 !rematerializedNodes->find(reference))
-                {
-                rematerializedNodes->add(reference);
-                addedToList = true;
-                }
-
-            TR::Node *passThroughNode = node->getFirstChild();
-            TR::Node *grandChild = reference->getFirstChild()->getFirstChild();
-            TR::Node *l2aNode = TR::Node::create(TR::l2a, 1, grandChild);
-            if (reference->isNonNull())
-               l2aNode->setIsNonNull(true);
-            else if (reference->isNull())
-               l2aNode->setIsNull(true);
-            passThroughNode->setAndIncChild(0, l2aNode);
-            if (addedToList)
-               reference->decReferenceCount();
-            else
-               reference->recursivelyDecReferenceCount();
-            reference->setVisitCount(visitCount-1);
-            }
-         }
-      }
-
-   if ((node->getOpCodeValue() == TR::ifacmpeq) ||
-       (node->getOpCodeValue() == TR::ifacmpne))
-      {
-      TR::Node *reference = node->getFirstChild();
-      TR::Node *secondChild = node->getSecondChild();
-
-      if ((reference->getOpCodeValue() == TR::l2a) &&
-          (!alreadyVisitedReferenceInNullTest || (reference->getReferenceCount() == 1)) &&
-          (((reference->getFirstChild()->getOpCodeValue() == TR::ladd) &&
-          reference->getFirstChild()->containsCompressionSequence())||
-           reference->getFirstChild()->getOpCodeValue() == TR::lshl))
-          {
-          if ((secondChild->getOpCodeValue() == TR::aconst) &&
-              (secondChild->getAddress() == 0) &&
-              performTransformation(comp, "%sTransforming reference %p in null comparison node %p \n", OPT_DETAILS, reference, node))
-             {
-             bool addedToList = false;
-             if ((reference->getReferenceCount() > 1) &&
-                 !rematerializedNodes->find(reference))
-                {
-                rematerializedNodes->add(reference);
-                addedToList = true;
-                }
-
-             TR::Node *compressedValue = reference->getFirstChild()->getFirstChild();
-             TR::Node *l2aNode = TR::Node::create(TR::l2a, 1, compressedValue);
-             if (reference->isNonNull())
-                l2aNode->setIsNonNull(true);
-             else if (reference->isNull())
-                l2aNode->setIsNull(true);
-
-             node->setAndIncChild(0, l2aNode);
-             if (addedToList)
-                reference->decReferenceCount();
-             else
-                reference->recursivelyDecReferenceCount();
-             reference->setVisitCount(visitCount-1);
-             }
-          }
-      }
-
-   if (address && node->getOpCode().isStoreIndirect())
-      {
-      if (address->getOpCodeValue() == TR::l2a && (address->getReferenceCount() == 1 || !alreadyVisitedReferenceInStore) &&
-         ((address->getFirstChild()->getOpCodeValue() == TR::ladd && address->getFirstChild()->containsCompressionSequence()) ||
-           address->getFirstChild()->getOpCodeValue() == TR::lshl))
-         {
-         // Check for write barriers that we can skip and which are not underneath an ArrayStoreCHK. In these cases we are safe
-         // to optimize the write barrier to a simple store, thus avoiding the need to compress / uncompress the pointer.
-         if (node->getOpCode().isWrtBar() && node->skipWrtBar())
-            {
-            // This check is overly conservative to ensure functional correctness.
-            bool isPossiblyUnderArrayStoreCheck = tt->getNode()->getOpCodeValue() == TR::ArrayStoreCHK || (node->getReferenceCount() > 1 && !tt->getNode()->getOpCode().isResolveCheck());
-
-            if (!isPossiblyUnderArrayStoreCheck && performTransformation(comp, "%sStoring compressed pointer [%p] directly into %p in tree %p\n", OPT_DETAILS, address, node, tt->getNode()))
-               {
-               bool addedToList = false;
-               if ((address->getReferenceCount() > 1) && !rematerializedNodes->find(address))
-                  {
-                  rematerializedNodes->add(address);
-                  addedToList = true;
-                  }
-
-               TR::Node *l2iNode = NULL;
-               TR::ILOpCodes loadOp = comp->il.opCodeForIndirectLoad(TR::Int32);
-               TR::Node *n = address;
-               while (n->getOpCodeValue() != loadOp)
-                  n = n->getFirstChild();
-               l2iNode = n;
-
-               if (node->getOpCode().isWrtBar())
-                  {
-                  int32_t lastChildNum = node->getNumChildren()-1;
-                  node->getChild(lastChildNum)->recursivelyDecReferenceCount();
-                  node->setNumChildren(lastChildNum);
-                  }
-
-               TR::Node::recreate(node, comp->il.opCodeForIndirectStore(TR::Int32));
-
-               TR::Node *immChild = node->getSecondChild();
-               node->setAndIncChild(1, l2iNode);
-
-               address->incReferenceCount();
-               immChild->recursivelyDecReferenceCount();
-
-               if (addedToList)
-                  address->decReferenceCount();
-               else
-                  address->recursivelyDecReferenceCount();
-
-               address->setVisitCount(visitCount-1);
-               }
-            }
-         }
-      }
-   }
-
-
-void
-J9::CodeGenerator::yankCompressedRefs(
-      TR::TreeTop *tt,
-      TR::Node *parent,
-      int32_t childNum,
-      TR::Node *node,
-      vcount_t visitCount,
-      vcount_t secondVisitCount)
-   {
-   if (node->getVisitCount() >= visitCount)
-      return;
-
-   node->setVisitCount(visitCount);
-
-   for (int32_t i = 0; i < node->getNumChildren(); ++i)
-      {
-      TR::Node *child = node->getChild(i);
-      self()->yankCompressedRefs(tt, node, i, child, visitCount, secondVisitCount);
-      }
-
-   if (parent &&
-       (parent->getOpCodeValue() == TR::treetop) &&
-       (node->getOpCodeValue() == TR::l2a) &&
-       (node->getFirstChild()->getOpCodeValue() == TR::ladd &&
-        node->getFirstChild()->containsCompressionSequence()))
-      {
-      TR::TreeTop *firstTree = tt;
-      TR::TreeTop *lastTree = tt;
-      bool nullCheckTree = false;
-      bool exprNeedsChecking = true;
-      if ((node->getFirstChild()->getFirstChild()->getOpCodeValue() == TR::iu2l) &&
-          (node->getFirstChild()->getFirstChild()->getFirstChild()->getOpCodeValue() == TR::iloadi) &&
-          ((node->getFirstChild()->getFirstChild()->getFirstChild()->getFirstChild()->getOpCode().isLoadVarDirect() &&
-            node->getFirstChild()->getFirstChild()->getFirstChild()->getFirstChild()->getSymbolReference()->getSymbol()->isAutoOrParm()) ||
-           (node->getFirstChild()->getFirstChild()->getFirstChild()->getFirstChild()->getOpCodeValue() == TR::aRegStore)))
-         exprNeedsChecking = false;
-
-      TR::TreeTop *prevTree = tt->getPrevTreeTop();
-         TR::Node *prevNode = prevTree->getNode();
-         if (prevNode->getOpCodeValue() == TR::NULLCHK)
-            {
-            if (prevNode->getFirstChild()->getOpCodeValue() == TR::PassThrough)
-               {
-               TR::Node *reference = prevNode->getNullCheckReference();
-               if ((reference == node) ||
-                   ((reference->getOpCodeValue() == TR::l2a) &&
-                    (reference->getFirstChild() == node->getFirstChild()->getFirstChild())))
-                  {
-                  nullCheckTree = true;
-                  firstTree = prevTree;
-                  prevTree = prevTree->getPrevTreeTop();
-                  prevNode = prevTree->getNode();
-                  }
-               }
-            }
-
-      if ((prevNode->getOpCodeValue() == TR::treetop) &&
-          (prevNode->getFirstChild() == node->getFirstChild()->getFirstChild()))
-         firstTree = prevTree;
-      else
-         firstTree = tt;
-
-      if (firstTree != tt)
-         {
-         TR_BitVector symbolReferencesInNode(self()->comp()->getSymRefCount(), self()->comp()->trMemory(), stackAlloc);
-
-         ////bool canYank = collectSymRefs(node, &symbolReferencesInNode, secondVisitCount);
-         // since symRefs need to be collected for each treetop, we'll need a fresh visitCount
-         // for every walk of a tree
-         //
-         bool canYank = self()->collectSymRefs(node, &symbolReferencesInNode, self()->comp()->incVisitCount());
-
-         TR_BitVector intersection(self()->comp()->getSymRefCount(), self()->comp()->trMemory(), stackAlloc);
-
-         if (canYank)
-            {
-            TR::TreeTop *cursorTree = firstTree->getPrevTreeTop();
-            int32_t numTrees = 0;
-            while (cursorTree)
-              {
-              numTrees++;
-              TR::Node *cursorNode = cursorTree->getNode();
-              TR::Node *childNode = NULL;
-              if (cursorNode->getNumChildren() > 0)
-                 childNode = cursorNode->getFirstChild();
-
-              if (cursorNode && cursorNode->getOpCode().hasSymbolReference() &&
-                  (cursorNode->getOpCode().isStore() || cursorNode->getOpCode().isCall()))
-                 {
-                 if (symbolReferencesInNode.get(cursorNode->getSymbolReference()->getReferenceNumber()))
-                    {
-                    break;
+                        node->getFirstChild()->setVisitCount(visitCount - 1);
                     }
 
-                 intersection.empty();
-                 cursorNode->getSymbolReference()->getUseDefAliases().getAliasesAndUnionWith(intersection);
-                 intersection &= symbolReferencesInNode;
-                 if (!intersection.isEmpty())
-                    {
-                    break;
+                    if (rematerializedNodes.find(node->getFirstChild())) {
+                        TR::Node *cursorNode = node->getFirstChild()->getFirstChild();
+                        while (cursorNode && (cursorNode->getOpCodeValue() != TR::iu2l))
+                            cursorNode = cursorNode->getFirstChild();
+
+                        TR::Node *ttNode = TR::Node::create(TR::treetop, 1, cursorNode);
+
+                        TR::TreeTop *treeTop = TR::TreeTop::create(comp, ttNode);
+                        TR::TreeTop *prevTreeTop = tt->getPrevTreeTop();
+                        prevTreeTop->join(treeTop);
+                        treeTop->join(tt);
+                        prevTree = treeTop;
                     }
-                 }
-
-              if (childNode && childNode->getOpCode().hasSymbolReference())
-                 {
-                 if (childNode && childNode->getOpCode().hasSymbolReference() &&
-                     (childNode->getOpCode().isStore() || childNode->getOpCode().isCall()))
-                    {
-                    if (symbolReferencesInNode.get(childNode->getSymbolReference()->getReferenceNumber()))
-                       {
-                       break;
-                       }
-
-                    intersection.empty();
-                    childNode->getSymbolReference()->getUseDefAliases().getAliasesAndUnionWith(intersection);
-                    intersection &= symbolReferencesInNode;
-                    if (!intersection.isEmpty())
-                       {
-                       break;
-                       }
-                    }
-                 }
-
-             if (nullCheckTree)
-                {
-                if (cursorNode->getOpCode().isStore())
-                   {
-                   if (cursorNode->getSymbol()->isStatic() ||
-                       cursorNode->getSymbol()->isShadow() ||
-                       !cursorNode->getSymbolReference()->getUseonlyAliases().isZero(self()->comp()))
-                      {
-                      break;
-                      }
-                   }
                 }
 
-              if (cursorNode->exceptionsRaised())
-                 {
-                 if (nullCheckTree || exprNeedsChecking)
-                    break;
-                 }
-
-              if (cursorNode->getOpCodeValue() == TR::BBStart)
-                 {
-                 break;
-                 }
-
-              cursorTree = cursorTree->getPrevTreeTop();
-              }
-
-            if (cursorTree != firstTree->getPrevTreeTop())
-               {
-               TR::TreeTop *nextTree = cursorTree->getNextTreeTop();
-               TR::TreeTop *prevTreeAtSrc = firstTree->getPrevTreeTop();
-               TR::TreeTop *nextTreeAtSrc = lastTree->getNextTreeTop();
-               prevTreeAtSrc->join(nextTreeAtSrc);
-               cursorTree->join(firstTree);
-               lastTree->join(nextTree);
-               }
+                node->getFirstChild()->recursivelyDecReferenceCount();
+                node->getSecondChild()->recursivelyDecReferenceCount();
+                prevTree->join(nextTree);
             }
-         }
-      }
-   }
 
+            if (node->canGCandReturn(comp)) {
+                ListIterator<TR::Node> nodesIt(&rematerializedNodes);
+                for (TR::Node *rematNode = nodesIt.getFirst(); rematNode != NULL; rematNode = nodesIt.getNext()) {
+                    if (rematNode->getVisitCount() != visitCount) {
+                        rematNode->setVisitCount(visitCount);
+                        TR::Node *ttNode = TR::Node::create(TR::treetop, 1, rematNode);
 
-void
-J9::CodeGenerator::anchorRematNodesIfNeeded(
-      TR::Node *node,
-      TR::TreeTop *tt,
-      List<TR::Node> *rematerializedNodes)
-   {
-   TR::Compilation *comp = self()->comp();
-   OMR::Logger *log = comp->log();
-   bool trace = comp->getOption(TR_TraceCG);
+                        TR::TreeTop *treeTop = TR::TreeTop::create(comp, ttNode);
+                        TR::TreeTop *prevTree = tt->getPrevTreeTop();
+                        prevTree->join(treeTop);
+                        treeTop->join(tt);
+                    }
+                }
+                rematerializedNodes.deleteAll();
+            }
+        }
+        if (comp->getOption(TR_TraceCG))
+            comp->dumpMethodTrees(log, "Trees after this remat phase", comp->getMethodSymbol());
 
-   TR::SymbolReference *symRef = node->getSymbolReference();
-   TR::SparseBitVector aliases(comp->allocator());
-   if (symRef->sharesSymbol())
-      symRef->getUseDefAliases().getAliases(aliases);
+        if (self()->shouldYankCompressedRefs()) {
+            visitCount = comp->incVisitCount();
+            vcount_t secondVisitCount = comp->incVisitCount();
+            TR::TreeTop *nextTree = NULL;
+            for (tt = comp->getStartTree(); tt; tt = nextTree) {
+                node = tt->getNode();
+                nextTree = tt->getNextTreeTop();
+                self()->yankCompressedRefs(tt, NULL, -1, node, visitCount, secondVisitCount);
+            }
 
-   ListIterator<TR::Node> nodesIt(rematerializedNodes);
-   for (TR::Node * rematNode = nodesIt.getFirst(); rematNode != NULL; rematNode = nodesIt.getNext())
-      {
-      if (rematNode->getOpCodeValue() == TR::l2a)
-         {
-         TR::Node *load = rematNode->getFirstChild();
-         while (load->getOpCodeValue() != TR::iu2l)
-            load = load->getFirstChild();
-         load = load->getFirstChild();
-         if (load->getOpCode().isLoadIndirect() &&
-               ((load->getSymbolReference() == node->getSymbolReference()) ||
-                  (aliases.ValueAt(load->getSymbolReference()->getReferenceNumber()))))
-            {
-            rematerializedNodes->remove(rematNode);
-            rematNode->setVisitCount(comp->getVisitCount());
             if (comp->getOption(TR_TraceCG))
-               {
-               if (node->getOpCode().isStoreIndirect() && trace)
-                  log->printf("Found previous load %p same as store %p, anchoring load\n", load, node);
-               else
-                  log->printf("Found previous load %p aliases with node %p, anchoring load\n", load, node);
-               }
-            TR::Node *ttNode = TR::Node::create(TR::treetop, 1, rematNode);
-            TR::TreeTop *treeTop = TR::TreeTop::create(comp, ttNode);
-            TR::TreeTop *prevTree = tt->getPrevTreeTop();
-            prevTree->join(treeTop);
-            treeTop->join(tt);
+                comp->dumpMethodTrees(log, "Trees after this yank phase", comp->getMethodSymbol());
+        }
+    }
+
+    if (comp->useCompressedPointers() && !disableRematforCP) {
+        for (tt = comp->getStartTree(); tt; tt = tt->getNextTreeTop()) {
+            node = tt->getNode();
+
+            if ((node->getOpCodeValue() == TR::compressedRefs)
+                && (node->getFirstChild()->getOpCodeValue() == TR::l2a)) {
+                TR::TreeTop *prevTree = tt->getPrevTreeTop();
+                TR::TreeTop *nextTree = tt->getNextTreeTop();
+
+                if (nextTree->getNode()->getOpCode().isNullCheck()) {
+                    TR::Node *firstChild = nextTree->getNode()->getFirstChild();
+                    TR::Node *reference = NULL;
+                    if (firstChild->getOpCodeValue() == TR::l2a) {
+                        TR::ILOpCodes loadOp = comp->il.opCodeForIndirectLoad(TR::Int32);
+                        while (firstChild->getOpCodeValue() != loadOp)
+                            firstChild = firstChild->getFirstChild();
+                        reference = firstChild->getFirstChild();
+                    } else
+                        reference = nextTree->getNode()->getNullCheckReference();
+
+                    if (reference == node->getFirstChild()) {
+                        node->getFirstChild()->recursivelyDecReferenceCount();
+                        node->getSecondChild()->recursivelyDecReferenceCount();
+                        prevTree->join(nextTree);
+                    }
+                }
             }
-         }
-      }
-   }
+        }
+    }
+}
 
+void J9::CodeGenerator::rematerializeCompressedRefs(TR::SymbolReference *&autoSymRef, TR::TreeTop *tt, TR::Node *parent,
+    int32_t childNum, TR::Node *node, vcount_t visitCount, List<TR::Node> *rematerializedNodes)
+{
+    if (node->getVisitCount() == visitCount)
+        return;
 
- /**
+    TR::Compilation *comp = self()->comp();
+
+    node->setVisitCount(visitCount);
+
+    bool alreadyVisitedNullCheckReference = false;
+    bool alreadyVisitedReferenceInNullTest = false;
+    bool alreadyVisitedReferenceInStore = false;
+
+    TR::Node *reference = NULL;
+    TR::Node *address = NULL;
+
+    if (node->getOpCode().isNullCheck()) {
+        // check for either
+        // a) HB!=0
+        //    l2a
+        //      ladd (compressionSequence)
+        // b) HB=0, shifted offsets
+        //    l2a
+        //      lshl
+        //
+        if ((node->getFirstChild()->getOpCodeValue() == TR::l2a)
+            && (((node->getFirstChild()->getFirstChild()->getOpCodeValue() == TR::ladd)
+                    && node->getFirstChild()->getFirstChild()->containsCompressionSequence())
+                || (node->getFirstChild()->getFirstChild()->getOpCodeValue() == TR::lshl))) {
+            TR::ILOpCodes loadOp = comp->il.opCodeForIndirectLoad(TR::Int32);
+            TR::Node *n = node->getFirstChild();
+            while (n->getOpCodeValue() != loadOp)
+                n = n->getFirstChild();
+            reference = n->getFirstChild();
+        } else {
+            reference = node->getNullCheckReference();
+        }
+
+        if (reference->getVisitCount() == visitCount)
+            alreadyVisitedNullCheckReference = true;
+    }
+
+    if ((node->getOpCodeValue() == TR::ifacmpeq) || (node->getOpCodeValue() == TR::ifacmpne)) {
+        TR::Node *cmpValue = node->getFirstChild();
+        if (cmpValue->getVisitCount() == visitCount)
+            alreadyVisitedReferenceInNullTest = true;
+    }
+
+    if (node->getOpCode().isStoreIndirect()) {
+        // check for either
+        // a) HB!=0
+        //    l2a
+        //      lsub (compressionSequence)
+        // b) HB=0, shifted offsets
+        //    l2a
+        //      lshr
+        //
+        bool isCompressed = false;
+        if ((node->getSecondChild()->getOpCodeValue() == TR::l2i)
+            && (((node->getSecondChild()->getFirstChild()->getOpCodeValue() == TR::lsub)
+                    || (node->getSecondChild()->getFirstChild()->getOpCodeValue() == TR::lushr))
+                && node->getSecondChild()->getFirstChild()->containsCompressionSequence())) {
+            TR::Node *n = node->getSecondChild()->getFirstChild();
+            while (n->getOpCodeValue() != TR::a2l)
+                n = n->getFirstChild();
+            address = n->getFirstChild();
+            isCompressed = true;
+        }
+
+        if (address && (address->getVisitCount() == visitCount))
+            alreadyVisitedReferenceInStore = true;
+
+        // check for loads that have occurred before this store
+        // if so, anchor the load right before the store
+        //
+        self()->anchorRematNodesIfNeeded(node, tt, rematerializedNodes);
+    } else if ((node->getOpCodeValue() == TR::arraycopy) || (node->getOpCodeValue() == TR::arrayset)) {
+        self()->anchorRematNodesIfNeeded(node, tt, rematerializedNodes);
+    }
+
+    if (node->getOpCodeValue() == TR::l2a) {
+        rematerializedNodes->remove(node);
+    }
+
+    if ((node->getOpCodeValue() == TR::l2a)
+        && ((node->getFirstChild()->getOpCodeValue() == TR::ladd
+                && node->getFirstChild()->containsCompressionSequence())
+            || ((node->getFirstChild()->getOpCodeValue() == TR::lshl)
+                && self()->isAddressScaleIndexSupported((1 << TR::Compiler->om.compressedReferenceShiftOffset()))))) {
+        if (parent && (node->getReferenceCount() > 1)
+            && ((parent->getOpCode().isStoreIndirect() && (childNum == 0)) || parent->getOpCode().isLoadVar()
+                || (self()->getSupportsConstantOffsetInAddressing() && parent->getOpCode().isArrayRef()
+                    && (self()->canFoldLargeOffsetInAddressing()
+                        || parent->getSecondChild()->getOpCode().isLoadConst())))
+            && performTransformation(comp, "%sRematerializing node %p(%s) in decompression sequence\n", OPT_DETAILS,
+                node, node->getOpCode().getName())) {
+            if ((node->getReferenceCount() > 1) && !rematerializedNodes->find(node)) {
+                rematerializedNodes->add(node);
+            }
+
+            TR::Node *dupNode = NULL; //
+            TR::Node *cursorNode = node;
+            TR::Node *cursorParent = parent;
+            int32_t cursorChildNum = childNum;
+            while (cursorNode
+                && ((cursorNode->getOpCodeValue() != TR::iu2l)
+                    || (cursorNode->getFirstChild()->getOpCodeValue() != TR::iloadi))) {
+                TR::Node *copyCursorNode = TR::Node::copy(cursorNode);
+                copyCursorNode->setReferenceCount(0);
+                if (cursorNode == node)
+                    dupNode = copyCursorNode;
+
+                for (int32_t j = 0; j < cursorNode->getNumChildren(); ++j) {
+                    TR::Node *cursorChild = cursorNode->getChild(j);
+                    copyCursorNode->setAndIncChild(j, cursorChild);
+                }
+
+                cursorParent->setAndIncChild(cursorChildNum, copyCursorNode);
+                cursorNode->decReferenceCount();
+
+                cursorParent = cursorNode;
+                cursorChildNum = 0;
+                cursorNode = cursorNode->getFirstChild();
+            }
+
+            node->setVisitCount(visitCount - 1);
+            dupNode->setVisitCount(visitCount);
+            node = dupNode;
+        } else {
+            if (node->getReferenceCount() > 1) {
+                // on x86, prevent remat of the l2a again thereby allowing
+                // nodes to use the result of the add already done
+                //
+                if (!self()->canFoldLargeOffsetInAddressing()) {
+                    if (!rematerializedNodes->find(node))
+                        rematerializedNodes->add(node);
+                    node->setVisitCount(visitCount - 1);
+                }
+            } else
+                rematerializedNodes->remove(node);
+
+            if (parent
+                && ((parent->getOpCode().isArrayRef() && !self()->canFoldLargeOffsetInAddressing()
+                        && !parent->getSecondChild()->getOpCode().isLoadConst())
+                    || !self()->getSupportsConstantOffsetInAddressing())
+                && performTransformation(comp, "%sYanking %p(%s) in decompression sequence\n", OPT_DETAILS, node,
+                    node->getOpCode().getName())) {
+                if ((node->getOpCodeValue() == TR::l2a) && (node->getFirstChild()->getOpCodeValue() == TR::ladd)) {
+                    TR::TreeTop *cursorTree = tt;
+                    while (cursorTree) {
+                        bool addTree = false;
+                        TR::Node *cursorNode = cursorTree->getNode();
+                        if (cursorNode->getOpCodeValue() == TR::NULLCHK) {
+                            TR::Node *nullchkRef = cursorNode->getNullCheckReference();
+                            if ((nullchkRef->getOpCodeValue() == TR::l2a)
+                                && (nullchkRef->getFirstChild() == node->getFirstChild()->getFirstChild())) {
+                                addTree = true;
+                            }
+                        }
+
+                        if (!addTree && (cursorNode->getOpCodeValue() == TR::treetop)
+                            && (cursorNode->getFirstChild() == node->getFirstChild()->getFirstChild())) {
+                            addTree = true;
+                        }
+
+                        if (addTree) {
+                            TR::Node *ttNode = TR::Node::create(TR::treetop, 1, node);
+
+                            logprintf(comp->getOption(TR_TraceCG), comp->log(),
+                                "Placing treetop %p (to hide delay) after tree %p for l2a %p\n", ttNode, cursorNode,
+                                node);
+
+                            TR::TreeTop *treeTop = TR::TreeTop::create(comp, ttNode);
+                            TR::TreeTop *nextTT = cursorTree->getNextTreeTop();
+                            cursorTree->join(treeTop);
+                            treeTop->join(nextTT);
+                            break;
+                        } else {
+                            if ((cursorNode->getOpCodeValue() == TR::BBStart)
+                                && (!cursorNode->getBlock()->isExtensionOfPreviousBlock()))
+                                break;
+                        }
+
+                        cursorTree = cursorTree->getPrevTreeTop();
+                    }
+                }
+            }
+        }
+    }
+
+    for (int32_t i = 0; i < node->getNumChildren(); ++i) {
+        TR::Node *child = node->getChild(i);
+        self()->rematerializeCompressedRefs(autoSymRef, tt, node, i, child, visitCount, rematerializedNodes);
+    }
+
+    static bool disableBranchlessPassThroughNULLCHK = feGetEnv("TR_disableBranchlessPassThroughNULLCHK") != NULL;
+    if (node->getOpCode().isNullCheck() && reference
+        && (self()->performsChecksExplicitly()
+            || (disableBranchlessPassThroughNULLCHK && node->getFirstChild()->getOpCodeValue() == TR::PassThrough))
+        && ((node->getFirstChild()->getOpCodeValue() == TR::l2a) || (reference->getOpCodeValue() == TR::l2a))
+        && performTransformation(comp,
+            "%sTransforming null check reference %p in null check node %p to be checked explicitly\n", OPT_DETAILS,
+            reference, node)) {
+        if (node->getFirstChild()->getOpCodeValue() != TR::PassThrough) {
+            TR::Node *immChild = node->getFirstChild();
+            TR::Node *ttNode = NULL;
+            bool addedToList = false;
+            if (node->getOpCode().isResolveCheck()) {
+                ttNode = TR::Node::createWithSymRef(TR::ResolveCHK, 1, 1, immChild, node->getSymbolReference());
+                TR::Node::recreate(node, TR::NULLCHK);
+            } else {
+                if (immChild->getOpCodeValue() == TR::l2a) {
+                    if ((immChild->getReferenceCount() > 1) && !rematerializedNodes->find(immChild)) {
+                        rematerializedNodes->add(immChild);
+                        addedToList = true;
+                    }
+
+                    immChild->setVisitCount(visitCount - 1);
+                    TR::Node *anchorNode = TR::Node::create(TR::treetop, 1, immChild->getFirstChild()->getFirstChild());
+                    TR::TreeTop *anchorTree = TR::TreeTop::create(comp, anchorNode);
+                    immChild->getFirstChild()->getFirstChild()->setVisitCount(visitCount - 1);
+                    TR::TreeTop *nextTT = tt->getNextTreeTop();
+                    tt->join(anchorTree);
+                    anchorTree->join(nextTT);
+
+                    TR::Node *n = immChild->getFirstChild();
+                    {
+                        while ((n != reference) && (n->getOpCodeValue() != TR::l2a)) {
+                            n->setVisitCount(visitCount - 1);
+                            n = n->getFirstChild();
+                        }
+                    }
+                } else
+                    ttNode = TR::Node::create(TR::treetop, 1, immChild);
+            }
+
+            if (ttNode) {
+                TR::TreeTop *treeTop = TR::TreeTop::create(comp, ttNode);
+                immChild->setVisitCount(visitCount - 1);
+                TR::TreeTop *nextTT = tt->getNextTreeTop();
+                tt->join(treeTop);
+                treeTop->join(nextTT);
+            }
+
+            TR::Node *passThroughNode = TR::Node::create(TR::PassThrough, 1, reference);
+            passThroughNode->setVisitCount(visitCount);
+            node->setAndIncChild(0, passThroughNode);
+            if (ttNode || !addedToList)
+                immChild->recursivelyDecReferenceCount();
+            else
+                immChild->decReferenceCount();
+        }
+
+        if ((reference->getOpCodeValue() == TR::l2a)
+            && (!alreadyVisitedNullCheckReference || (reference->getReferenceCount() == 1))
+            && (((reference->getFirstChild()->getOpCodeValue() == TR::ladd)
+                    && reference->getFirstChild()->containsCompressionSequence())
+                || reference->getFirstChild()->getOpCodeValue() == TR::lshl)
+            && performTransformation(comp, "%sStrength reducing null check reference %p in null check node %p \n",
+                OPT_DETAILS, reference, node)) {
+            bool addedToList = false;
+            if (node->getFirstChild()->getOpCodeValue() == TR::PassThrough) {
+                if ((reference->getReferenceCount() > 1) && !rematerializedNodes->find(reference)) {
+                    rematerializedNodes->add(reference);
+                    addedToList = true;
+                }
+
+                TR::Node *passThroughNode = node->getFirstChild();
+                TR::Node *grandChild = reference->getFirstChild()->getFirstChild();
+                TR::Node *l2aNode = TR::Node::create(TR::l2a, 1, grandChild);
+                if (reference->isNonNull())
+                    l2aNode->setIsNonNull(true);
+                else if (reference->isNull())
+                    l2aNode->setIsNull(true);
+                passThroughNode->setAndIncChild(0, l2aNode);
+                if (addedToList)
+                    reference->decReferenceCount();
+                else
+                    reference->recursivelyDecReferenceCount();
+                reference->setVisitCount(visitCount - 1);
+            }
+        }
+    }
+
+    if ((node->getOpCodeValue() == TR::ifacmpeq) || (node->getOpCodeValue() == TR::ifacmpne)) {
+        TR::Node *reference = node->getFirstChild();
+        TR::Node *secondChild = node->getSecondChild();
+
+        if ((reference->getOpCodeValue() == TR::l2a)
+            && (!alreadyVisitedReferenceInNullTest || (reference->getReferenceCount() == 1))
+            && (((reference->getFirstChild()->getOpCodeValue() == TR::ladd)
+                    && reference->getFirstChild()->containsCompressionSequence())
+                || reference->getFirstChild()->getOpCodeValue() == TR::lshl)) {
+            if ((secondChild->getOpCodeValue() == TR::aconst) && (secondChild->getAddress() == 0)
+                && performTransformation(comp, "%sTransforming reference %p in null comparison node %p \n", OPT_DETAILS,
+                    reference, node)) {
+                bool addedToList = false;
+                if ((reference->getReferenceCount() > 1) && !rematerializedNodes->find(reference)) {
+                    rematerializedNodes->add(reference);
+                    addedToList = true;
+                }
+
+                TR::Node *compressedValue = reference->getFirstChild()->getFirstChild();
+                TR::Node *l2aNode = TR::Node::create(TR::l2a, 1, compressedValue);
+                if (reference->isNonNull())
+                    l2aNode->setIsNonNull(true);
+                else if (reference->isNull())
+                    l2aNode->setIsNull(true);
+
+                node->setAndIncChild(0, l2aNode);
+                if (addedToList)
+                    reference->decReferenceCount();
+                else
+                    reference->recursivelyDecReferenceCount();
+                reference->setVisitCount(visitCount - 1);
+            }
+        }
+    }
+
+    if (address && node->getOpCode().isStoreIndirect()) {
+        if (address->getOpCodeValue() == TR::l2a
+            && (address->getReferenceCount() == 1 || !alreadyVisitedReferenceInStore)
+            && ((address->getFirstChild()->getOpCodeValue() == TR::ladd
+                    && address->getFirstChild()->containsCompressionSequence())
+                || address->getFirstChild()->getOpCodeValue() == TR::lshl)) {
+            // Check for write barriers that we can skip and which are not underneath an ArrayStoreCHK. In these cases
+            // we are safe to optimize the write barrier to a simple store, thus avoiding the need to compress /
+            // uncompress the pointer.
+            if (node->getOpCode().isWrtBar() && node->skipWrtBar()) {
+                // This check is overly conservative to ensure functional correctness.
+                bool isPossiblyUnderArrayStoreCheck = tt->getNode()->getOpCodeValue() == TR::ArrayStoreCHK
+                    || (node->getReferenceCount() > 1 && !tt->getNode()->getOpCode().isResolveCheck());
+
+                if (!isPossiblyUnderArrayStoreCheck
+                    && performTransformation(comp, "%sStoring compressed pointer [%p] directly into %p in tree %p\n",
+                        OPT_DETAILS, address, node, tt->getNode())) {
+                    bool addedToList = false;
+                    if ((address->getReferenceCount() > 1) && !rematerializedNodes->find(address)) {
+                        rematerializedNodes->add(address);
+                        addedToList = true;
+                    }
+
+                    TR::Node *l2iNode = NULL;
+                    TR::ILOpCodes loadOp = comp->il.opCodeForIndirectLoad(TR::Int32);
+                    TR::Node *n = address;
+                    while (n->getOpCodeValue() != loadOp)
+                        n = n->getFirstChild();
+                    l2iNode = n;
+
+                    if (node->getOpCode().isWrtBar()) {
+                        int32_t lastChildNum = node->getNumChildren() - 1;
+                        node->getChild(lastChildNum)->recursivelyDecReferenceCount();
+                        node->setNumChildren(lastChildNum);
+                    }
+
+                    TR::Node::recreate(node, comp->il.opCodeForIndirectStore(TR::Int32));
+
+                    TR::Node *immChild = node->getSecondChild();
+                    node->setAndIncChild(1, l2iNode);
+
+                    address->incReferenceCount();
+                    immChild->recursivelyDecReferenceCount();
+
+                    if (addedToList)
+                        address->decReferenceCount();
+                    else
+                        address->recursivelyDecReferenceCount();
+
+                    address->setVisitCount(visitCount - 1);
+                }
+            }
+        }
+    }
+}
+
+void J9::CodeGenerator::yankCompressedRefs(TR::TreeTop *tt, TR::Node *parent, int32_t childNum, TR::Node *node,
+    vcount_t visitCount, vcount_t secondVisitCount)
+{
+    if (node->getVisitCount() >= visitCount)
+        return;
+
+    node->setVisitCount(visitCount);
+
+    for (int32_t i = 0; i < node->getNumChildren(); ++i) {
+        TR::Node *child = node->getChild(i);
+        self()->yankCompressedRefs(tt, node, i, child, visitCount, secondVisitCount);
+    }
+
+    if (parent && (parent->getOpCodeValue() == TR::treetop) && (node->getOpCodeValue() == TR::l2a)
+        && (node->getFirstChild()->getOpCodeValue() == TR::ladd
+            && node->getFirstChild()->containsCompressionSequence())) {
+        TR::TreeTop *firstTree = tt;
+        TR::TreeTop *lastTree = tt;
+        bool nullCheckTree = false;
+        bool exprNeedsChecking = true;
+        if ((node->getFirstChild()->getFirstChild()->getOpCodeValue() == TR::iu2l)
+            && (node->getFirstChild()->getFirstChild()->getFirstChild()->getOpCodeValue() == TR::iloadi)
+            && ((node->getFirstChild()->getFirstChild()->getFirstChild()->getFirstChild()->getOpCode().isLoadVarDirect()
+                    && node->getFirstChild()
+                           ->getFirstChild()
+                           ->getFirstChild()
+                           ->getFirstChild()
+                           ->getSymbolReference()
+                           ->getSymbol()
+                           ->isAutoOrParm())
+                || (node->getFirstChild()->getFirstChild()->getFirstChild()->getFirstChild()->getOpCodeValue()
+                    == TR::aRegStore)))
+            exprNeedsChecking = false;
+
+        TR::TreeTop *prevTree = tt->getPrevTreeTop();
+        TR::Node *prevNode = prevTree->getNode();
+        if (prevNode->getOpCodeValue() == TR::NULLCHK) {
+            if (prevNode->getFirstChild()->getOpCodeValue() == TR::PassThrough) {
+                TR::Node *reference = prevNode->getNullCheckReference();
+                if ((reference == node)
+                    || ((reference->getOpCodeValue() == TR::l2a)
+                        && (reference->getFirstChild() == node->getFirstChild()->getFirstChild()))) {
+                    nullCheckTree = true;
+                    firstTree = prevTree;
+                    prevTree = prevTree->getPrevTreeTop();
+                    prevNode = prevTree->getNode();
+                }
+            }
+        }
+
+        if ((prevNode->getOpCodeValue() == TR::treetop)
+            && (prevNode->getFirstChild() == node->getFirstChild()->getFirstChild()))
+            firstTree = prevTree;
+        else
+            firstTree = tt;
+
+        if (firstTree != tt) {
+            TR_BitVector symbolReferencesInNode(self()->comp()->getSymRefCount(), self()->comp()->trMemory(),
+                stackAlloc);
+
+            ////bool canYank = collectSymRefs(node, &symbolReferencesInNode, secondVisitCount);
+            // since symRefs need to be collected for each treetop, we'll need a fresh visitCount
+            // for every walk of a tree
+            //
+            bool canYank = self()->collectSymRefs(node, &symbolReferencesInNode, self()->comp()->incVisitCount());
+
+            TR_BitVector intersection(self()->comp()->getSymRefCount(), self()->comp()->trMemory(), stackAlloc);
+
+            if (canYank) {
+                TR::TreeTop *cursorTree = firstTree->getPrevTreeTop();
+                int32_t numTrees = 0;
+                while (cursorTree) {
+                    numTrees++;
+                    TR::Node *cursorNode = cursorTree->getNode();
+                    TR::Node *childNode = NULL;
+                    if (cursorNode->getNumChildren() > 0)
+                        childNode = cursorNode->getFirstChild();
+
+                    if (cursorNode && cursorNode->getOpCode().hasSymbolReference()
+                        && (cursorNode->getOpCode().isStore() || cursorNode->getOpCode().isCall())) {
+                        if (symbolReferencesInNode.get(cursorNode->getSymbolReference()->getReferenceNumber())) {
+                            break;
+                        }
+
+                        intersection.empty();
+                        cursorNode->getSymbolReference()->getUseDefAliases().getAliasesAndUnionWith(intersection);
+                        intersection &= symbolReferencesInNode;
+                        if (!intersection.isEmpty()) {
+                            break;
+                        }
+                    }
+
+                    if (childNode && childNode->getOpCode().hasSymbolReference()) {
+                        if (childNode && childNode->getOpCode().hasSymbolReference()
+                            && (childNode->getOpCode().isStore() || childNode->getOpCode().isCall())) {
+                            if (symbolReferencesInNode.get(childNode->getSymbolReference()->getReferenceNumber())) {
+                                break;
+                            }
+
+                            intersection.empty();
+                            childNode->getSymbolReference()->getUseDefAliases().getAliasesAndUnionWith(intersection);
+                            intersection &= symbolReferencesInNode;
+                            if (!intersection.isEmpty()) {
+                                break;
+                            }
+                        }
+                    }
+
+                    if (nullCheckTree) {
+                        if (cursorNode->getOpCode().isStore()) {
+                            if (cursorNode->getSymbol()->isStatic() || cursorNode->getSymbol()->isShadow()
+                                || !cursorNode->getSymbolReference()->getUseonlyAliases().isZero(self()->comp())) {
+                                break;
+                            }
+                        }
+                    }
+
+                    if (cursorNode->exceptionsRaised()) {
+                        if (nullCheckTree || exprNeedsChecking)
+                            break;
+                    }
+
+                    if (cursorNode->getOpCodeValue() == TR::BBStart) {
+                        break;
+                    }
+
+                    cursorTree = cursorTree->getPrevTreeTop();
+                }
+
+                if (cursorTree != firstTree->getPrevTreeTop()) {
+                    TR::TreeTop *nextTree = cursorTree->getNextTreeTop();
+                    TR::TreeTop *prevTreeAtSrc = firstTree->getPrevTreeTop();
+                    TR::TreeTop *nextTreeAtSrc = lastTree->getNextTreeTop();
+                    prevTreeAtSrc->join(nextTreeAtSrc);
+                    cursorTree->join(firstTree);
+                    lastTree->join(nextTree);
+                }
+            }
+        }
+    }
+}
+
+void J9::CodeGenerator::anchorRematNodesIfNeeded(TR::Node *node, TR::TreeTop *tt, List<TR::Node> *rematerializedNodes)
+{
+    TR::Compilation *comp = self()->comp();
+    OMR::Logger *log = comp->log();
+    bool trace = comp->getOption(TR_TraceCG);
+
+    TR::SymbolReference *symRef = node->getSymbolReference();
+    TR::SparseBitVector aliases(comp->allocator());
+    if (symRef->sharesSymbol())
+        symRef->getUseDefAliases().getAliases(aliases);
+
+    ListIterator<TR::Node> nodesIt(rematerializedNodes);
+    for (TR::Node *rematNode = nodesIt.getFirst(); rematNode != NULL; rematNode = nodesIt.getNext()) {
+        if (rematNode->getOpCodeValue() == TR::l2a) {
+            TR::Node *load = rematNode->getFirstChild();
+            while (load->getOpCodeValue() != TR::iu2l)
+                load = load->getFirstChild();
+            load = load->getFirstChild();
+            if (load->getOpCode().isLoadIndirect()
+                && ((load->getSymbolReference() == node->getSymbolReference())
+                    || (aliases.ValueAt(load->getSymbolReference()->getReferenceNumber())))) {
+                rematerializedNodes->remove(rematNode);
+                rematNode->setVisitCount(comp->getVisitCount());
+                if (comp->getOption(TR_TraceCG)) {
+                    if (node->getOpCode().isStoreIndirect() && trace)
+                        log->printf("Found previous load %p same as store %p, anchoring load\n", load, node);
+                    else
+                        log->printf("Found previous load %p aliases with node %p, anchoring load\n", load, node);
+                }
+                TR::Node *ttNode = TR::Node::create(TR::treetop, 1, rematNode);
+                TR::TreeTop *treeTop = TR::TreeTop::create(comp, ttNode);
+                TR::TreeTop *prevTree = tt->getPrevTreeTop();
+                prevTree->join(treeTop);
+                treeTop->join(tt);
+            }
+        }
+    }
+}
+
+/**
  * Insert asyncCheck's before method returns.  Without this, methods
  * with no loops or calls will never be sa/mpled, and will be stuck
  * forever at their initial opt-level.  (Important for mpegaudio,
  * which has some large, warm methods with no loops or calls).
  */
 void J9::CodeGenerator::insertEpilogueYieldPoints()
-   {
-   // Look for all returns, and insert async check before them
-   TR::CFG * cfg = self()->comp()->getFlowGraph();
+{
+    // Look for all returns, and insert async check before them
+    TR::CFG *cfg = self()->comp()->getFlowGraph();
 
-   for (TR::TreeTop * treeTop = self()->comp()->getStartTree(); treeTop; treeTop = treeTop->getNextTreeTop())
-      {
+    for (TR::TreeTop *treeTop = self()->comp()->getStartTree(); treeTop; treeTop = treeTop->getNextTreeTop()) {
+        TR::Node *node = treeTop->getNode();
+        TR::ILOpCodes opCode = node->getOpCodeValue();
 
-      TR::Node * node = treeTop->getNode();
-      TR::ILOpCodes opCode = node->getOpCodeValue();
+        if (opCode == TR::BBStart) {
+            TR::Block *block = node->getBlock();
 
-      if (opCode == TR::BBStart)
-         {
-         TR::Block * block = node->getBlock();
+            TR::TreeTop *tt1 = block->getLastRealTreeTop();
+            TR::Node *node1 = tt1->getNode();
 
-         TR::TreeTop * tt1 = block->getLastRealTreeTop();
-         TR::Node * node1 = tt1->getNode();
+            if (node1->getOpCode().isReturn()) {
+                TR::TreeTop *prevTT = tt1->getPrevTreeTop();
+                if (node1->getNumChildren() > 0) {
+                    // anchor the return value
+                    TR::Node *ttNode = TR::Node::create(TR::treetop, 1, node1->getFirstChild());
+                    TR::TreeTop *anchorTree = TR::TreeTop::create(self()->comp(), ttNode);
+                    prevTT->join(anchorTree);
+                    anchorTree->join(tt1);
+                    prevTT = anchorTree;
+                }
 
-         if (node1->getOpCode().isReturn())
-            {
-            TR::TreeTop *prevTT = tt1->getPrevTreeTop();
-            if (node1->getNumChildren()>0)
-               {
-               //anchor the return value
-               TR::Node *ttNode = TR::Node::create(TR::treetop, 1, node1->getFirstChild());
-               TR::TreeTop *anchorTree = TR::TreeTop::create(self()->comp(), ttNode);
-               prevTT->join(anchorTree);
-               anchorTree->join(tt1);
-               prevTT = anchorTree;
-               }
-
-            TR::Node *asyncNode = TR::Node::createWithSymRef(node, TR::asynccheck, 0,
-                                                 self()->comp()->getSymRefTab()->findOrCreateAsyncCheckSymbolRef(self()->comp()->getMethodSymbol()));
-            TR::TreeTop *asyncTree = TR::TreeTop::create(self()->comp(), asyncNode);
-            prevTT->join(asyncTree);
-            asyncTree->join(tt1);
-            treeTop = tt1->getNextTreeTop();
+                TR::Node *asyncNode = TR::Node::createWithSymRef(node, TR::asynccheck, 0,
+                    self()->comp()->getSymRefTab()->findOrCreateAsyncCheckSymbolRef(self()->comp()->getMethodSymbol()));
+                TR::TreeTop *asyncTree = TR::TreeTop::create(self()->comp(), asyncNode);
+                prevTT->join(asyncTree);
+                asyncTree->join(tt1);
+                treeTop = tt1->getNextTreeTop();
 #if 0
             // Asynccheck's need to be at the beginning of blocks
             TR::Block * returnBlock = block->split(tt1, cfg);
@@ -4003,2052 +3529,1781 @@ void J9::CodeGenerator::insertEpilogueYieldPoints()
             returnBlock->prepend(asyncTree);
 #endif
             }
-         }
-      }
-   }
+        }
+    }
+}
 
+TR::TreeTop *J9::CodeGenerator::genSymRefStoreToArray(TR::Node *refNode, TR::Node *arrayAddressNode,
+    TR::Node *firstOffset, TR::Node *loadNode, int32_t secondOffset, TR::TreeTop *insertionPoint)
+{
+    TR::Node *offsetNode;
 
-TR::TreeTop *
-J9::CodeGenerator::genSymRefStoreToArray(
-      TR::Node* refNode,
-      TR::Node* arrayAddressNode,
-      TR::Node* firstOffset,
-      TR::Node* loadNode,
-      int32_t secondOffset,
-      TR::TreeTop* insertionPoint)
-   {
-   TR::Node* offsetNode;
+    if (firstOffset)
+        offsetNode = TR::Node::create(TR::iadd, 2, firstOffset, TR::Node::create(refNode, TR::iconst, 0, secondOffset));
+    else
+        offsetNode = TR::Node::create(refNode, TR::iconst, 0, secondOffset);
 
-   if (firstOffset)
-      offsetNode = TR::Node::create(TR::iadd, 2,
-         firstOffset,
-         TR::Node::create(refNode, TR::iconst, 0, secondOffset));
-   else
-      offsetNode = TR::Node::create(refNode, TR::iconst, 0, secondOffset);
+    if (self()->comp()->target().is64Bit()) {
+        offsetNode = TR::Node::create(TR::i2l, 1, offsetNode);
+    }
 
-   if (self()->comp()->target().is64Bit())
-      {
-      offsetNode = TR::Node::create(TR::i2l, 1, offsetNode);
-      }
+    TR::Node *addrNode
+        = TR::Node::create(self()->comp()->target().is64Bit() ? TR::aladd : TR::aiadd, 2, arrayAddressNode, offsetNode);
+    TR::Node *storeNode = TR::Node::createWithSymRef(self()->comp()->il.opCodeForIndirectStore(loadNode->getDataType()),
+        2, 2, addrNode, loadNode, self()->symRefTab()->findOrCreateGenericIntShadowSymbolReference(0));
+    TR::TreeTop *storeTreeTop = TR::TreeTop::create(self()->comp(), storeNode);
+    insertionPoint->insertTreeTopsAfterMe(storeTreeTop);
+    return storeTreeTop;
+}
 
-   TR::Node* addrNode = TR::Node::create(self()->comp()->target().is64Bit()?TR::aladd:TR::aiadd,
-      2, arrayAddressNode, offsetNode);
-   TR::Node* storeNode =
-      TR::Node::createWithSymRef(self()->comp()->il.opCodeForIndirectStore(loadNode->getDataType()), 2, 2,
-                      addrNode, loadNode,
-                      self()->symRefTab()->findOrCreateGenericIntShadowSymbolReference(0));
-   TR::TreeTop* storeTreeTop = TR::TreeTop::create(self()->comp(), storeNode);
-   insertionPoint->insertTreeTopsAfterMe(storeTreeTop);
-   return storeTreeTop;
-   }
+bool J9::CodeGenerator::collectSymRefs(TR::Node *node, TR_BitVector *symRefs, vcount_t visitCount)
+{
+    if (node->getVisitCount() >= visitCount)
+        return true;
 
+    node->setVisitCount(visitCount);
 
-bool
-J9::CodeGenerator::collectSymRefs(
-      TR::Node *node,
-      TR_BitVector *symRefs,
-      vcount_t visitCount)
-   {
-   if (node->getVisitCount() >= visitCount)
-      return true;
+    if (node->getOpCode().hasSymbolReference()) {
+        if (node->getOpCode().isLoadVar()) {
+            TR::SymbolReference *symRef = node->getSymbolReference();
+            symRef->getUseDefAliases().getAliasesAndUnionWith(*symRefs);
 
-   node->setVisitCount(visitCount);
+            symRefs->set(symRef->getReferenceNumber());
+        } else
+            return false;
+    }
 
+    for (int32_t i = 0; i < node->getNumChildren(); ++i) {
+        TR::Node *child = node->getChild(i);
+        if (!self()->collectSymRefs(child, symRefs, visitCount))
+            return false;
+    }
 
-   if (node->getOpCode().hasSymbolReference())
-      {
-      if (node->getOpCode().isLoadVar())
-         {
-         TR::SymbolReference *symRef = node->getSymbolReference();
-         symRef->getUseDefAliases().getAliasesAndUnionWith(*symRefs);
+    return true;
+}
 
-         symRefs->set(symRef->getReferenceNumber());
-         }
-      else
-         return false;
-      }
+bool J9::CodeGenerator::willGenerateNOPForVirtualGuard(TR::Node *node)
+{
+    TR::Compilation *comp = self()->comp();
 
-   for (int32_t i = 0; i < node->getNumChildren(); ++i)
-      {
-      TR::Node *child = node->getChild(i);
-      if (!self()->collectSymRefs(child, symRefs, visitCount))
-         return false;
-      }
+    if (!(node->isNopableInlineGuard() || node->isHCRGuard() || node->isOSRGuard())
+        || !self()->getSupportsVirtualGuardNOPing())
+        return false;
 
-   return true;
-   }
+    TR_VirtualGuard *virtualGuard = comp->findVirtualGuardInfo(node);
 
-bool
-J9::CodeGenerator::willGenerateNOPForVirtualGuard(TR::Node *node)
-   {
-   TR::Compilation *comp = self()->comp();
+    if (!((comp->performVirtualGuardNOPing() || node->isHCRGuard() || node->isOSRGuard()
+              || self()->needClassAndMethodPointerRelocations())
+            && comp->isVirtualGuardNOPingRequired(virtualGuard))
+        && virtualGuard->canBeRemoved())
+        return false;
 
-   if (!(node->isNopableInlineGuard() || node->isHCRGuard() || node->isOSRGuard())
-           || !self()->getSupportsVirtualGuardNOPing())
-      return false;
+    if (node->getOpCodeValue() != TR::ificmpne && node->getOpCodeValue() != TR::ifacmpne
+        && node->getOpCodeValue() != TR::iflcmpne) {
+        // not expecting reversed comparison
+        // Raise an assume if the optimizer requested that this virtual guard must be NOPed
+        //
+        TR_ASSERT(virtualGuard->canBeRemoved(), "virtualGuardHelper: a non-removable virtual guard cannot be NOPed");
 
-   TR_VirtualGuard *virtualGuard = comp->findVirtualGuardInfo(node);
+        return false;
+    }
 
-   if (!((comp->performVirtualGuardNOPing() || node->isHCRGuard() || node->isOSRGuard() || self()->needClassAndMethodPointerRelocations()) &&
-         comp->isVirtualGuardNOPingRequired(virtualGuard)) &&
-         virtualGuard->canBeRemoved())
-      return false;
+    return true;
+}
 
-   if (   node->getOpCodeValue() != TR::ificmpne
-       && node->getOpCodeValue() != TR::ifacmpne
-       && node->getOpCodeValue() != TR::iflcmpne)
-      {
-      // not expecting reversed comparison
-      // Raise an assume if the optimizer requested that this virtual guard must be NOPed
-      //
-      TR_ASSERT(virtualGuard->canBeRemoved(), "virtualGuardHelper: a non-removable virtual guard cannot be NOPed");
+/** \brief
+ *       Following codegen phase walks the blocks in the CFG and checks for the virtual guard performing TR_MethodTest
+ *       and guarding an inlined interface call.
+ *
+ * \details
+ *       Virtual Guard performing TR_MethodTest would look like following.
+ *       n1n BBStart <block_X>
+ *       ...
+ *       n2n ifacmpne goto -> nXXn
+ *       n3n    aloadi <offset of inlined method in VTable>
+ *       n4n       aload <vft>
+ *       n5n    aconst <J9Method of inlined method>
+ *       n6n BBEnd <block_X>
+ *       For virtual dispatch sequence, we know that this is the safe check but in case of interface call, classes
+ * implementing that interface would have different size of VTable. This makes executing above check unsafe when VTable
+ * of the class of the receiver object is smaller, effectively making reference in n3n to pointing to a garbage location
+ * which might lead to a segmentation fault if the reference in not memory mapped or if bychance it contains J9Method
+ * pointer of same inlined method then it will execute a code which should not be executed. For this kind of Virtual
+ * guards which are not nop'd we need to add a range check to make sure the address we are going to access is pointing
+ * to a valid location in VTable. There are mainly two ways we can add this range check test. First one is during the
+ * conception of the virtual guard. There are many downsides of doing so especially when other optimizations which can
+ * moved guards around (for example loop versioner, virtualguard head merger, etc) needs to make sure to move range
+ * check test around as well. Other way is to scan for this type of guards after optimization is finished like here in
+ * CodeGen Phase and add a range check test here. At the end of this function, we would have following code around them
+ * method test. BBStart <block_X>
+ *       ...
+ *       ifacmple goto nXXn
+ *          aloadi <offset of VTableHeader.size from J9Class*>
+ *             aload <vft>
+ *          aconst <Index of the inlined method in VTable of class of inlined method>
+ *       BBEnd <block_X>
+ *
+ *       BBStart <block_Y>
+ *       ifacmpne goto -> nXXn
+ *          aloadi <offset of inlined method in VTable>
+ *             aload <vft>
+ *          aconst <J9Method of inlined method>
+ *       BBEnd <block_Y>
+ */
+void J9::CodeGenerator::fixUpProfiledInterfaceGuardTest()
+{
+    TR::Compilation *comp = self()->comp();
+    TR::CFG *cfg = comp->getFlowGraph();
+    TR::NodeChecklist checklist(comp);
+    for (TR::AllBlockIterator iter(cfg, comp); iter.currentBlock() != NULL; ++iter) {
+        TR::Block *block = iter.currentBlock();
+        TR::TreeTop *treeTop = block->getLastRealTreeTop();
+        TR::Node *node = treeTop->getNode();
+        if (node->getOpCode().isIf() && node->isTheVirtualGuardForAGuardedInlinedCall() && !checklist.contains(node)) {
+            TR_VirtualGuard *vg = comp->findVirtualGuardInfo(node);
+            // Mainly we need to make sure that virtual guard which performs the TR_MethodTest and can be NOP'd are
+            // needed the range check.
+            if (vg != NULL && vg->getTestType() == TR_MethodTest && !self()->willGenerateNOPForVirtualGuard(node)
+                && !node->vftEntryIsInBounds()) {
+                TR::SymbolReference *callSymRef = vg->getSymbolReference();
+                TR_ASSERT_FATAL(callSymRef != NULL,
+                    "Guard n%dn for the inlined call should have stored symbol reference for the call",
+                    node->getGlobalIndex());
+                if (callSymRef->getSymbol()->castToMethodSymbol()->isInterface()) {
+                    TR::DebugCounter::incStaticDebugCounter(comp,
+                        TR::DebugCounter::debugCounterName(comp, "profiledInterfaceTest/({%s}{%s})", comp->signature(),
+                            comp->getHotnessName(comp->getMethodHotness())));
+                    dumpOptDetails(comp, "Need to add a rangecheck before n%dn in block_%d\n", node->getGlobalIndex(),
+                        block->getNumber());
 
-      return false;
-      }
-
-   return true;
-   }
-
-  /** \brief
-    *       Following codegen phase walks the blocks in the CFG and checks for the virtual guard performing TR_MethodTest
-    *       and guarding an inlined interface call.
-    *
-    * \details
-    *       Virtual Guard performing TR_MethodTest would look like following.
-    *       n1n BBStart <block_X>
-    *       ...
-    *       n2n ifacmpne goto -> nXXn
-    *       n3n    aloadi <offset of inlined method in VTable>
-    *       n4n       aload <vft>
-    *       n5n    aconst <J9Method of inlined method>
-    *       n6n BBEnd <block_X>
-    *       For virtual dispatch sequence, we know that this is the safe check but in case of interface call, classes implementing
-    *       that interface would have different size of VTable. This makes executing above check unsafe when VTable of the class of
-    *       the receiver object is smaller, effectively making reference in n3n to pointing to a garbage location which might lead
-    *       to a segmentation fault if the reference in not memory mapped or if bychance it contains J9Method  pointer of same inlined
-    *       method then it will execute a code which should not be executed.
-    *       For this kind of Virtual guards which are not nop'd we need to add a range check to make sure the address we are going to
-    *       access is pointing to a valid location in VTable. There are mainly two ways we can add this range check test. First one is
-    *       during the conception of the virtual guard. There are many downsides of doing so especially when other optimizations which
-    *       can moved guards around (for example loop versioner, virtualguard head merger, etc) needs to make sure to move range check
-    *       test around as well. Other way is to scan for this type of guards after optimization is finished like here in CodeGen Phase
-    *       and add a range check test here.
-    *       At the end of this function, we would have following code around them method test.
-    *       BBStart <block_X>
-    *       ...
-    *       ifacmple goto nXXn
-    *          aloadi <offset of VTableHeader.size from J9Class*>
-    *             aload <vft>
-    *          aconst <Index of the inlined method in VTable of class of inlined method>
-    *       BBEnd <block_X>
-    *
-    *       BBStart <block_Y>
-    *       ifacmpne goto -> nXXn
-    *          aloadi <offset of inlined method in VTable>
-    *             aload <vft>
-    *          aconst <J9Method of inlined method>
-    *       BBEnd <block_Y>
-    */
-void
-J9::CodeGenerator::fixUpProfiledInterfaceGuardTest()
-   {
-   TR::Compilation *comp = self()->comp();
-   TR::CFG * cfg = comp->getFlowGraph();
-   TR::NodeChecklist checklist(comp);
-   for (TR::AllBlockIterator iter(cfg, comp); iter.currentBlock() != NULL; ++iter)
-      {
-      TR::Block *block = iter.currentBlock();
-      TR::TreeTop *treeTop = block->getLastRealTreeTop();
-      TR::Node *node = treeTop->getNode();
-      if (node->getOpCode().isIf() && node->isTheVirtualGuardForAGuardedInlinedCall() && !checklist.contains(node))
-         {
-         TR_VirtualGuard *vg = comp->findVirtualGuardInfo(node);
-         // Mainly we need to make sure that virtual guard which performs the TR_MethodTest and can be NOP'd are needed the range check.
-         if (vg != NULL
-             && vg->getTestType() == TR_MethodTest
-             && !self()->willGenerateNOPForVirtualGuard(node)
-             && !node->vftEntryIsInBounds())
-            {
-            TR::SymbolReference *callSymRef = vg->getSymbolReference();
-            TR_ASSERT_FATAL(callSymRef != NULL, "Guard n%dn for the inlined call should have stored symbol reference for the call", node->getGlobalIndex());
-            if (callSymRef->getSymbol()->castToMethodSymbol()->isInterface())
-               {
-               TR::DebugCounter::incStaticDebugCounter(comp, TR::DebugCounter::debugCounterName(comp, "profiledInterfaceTest/({%s}{%s})", comp->signature(), comp->getHotnessName(comp->getMethodHotness())));
-               dumpOptDetails(comp, "Need to add a rangecheck before n%dn in block_%d\n",node->getGlobalIndex(), block->getNumber());
-
-               // We need a VFT Load of the receiver object to get the VTableHeader.size to check the range. As this operation is happening during codegen phase, only
-               // known concrete way we can have this information is through aloadi child of the guard that has single child which is vft load of receiver object.
-               // Now instead of accessing VFT load from the child of the aloadi, we could have treetop's the aloadi during inlining where we generate the virtual guard
-               // to access information from the treetop. Because of the same reasons lined up behind adding range check test during codegen phase in the description of this function,
-               // we would need to make changes in all optimizations moving Virtual Guard around to keep that treetop together before guard which will be very difficult to enforce.
-               // Also as children of virtual guard is very self contained and atm it is very unlikely that other optimizations are going to find opportunity of manipulating them and
-               // Because of the fact that it is very unlikely that we will have another aloadi node with same VTable offset of same receiver object, this child would not be commoned out
-               // and have only single reference in this virtual guard therefore splitting of block will not store it to temp slot.
-               // In rare case child of the virtual guard is manipulated then illegal memory reference load would hace occured before the Virtual Guard which
-               // is already a bug as mentioned in the description of this function and it would be safer to fail compilation.
-               TR::Node *vTableLoad = node->getFirstChild();
-               if (!(vTableLoad->getOpCodeValue() == TR::aloadi && comp->getSymRefTab()->isVtableEntrySymbolRef(vTableLoad->getSymbolReference())))
-                  comp->failCompilation<TR::CompilationException>("Abort compilation as Virtual Guard has generated illegal memory reference");
-               TR::Node *vTableSizeOfReceiver = NULL;
-               TR::Node *rangeCheckTest = NULL;
-               if (self()->comp()->target().is64Bit())
-                  {
-                  vTableSizeOfReceiver = TR::Node::createWithSymRef(TR::lloadi, 1, 1, vTableLoad->getFirstChild(),
-                                                                           comp->getSymRefTab()->findOrCreateVtableEntrySymbolRef(comp->getMethodSymbol(),
-                                                                                                                                    sizeof(J9Class)+ offsetof(J9VTableHeader, size)));
-                  rangeCheckTest = TR::Node::createif(TR::iflcmple, vTableSizeOfReceiver,
-                                                                  TR::Node::lconst(node,  (vTableLoad->getSymbolReference()->getOffset() - sizeof(J9Class) - sizeof(J9VTableHeader)) / sizeof(UDATA)) ,
-                                                                  node->getBranchDestination());
-                  }
-               else
-                  {
-                  vTableSizeOfReceiver = TR::Node::createWithSymRef(TR::iloadi, 1, 1, vTableLoad->getFirstChild(),
-                                                                           comp->getSymRefTab()->findOrCreateVtableEntrySymbolRef(comp->getMethodSymbol(),
-                                                                                                                                    sizeof(J9Class)+ offsetof(J9VTableHeader, size)));
-                  rangeCheckTest = TR::Node::createif(TR::ificmple, vTableSizeOfReceiver,
-                                                                  TR::Node::iconst(node,  (vTableLoad->getSymbolReference()->getOffset() - sizeof(J9Class) - sizeof(J9VTableHeader)) / sizeof(UDATA)) ,
-                                                                  node->getBranchDestination());
-                  }
-               TR::TreeTop *rangeTestTT = TR::TreeTop::create(comp, treeTop->getPrevTreeTop(), rangeCheckTest);
-               TR::Block *newBlock = block->split(treeTop, cfg, false, false);
-               cfg->addEdge(block, node->getBranchDestination()->getEnclosingBlock());
-               newBlock->setIsExtensionOfPreviousBlock();
-               if (node->getNumChildren() == 3)
-                  {
-                  TR::Node *currentBlockGlRegDeps = node->getChild(2);
-                  TR::Node *exitGlRegDeps = TR::Node::create(TR::GlRegDeps, currentBlockGlRegDeps->getNumChildren());
-                  for (int i = 0; i < currentBlockGlRegDeps->getNumChildren(); i++)
-                     {
-                     TR::Node *child = currentBlockGlRegDeps->getChild(i);
-                     exitGlRegDeps->setAndIncChild(i, child);
-                     }
-                  rangeCheckTest->addChildren(&exitGlRegDeps, 1);
-                  }
-               // While walking all blocks in CFG, when we find the location to add the range check, it will split the original block and
-               // We will have actual Virtual Guard in new block. As Block Iterator guarantees to visit all block in the CFG,
-               // While going over the blocks, we will encounter same virtual guard in newly created block after split.
-               // We need to make sure we are not examining already visited guard.
-               // Add checked virtual guard node to NodeChecklist to make sure we check all the nodes only once.
-               checklist.add(node);
-               }
+                    // We need a VFT Load of the receiver object to get the VTableHeader.size to check the range. As
+                    // this operation is happening during codegen phase, only known concrete way we can have this
+                    // information is through aloadi child of the guard that has single child which is vft load of
+                    // receiver object. Now instead of accessing VFT load from the child of the aloadi, we could have
+                    // treetop's the aloadi during inlining where we generate the virtual guard to access information
+                    // from the treetop. Because of the same reasons lined up behind adding range check test during
+                    // codegen phase in the description of this function, we would need to make changes in all
+                    // optimizations moving Virtual Guard around to keep that treetop together before guard which will
+                    // be very difficult to enforce. Also as children of virtual guard is very self contained and atm it
+                    // is very unlikely that other optimizations are going to find opportunity of manipulating them and
+                    // Because of the fact that it is very unlikely that we will have another aloadi node with same
+                    // VTable offset of same receiver object, this child would not be commoned out and have only single
+                    // reference in this virtual guard therefore splitting of block will not store it to temp slot. In
+                    // rare case child of the virtual guard is manipulated then illegal memory reference load would hace
+                    // occured before the Virtual Guard which is already a bug as mentioned in the description of this
+                    // function and it would be safer to fail compilation.
+                    TR::Node *vTableLoad = node->getFirstChild();
+                    if (!(vTableLoad->getOpCodeValue() == TR::aloadi
+                            && comp->getSymRefTab()->isVtableEntrySymbolRef(vTableLoad->getSymbolReference())))
+                        comp->failCompilation<TR::CompilationException>(
+                            "Abort compilation as Virtual Guard has generated illegal memory reference");
+                    TR::Node *vTableSizeOfReceiver = NULL;
+                    TR::Node *rangeCheckTest = NULL;
+                    if (self()->comp()->target().is64Bit()) {
+                        vTableSizeOfReceiver = TR::Node::createWithSymRef(TR::lloadi, 1, 1, vTableLoad->getFirstChild(),
+                            comp->getSymRefTab()->findOrCreateVtableEntrySymbolRef(comp->getMethodSymbol(),
+                                sizeof(J9Class) + offsetof(J9VTableHeader, size)));
+                        rangeCheckTest = TR::Node::createif(TR::iflcmple, vTableSizeOfReceiver,
+                            TR::Node::lconst(node,
+                                (vTableLoad->getSymbolReference()->getOffset() - sizeof(J9Class)
+                                    - sizeof(J9VTableHeader))
+                                    / sizeof(UDATA)),
+                            node->getBranchDestination());
+                    } else {
+                        vTableSizeOfReceiver = TR::Node::createWithSymRef(TR::iloadi, 1, 1, vTableLoad->getFirstChild(),
+                            comp->getSymRefTab()->findOrCreateVtableEntrySymbolRef(comp->getMethodSymbol(),
+                                sizeof(J9Class) + offsetof(J9VTableHeader, size)));
+                        rangeCheckTest = TR::Node::createif(TR::ificmple, vTableSizeOfReceiver,
+                            TR::Node::iconst(node,
+                                (vTableLoad->getSymbolReference()->getOffset() - sizeof(J9Class)
+                                    - sizeof(J9VTableHeader))
+                                    / sizeof(UDATA)),
+                            node->getBranchDestination());
+                    }
+                    TR::TreeTop *rangeTestTT = TR::TreeTop::create(comp, treeTop->getPrevTreeTop(), rangeCheckTest);
+                    TR::Block *newBlock = block->split(treeTop, cfg, false, false);
+                    cfg->addEdge(block, node->getBranchDestination()->getEnclosingBlock());
+                    newBlock->setIsExtensionOfPreviousBlock();
+                    if (node->getNumChildren() == 3) {
+                        TR::Node *currentBlockGlRegDeps = node->getChild(2);
+                        TR::Node *exitGlRegDeps
+                            = TR::Node::create(TR::GlRegDeps, currentBlockGlRegDeps->getNumChildren());
+                        for (int i = 0; i < currentBlockGlRegDeps->getNumChildren(); i++) {
+                            TR::Node *child = currentBlockGlRegDeps->getChild(i);
+                            exitGlRegDeps->setAndIncChild(i, child);
+                        }
+                        rangeCheckTest->addChildren(&exitGlRegDeps, 1);
+                    }
+                    // While walking all blocks in CFG, when we find the location to add the range check, it will split
+                    // the original block and We will have actual Virtual Guard in new block. As Block Iterator
+                    // guarantees to visit all block in the CFG, While going over the blocks, we will encounter same
+                    // virtual guard in newly created block after split. We need to make sure we are not examining
+                    // already visited guard. Add checked virtual guard node to NodeChecklist to make sure we check all
+                    // the nodes only once.
+                    checklist.add(node);
+                }
             }
-         }
-      }
-   }
+        }
+    }
+}
 
+void J9::CodeGenerator::allocateLinkageRegisters()
+{
+    TR::Compilation *comp = self()->comp();
+    OMR::Logger *log = comp->log();
 
+    if (comp->isGPUCompilation())
+        return;
 
-void
-J9::CodeGenerator::allocateLinkageRegisters()
-   {
-   TR::Compilation *comp = self()->comp();
-   OMR::Logger *log = comp->log();
+    TR::Delimiter d(comp, comp->getOptions()->getAnyOption(TR_TraceOptDetails | TR_CountOptTransformations),
+        "AllocateLinkageRegisters");
 
-   if (comp->isGPUCompilation())
-      return;
+    if (!self()->prepareForGRA()) {
+        dumpOptDetails(comp, "  prepareForGRA failed -- giving up\n");
+        return;
+    }
 
-   TR::Delimiter d(comp, comp->getOptions()->getAnyOption(TR_TraceOptDetails|TR_CountOptTransformations), "AllocateLinkageRegisters");
+    TR::Block *firstBlock = comp->getStartBlock();
+    const int32_t numParms = comp->getMethodSymbol()->getParameterList().getSize();
 
-   if (!self()->prepareForGRA())
-      {
-      dumpOptDetails(comp, "  prepareForGRA failed -- giving up\n");
-      return;
-      }
+    if (numParms == 0)
+        return;
 
-   TR::Block *firstBlock = comp->getStartBlock();
-   const int32_t numParms = comp->getMethodSymbol()->getParameterList().getSize();
+    TR_BitVector globalRegsWithRegLoad(self()->getNumberOfGlobalRegisters(), comp->trMemory(),
+        stackAlloc); // indexed by global register number
+    TR_BitVector killedParms(numParms, comp->trMemory(), stackAlloc); // indexed by parm->getOrdinal()
+    TR::Node **regLoads = (TR::Node **)self()->trMemory()->allocateStackMemory(
+        numParms * sizeof(regLoads[0])); // indexed by parm->getOrdinal() to give the RegLoad for a given parm
+    memset(regLoads, 0, numParms * sizeof(regLoads[0]));
 
-   if (numParms == 0) return ;
+    // If the first block is in a loop, then it can be reached by parm stores in other blocks.
+    // Conservatively, don't use RegLoads for any parm that is stored anywhere in the method.
+    //
+    if (firstBlock->getPredecessors().size() > 1) {
+        // Rather than put regStores in all predecessors, we give up.
+        //
+        dumpOptDetails(comp, "  First basic block is in a loop -- giving up\n");
+        return;
+    }
 
-   TR_BitVector  globalRegsWithRegLoad(self()->getNumberOfGlobalRegisters(), comp->trMemory(), stackAlloc); // indexed by global register number
-   TR_BitVector  killedParms(numParms, comp->trMemory(), stackAlloc); // indexed by parm->getOrdinal()
-   TR::Node     **regLoads = (TR::Node**)self()->trMemory()->allocateStackMemory(numParms*sizeof(regLoads[0])); // indexed by parm->getOrdinal() to give the RegLoad for a given parm
-   memset(regLoads, 0, numParms*sizeof(regLoads[0]));
-
-   // If the first block is in a loop, then it can be reached by parm stores in other blocks.
-   // Conservatively, don't use RegLoads for any parm that is stored anywhere in the method.
-   //
-   if (firstBlock->getPredecessors().size() > 1)
-      {
-      // Rather than put regStores in all predecessors, we give up.
-      //
-      dumpOptDetails(comp, "  First basic block is in a loop -- giving up\n");
-      return;
-      }
-
-   // Initialize regLoads and usedGlobalRegs from the RegLoads already present on the BBStart node
-   //
-   TR::Node *bbStart    = comp->getStartTree()->getNode();
-   TR_ASSERT(bbStart->getOpCodeValue() == TR::BBStart, "assertion failure");
-   TR::Node *oldRegDeps = (bbStart->getNumChildren() > 0)? bbStart->getFirstChild() : NULL;
-   if (oldRegDeps)
-      {
-      TR_ASSERT(oldRegDeps->getOpCodeValue() == TR::GlRegDeps, "assertion failure");
-      for (uint16_t i=0; i < oldRegDeps->getNumChildren(); i++)
-         {
-         TR::Node *regLoad = oldRegDeps->getChild(i);
-         TR_ASSERT(regLoad->getSymbol() && regLoad->getSymbol()->isParm(), "First basic block can have only parms live on entry");
-         dumpOptDetails(comp, "  Parm %d has RegLoad %s\n", regLoad->getSymbol()->getParmSymbol()->getOrdinal(), comp->getDebug()->getName(regLoad));
-         regLoads[regLoad->getSymbol()->getParmSymbol()->getOrdinal()] = regLoad;
-         if (regLoad->getType().isInt64() && comp->target().is32Bit() && !self()->use64BitRegsOn32Bit())
-            {
-            globalRegsWithRegLoad.set(regLoad->getLowGlobalRegisterNumber());
-            globalRegsWithRegLoad.set(regLoad->getHighGlobalRegisterNumber());
+    // Initialize regLoads and usedGlobalRegs from the RegLoads already present on the BBStart node
+    //
+    TR::Node *bbStart = comp->getStartTree()->getNode();
+    TR_ASSERT(bbStart->getOpCodeValue() == TR::BBStart, "assertion failure");
+    TR::Node *oldRegDeps = (bbStart->getNumChildren() > 0) ? bbStart->getFirstChild() : NULL;
+    if (oldRegDeps) {
+        TR_ASSERT(oldRegDeps->getOpCodeValue() == TR::GlRegDeps, "assertion failure");
+        for (uint16_t i = 0; i < oldRegDeps->getNumChildren(); i++) {
+            TR::Node *regLoad = oldRegDeps->getChild(i);
+            TR_ASSERT(regLoad->getSymbol() && regLoad->getSymbol()->isParm(),
+                "First basic block can have only parms live on entry");
+            dumpOptDetails(comp, "  Parm %d has RegLoad %s\n", regLoad->getSymbol()->getParmSymbol()->getOrdinal(),
+                comp->getDebug()->getName(regLoad));
+            regLoads[regLoad->getSymbol()->getParmSymbol()->getOrdinal()] = regLoad;
+            if (regLoad->getType().isInt64() && comp->target().is32Bit() && !self()->use64BitRegsOn32Bit()) {
+                globalRegsWithRegLoad.set(regLoad->getLowGlobalRegisterNumber());
+                globalRegsWithRegLoad.set(regLoad->getHighGlobalRegisterNumber());
+            } else {
+                globalRegsWithRegLoad.set(regLoad->getGlobalRegisterNumber());
             }
-         else
-            {
-            globalRegsWithRegLoad.set(regLoad->getGlobalRegisterNumber());
+        }
+    }
+
+    if (comp->getOption(TR_TraceOptDetails)) {
+        dumpOptDetails(comp, "  Initial globalRegsWithRegLoad: ");
+        self()->getDebug()->print(log, &globalRegsWithRegLoad);
+        dumpOptDetails(comp, "\n");
+    }
+
+    // Recursively replace parm loads with regLoads; create new RegLoads as necessary
+    //
+    vcount_t visitCount = comp->incVisitCount();
+    int32_t numRegLoadsAdded = 0;
+    for (TR::TreeTop *tt = firstBlock->getFirstRealTreeTop(); tt; tt = tt->getNextTreeTop()) {
+        TR::Node *node = tt->getNode();
+        if (node->getOpCodeValue() == TR::BBStart && !node->getBlock()->isExtensionOfPreviousBlock())
+            break;
+        numRegLoadsAdded
+            += self()->changeParmLoadsToRegLoads(node, regLoads, &globalRegsWithRegLoad, killedParms, visitCount);
+        if (node->getOpCode().isStoreDirect() && node->getSymbol()->isParm()) {
+            killedParms.set(node->getSymbol()->getParmSymbol()->getOrdinal());
+            if (comp->getOption(TR_TraceOptDetails)) {
+                dumpOptDetails(comp, "  Found store %s\n  killedParms is now ", comp->getDebug()->getName(node));
+                self()->getDebug()->print(log, &killedParms);
+                dumpOptDetails(comp, "\n");
             }
-         }
-      }
+        }
+    }
 
-   if (comp->getOption(TR_TraceOptDetails))
-      {
-      dumpOptDetails(comp, "  Initial globalRegsWithRegLoad: ");
-      self()->getDebug()->print(log, &globalRegsWithRegLoad);
-      dumpOptDetails(comp, "\n");
-      }
+    // Make sure all RegLoads are present on the BBStart's regdeps
+    //
+    if (numRegLoadsAdded > 0) {
+        uint16_t numOldRegDeps = oldRegDeps ? oldRegDeps->getNumChildren() : 0;
+        uint16_t numNewRegDeps = numOldRegDeps + numRegLoadsAdded;
 
+        // Create GlRegDeps
+        //
+        TR::Node *newRegDeps = TR::Node::create(bbStart, TR::GlRegDeps, numNewRegDeps);
+        uint16_t childNum = 0;
 
-   // Recursively replace parm loads with regLoads; create new RegLoads as necessary
-   //
-   vcount_t visitCount = comp->incVisitCount();
-   int32_t  numRegLoadsAdded = 0;
-   for(TR::TreeTop *tt = firstBlock->getFirstRealTreeTop(); tt; tt = tt->getNextTreeTop())
-      {
-      TR::Node *node = tt->getNode();
-      if (node->getOpCodeValue() == TR::BBStart && !node->getBlock()->isExtensionOfPreviousBlock())
-         break;
-      numRegLoadsAdded += self()->changeParmLoadsToRegLoads(node, regLoads, &globalRegsWithRegLoad, killedParms, visitCount);
-      if (node->getOpCode().isStoreDirect() && node->getSymbol()->isParm())
-         {
-         killedParms.set(node->getSymbol()->getParmSymbol()->getOrdinal());
-         if (comp->getOption(TR_TraceOptDetails))
-            {
-            dumpOptDetails(comp, "  Found store %s\n  killedParms is now ", comp->getDebug()->getName(node));
-            self()->getDebug()->print(log, &killedParms);
+        for (int32_t parmNum = 0; parmNum < numParms; parmNum++)
+            if (regLoads[parmNum])
+                newRegDeps->setAndIncChild(childNum++, regLoads[parmNum]);
+
+        // Remove existing regdeps from oldRegDeps
+        //
+        for (childNum = 0; childNum < numOldRegDeps; childNum++)
+            oldRegDeps->getChild(childNum)->decReferenceCount();
+
+        // Stick the new regDeps on bbStart
+        //
+        bbStart->setAndIncChild(0, newRegDeps);
+        bbStart->setNumChildren(1);
+
+        dumpOptDetails(comp, "  Created new GlRegDeps %s on BBStart %s\n", comp->getDebug()->getName(newRegDeps),
+            comp->getDebug()->getName(bbStart));
+    }
+}
+
+void J9::CodeGenerator::swapChildrenIfNeeded(TR::Node *store, char *optDetails)
+{
+    TR::Node *valueChild = store->getValueChild();
+
+    // swap children to increase the chances of being able to use location "a" as an accumulator instead of needing a
+    // temp copy
+    //
+    // could also do this for another commutative operation -- like pdmul, but the advantage isn't as clear with
+    // multiply as the the relative size of the operands and how the instruction is actually encoded are important
+    // factors too for determining the best operand ordering reorder:
+    //    pdstore "a"
+    //       pdadd
+    //          x
+    //          pdload "a"
+    // to:
+    //    pdstore "a"
+    //       pdadd
+    //          pdload "a"
+    //          x
+    //
+    if (valueChild->getOpCode().isCommutative() && (valueChild->getOpCode().isPackedAdd())) {
+        if (valueChild->getFirstChild()->getOpCode().isLoadVar()
+            && valueChild->getSecondChild()->getOpCode().isLoadVar()
+            && valueChild->getFirstChild()->getSymbolReference()
+                == valueChild->getSecondChild()->getSymbolReference()) {
+            // avoid continual swapping of this case
+            // pdstore "a"
+            //    pdadd
+            //       pdload "a"
+            //       pdload "a"
+        } else if (valueChild->getSecondChild()->getOpCode().isLoadVar()
+            && (valueChild->getSecondChild()->getSymbolReference() == store->getSymbolReference())
+            && !self()->comp()->getOption(TR_DisableBCDArithChildOrdering)
+            && performTransformation(self()->comp(),
+                "%s%s valueChild %s [%s] second child %s  [%s] symRef matches store symRef (#%d) so swap children\n",
+                optDetails, store->getOpCode().getName(), valueChild->getOpCode().getName(),
+                valueChild->getName(self()->comp()->getDebug()), valueChild->getSecondChild()->getOpCode().getName(),
+                valueChild->getSecondChild()->getName(self()->comp()->getDebug()),
+                store->getSymbolReference()->getReferenceNumber())) {
+            valueChild->swapChildren();
+        }
+    }
+}
+
+uint16_t J9::CodeGenerator::changeParmLoadsToRegLoads(TR::Node *node, TR::Node **regLoads,
+    TR_BitVector *globalRegsWithRegLoad, TR_BitVector &killedParms, vcount_t visitCount)
+{
+    TR::Compilation *comp = self()->comp();
+
+    if (node->getVisitCount() == visitCount) {
+        return 0;
+    } else
+        node->setVisitCount(visitCount);
+
+    uint16_t numNewRegLoads = 0;
+
+    if (node->getOpCode().isLoadAddr() && node->getOpCode().hasSymbolReference() && node->getSymbol()->isParm()) {
+        killedParms.set(node->getSymbol()->getParmSymbol()->getOrdinal());
+        if (comp->getOption(TR_TraceOptDetails)) {
+            dumpOptDetails(comp, "  Found loadaddr %s\n  killedParms is now ", comp->getDebug()->getName(node));
+            self()->getDebug()->print(comp->log(), &killedParms);
             dumpOptDetails(comp, "\n");
+        }
+    }
+
+    if (node->getOpCode().isLoadVar() && node->getSymbol()->isParm()) {
+        TR::ParameterSymbol *parm = node->getSymbol()->getParmSymbol();
+        int8_t lri = parm->getLinkageRegisterIndex();
+        TR::ILOpCodes regLoadOp = comp->il.opCodeForRegisterLoad(parm->getDataType());
+
+        if (regLoads[parm->getOrdinal()] == NULL && lri != -1 && !killedParms.isSet(parm->getOrdinal())) {
+            // Transmute this node into a regLoad
+
+            if ((node->getType().isInt64() && comp->target().is32Bit() && !self()->use64BitRegsOn32Bit())) {
+                if (self()->getDisableLongGRA()) {
+                    dumpOptDetails(comp, "  GRA not supported for longs; leaving %s unchanged\n",
+                        comp->getDebug()->getName(node));
+                } else {
+                    // Endianness affects how longs are passed
+                    //
+                    int8_t lowLRI, highLRI;
+                    if (comp->target().cpu.isBigEndian()) {
+                        highLRI = lri;
+                        lowLRI = lri + 1;
+                    } else {
+                        lowLRI = lri;
+                        highLRI = lri + 1;
+                    }
+                    TR_GlobalRegisterNumber lowReg
+                        = self()->getLinkageGlobalRegisterNumber(lowLRI, node->getDataType());
+                    TR_GlobalRegisterNumber highReg
+                        = self()->getLinkageGlobalRegisterNumber(highLRI, node->getDataType());
+
+                    if (lowReg != -1 && highReg != -1 && !globalRegsWithRegLoad->isSet(lowReg)
+                        && !globalRegsWithRegLoad->isSet(highReg)
+                        && performTransformation(comp, "O^O LINKAGE REGISTER ALLOCATION: transforming %s into %s\n",
+                            comp->getDebug()->getName(node), comp->getDebug()->getName(regLoadOp))) {
+                        // Both halves are in regs, and both regs are available.
+                        // Transmute load into regload
+                        //
+                        if (parm->getDataType() == TR::Aggregate) {
+                            dumpOptDetails(comp, "\tNot doing transformation for parm %p because it is an aggregate.\n",
+                                node);
+                        } else {
+                            TR::Node::recreate(node, comp->il.opCodeForRegisterLoad(parm->getDataType()));
+                            node->setLowGlobalRegisterNumber(lowReg);
+                            node->setHighGlobalRegisterNumber(highReg);
+
+                            // Update state to include the new regLoad
+                            //
+                            regLoads[parm->getOrdinal()] = node;
+                            globalRegsWithRegLoad->set(lowReg);
+                            globalRegsWithRegLoad->set(highReg);
+                            numNewRegLoads++;
+                        }
+                    }
+                }
+            } else if (comp->target().cpu.isZ() && comp->target().isLinux() && parm->getDataType() == TR::Aggregate
+                && (parm->getSize() <= 2 || parm->getSize() == 4 || parm->getSize() == 8)) {
+                // On zLinux aggregates with a size of 1, 2, 4 or 8 bytes are passed by value in registers.
+                // Otherwise they are passed by reference via buffer
+                // Here transform the value in register to aggregate again
+                TR::DataType dt = TR::NoType;
+                if (parm->getSize() == 8)
+                    dt = (node->getOpCode().isDouble()) ? TR::Double : TR::Int64;
+                else if (parm->getSize() == 4)
+                    dt = (node->getOpCode().isFloat()) ? TR::Float : TR::Int32;
+                else if (parm->getSize() == 2)
+                    dt = TR::Int16;
+                else if (parm->getSize() == 1)
+                    dt = TR::Int8;
+
+                // if not 64 bit and data type is 64 bit, need to place it into two registers
+                if ((comp->target().is32Bit() && !self()->use64BitRegsOn32Bit()) && dt == TR::Int64) {
+                    TR_GlobalRegisterNumber lowReg = self()->getLinkageGlobalRegisterNumber(lri + 1, dt);
+                    TR_GlobalRegisterNumber highReg = self()->getLinkageGlobalRegisterNumber(lri, dt);
+
+                    if (lowReg != -1 && highReg != -1 && !globalRegsWithRegLoad->isSet(lowReg)
+                        && !globalRegsWithRegLoad->isSet(highReg)
+                        && performTransformation(comp,
+                            "O^O LINKAGE REGISTER ALLOCATION: transforming aggregate parm %s into xRegLoad\n",
+                            comp->getDebug()->getName(node))) {
+                        TR::Node::recreate(node, comp->il.opCodeForRegisterLoad(dt));
+
+                        node->setLowGlobalRegisterNumber(lowReg);
+                        node->setHighGlobalRegisterNumber(highReg);
+
+                        globalRegsWithRegLoad->set(lowReg);
+                        globalRegsWithRegLoad->set(highReg);
+
+                        regLoads[parm->getOrdinal()] = node;
+                        numNewRegLoads++;
+                    }
+                } else {
+                    TR_GlobalRegisterNumber reg = self()->getLinkageGlobalRegisterNumber(lri, dt);
+
+                    if (reg != -1 && !globalRegsWithRegLoad->isSet(reg)
+                        && performTransformation(comp,
+                            "O^O LINKAGE REGISTER ALLOCATION: transforming aggregate parm %s into xRegLoad\n",
+                            comp->getDebug()->getName(node))) {
+                        TR::Node::recreate(node, comp->il.opCodeForRegisterLoad(dt));
+
+                        node->setGlobalRegisterNumber(reg);
+                        globalRegsWithRegLoad->set(reg);
+
+                        regLoads[parm->getOrdinal()] = node;
+                        numNewRegLoads++;
+                    }
+                }
+            } else {
+                TR_GlobalRegisterNumber reg
+                    = self()->getLinkageGlobalRegisterNumber(parm->getLinkageRegisterIndex(), node->getDataType());
+                if (reg != -1 && !globalRegsWithRegLoad->isSet(reg)
+                    && performTransformation(comp, "O^O LINKAGE REGISTER ALLOCATION: transforming %s into %s\n",
+                        comp->getDebug()->getName(node), comp->getDebug()->getName(regLoadOp))) {
+                    // Transmute load into regload
+                    //
+                    if (parm->getDataType() == TR::Aggregate) // for aggregates, must look at node type to determine
+                                                              // register type as parm type is still 'aggregate'
+                    {
+                        dumpOptDetails(comp, "\tNot doing transformation for parm %p because it is an aggregate.\n",
+                            node);
+                    } else {
+                        TR::Node::recreate(node, comp->il.opCodeForRegisterLoad(parm->getDataType()));
+                        node->setGlobalRegisterNumber(reg);
+
+                        // Update state to include the new regLoad
+                        //
+                        regLoads[parm->getOrdinal()] = node;
+                        globalRegsWithRegLoad->set(reg);
+                        numNewRegLoads++;
+                    }
+                }
             }
-         }
-      }
+        } else {
+            // We already have a regLoad for this parm.
+            // It's awkward to common the parm at this point because we'd need a pointer to its parent.
+            // Let's conservatively do nothing, on the assumption that CSE usually
+            // commons all the parm loads anyway, so we should rarely hit this
+            // case.
+        }
+    } else {
+        for (int i = 0; i < node->getNumChildren(); i++)
+            numNewRegLoads += self()->changeParmLoadsToRegLoads(node->getChild(i), regLoads, globalRegsWithRegLoad,
+                killedParms, visitCount);
+    }
 
-   // Make sure all RegLoads are present on the BBStart's regdeps
-   //
-   if (numRegLoadsAdded > 0)
-      {
-      uint16_t numOldRegDeps = oldRegDeps? oldRegDeps->getNumChildren() : 0;
-      uint16_t numNewRegDeps = numOldRegDeps + numRegLoadsAdded;
+    return numNewRegLoads;
+}
 
-      // Create GlRegDeps
-      //
-      TR::Node *newRegDeps = TR::Node::create(bbStart, TR::GlRegDeps, numNewRegDeps);
-      uint16_t childNum=0;
+void J9::CodeGenerator::setUpForInstructionSelection()
+{
+    self()->comp()->incVisitCount();
 
-      for (int32_t parmNum=0; parmNum < numParms; parmNum++)
-         if (regLoads[parmNum])
-            newRegDeps->setAndIncChild(childNum++, regLoads[parmNum]);
+    // prepareNodeForInstructionSelection is called during a separate walk of the treetops because
+    // the _register and _label fields are unioned members of a node.  prepareNodeForInstructionSelection
+    // zeros the _register field while the second for loop sets label fields on destination nodes.
+    //
+    TR::TreeTop *tt = NULL, *prev = NULL;
 
-      // Remove existing regdeps from oldRegDeps
-      //
-      for (childNum = 0; childNum < numOldRegDeps; childNum++)
-         oldRegDeps->getChild(childNum)->decReferenceCount();
-
-      // Stick the new regDeps on bbStart
-      //
-      bbStart->setAndIncChild(0, newRegDeps);
-      bbStart->setNumChildren(1);
-
-      dumpOptDetails(comp, "  Created new GlRegDeps %s on BBStart %s\n",
-         comp->getDebug()->getName(newRegDeps),
-         comp->getDebug()->getName(bbStart));
-      }
-   }
-
-
-void
-J9::CodeGenerator::swapChildrenIfNeeded(TR::Node *store, char *optDetails)
-   {
-   TR::Node *valueChild = store->getValueChild();
-
-   // swap children to increase the chances of being able to use location "a" as an accumulator instead of needing a temp copy
-   //
-   // could also do this for another commutative operation -- like pdmul, but the advantage isn't as clear with multiply as the
-   // the relative size of the operands and how the instruction is actually encoded are important factors too for determining the best operand ordering
-   // reorder:
-   //    pdstore "a"
-   //       pdadd
-   //          x
-   //          pdload "a"
-   // to:
-   //    pdstore "a"
-   //       pdadd
-   //          pdload "a"
-   //          x
-   //
-   if (valueChild->getOpCode().isCommutative() && (valueChild->getOpCode().isPackedAdd()))
-      {
-      if (valueChild->getFirstChild()->getOpCode().isLoadVar() &&
-          valueChild->getSecondChild()->getOpCode().isLoadVar() &&
-          valueChild->getFirstChild()->getSymbolReference() == valueChild->getSecondChild()->getSymbolReference())
-         {
-         // avoid continual swapping of this case
-         // pdstore "a"
-         //    pdadd
-         //       pdload "a"
-         //       pdload "a"
-         }
-      else if (valueChild->getSecondChild()->getOpCode().isLoadVar() &&
-               (valueChild->getSecondChild()->getSymbolReference() == store->getSymbolReference()) &&
-               !self()->comp()->getOption(TR_DisableBCDArithChildOrdering) &&
-               performTransformation(self()->comp(), "%s%s valueChild %s [%s] second child %s  [%s] symRef matches store symRef (#%d) so swap children\n",
-                  optDetails, store->getOpCode().getName(),valueChild->getOpCode().getName(),
-                  valueChild->getName(self()->comp()->getDebug()), valueChild->getSecondChild()->getOpCode().getName(),valueChild->getSecondChild()->getName(self()->comp()->getDebug()),store->getSymbolReference()->getReferenceNumber()))
-         {
-         valueChild->swapChildren();
-         }
-      }
-   }
-
-
-uint16_t
-J9::CodeGenerator::changeParmLoadsToRegLoads(TR::Node *node, TR::Node **regLoads, TR_BitVector *globalRegsWithRegLoad, TR_BitVector &killedParms, vcount_t visitCount)
-   {
-   TR::Compilation *comp = self()->comp();
-
-   if (node->getVisitCount() == visitCount)
-      {
-      return 0;
-      }
-   else
-      node->setVisitCount(visitCount);
-
-   uint16_t numNewRegLoads = 0;
-
-   if (node->getOpCode().isLoadAddr() && node->getOpCode().hasSymbolReference() && node->getSymbol()->isParm())
-      {
-      killedParms.set(node->getSymbol()->getParmSymbol()->getOrdinal());
-      if (comp->getOption(TR_TraceOptDetails))
-         {
-         dumpOptDetails(comp, "  Found loadaddr %s\n  killedParms is now ", comp->getDebug()->getName(node));
-         self()->getDebug()->print(comp->log(), &killedParms);
-         dumpOptDetails(comp, "\n");
-         }
-      }
-
-   if (node->getOpCode().isLoadVar() && node->getSymbol()->isParm())
-      {
-      TR::ParameterSymbol *parm      = node->getSymbol()->getParmSymbol();
-      int8_t              lri       = parm->getLinkageRegisterIndex();
-      TR::ILOpCodes        regLoadOp = comp->il.opCodeForRegisterLoad(parm->getDataType());
-
-      if (regLoads[parm->getOrdinal()] == NULL && lri != -1 && !killedParms.isSet(parm->getOrdinal()))
-         {
-         // Transmute this node into a regLoad
-
-         if ((node->getType().isInt64() && comp->target().is32Bit() && !self()->use64BitRegsOn32Bit()))
-            {
-            if (self()->getDisableLongGRA())
-               {
-               dumpOptDetails(comp, "  GRA not supported for longs; leaving %s unchanged\n", comp->getDebug()->getName(node));
-               }
-            else
-               {
-               // Endianness affects how longs are passed
-               //
-               int8_t lowLRI, highLRI;
-               if (comp->target().cpu.isBigEndian())
-                  {
-                  highLRI = lri;
-                  lowLRI  = lri+1;
-                  }
-               else
-                  {
-                  lowLRI  = lri;
-                  highLRI = lri+1;
-                  }
-               TR_GlobalRegisterNumber lowReg  = self()->getLinkageGlobalRegisterNumber(lowLRI,  node->getDataType());
-               TR_GlobalRegisterNumber highReg = self()->getLinkageGlobalRegisterNumber(highLRI, node->getDataType());
-
-               if (lowReg != -1 && highReg != -1 && !globalRegsWithRegLoad->isSet(lowReg) && !globalRegsWithRegLoad->isSet(highReg)
-                  && performTransformation(comp, "O^O LINKAGE REGISTER ALLOCATION: transforming %s into %s\n", comp->getDebug()->getName(node), comp->getDebug()->getName(regLoadOp)))
-                  {
-                  // Both halves are in regs, and both regs are available.
-                  // Transmute load into regload
-                  //
-                  if(parm->getDataType() == TR::Aggregate)
-                     {
-                     dumpOptDetails(comp, "\tNot doing transformation for parm %p because it is an aggregate.\n",node);
-                     }
-                  else
-                     {
-                     TR::Node::recreate(node, comp->il.opCodeForRegisterLoad(parm->getDataType()));
-                     node->setLowGlobalRegisterNumber(lowReg);
-                     node->setHighGlobalRegisterNumber(highReg);
-
-                     // Update state to include the new regLoad
-                     //
-                     regLoads[parm->getOrdinal()] = node;
-                     globalRegsWithRegLoad->set(lowReg);
-                     globalRegsWithRegLoad->set(highReg);
-                     numNewRegLoads++;
-                     }
-                  }
-               }
+    if (self()->comp()->getOption(TR_EnableOSR)) {
+        TR::Block *block;
+        for (tt = self()->comp()->getStartTree(); tt; tt = tt->getNextTreeTop()) {
+            if (tt->getNode()->getOpCodeValue() == TR::BBStart) {
+                block = tt->getNode()->getBlock();
+                if (!block->isOSRCodeBlock()) {
+                    tt = block->getExit();
+                    continue;
+                }
             }
-         else if (comp->target().cpu.isZ() && comp->target().isLinux() && parm->getDataType() == TR::Aggregate &&
-                  (parm->getSize() <= 2 ||  parm->getSize() == 4 ||  parm->getSize() == 8))
-            {
-            // On zLinux aggregates with a size of 1, 2, 4 or 8 bytes are passed by value in registers.
-            // Otherwise they are passed by reference via buffer
-            // Here transform the value in register to aggregate again
-            TR::DataType dt = TR::NoType;
-            if (parm->getSize() == 8)
-               dt = (node->getOpCode().isDouble()) ? TR::Double : TR::Int64;
-            else if (parm->getSize() == 4)
-               dt = (node->getOpCode().isFloat()) ? TR::Float : TR::Int32;
-            else if (parm->getSize() == 2)
-               dt = TR::Int16;
-            else if (parm->getSize() == 1)
-               dt = TR::Int8;
+            self()->eliminateLoadsOfLocalsThatAreNotStored(tt->getNode(), -1);
+        }
 
-            // if not 64 bit and data type is 64 bit, need to place it into two registers
-            if ((comp->target().is32Bit() && !self()->use64BitRegsOn32Bit()) && dt == TR::Int64)
-               {
-               TR_GlobalRegisterNumber lowReg  = self()->getLinkageGlobalRegisterNumber(lri+1, dt);
-               TR_GlobalRegisterNumber highReg = self()->getLinkageGlobalRegisterNumber(lri, dt);
+        self()->comp()->incVisitCount();
+    }
 
-               if (lowReg != -1 && highReg != -1 && !globalRegsWithRegLoad->isSet(lowReg) && !globalRegsWithRegLoad->isSet(highReg) &&
-                   performTransformation(comp, "O^O LINKAGE REGISTER ALLOCATION: transforming aggregate parm %s into xRegLoad\n", comp->getDebug()->getName(node)))
-                  {
-                  TR::Node::recreate(node, comp->il.opCodeForRegisterLoad(dt));
+    for (tt = self()->comp()->getStartTree(); tt; tt = tt->getNextTreeTop()) {
+        self()->prepareNodeForInstructionSelection(tt->getNode());
+    }
 
-                  node->setLowGlobalRegisterNumber(lowReg);
-                  node->setHighGlobalRegisterNumber(highReg);
+    bool doRefinedAliasing = self()->enableRefinedAliasSets();
 
-                  globalRegsWithRegLoad->set(lowReg);
-                  globalRegsWithRegLoad->set(highReg);
+    if (doRefinedAliasing) {
+        _refinedAliasWalkCollector.methodInfo = TR_PersistentMethodInfo::get(self()->comp());
+        _refinedAliasWalkCollector.killsEverything = !_refinedAliasWalkCollector.methodInfo;
+        _refinedAliasWalkCollector.killsAddressStatics = false;
+        _refinedAliasWalkCollector.killsIntStatics = false;
+        _refinedAliasWalkCollector.killsNonIntPrimitiveStatics = false;
+        _refinedAliasWalkCollector.killsAddressFields = false;
+        _refinedAliasWalkCollector.killsIntFields = false;
+        _refinedAliasWalkCollector.killsNonIntPrimitiveFields = false;
+        _refinedAliasWalkCollector.killsAddressArrayShadows = false;
+        _refinedAliasWalkCollector.killsIntArrayShadows = false;
+        _refinedAliasWalkCollector.killsNonIntPrimitiveArrayShadows = false;
+    }
 
-                  regLoads[parm->getOrdinal()] = node;
-                  numNewRegLoads++;
-                  }
-               }
-            else
-               {
-               TR_GlobalRegisterNumber reg = self()->getLinkageGlobalRegisterNumber(lri, dt);
+    for (tt = self()->comp()->getStartTree(); tt; prev = tt, tt = tt->getNextTreeTop()) {
+        TR::Node *node = tt->getNode();
 
-               if (reg != -1 && !globalRegsWithRegLoad->isSet(reg) &&
-                   performTransformation(comp, "O^O LINKAGE REGISTER ALLOCATION: transforming aggregate parm %s into xRegLoad\n", comp->getDebug()->getName(node)))
-                  {
-                  TR::Node::recreate(node, comp->il.opCodeForRegisterLoad(dt));
-
-                  node->setGlobalRegisterNumber(reg);
-                  globalRegsWithRegLoad->set(reg);
-
-                  regLoads[parm->getOrdinal()] = node;
-                  numNewRegLoads++;
-                  }
-               }
+        if ((node->getOpCodeValue() == TR::treetop) || node->getOpCode().isAnchor() || node->getOpCode().isCheck()) {
+            node = node->getFirstChild();
+            if (node->getOpCode().isResolveCheck() && doRefinedAliasing) {
+                _refinedAliasWalkCollector.killsEverything = true;
             }
-         else
-            {
-            TR_GlobalRegisterNumber reg = self()->getLinkageGlobalRegisterNumber(parm->getLinkageRegisterIndex(), node->getDataType());
-            if (reg != -1 && !globalRegsWithRegLoad->isSet(reg)
-               && performTransformation(comp, "O^O LINKAGE REGISTER ALLOCATION: transforming %s into %s\n", comp->getDebug()->getName(node), comp->getDebug()->getName(regLoadOp)))
-               {
-               // Transmute load into regload
-               //
-               if(parm->getDataType() == TR::Aggregate) // for aggregates, must look at node type to determine register type as parm type is still 'aggregate'
-                  {
-                  dumpOptDetails(comp, "\tNot doing transformation for parm %p because it is an aggregate.\n",node);
-                  }
-               else
-                  {
-                  TR::Node::recreate(node, comp->il.opCodeForRegisterLoad(parm->getDataType()));
-                  node->setGlobalRegisterNumber(reg);
+        }
 
-                  // Update state to include the new regLoad
-                  //
-                  regLoads[parm->getOrdinal()] = node;
-                  globalRegsWithRegLoad->set(reg);
-                  numNewRegLoads++;
-                  }
-               }
+        TR::ILOpCode &opcode = node->getOpCode();
+
+        if (opcode.getOpCodeValue() == TR::BBStart) {
+            self()->setCurrentBlock(node->getBlock());
+        } else if (opcode.isLoadVarOrStore()) {
+            TR::Symbol *sym = node->getSymbol();
+            TR::AutomaticSymbol *local = sym->getAutoSymbol();
+            if (local) {
+                local->incReferenceCount();
+            } else if (doRefinedAliasing && !_refinedAliasWalkCollector.killsEverything) {
+                if (sym->getStaticSymbol()) {
+                    if (sym->getType().isAddress())
+                        _refinedAliasWalkCollector.killsAddressStatics = true;
+                    else if (sym->getType().isInt32())
+                        _refinedAliasWalkCollector.killsIntStatics = true;
+                    else
+                        _refinedAliasWalkCollector.killsNonIntPrimitiveStatics = true;
+                } else if (sym->isArrayShadowSymbol()) {
+                    if (sym->getType().isAddress())
+                        _refinedAliasWalkCollector.killsAddressArrayShadows = true;
+                    else if (sym->getType().isInt32())
+                        _refinedAliasWalkCollector.killsIntArrayShadows = true;
+                    else
+                        _refinedAliasWalkCollector.killsNonIntPrimitiveArrayShadows = true;
+                } else if (sym->getShadowSymbol()) {
+                    if (sym->getType().isAddress())
+                        _refinedAliasWalkCollector.killsAddressFields = true;
+                    else if (sym->getType().isInt32())
+                        _refinedAliasWalkCollector.killsIntFields = true;
+                    else
+                        _refinedAliasWalkCollector.killsNonIntPrimitiveFields = true;
+                }
             }
-         }
-      else
-         {
-         // We already have a regLoad for this parm.
-         // It's awkward to common the parm at this point because we'd need a pointer to its parent.
-         // Let's conservatively do nothing, on the assumption that CSE usually
-         // commons all the parm loads anyway, so we should rarely hit this
-         // case.
-         }
-      }
-   else
-      {
-      for (int i = 0; i < node->getNumChildren(); i++)
-         numNewRegLoads += self()->changeParmLoadsToRegLoads(node->getChild(i), regLoads, globalRegsWithRegLoad, killedParms, visitCount);
-      }
+        } else if (opcode.isBranch()) {
+            if (node->getBranchDestination()->getNode()->getLabel() == NULL) {
+                // need to get the label type from the target block for RAS
+                TR::LabelSymbol *label = TR::LabelSymbol::create(self()->trHeapMemory(), self(),
+                    node->getBranchDestination()->getNode()->getBlock());
 
-   return numNewRegLoads;
-   }
-
-
-void
-J9::CodeGenerator::setUpForInstructionSelection()
-   {
-   self()->comp()->incVisitCount();
-
-   // prepareNodeForInstructionSelection is called during a separate walk of the treetops because
-   // the _register and _label fields are unioned members of a node.  prepareNodeForInstructionSelection
-   // zeros the _register field while the second for loop sets label fields on destination nodes.
-   //
-   TR::TreeTop * tt=NULL, *prev = NULL;
-
-   if (self()->comp()->getOption(TR_EnableOSR))
-      {
-      TR::Block *block;
-      for (tt = self()->comp()->getStartTree(); tt; tt = tt->getNextTreeTop())
-         {
-         if (tt->getNode()->getOpCodeValue() == TR::BBStart)
-            {
-            block = tt->getNode()->getBlock();
-            if (!block->isOSRCodeBlock())
-               {
-               tt = block->getExit();
-               continue;
-               }
+                node->getBranchDestination()->getNode()->setLabel(label);
             }
-         self()->eliminateLoadsOfLocalsThatAreNotStored(tt->getNode(), -1);
-         }
+        } else if (opcode.isJumpWithMultipleTargets() && !opcode.isSwitch()) {
+            for (auto e = self()->getCurrentBlock()->getSuccessors().begin();
+                 e != self()->getCurrentBlock()->getSuccessors().end(); ++e) {
+                if (toBlock((*e)->getTo())->getEntry() != NULL
+                    && toBlock((*e)->getTo())->getEntry()->getNode()->getLabel() == NULL) {
+                    TR::LabelSymbol *label = generateLabelSymbol(self());
+                    toBlock((*e)->getTo())->getEntry()->getNode()->setLabel(label);
+                }
+            }
+        } else if (opcode.isSwitch()) {
+            uint16_t upperBound = node->getCaseIndexUpperBound();
+            for (int i = 1; i < upperBound; ++i) {
+                if (node->getChild(i)->getBranchDestination()->getNode()->getLabel() == NULL) {
+                    TR::LabelSymbol *label = generateLabelSymbol(self());
+                    node->getChild(i)->getBranchDestination()->getNode()->setLabel(label);
+                }
+            }
+        } else if (opcode.isCall() || opcode.getOpCodeValue() == TR::arraycopy) {
+            self()->setUpStackSizeForCallNode(node);
 
-      self()->comp()->incVisitCount();
-      }
+            if (doRefinedAliasing) {
+                TR::ResolvedMethodSymbol *callSymbol = node->getSymbol()->getResolvedMethodSymbol();
+                TR_PersistentMethodInfo *callInfo;
+                if (!_refinedAliasWalkCollector.killsEverything && !opcode.isCallIndirect() && callSymbol
+                    && (callInfo = TR_PersistentMethodInfo::get(callSymbol->getResolvedMethod()))
+                    && callInfo->hasRefinedAliasSets()) {
+                    if (!callInfo->doesntKillAddressStatics())
+                        _refinedAliasWalkCollector.killsAddressStatics = true;
+                    if (!callInfo->doesntKillIntStatics())
+                        _refinedAliasWalkCollector.killsIntStatics = true;
+                    if (!callInfo->doesntKillNonIntPrimitiveStatics())
+                        _refinedAliasWalkCollector.killsNonIntPrimitiveStatics = true;
+                    if (!callInfo->doesntKillAddressFields())
+                        _refinedAliasWalkCollector.killsAddressFields = true;
+                    if (!callInfo->doesntKillIntFields())
+                        _refinedAliasWalkCollector.killsIntFields = true;
+                    if (!callInfo->doesntKillNonIntPrimitiveFields())
+                        _refinedAliasWalkCollector.killsNonIntPrimitiveFields = true;
+                    if (!callInfo->doesntKillAddressArrayShadows())
+                        _refinedAliasWalkCollector.killsAddressArrayShadows = true;
+                    if (!callInfo->doesntKillIntArrayShadows())
+                        _refinedAliasWalkCollector.killsIntArrayShadows = true;
+                    if (!callInfo->doesntKillNonIntPrimitiveArrayShadows())
+                        _refinedAliasWalkCollector.killsNonIntPrimitiveArrayShadows = true;
+                } else {
+                    _refinedAliasWalkCollector.killsEverything = true;
+                }
+            }
 
-   for (tt = self()->comp()->getStartTree(); tt; tt = tt->getNextTreeTop())
-      {
-      self()->prepareNodeForInstructionSelection(tt->getNode());
-      }
-
-   bool doRefinedAliasing = self()->enableRefinedAliasSets();
-
-   if (doRefinedAliasing)
-      {
-      _refinedAliasWalkCollector.methodInfo = TR_PersistentMethodInfo::get(self()->comp());
-      _refinedAliasWalkCollector.killsEverything = !_refinedAliasWalkCollector.methodInfo;
-      _refinedAliasWalkCollector.killsAddressStatics = false;
-      _refinedAliasWalkCollector.killsIntStatics = false;
-      _refinedAliasWalkCollector.killsNonIntPrimitiveStatics = false;
-      _refinedAliasWalkCollector.killsAddressFields = false;
-      _refinedAliasWalkCollector.killsIntFields = false;
-      _refinedAliasWalkCollector.killsNonIntPrimitiveFields = false;
-      _refinedAliasWalkCollector.killsAddressArrayShadows = false;
-      _refinedAliasWalkCollector.killsIntArrayShadows = false;
-      _refinedAliasWalkCollector.killsNonIntPrimitiveArrayShadows = false;
-      }
-
-   for (tt = self()->comp()->getStartTree(); tt; prev=tt, tt = tt->getNextTreeTop())
-      {
-      TR::Node * node = tt->getNode();
-
-      if ((node->getOpCodeValue() == TR::treetop) ||
-          node->getOpCode().isAnchor() ||
-          node->getOpCode().isCheck())
-         {
-         node = node->getFirstChild();
-         if (node->getOpCode().isResolveCheck() && doRefinedAliasing)
-            {
+        } else if (opcode.getOpCodeValue() == TR::monent) {
             _refinedAliasWalkCollector.killsEverything = true;
-            }
-         }
+        }
+    }
 
-      TR::ILOpCode & opcode = node->getOpCode();
+    if (doRefinedAliasing && !_refinedAliasWalkCollector.killsEverything) {
+        TR_PersistentMethodInfo *methodInfo = _refinedAliasWalkCollector.methodInfo;
 
-      if (opcode.getOpCodeValue() == TR::BBStart)
-         {
-         self()->setCurrentBlock(node->getBlock());
-         }
-      else if (opcode.isLoadVarOrStore())
-         {
-         TR::Symbol * sym = node->getSymbol();
-         TR::AutomaticSymbol *local = sym->getAutoSymbol();
-         if (local)
-            {
-            local->incReferenceCount();
-            }
-         else if (doRefinedAliasing && !_refinedAliasWalkCollector.killsEverything)
-            {
-            if (sym->getStaticSymbol())
-               {
-               if (sym->getType().isAddress())    _refinedAliasWalkCollector.killsAddressStatics = true;
-               else if (sym->getType().isInt32()) _refinedAliasWalkCollector.killsIntStatics = true;
-               else                               _refinedAliasWalkCollector.killsNonIntPrimitiveStatics = true;
-               }
-            else if (sym->isArrayShadowSymbol())
-               {
-               if (sym->getType().isAddress())    _refinedAliasWalkCollector.killsAddressArrayShadows = true;
-               else if (sym->getType().isInt32()) _refinedAliasWalkCollector.killsIntArrayShadows = true;
-               else                               _refinedAliasWalkCollector.killsNonIntPrimitiveArrayShadows = true;
-               }
-            else if (sym->getShadowSymbol())
-               {
-               if (sym->getType().isAddress())    _refinedAliasWalkCollector.killsAddressFields = true;
-               else if (sym->getType().isInt32()) _refinedAliasWalkCollector.killsIntFields = true;
-               else                               _refinedAliasWalkCollector.killsNonIntPrimitiveFields = true;
-               }
-            }
-         }
-      else if (opcode.isBranch())
-         {
-         if (node->getBranchDestination()->getNode()->getLabel() == NULL)
-            {
-            // need to get the label type from the target block for RAS
-            TR::LabelSymbol * label =
-                TR::LabelSymbol::create(self()->trHeapMemory(),self(),node->getBranchDestination()->getNode()->getBlock());
+        methodInfo->setDoesntKillEverything(true);
+        if (!_refinedAliasWalkCollector.killsAddressStatics)
+            methodInfo->setDoesntKillAddressStatics(true);
+        if (!_refinedAliasWalkCollector.killsIntStatics)
+            methodInfo->setDoesntKillIntStatics(true);
+        if (!_refinedAliasWalkCollector.killsNonIntPrimitiveStatics)
+            methodInfo->setDoesntKillNonIntPrimitiveStatics(true);
+        if (!_refinedAliasWalkCollector.killsAddressFields)
+            methodInfo->setDoesntKillAddressFields(true);
+        if (!_refinedAliasWalkCollector.killsIntFields)
+            methodInfo->setDoesntKillIntFields(true);
+        if (!_refinedAliasWalkCollector.killsNonIntPrimitiveFields)
+            methodInfo->setDoesntKillNonIntPrimitiveFields(true);
+        if (!_refinedAliasWalkCollector.killsAddressArrayShadows)
+            methodInfo->setDoesntKillAddressArrayShadows(true);
+        if (!_refinedAliasWalkCollector.killsIntArrayShadows)
+            methodInfo->setDoesntKillIntArrayShadows(true);
+        if (!_refinedAliasWalkCollector.killsNonIntPrimitiveArrayShadows)
+            methodInfo->setDoesntKillNonIntPrimitiveArrayShadows(true);
+    }
 
-            node->getBranchDestination()->getNode()->setLabel(label);
+    if (self()->comp()->target().cpu.isX86() && self()->getInlinedGetCurrentThreadMethod()) {
+        TR::RealRegister *ebpReal = self()->getRealVMThreadRegister();
 
-            }
-         }
-      else if (opcode.isJumpWithMultipleTargets() && !opcode.isSwitch())
-         {
-         for (auto e = self()->getCurrentBlock()->getSuccessors().begin(); e != self()->getCurrentBlock()->getSuccessors().end(); ++e)
-            {
-            if (toBlock((*e)->getTo())->getEntry()!=NULL &&
-                toBlock((*e)->getTo())->getEntry()->getNode()->getLabel() == NULL)
-               {
-               TR::LabelSymbol * label = generateLabelSymbol(self());
-               toBlock((*e)->getTo())->getEntry()->getNode()->setLabel(label);
-               }
-            }
-         }
-      else if (opcode.isSwitch())
-         {
-         uint16_t upperBound = node->getCaseIndexUpperBound();
-         for (int i = 1; i < upperBound; ++i)
-            {
-            if (node->getChild(i)->getBranchDestination()->getNode()->getLabel() == NULL)
-               {
-               TR::LabelSymbol *label = generateLabelSymbol(self());
-               node->getChild(i)->getBranchDestination()->getNode()->setLabel(label);
+        if (ebpReal) {
+            ebpReal->setState(TR::RealRegister::Locked);
+            ebpReal->setAssignedRegister(ebpReal->getRegister());
+        }
+    }
+}
 
-               }
-            }
-         }
-      else if (opcode.isCall() || opcode.getOpCodeValue() == TR::arraycopy)
-         {
-         self()->setUpStackSizeForCallNode(node);
+bool J9::CodeGenerator::supportsJitMethodEntryAlignment() { return self()->fej9()->supportsJitMethodEntryAlignment(); }
 
-         if (doRefinedAliasing)
-            {
-            TR::ResolvedMethodSymbol * callSymbol = node->getSymbol()->getResolvedMethodSymbol();
-            TR_PersistentMethodInfo * callInfo;
-            if (!_refinedAliasWalkCollector.killsEverything && !opcode.isCallIndirect() && callSymbol &&
-                (callInfo = TR_PersistentMethodInfo::get(callSymbol->getResolvedMethod())) &&
-                callInfo->hasRefinedAliasSets())
-               {
-               if (!callInfo->doesntKillAddressStatics())               _refinedAliasWalkCollector.killsAddressStatics = true;
-               if (!callInfo->doesntKillIntStatics())                   _refinedAliasWalkCollector.killsIntStatics = true;
-               if (!callInfo->doesntKillNonIntPrimitiveStatics())       _refinedAliasWalkCollector.killsNonIntPrimitiveStatics = true;
-               if (!callInfo->doesntKillAddressFields())                _refinedAliasWalkCollector.killsAddressFields = true;
-               if (!callInfo->doesntKillIntFields())                    _refinedAliasWalkCollector.killsIntFields = true;
-               if (!callInfo->doesntKillNonIntPrimitiveFields())        _refinedAliasWalkCollector.killsNonIntPrimitiveFields = true;
-               if (!callInfo->doesntKillAddressArrayShadows())          _refinedAliasWalkCollector.killsAddressArrayShadows = true;
-               if (!callInfo->doesntKillIntArrayShadows())              _refinedAliasWalkCollector.killsIntArrayShadows = true;
-               if (!callInfo->doesntKillNonIntPrimitiveArrayShadows())  _refinedAliasWalkCollector.killsNonIntPrimitiveArrayShadows = true;
-               }
-            else
-               {
-               _refinedAliasWalkCollector.killsEverything = true;
-               }
-            }
+bool J9::CodeGenerator::mustGenerateSwitchToInterpreterPrePrologue()
+{
+    TR::Compilation *comp = self()->comp();
+    TR_ResolvedMethod *bondMethod = NULL;
 
-         }
-      else if (opcode.getOpCodeValue() == TR::monent)
-         {
-         _refinedAliasWalkCollector.killsEverything = true;
-         }
-      }
+    return comp->usesPreexistence() || comp->getOption(TR_EnableHCR) || !comp->fej9()->isAsyncCompilation()
+        || comp->getOption(TR_FullSpeedDebug) || comp->retainedMethods()->bondMethods().next(&bondMethod);
+}
 
-   if (doRefinedAliasing && !_refinedAliasWalkCollector.killsEverything)
-      {
-      TR_PersistentMethodInfo *methodInfo = _refinedAliasWalkCollector.methodInfo;
+extern void VMgenerateCatchBlockBBStartPrologue(TR::Node *node, TR::Instruction *fenceInstruction,
+    TR::CodeGenerator *cg);
 
-      methodInfo->setDoesntKillEverything(true);
-      if (!_refinedAliasWalkCollector.killsAddressStatics)               methodInfo->setDoesntKillAddressStatics(true);
-      if (!_refinedAliasWalkCollector.killsIntStatics)                   methodInfo->setDoesntKillIntStatics(true);
-      if (!_refinedAliasWalkCollector.killsNonIntPrimitiveStatics)       methodInfo->setDoesntKillNonIntPrimitiveStatics(true);
-      if (!_refinedAliasWalkCollector.killsAddressFields)                methodInfo->setDoesntKillAddressFields(true);
-      if (!_refinedAliasWalkCollector.killsIntFields)                    methodInfo->setDoesntKillIntFields(true);
-      if (!_refinedAliasWalkCollector.killsNonIntPrimitiveFields)        methodInfo->setDoesntKillNonIntPrimitiveFields(true);
-      if (!_refinedAliasWalkCollector.killsAddressArrayShadows)          methodInfo->setDoesntKillAddressArrayShadows(true);
-      if (!_refinedAliasWalkCollector.killsIntArrayShadows)              methodInfo->setDoesntKillIntArrayShadows(true);
-      if (!_refinedAliasWalkCollector.killsNonIntPrimitiveArrayShadows)  methodInfo->setDoesntKillNonIntPrimitiveArrayShadows(true);
-      }
+void J9::CodeGenerator::generateCatchBlockBBStartPrologue(TR::Node *node, TR::Instruction *fenceInstruction)
+{
+    if (self()->comp()->fej9vm()->getReportByteCodeInfoAtCatchBlock()) {
+        // Note we should not use `fenceInstruction` here because it is not the first instruction in this BB. The first
+        // instruction is a label that incoming branches will target. We will use this label (first instruction in the
+        // block) in `createMethodMetaData` to populate a list of non-mergeable GC maps so as to ensure the GC map at
+        // the catch block entry is always present if requested.
+        node->getBlock()->getFirstInstruction()->setNeedsGCMap();
+    }
 
-   if (self()->comp()->target().cpu.isX86() && self()->getInlinedGetCurrentThreadMethod())
-      {
-      TR::RealRegister *ebpReal = self()->getRealVMThreadRegister();
+    VMgenerateCatchBlockBBStartPrologue(node, fenceInstruction, self());
+}
 
-      if (ebpReal)
-         {
-         ebpReal->setState(TR::RealRegister::Locked);
-         ebpReal->setAssignedRegister(ebpReal->getRegister());
-         }
-      }
-   }
-
-bool
-J9::CodeGenerator::supportsJitMethodEntryAlignment()
-   {
-   return self()->fej9()->supportsJitMethodEntryAlignment();
-   }
-
-bool
-J9::CodeGenerator::mustGenerateSwitchToInterpreterPrePrologue()
-   {
-   TR::Compilation *comp = self()->comp();
-   TR_ResolvedMethod *bondMethod = NULL;
-
-   return comp->usesPreexistence() ||
-      comp->getOption(TR_EnableHCR) ||
-      !comp->fej9()->isAsyncCompilation() ||
-      comp->getOption(TR_FullSpeedDebug) ||
-      comp->retainedMethods()->bondMethods().next(&bondMethod);
-   }
-
-extern void VMgenerateCatchBlockBBStartPrologue(TR::Node *node, TR::Instruction *fenceInstruction, TR::CodeGenerator *cg);
-
-void
-J9::CodeGenerator::generateCatchBlockBBStartPrologue(
-      TR::Node *node,
-      TR::Instruction *fenceInstruction)
-   {
-   if (self()->comp()->fej9vm()->getReportByteCodeInfoAtCatchBlock())
-      {
-      // Note we should not use `fenceInstruction` here because it is not the first instruction in this BB. The first
-      // instruction is a label that incoming branches will target. We will use this label (first instruction in the
-      // block) in `createMethodMetaData` to populate a list of non-mergeable GC maps so as to ensure the GC map at the
-      // catch block entry is always present if requested.
-      node->getBlock()->getFirstInstruction()->setNeedsGCMap();
-      }
-
-   VMgenerateCatchBlockBBStartPrologue(node, fenceInstruction, self());
-   }
-
-void
-J9::CodeGenerator::registerAssumptions()
-   {
-   for(auto it = self()->getJNICallSites().begin();
-		it != self()->getJNICallSites().end(); ++it)
-      {
-      TR_OpaqueMethodBlock *method = (*it)->getKey()->getPersistentIdentifier();
-      TR::Instruction *i = (*it)->getValue();
+void J9::CodeGenerator::registerAssumptions()
+{
+    for (auto it = self()->getJNICallSites().begin(); it != self()->getJNICallSites().end(); ++it) {
+        TR_OpaqueMethodBlock *method = (*it)->getKey()->getPersistentIdentifier();
+        TR::Instruction *i = (*it)->getValue();
 #ifdef J9VM_OPT_JITSERVER
-      if (self()->comp()->isOutOfProcessCompilation())
-         {
-         // For JITServer we need to build a list of assumptions that will be sent to client at end of compilation
-         intptr_t offset = i->getBinaryEncoding() - self()->getBinaryBufferStart();
-         SerializedRuntimeAssumption* sar =
-            new (self()->trHeapMemory()) SerializedRuntimeAssumption(RuntimeAssumptionOnRegisterNative, (uintptr_t)method, offset);
-         self()->comp()->getSerializedRuntimeAssumptions().push_front(sar);
-         }
-      else
+        if (self()->comp()->isOutOfProcessCompilation()) {
+            // For JITServer we need to build a list of assumptions that will be sent to client at end of compilation
+            intptr_t offset = i->getBinaryEncoding() - self()->getBinaryBufferStart();
+            SerializedRuntimeAssumption *sar = new (self()->trHeapMemory())
+                SerializedRuntimeAssumption(RuntimeAssumptionOnRegisterNative, (uintptr_t)method, offset);
+            self()->comp()->getSerializedRuntimeAssumptions().push_front(sar);
+        } else
 #endif // J9VM_OPT_JITSERVER
-         {
-         TR_PatchJNICallSite::make(self()->fe(), self()->trPersistentMemory(), (uintptr_t) method, i->getBinaryEncoding(), self()->comp()->getMetadataAssumptionList());
-         }
-      }
-   }
+        {
+            TR_PatchJNICallSite::make(self()->fe(), self()->trPersistentMemory(), (uintptr_t)method,
+                i->getBinaryEncoding(), self()->comp()->getMetadataAssumptionList());
+        }
+    }
+}
 
-void
-J9::CodeGenerator::jitAddPicToPatchOnClassUnload(void *classPointer, void *addressToBePatched)
-   {
+void J9::CodeGenerator::jitAddPicToPatchOnClassUnload(void *classPointer, void *addressToBePatched)
+{
 #ifdef J9VM_OPT_JITSERVER
-   if (self()->comp()->isOutOfProcessCompilation())
-      {
-      intptr_t offset = (uint8_t*)addressToBePatched - self()->getBinaryBufferStart();
-      SerializedRuntimeAssumption* sar =
-         new (self()->trHeapMemory()) SerializedRuntimeAssumption(RuntimeAssumptionOnClassUnload, (uintptr_t)classPointer, offset, sizeof(uintptr_t));
-      self()->comp()->getSerializedRuntimeAssumptions().push_front(sar);
-      }
-   else
+    if (self()->comp()->isOutOfProcessCompilation()) {
+        intptr_t offset = (uint8_t *)addressToBePatched - self()->getBinaryBufferStart();
+        SerializedRuntimeAssumption *sar = new (self()->trHeapMemory()) SerializedRuntimeAssumption(
+            RuntimeAssumptionOnClassUnload, (uintptr_t)classPointer, offset, sizeof(uintptr_t));
+        self()->comp()->getSerializedRuntimeAssumptions().push_front(sar);
+    } else
 #endif // J9VM_OPT_JITSERVER
-      {
-      createClassUnloadPicSite(classPointer, addressToBePatched, sizeof(uintptr_t), self()->comp()->getMetadataAssumptionList());
-      self()->comp()->setHasClassUnloadAssumptions();
-      }
-   }
+    {
+        createClassUnloadPicSite(classPointer, addressToBePatched, sizeof(uintptr_t),
+            self()->comp()->getMetadataAssumptionList());
+        self()->comp()->setHasClassUnloadAssumptions();
+    }
+}
 
-void
-J9::CodeGenerator::jitAdd32BitPicToPatchOnClassUnload(void *classPointer, void *addressToBePatched)
-   {
+void J9::CodeGenerator::jitAdd32BitPicToPatchOnClassUnload(void *classPointer, void *addressToBePatched)
+{
 #ifdef J9VM_OPT_JITSERVER
-   if (self()->comp()->isOutOfProcessCompilation())
-      {
-      intptr_t offset = (uint8_t*)addressToBePatched - self()->getBinaryBufferStart();
-      SerializedRuntimeAssumption* sar =
-         new (self()->trHeapMemory()) SerializedRuntimeAssumption(RuntimeAssumptionOnClassUnload, (uintptr_t)classPointer, offset, 4);
-      self()->comp()->getSerializedRuntimeAssumptions().push_front(sar);
-      }
-   else
+    if (self()->comp()->isOutOfProcessCompilation()) {
+        intptr_t offset = (uint8_t *)addressToBePatched - self()->getBinaryBufferStart();
+        SerializedRuntimeAssumption *sar = new (self()->trHeapMemory())
+            SerializedRuntimeAssumption(RuntimeAssumptionOnClassUnload, (uintptr_t)classPointer, offset, 4);
+        self()->comp()->getSerializedRuntimeAssumptions().push_front(sar);
+    } else
 #endif // J9VM_OPT_JITSERVER
-      {
-      createClassUnloadPicSite(classPointer, addressToBePatched,4, self()->comp()->getMetadataAssumptionList());
-      self()->comp()->setHasClassUnloadAssumptions();
-      }
-   }
+    {
+        createClassUnloadPicSite(classPointer, addressToBePatched, 4, self()->comp()->getMetadataAssumptionList());
+        self()->comp()->setHasClassUnloadAssumptions();
+    }
+}
 
-void
-J9::CodeGenerator::jitAddPicToPatchOnClassRedefinition(void *classPointer, void *addressToBePatched, bool unresolved)
-   {
-    if (!self()->comp()->compileRelocatableCode())
-      {
+void J9::CodeGenerator::jitAddPicToPatchOnClassRedefinition(void *classPointer, void *addressToBePatched,
+    bool unresolved)
+{
+    if (!self()->comp()->compileRelocatableCode()) {
 #ifdef J9VM_OPT_JITSERVER
-      if (self()->comp()->isOutOfProcessCompilation())
-         {
-         TR_RuntimeAssumptionKind kind = unresolved ? RuntimeAssumptionOnClassRedefinitionUPIC : RuntimeAssumptionOnClassRedefinitionPIC;
-         uintptr_t key = unresolved ? (uintptr_t)-1 : (uintptr_t)classPointer;
-         intptr_t offset = (uint8_t*)addressToBePatched - self()->getBinaryBufferStart();
-         SerializedRuntimeAssumption* sar =
-            new (self()->trHeapMemory()) SerializedRuntimeAssumption(kind, key, offset, sizeof(uintptr_t));
-         self()->comp()->getSerializedRuntimeAssumptions().push_front(sar);
-         }
-      else
+        if (self()->comp()->isOutOfProcessCompilation()) {
+            TR_RuntimeAssumptionKind kind
+                = unresolved ? RuntimeAssumptionOnClassRedefinitionUPIC : RuntimeAssumptionOnClassRedefinitionPIC;
+            uintptr_t key = unresolved ? (uintptr_t)-1 : (uintptr_t)classPointer;
+            intptr_t offset = (uint8_t *)addressToBePatched - self()->getBinaryBufferStart();
+            SerializedRuntimeAssumption *sar
+                = new (self()->trHeapMemory()) SerializedRuntimeAssumption(kind, key, offset, sizeof(uintptr_t));
+            self()->comp()->getSerializedRuntimeAssumptions().push_front(sar);
+        } else
 #endif // J9VM_OPT_JITSERVER
-         {
-         createClassRedefinitionPicSite(unresolved? (void*)-1 : classPointer, addressToBePatched, sizeof(uintptr_t), unresolved, self()->comp()->getMetadataAssumptionList());
-         self()->comp()->setHasClassRedefinitionAssumptions();
-         }
-      }
-   }
+        {
+            createClassRedefinitionPicSite(unresolved ? (void *)-1 : classPointer, addressToBePatched,
+                sizeof(uintptr_t), unresolved, self()->comp()->getMetadataAssumptionList());
+            self()->comp()->setHasClassRedefinitionAssumptions();
+        }
+    }
+}
 
-void
-J9::CodeGenerator::jitAdd32BitPicToPatchOnClassRedefinition(void *classPointer, void *addressToBePatched, bool unresolved)
-   {
-   if (!self()->comp()->compileRelocatableCode())
-      {
+void J9::CodeGenerator::jitAdd32BitPicToPatchOnClassRedefinition(void *classPointer, void *addressToBePatched,
+    bool unresolved)
+{
+    if (!self()->comp()->compileRelocatableCode()) {
 #ifdef J9VM_OPT_JITSERVER
-      if (self()->comp()->isOutOfProcessCompilation())
-         {
-         TR_RuntimeAssumptionKind kind = unresolved ? RuntimeAssumptionOnClassRedefinitionUPIC : RuntimeAssumptionOnClassRedefinitionPIC;
-         uintptr_t key = unresolved ? (uintptr_t)-1 : (uintptr_t)classPointer;
-         intptr_t offset = (uint8_t*)addressToBePatched - self()->getBinaryBufferStart();
-         SerializedRuntimeAssumption* sar =
-            new (self()->trHeapMemory()) SerializedRuntimeAssumption(kind, key, offset, 4);
-         self()->comp()->getSerializedRuntimeAssumptions().push_front(sar);
-         }
-      else
+        if (self()->comp()->isOutOfProcessCompilation()) {
+            TR_RuntimeAssumptionKind kind
+                = unresolved ? RuntimeAssumptionOnClassRedefinitionUPIC : RuntimeAssumptionOnClassRedefinitionPIC;
+            uintptr_t key = unresolved ? (uintptr_t)-1 : (uintptr_t)classPointer;
+            intptr_t offset = (uint8_t *)addressToBePatched - self()->getBinaryBufferStart();
+            SerializedRuntimeAssumption *sar
+                = new (self()->trHeapMemory()) SerializedRuntimeAssumption(kind, key, offset, 4);
+            self()->comp()->getSerializedRuntimeAssumptions().push_front(sar);
+        } else
 #endif // J9VM_OPT_JITSERVER
-         {
-         createClassRedefinitionPicSite(unresolved? (void*)-1 : classPointer, addressToBePatched, 4, unresolved, self()->comp()->getMetadataAssumptionList());
-         self()->comp()->setHasClassRedefinitionAssumptions();
-         }
-      }
-   }
+        {
+            createClassRedefinitionPicSite(unresolved ? (void *)-1 : classPointer, addressToBePatched, 4, unresolved,
+                self()->comp()->getMetadataAssumptionList());
+            self()->comp()->setHasClassRedefinitionAssumptions();
+        }
+    }
+}
 
+void J9::CodeGenerator::createHWPRecords()
+{
+    if (self()->comp()->getPersistentInfo()->isRuntimeInstrumentationEnabled()
+        && self()->comp()->getOption(TR_EnableHardwareProfileIndirectDispatch)) {
+        self()->comp()->fej9()->createHWProfilerRecords(self()->comp());
+    }
+}
 
-void
-J9::CodeGenerator::createHWPRecords()
-   {
-   if (self()->comp()->getPersistentInfo()->isRuntimeInstrumentationEnabled() &&
-       self()->comp()->getOption(TR_EnableHardwareProfileIndirectDispatch))
-      {
-      self()->comp()->fej9()->createHWProfilerRecords(self()->comp());
-      }
-   }
+TR::Linkage *J9::CodeGenerator::createLinkageForCompilation()
+{
+    return self()->getLinkage(self()->comp()->getJittedMethodSymbol()->getLinkageConvention());
+}
 
+TR::TreeTop *J9::CodeGenerator::lowerTree(TR::Node *root, TR::TreeTop *treeTop)
+{
+    return self()->fej9()->lowerTree(self()->comp(), root, treeTop);
+}
 
-TR::Linkage *
-J9::CodeGenerator::createLinkageForCompilation()
-   {
-   return self()->getLinkage(self()->comp()->getJittedMethodSymbol()->getLinkageConvention());
-   }
+bool J9::CodeGenerator::needClassAndMethodPointerRelocations()
+{
+    return self()->fej9()->needClassAndMethodPointerRelocations();
+}
 
+bool J9::CodeGenerator::needRelocationsForLookupEvaluationData()
+{
+    return self()->fej9()->needRelocationsForLookupEvaluationData();
+}
 
-TR::TreeTop *
-J9::CodeGenerator::lowerTree(TR::Node *root, TR::TreeTop *treeTop)
-   {
-   return self()->fej9()->lowerTree(self()->comp(), root, treeTop);
-   }
+bool J9::CodeGenerator::needRelocationsForStatics() { return self()->fej9()->needRelocationsForStatics(); }
 
+bool J9::CodeGenerator::needRelocationsForCurrentMethodPC()
+{
+    return self()->fej9()->needRelocationsForCurrentMethodPC();
+}
 
-bool
-J9::CodeGenerator::needClassAndMethodPointerRelocations()
-   {
-   return self()->fej9()->needClassAndMethodPointerRelocations();
-   }
+bool J9::CodeGenerator::needRelocationsForCurrentMethodStartPC()
+{
+    return self()->fej9()->needRelocationsForCurrentMethodStartPC();
+}
 
-bool
-J9::CodeGenerator::needRelocationsForLookupEvaluationData()
-   {
-   return self()->fej9()->needRelocationsForLookupEvaluationData();
-   }
-
-bool
-J9::CodeGenerator::needRelocationsForStatics()
-   {
-   return self()->fej9()->needRelocationsForStatics();
-   }
-
-bool
-J9::CodeGenerator::needRelocationsForCurrentMethodPC()
-   {
-   return self()->fej9()->needRelocationsForCurrentMethodPC();
-   }
-
-bool
-J9::CodeGenerator::needRelocationsForCurrentMethodStartPC()
-   {
-   return self()->fej9()->needRelocationsForCurrentMethodStartPC();
-   }
-
-bool
-J9::CodeGenerator::needRelocationsForHelpers()
-   {
-   return self()->fej9()->needRelocationsForHelpers();
-   }
+bool J9::CodeGenerator::needRelocationsForHelpers() { return self()->fej9()->needRelocationsForHelpers(); }
 
 #if defined(J9VM_OPT_JITSERVER)
-bool
-J9::CodeGenerator::needRelocationsForBodyInfoData()
-   {
-   return self()->fej9()->needRelocationsForBodyInfoData();
-   }
+bool J9::CodeGenerator::needRelocationsForBodyInfoData() { return self()->fej9()->needRelocationsForBodyInfoData(); }
 
-bool
-J9::CodeGenerator::needRelocationsForPersistentInfoData()
-   {
-   return self()->fej9()->needRelocationsForPersistentInfoData();
-   }
+bool J9::CodeGenerator::needRelocationsForPersistentInfoData()
+{
+    return self()->fej9()->needRelocationsForPersistentInfoData();
+}
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
+bool J9::CodeGenerator::isMethodInAtomicLongGroup(TR::RecognizedMethod rm)
+{
+    switch (rm) {
+        case TR::java_util_concurrent_atomic_AtomicLong_addAndGet:
+        case TR::java_util_concurrent_atomic_AtomicLongArray_addAndGet:
+        case TR::java_util_concurrent_atomic_AtomicLongArray_decrementAndGet:
+        case TR::java_util_concurrent_atomic_AtomicLongArray_getAndAdd:
+        case TR::java_util_concurrent_atomic_AtomicLongArray_getAndDecrement:
+        case TR::java_util_concurrent_atomic_AtomicLongArray_getAndIncrement:
+        case TR::java_util_concurrent_atomic_AtomicLongArray_getAndSet:
+        case TR::java_util_concurrent_atomic_AtomicLongArray_incrementAndGet:
+        case TR::java_util_concurrent_atomic_AtomicLong_decrementAndGet:
+        case TR::java_util_concurrent_atomic_AtomicLong_getAndAdd:
+        case TR::java_util_concurrent_atomic_AtomicLong_getAndDecrement:
+        case TR::java_util_concurrent_atomic_AtomicLong_getAndIncrement:
+        case TR::java_util_concurrent_atomic_AtomicLong_getAndSet:
+        case TR::java_util_concurrent_atomic_AtomicLong_incrementAndGet:
+            return true;
 
-bool
-J9::CodeGenerator::isMethodInAtomicLongGroup(TR::RecognizedMethod rm)
-   {
-   switch (rm)
-      {
-      case TR::java_util_concurrent_atomic_AtomicLong_addAndGet:
-      case TR::java_util_concurrent_atomic_AtomicLongArray_addAndGet:
-      case TR::java_util_concurrent_atomic_AtomicLongArray_decrementAndGet:
-      case TR::java_util_concurrent_atomic_AtomicLongArray_getAndAdd:
-      case TR::java_util_concurrent_atomic_AtomicLongArray_getAndDecrement:
-      case TR::java_util_concurrent_atomic_AtomicLongArray_getAndIncrement:
-      case TR::java_util_concurrent_atomic_AtomicLongArray_getAndSet:
-      case TR::java_util_concurrent_atomic_AtomicLongArray_incrementAndGet:
-      case TR::java_util_concurrent_atomic_AtomicLong_decrementAndGet:
-      case TR::java_util_concurrent_atomic_AtomicLong_getAndAdd:
-      case TR::java_util_concurrent_atomic_AtomicLong_getAndDecrement:
-      case TR::java_util_concurrent_atomic_AtomicLong_getAndIncrement:
-      case TR::java_util_concurrent_atomic_AtomicLong_getAndSet:
-      case TR::java_util_concurrent_atomic_AtomicLong_incrementAndGet:
-         return true;
+        default:
+            return false;
+    }
+}
 
-      default:
-         return false;
-      }
-   }
+void J9::CodeGenerator::trimCodeMemoryToActualSize()
+{
+    uint8_t *bufferStart = self()->getBinaryBufferStart();
+    size_t actualCodeLengthInBytes = self()->getWarmCodeEnd() - bufferStart;
 
+    TR::VMAccessCriticalSection trimCodeMemoryAllocation(self()->comp());
+    self()->getCodeCache()->trimCodeMemoryAllocation(bufferStart, actualCodeLengthInBytes);
+}
 
-void
-J9::CodeGenerator::trimCodeMemoryToActualSize()
-   {
-   uint8_t *bufferStart = self()->getBinaryBufferStart();
-   size_t actualCodeLengthInBytes = self()->getWarmCodeEnd() - bufferStart;
+void J9::CodeGenerator::reserveCodeCache()
+{
+    self()->setCodeCache(self()->fej9()->getDesignatedCodeCache(self()->comp()));
+    if (!self()->getCodeCache()) // Cannot reserve a cache; all are used
+    {
+        // We may reach this point if all code caches have been used up
+        // If some code caches have some space but cannot be used because they are reserved
+        // we will throw an exception in the call to getDesignatedCodeCache
 
-   TR::VMAccessCriticalSection trimCodeMemoryAllocation(self()->comp());
-   self()->getCodeCache()->trimCodeMemoryAllocation(bufferStart, actualCodeLengthInBytes);
-   }
+        if (self()->comp()->compileRelocatableCode()) {
+            self()->comp()->failCompilation<TR::RecoverableCodeCacheError>("Cannot reserve code cache");
+        }
 
+        self()->comp()->failCompilation<TR::CodeCacheError>("Cannot reserve code cache");
+    }
+}
 
-void
-J9::CodeGenerator::reserveCodeCache()
-   {
-   self()->setCodeCache(self()->fej9()->getDesignatedCodeCache(self()->comp()));
-   if (!self()->getCodeCache()) // Cannot reserve a cache; all are used
-      {
-      // We may reach this point if all code caches have been used up
-      // If some code caches have some space but cannot be used because they are reserved
-      // we will throw an exception in the call to getDesignatedCodeCache
+uint8_t *J9::CodeGenerator::allocateCodeMemoryInner(uint32_t warmCodeSizeInBytes, uint32_t coldCodeSizeInBytes,
+    uint8_t **coldCode, bool isMethodHeaderNeeded)
+{
+    TR::Compilation *comp = self()->comp();
 
-      if (self()->comp()->compileRelocatableCode())
-         {
-         self()->comp()->failCompilation<TR::RecoverableCodeCacheError>("Cannot reserve code cache");
-         }
+    TR::CodeCache *codeCache = self()->getCodeCache();
+    if (!codeCache) {
+        if (comp->compileRelocatableCode()) {
+            comp->failCompilation<TR::RecoverableCodeCacheError>("Failed to get current code cache");
+        }
 
-      self()->comp()->failCompilation<TR::CodeCacheError>("Cannot reserve code cache");
-      }
-   }
+        comp->failCompilation<TR::CodeCacheError>("Failed to get current code cache");
+    }
 
+    TR_ASSERT(codeCache->isReserved(), "Code cache should have been reserved.");
 
-uint8_t *
-J9::CodeGenerator::allocateCodeMemoryInner(
-      uint32_t warmCodeSizeInBytes,
-      uint32_t coldCodeSizeInBytes,
-      uint8_t **coldCode,
-      bool isMethodHeaderNeeded)
-   {
-   TR::Compilation *comp = self()->comp();
+    bool hadClassUnloadMonitor;
+    bool hadVMAccess
+        = self()->fej9()->releaseClassUnloadMonitorAndAcquireVMaccessIfNeeded(comp, &hadClassUnloadMonitor);
 
-   TR::CodeCache * codeCache = self()->getCodeCache();
-   if (!codeCache)
-      {
-      if (comp->compileRelocatableCode())
-         {
-         comp->failCompilation<TR::RecoverableCodeCacheError>("Failed to get current code cache");
-         }
+    uint8_t *warmCode = TR::CodeCacheManager::instance()->allocateCodeMemory(warmCodeSizeInBytes, coldCodeSizeInBytes,
+        &codeCache, coldCode, self()->fej9()->needsContiguousCodeAndDataCacheAllocation(), isMethodHeaderNeeded);
 
-      comp->failCompilation<TR::CodeCacheError>("Failed to get current code cache");
-      }
+    self()->fej9()->acquireClassUnloadMonitorAndReleaseVMAccessIfNeeded(comp, hadVMAccess, hadClassUnloadMonitor);
 
-   TR_ASSERT(codeCache->isReserved(), "Code cache should have been reserved.");
+    if (codeCache != self()->getCodeCache()) {
+        TR_ASSERT(!codeCache || codeCache->isReserved(), "Substitute code cache isn't marked as reserved");
+        comp->setRelocatableMethodCodeStart(warmCode);
+        self()->switchCodeCacheTo(codeCache);
+    }
 
-   bool hadClassUnloadMonitor;
-   bool hadVMAccess = self()->fej9()->releaseClassUnloadMonitorAndAcquireVMaccessIfNeeded(comp, &hadClassUnloadMonitor);
+    if (!warmCode) {
+        if (jitConfig->runtimeFlags & J9JIT_CODE_CACHE_FULL) {
+            comp->failCompilation<TR::CodeCacheError>("Failed to allocate code memory");
+        }
 
-   uint8_t *warmCode = TR::CodeCacheManager::instance()->allocateCodeMemory(
-         warmCodeSizeInBytes,
-         coldCodeSizeInBytes,
-         &codeCache,
-         coldCode,
-         self()->fej9()->needsContiguousCodeAndDataCacheAllocation(),
-         isMethodHeaderNeeded);
+        comp->failCompilation<TR::RecoverableCodeCacheError>("Failed to allocate code memory");
+    }
 
-   self()->fej9()->acquireClassUnloadMonitorAndReleaseVMAccessIfNeeded(comp, hadVMAccess, hadClassUnloadMonitor);
+    TR_ASSERT_FATAL(!((warmCodeSizeInBytes && !warmCode) || (coldCodeSizeInBytes && !coldCode)),
+        "Allocation failed but didn't throw an exception");
 
-   if (codeCache != self()->getCodeCache())
-      {
-      TR_ASSERT(!codeCache || codeCache->isReserved(), "Substitute code cache isn't marked as reserved");
-      comp->setRelocatableMethodCodeStart(warmCode);
-      self()->switchCodeCacheTo(codeCache);
-      }
+    return warmCode;
+}
 
-   if (!warmCode)
-      {
-      if (jitConfig->runtimeFlags & J9JIT_CODE_CACHE_FULL)
-         {
-         comp->failCompilation<TR::CodeCacheError>("Failed to allocate code memory");
-         }
+TR::Node *J9::CodeGenerator::generatePoisonNode(TR::Block *currentBlock, TR::SymbolReference *liveAutoSymRef)
+{
+    bool poisoned = true;
+    TR::Node *storeNode = NULL;
 
-      comp->failCompilation<TR::RecoverableCodeCacheError>("Failed to allocate code memory");
-      }
+    if (liveAutoSymRef->getSymbol()->getType().isAddress())
+        storeNode = TR::Node::createStore(liveAutoSymRef, TR::Node::aconst(currentBlock->getEntry()->getNode(), 0x0));
+    else if (liveAutoSymRef->getSymbol()->getType().isInt64())
+        storeNode
+            = TR::Node::createStore(liveAutoSymRef, TR::Node::lconst(currentBlock->getEntry()->getNode(), 0xc1aed1e5));
+    else if (liveAutoSymRef->getSymbol()->getType().isInt32())
+        storeNode
+            = TR::Node::createStore(liveAutoSymRef, TR::Node::iconst(currentBlock->getEntry()->getNode(), 0xc1aed1e5));
+    else
+        poisoned = false;
 
-   TR_ASSERT_FATAL( !((warmCodeSizeInBytes && !warmCode) || (coldCodeSizeInBytes && !coldCode)), "Allocation failed but didn't throw an exception");
+    TR::Compilation *comp = self()->comp();
+    if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots)) {
+        if (poisoned) {
+            comp->log()->printf("POISON DEAD SLOTS --- Live local %d  from parent block %d going dead .... poisoning "
+                                "slot with node 0x%x .\n",
+                liveAutoSymRef->getReferenceNumber(), currentBlock->getNumber(), storeNode);
+        } else {
+            comp->log()->printf("POISON DEAD SLOTS --- Live local %d of unsupported type from parent block %d going "
+                                "dead .... poisoning skipped.\n",
+                liveAutoSymRef->getReferenceNumber(), currentBlock->getNumber());
+        }
+    }
 
-   return warmCode;
-   }
+    return storeNode;
+}
 
+uint32_t J9::CodeGenerator::initializeLinkageInfo(void *linkageInfoPtr)
+{
+    J9::PrivateLinkage::LinkageInfo *linkageInfo = (J9::PrivateLinkage::LinkageInfo *)linkageInfoPtr;
 
-TR::Node *
-J9::CodeGenerator::generatePoisonNode(TR::Block *currentBlock, TR::SymbolReference *liveAutoSymRef)
-   {
-   bool poisoned = true;
-   TR::Node *storeNode = NULL;
+    TR::Recompilation *recomp = self()->comp()->getRecompilationInfo();
+    if (recomp && recomp->couldBeCompiledAgain()) {
+        if (recomp->useSampling())
+            linkageInfo->setSamplingMethodBody();
+        else
+            linkageInfo->setCountingMethodBody();
+    }
 
-   if (liveAutoSymRef->getSymbol()->getType().isAddress())
-      storeNode = TR::Node::createStore(liveAutoSymRef, TR::Node::aconst(currentBlock->getEntry()->getNode(), 0x0));
-   else if (liveAutoSymRef->getSymbol()->getType().isInt64())
-      storeNode = TR::Node::createStore(liveAutoSymRef, TR::Node::lconst(currentBlock->getEntry()->getNode(), 0xc1aed1e5));
-   else if (liveAutoSymRef->getSymbol()->getType().isInt32())
-      storeNode = TR::Node::createStore(liveAutoSymRef, TR::Node::iconst(currentBlock->getEntry()->getNode(), 0xc1aed1e5));
-   else
-      poisoned = false;
+    linkageInfo->setReservedWord((self()->getBinaryBufferCursor() - self()->getCodeStart()));
+    linkageInfo->setReturnInfo(self()->comp()->getReturnInfo());
 
-   TR::Compilation *comp = self()->comp();
-   if (comp->getOption(TR_TraceCG) && comp->getOption(TR_PoisonDeadSlots))
-      {
-      if (poisoned)
-         {
-         comp->log()->printf("POISON DEAD SLOTS --- Live local %d  from parent block %d going dead .... poisoning slot with node 0x%x .\n", liveAutoSymRef->getReferenceNumber() , currentBlock->getNumber(), storeNode);
-         }
-      else
-         {
-         comp->log()->printf("POISON DEAD SLOTS --- Live local %d of unsupported type from parent block %d going dead .... poisoning skipped.\n", liveAutoSymRef->getReferenceNumber() , currentBlock->getNumber());
-         }
-      }
-
-   return storeNode;
-   }
-
-uint32_t
-J9::CodeGenerator::initializeLinkageInfo(void *linkageInfoPtr)
-   {
-   J9::PrivateLinkage::LinkageInfo *linkageInfo = (J9::PrivateLinkage::LinkageInfo *)linkageInfoPtr;
-
-   TR::Recompilation * recomp = self()->comp()->getRecompilationInfo();
-   if (recomp && recomp->couldBeCompiledAgain())
-      {
-      if (recomp->useSampling())
-         linkageInfo->setSamplingMethodBody();
-      else
-         linkageInfo->setCountingMethodBody();
-      }
-
-   linkageInfo->setReservedWord((self()->getBinaryBufferCursor() - self()->getCodeStart()));
-   linkageInfo->setReturnInfo(self()->comp()->getReturnInfo());
-
-   return linkageInfo->getWord();
-   }
+    return linkageInfo->getWord();
+}
 
 // I need to preserve the type information for monitorenter/exit through
 // code generation, but the secondChild is being used for other monitor
 // optimizations and I can't find anywhere to stick it on the TR::Node.
 // Creating the node with more children doesn't seem to help either.
 //
-void
-J9::CodeGenerator::addMonClass(TR::Node* monNode, TR_OpaqueClassBlock* clazz)
-   {
-   _monitorMapping[monNode->getGlobalIndex()] = clazz;
-   }
+void J9::CodeGenerator::addMonClass(TR::Node *monNode, TR_OpaqueClassBlock *clazz)
+{
+    _monitorMapping[monNode->getGlobalIndex()] = clazz;
+}
 
-TR_OpaqueClassBlock *
-J9::CodeGenerator::getMonClass(TR::Node* monNode)
-   {
-   auto it = _monitorMapping.find(monNode->getGlobalIndex());
-   return it != _monitorMapping.end() ? it->second : NULL;
-   }
+TR_OpaqueClassBlock *J9::CodeGenerator::getMonClass(TR::Node *monNode)
+{
+    auto it = _monitorMapping.find(monNode->getGlobalIndex());
+    return it != _monitorMapping.end() ? it->second : NULL;
+}
 
-TR_YesNoMaybe
-J9::CodeGenerator::isMonitorValueBasedOrValueType(TR::Node* monNode)
-   {
-   if (TR::Compiler->om.areValueTypesEnabled() || TR::Compiler->om.areValueBasedMonitorChecksEnabled())
-      {
-      TR_OpaqueClassBlock *clazz = self()->getMonClass(monNode);
+TR_YesNoMaybe J9::CodeGenerator::isMonitorValueBasedOrValueType(TR::Node *monNode)
+{
+    if (TR::Compiler->om.areValueTypesEnabled() || TR::Compiler->om.areValueBasedMonitorChecksEnabled()) {
+        TR_OpaqueClassBlock *clazz = self()->getMonClass(monNode);
 
-      if (!clazz)
-         return TR_maybe;
+        if (!clazz)
+            return TR_maybe;
 
-      //java.lang.Object class is only set when monitor is java.lang.Object but not its subclass
-      if (clazz == self()->comp()->getObjectClassPointer())
-         return TR_no;
+        // java.lang.Object class is only set when monitor is java.lang.Object but not its subclass
+        if (clazz == self()->comp()->getObjectClassPointer())
+            return TR_no;
 
-      // J9ClassIsValueType is mutually exclusive to J9ClassHasIdentity
-      if (!TR::Compiler->om.areValueBasedMonitorChecksEnabled() && TR::Compiler->cls.classHasIdentity(clazz))
-         return TR_no;
+        // J9ClassIsValueType is mutually exclusive to J9ClassHasIdentity
+        if (!TR::Compiler->om.areValueBasedMonitorChecksEnabled() && TR::Compiler->cls.classHasIdentity(clazz))
+            return TR_no;
 
-      if (!TR::Compiler->cls.isConcreteClass(self()->comp(), clazz))
-         return TR_maybe;
+        if (!TR::Compiler->cls.isConcreteClass(self()->comp(), clazz))
+            return TR_maybe;
 
-      if (TR::Compiler->cls.isValueBasedOrValueTypeClass(clazz))
-         return TR_yes;
-      }
-   return TR_no;
-   }
+        if (TR::Compiler->cls.isValueBasedOrValueTypeClass(clazz))
+            return TR_yes;
+    }
+    return TR_no;
+}
 
-bool
-J9::CodeGenerator::isProfiledClassAndCallSiteCompatible(TR_OpaqueClassBlock *profiledClass, TR_OpaqueClassBlock *callSiteMethodClass)
-   {
-   /* Check if the profiled class should be allowed to be used for a guarded devirtualization of a particular call site.
-      A call site can end up with an incompatible profiled class in two ways.
-        1) The inlining context of this compile might allow for type refinement of a callSite class. If this the profiledClass
-           is from a call chain that differs to the current compile inlining, then it's possible that the profiledClass is
-           incompatible with the refined type at the callSite in this compile. Historically the JIT would go as far as
-           converting an invokeInterface to an invokeVirtual based on this type refinement, which would result in a crash if the
-           profiledClass was incompatible. Due to correctness issues, interface->virtual conversions was removed, but we can
-           still refine the class type for an invokevirtual resulting in the same profiledClass incompatibility which can result
-           in an ineffectual guarded devirtualization but not a crash.
-        2) With shared classes, a J9ROMClass can be shared among classes of different class-loaders. Since profiling data is keyed
-           by the bytecode address, the profiled data from all classes sharing the same J9ROMClass will be merged. Because of this,
-           a profiled class can be derived from the profiling of a method in a class that is incompatible with the call site.
-      So how to do we ensure compatibility?
-        In most cases an isInstanceOf() check is enough to ensure that the profiled class is compatible, but this can fail when the
-        callSiteMethodClass is an Interface. This happens when the call site is calling a method of an Abstract class which is
-        not implemented by the class but is required by an Interface that the Abstract class implements. In such a case the Abstract
-        class's VFT entries for all unimplemented methods will point at the Interface methods. By default the JIT uses the class of
-        the VFT entry method to populate the callSiteMethodClass. When the Interface is defined in a parent class-loader, it's
-        possible for an incompatible profiled class to implement the same parent class-loader Interface and as a result pass the
-        isInstanceOf() test. Therefore we can only use the isInstanceOf() check when the callSiteMethodClass is not an Interface.
+bool J9::CodeGenerator::isProfiledClassAndCallSiteCompatible(TR_OpaqueClassBlock *profiledClass,
+    TR_OpaqueClassBlock *callSiteMethodClass)
+{
+    /* Check if the profiled class should be allowed to be used for a guarded devirtualization of a particular call
+       site. A call site can end up with an incompatible profiled class in two ways. 1) The inlining context of this
+       compile might allow for type refinement of a callSite class. If this the profiledClass is from a call chain that
+       differs to the current compile inlining, then it's possible that the profiledClass is incompatible with the
+       refined type at the callSite in this compile. Historically the JIT would go as far as converting an
+       invokeInterface to an invokeVirtual based on this type refinement, which would result in a crash if the
+            profiledClass was incompatible. Due to correctness issues, interface->virtual conversions was removed, but
+       we can still refine the class type for an invokevirtual resulting in the same profiledClass incompatibility which
+       can result in an ineffectual guarded devirtualization but not a crash. 2) With shared classes, a J9ROMClass can
+       be shared among classes of different class-loaders. Since profiling data is keyed by the bytecode address, the
+       profiled data from all classes sharing the same J9ROMClass will be merged. Because of this, a profiled class can
+       be derived from the profiling of a method in a class that is incompatible with the call site. So how to do we
+       ensure compatibility? In most cases an isInstanceOf() check is enough to ensure that the profiled class is
+       compatible, but this can fail when the callSiteMethodClass is an Interface. This happens when the call site is
+       calling a method of an Abstract class which is not implemented by the class but is required by an Interface that
+       the Abstract class implements. In such a case the Abstract class's VFT entries for all unimplemented methods will
+       point at the Interface methods. By default the JIT uses the class of the VFT entry method to populate the
+       callSiteMethodClass. When the Interface is defined in a parent class-loader, it's possible for an incompatible
+       profiled class to implement the same parent class-loader Interface and as a result pass the isInstanceOf() test.
+       Therefore we can only use the isInstanceOf() check when the callSiteMethodClass is not an Interface.
 
-   */
-   if (!fej9()->isInterfaceClass(callSiteMethodClass) && fej9()->isInstanceOf(profiledClass, callSiteMethodClass, true, true) == TR_yes)
-      {
-      return true;
-      }
-   return false;
-   }
+    */
+    if (!fej9()->isInterfaceClass(callSiteMethodClass)
+        && fej9()->isInstanceOf(profiledClass, callSiteMethodClass, true, true) == TR_yes) {
+        return true;
+    }
+    return false;
+}
 
-bool
-J9::CodeGenerator::enableJitDispatchJ9Method()
-   {
-   static const bool disable = feGetEnv("TR_disableJitDispatchJ9Method") != NULL;
-   return !disable
-      && self()->supportsNonHelper(TR::SymbolReferenceTable::jitDispatchJ9MethodSymbol);
-   }
+bool J9::CodeGenerator::enableJitDispatchJ9Method()
+{
+    static const bool disable = feGetEnv("TR_disableJitDispatchJ9Method") != NULL;
+    return !disable && self()->supportsNonHelper(TR::SymbolReferenceTable::jitDispatchJ9MethodSymbol);
+}
 
-bool
-J9::CodeGenerator::stressJitDispatchJ9MethodJ2I()
-   {
-   if (!self()->enableJitDispatchJ9Method())
-      return false;
+bool J9::CodeGenerator::stressJitDispatchJ9MethodJ2I()
+{
+    if (!self()->enableJitDispatchJ9Method())
+        return false;
 
-   static const bool stress = feGetEnv("TR_stressJitDispatchJ9MethodJ2I") != NULL;
-   return stress;
-   }
+    static const bool stress = feGetEnv("TR_stressJitDispatchJ9MethodJ2I") != NULL;
+    return stress;
+}
 
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
-void
-J9::CodeGenerator::addInvokeBasicCallSiteImpl(
-   TR::Node *callNode, TR::Instruction *instr, uint8_t *retAddr)
-   {
-   TR_ASSERT_FATAL_WITH_NODE(
-      callNode,
-      (instr != NULL) != (retAddr != NULL),
-      "expected exactly one of TR::Instruction or return address");
+void J9::CodeGenerator::addInvokeBasicCallSiteImpl(TR::Node *callNode, TR::Instruction *instr, uint8_t *retAddr)
+{
+    TR_ASSERT_FATAL_WITH_NODE(callNode, (instr != NULL) != (retAddr != NULL),
+        "expected exactly one of TR::Instruction or return address");
 
-   OMR::Logger *log = comp()->log();
+    OMR::Logger *log = comp()->log();
 
-   if (comp()->getOption(TR_TraceCG))
-      {
-      log->prints("Call instruction ");
-      if (instr != NULL)
-         {
-         log->printf("%p", instr);
-         }
-      else
-         {
-         log->printf("with return address %p", retAddr);
-         }
+    if (comp()->getOption(TR_TraceCG)) {
+        log->prints("Call instruction ");
+        if (instr != NULL) {
+            log->printf("%p", instr);
+        } else {
+            log->printf("with return address %p", retAddr);
+        }
 
-      log->printf(" for n%un [%p] may target VM MethodHandle.invokeBasic\n",
-            callNode->getGlobalIndex(),
-            callNode);
-      }
+        log->printf(" for n%un [%p] may target VM MethodHandle.invokeBasic\n", callNode->getGlobalIndex(), callNode);
+    }
 
-   TR_J9VMBase *fej9 = comp()->fej9();
-   TR::Node *j2iCallNode = callNode;
-   TR::MethodSymbol *methodSymbol = callNode->getSymbol()->castToMethodSymbol();
-   TR::RecognizedMethod rm = methodSymbol->getMandatoryRecognizedMethod();
-   switch (rm)
-      {
-      case TR::java_lang_invoke_MethodHandle_invokeBasic:
-         break; // ok
+    TR_J9VMBase *fej9 = comp()->fej9();
+    TR::Node *j2iCallNode = callNode;
+    TR::MethodSymbol *methodSymbol = callNode->getSymbol()->castToMethodSymbol();
+    TR::RecognizedMethod rm = methodSymbol->getMandatoryRecognizedMethod();
+    switch (rm) {
+        case TR::java_lang_invoke_MethodHandle_invokeBasic:
+            break; // ok
 
-      case TR::com_ibm_jit_JITHelpers_dispatchVirtual:
-         j2iCallNode =
-            fej9->getEquivalentVirtualCallNodeForDispatchVirtual(callNode, comp());
-         break;
+        case TR::com_ibm_jit_JITHelpers_dispatchVirtual:
+            j2iCallNode = fej9->getEquivalentVirtualCallNodeForDispatchVirtual(callNode, comp());
+            break;
 
-      default:
-         TR_ASSERT_FATAL_WITH_NODE(
-            callNode,
-            false,
-            "expected MethodHandle.invokeBasic or JITHelpers.dispatchVirtual");
-         break;
-      }
+        default:
+            TR_ASSERT_FATAL_WITH_NODE(callNode, false,
+                "expected MethodHandle.invokeBasic or JITHelpers.dispatchVirtual");
+            break;
+    }
 
-   int32_t numChildren = j2iCallNode->getNumChildren();
-   int32_t firstArgIndex = j2iCallNode->getFirstArgumentIndex();
-   uint32_t numArgSlots32 = 0;
-   for (int32_t i = firstArgIndex; i < numChildren; i++)
-      {
-      TR::Node *child = j2iCallNode->getChild(i);
+    int32_t numChildren = j2iCallNode->getNumChildren();
+    int32_t firstArgIndex = j2iCallNode->getFirstArgumentIndex();
+    uint32_t numArgSlots32 = 0;
+    for (int32_t i = firstArgIndex; i < numChildren; i++) {
+        TR::Node *child = j2iCallNode->getChild(i);
 
-      // PassThrough nodes will appear to have type TR::NoType. The actual type
-      // of the resulting value is the same as the type of the child.
-      while (child->getOpCodeValue() == TR::PassThrough)
-         {
-         child = child->getChild(0);
-         }
+        // PassThrough nodes will appear to have type TR::NoType. The actual type
+        // of the resulting value is the same as the type of the child.
+        while (child->getOpCodeValue() == TR::PassThrough) {
+            child = child->getChild(0);
+        }
 
-      TR::DataTypes dt = child->getDataType().getDataType();
-      numArgSlots32 += 1 + (uint32_t)(dt == TR::Int64 || dt == TR::Double);
-      }
+        TR::DataTypes dt = child->getDataType().getDataType();
+        numArgSlots32 += 1 + (uint32_t)(dt == TR::Int64 || dt == TR::Double);
+    }
 
-   logprintf(comp()->getOption(TR_TraceCG), log, "  arg slots: %u\n", numArgSlots32);
+    logprintf(comp()->getOption(TR_TraceCG), log, "  arg slots: %u\n", numArgSlots32);
 
-   TR_ASSERT_FATAL_WITH_NODE(
-      callNode,
-      numArgSlots32 <= UINT8_MAX,
-      "too many argument slots (%u)",
-      numArgSlots32);
+    TR_ASSERT_FATAL_WITH_NODE(callNode, numArgSlots32 <= UINT8_MAX, "too many argument slots (%u)", numArgSlots32);
 
-   uint8_t numArgSlots = (uint8_t)numArgSlots32;
+    uint8_t numArgSlots = (uint8_t)numArgSlots32;
 
-   void *j2iThunk = NULL;
-   if (rm == TR::com_ibm_jit_JITHelpers_dispatchVirtual &&
-       !(comp()->target().cpu.isX86() && self()->comp()->target().is32Bit()))
-      {
-      TR::Method *m = methodSymbol->getMethod();
-      char *sig = fej9->getJ2IThunkSignatureForDispatchVirtual(
-         m->signatureChars(), m->signatureLength(), comp());
+    void *j2iThunk = NULL;
+    if (rm == TR::com_ibm_jit_JITHelpers_dispatchVirtual
+        && !(comp()->target().cpu.isX86() && self()->comp()->target().is32Bit())) {
+        TR::Method *m = methodSymbol->getMethod();
+        char *sig = fej9->getJ2IThunkSignatureForDispatchVirtual(m->signatureChars(), m->signatureLength(), comp());
 
-      int32_t sigLen = strlen(sig);
-      j2iThunk = fej9->getJ2IThunk(sig, sigLen, comp());
-      TR_ASSERT_FATAL_WITH_NODE(callNode, j2iThunk != NULL, "missing J2I thunk");
+        int32_t sigLen = strlen(sig);
+        j2iThunk = fej9->getJ2IThunk(sig, sigLen, comp());
+        TR_ASSERT_FATAL_WITH_NODE(callNode, j2iThunk != NULL, "missing J2I thunk");
 
-      logprintf(comp()->getOption(TR_TraceCG), log, "  J2I thunk: %p\n", j2iThunk);
-      }
+        logprintf(comp()->getOption(TR_TraceCG), log, "  J2I thunk: %p\n", j2iThunk);
+    }
 
-   InvokeBasicCallSite site = {};
-   site._instr = instr;
-   site._retAddr = retAddr;
-   site._numArgSlots = numArgSlots;
-   site._j2iThunk = j2iThunk;
-   _invokeBasicCallSites.push_back(site);
-   }
+    InvokeBasicCallSite site = {};
+    site._instr = instr;
+    site._retAddr = retAddr;
+    site._numArgSlots = numArgSlots;
+    site._j2iThunk = j2iThunk;
+    _invokeBasicCallSites.push_back(site);
+}
 #endif // defined(J9VM_OPT_OPENJDK_METHODHANDLE)
 
-void
-J9::CodeGenerator::assignKeepaliveConstRefLabels()
-   {
+void J9::CodeGenerator::assignKeepaliveConstRefLabels()
+{
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
-   OMR::Logger *log = comp()->log();
-   bool trace = comp()->getOption(TR_TraceOptDetails) || comp()->getOption(TR_TraceCG);
-   logprints(trace, log, "\ndetermining final set of keepalive classes\n");
+    OMR::Logger *log = comp()->log();
+    bool trace = comp()->getOption(TR_TraceOptDetails) || comp()->getOption(TR_TraceCG);
+    logprints(trace, log, "\ndetermining final set of keepalive classes\n");
 
-   if (!comp()->useConstRefs())
-      {
-      // Keepalives are implemented in terms of const refs.
-      logprints(trace, log, "no keepalives without const refs\n\n");
-      return;
-      }
+    if (!comp()->useConstRefs()) {
+        // Keepalives are implemented in terms of const refs.
+        logprints(trace, log, "no keepalives without const refs\n\n");
+        return;
+    }
 
-   TR::KnownObjectTable *knot = comp()->getKnownObjectTable();
-   TR_ASSERT_FATAL(
-      knot == NULL || knot->isNull(0),
-      "expected index zero to be reserved for null");
+    TR::KnownObjectTable *knot = comp()->getKnownObjectTable();
+    TR_ASSERT_FATAL(knot == NULL || knot->isNull(0), "expected index zero to be reserved for null");
 
-   if (knot == NULL || knot->getEndIndex() <= 1)
-      {
-      // No keepalives are needed if we didn't fold through known objects. Don't
-      // assert that there are no keepalives though. Redundant keepalives might
-      // have been conservatively requested.
-      logprints(trace, log, "no known objects => no keepalives needed\n\n");
-      return;
-      }
+    if (knot == NULL || knot->getEndIndex() <= 1) {
+        // No keepalives are needed if we didn't fold through known objects. Don't
+        // assert that there are no keepalives though. Redundant keepalives might
+        // have been conservatively requested.
+        logprints(trace, log, "no known objects => no keepalives needed\n\n");
+        return;
+    }
 
-   if (comp()->getOption(TR_NoClassGC))
-      {
-      logprints(trace, log, "no class unloading => no keepalives needed\n\n");
-      return;
-      }
+    if (comp()->getOption(TR_NoClassGC)) {
+        logprints(trace, log, "no class unloading => no keepalives needed\n\n");
+        return;
+    }
 
-   if (comp()->getOption(TR_AllowJitBodyToOutliveInlinedCode))
-      {
-      logprints(trace, log, "allowJitBodyToOutliveInlinedCode => no keepalives needed\n\n");
-      return;
-      }
+    if (comp()->getOption(TR_AllowJitBodyToOutliveInlinedCode)) {
+        logprints(trace, log, "allowJitBodyToOutliveInlinedCode => no keepalives needed\n\n");
+        return;
+    }
 
-   // mustTrackRetainedMethods() should be guaranteed by the above early exits.
-   // In particular:
-   // - There are known objects, so this is not an AOT compilation.
-   // - Dynamic class unloading is enabled.
-   // - The allowJitBodyToOutliveInlinedCode option is not set.
-   //
-   // We need mustTrackRetainedMethods() to be true because the logic below
-   // requires J9::RetainedMethodSet.
-   //
-   TR_ASSERT_FATAL(
-      comp()->mustTrackRetainedMethods(),
-      "retained method tracking is required to determine keepalives");
+    // mustTrackRetainedMethods() should be guaranteed by the above early exits.
+    // In particular:
+    // - There are known objects, so this is not an AOT compilation.
+    // - Dynamic class unloading is enabled.
+    // - The allowJitBodyToOutliveInlinedCode option is not set.
+    //
+    // We need mustTrackRetainedMethods() to be true because the logic below
+    // requires J9::RetainedMethodSet.
+    //
+    TR_ASSERT_FATAL(comp()->mustTrackRetainedMethods(), "retained method tracking is required to determine keepalives");
 
-   OMR::RetainedMethodSet *omrRetainedMethods = NULL;
+    OMR::RetainedMethodSet *omrRetainedMethods = NULL;
 #if defined(J9VM_OPT_JITSERVER)
-   if (comp()->isRemoteCompilation())
-      {
-      omrRetainedMethods = comp()->clientRetainedMethods();
-      TR_ASSERT_FATAL(
-         omrRetainedMethods != NULL,
-         "client must have done the repeat retained methods analysis by now");
-      }
-   else
+    if (comp()->isRemoteCompilation()) {
+        omrRetainedMethods = comp()->clientRetainedMethods();
+        TR_ASSERT_FATAL(omrRetainedMethods != NULL,
+            "client must have done the repeat retained methods analysis by now");
+    } else
 #endif
-      {
-      omrRetainedMethods = comp()->retainedMethods();
-      }
+    {
+        omrRetainedMethods = comp()->retainedMethods();
+    }
 
-   // It must be a J9::RetainedMethodSet because comp()->mustTrackRetainedMethods().
-   auto retainedMethods = static_cast<J9::RetainedMethodSet*>(omrRetainedMethods);
+    // It must be a J9::RetainedMethodSet because comp()->mustTrackRetainedMethods().
+    auto retainedMethods = static_cast<J9::RetainedMethodSet *>(omrRetainedMethods);
 
-   TR_ResolvedMethod *m = NULL;
-   if (comp()->keepaliveClasses().empty()
-       && !retainedMethods->keepaliveMethods().next(&m))
-      {
-      logprints(trace, log, "no keepalives requested\n\n");
-      return;
-      }
+    TR_ResolvedMethod *m = NULL;
+    if (comp()->keepaliveClasses().empty() && !retainedMethods->keepaliveMethods().next(&m)) {
+        logprints(trace, log, "no keepalives requested\n\n");
+        return;
+    }
 
-   m = NULL;
+    m = NULL;
 
 #if defined(J9VM_OPT_JITSERVER)
-   if (comp()->isOutOfProcessCompilation())
-      {
-      // At this point, we can't avoid a round trip. Keepalives have been
-      // requested, and all requested keepalives that aren't redundant are
-      // required. To determine which requested keepalives are redundant, the
-      // client must do its repeat retained methods analysis of the inlining
-      // table.
-      //
-      // We could skip detecting redundant keepalives, avoiding the need to do
-      // the repeat analysis here, but that would just make all requested
-      // keepalives required. Then it would be necessary to get their
-      // java/lang/Class instances, which would itself take a round trip.
-      //
-      std::vector<TR::KnownObjectTable::Index> constRefKois;
-      for (TR::KnownObjectTable::Index koi = 1; koi < knot->getEndIndex(); koi++)
-         {
-         if (self()->getConstRefLabel(koi) != NULL)
-            {
-            constRefKois.push_back(koi);
+    if (comp()->isOutOfProcessCompilation()) {
+        // At this point, we can't avoid a round trip. Keepalives have been
+        // requested, and all requested keepalives that aren't redundant are
+        // required. To determine which requested keepalives are redundant, the
+        // client must do its repeat retained methods analysis of the inlining
+        // table.
+        //
+        // We could skip detecting redundant keepalives, avoiding the need to do
+        // the repeat analysis here, but that would just make all requested
+        // keepalives required. Then it would be necessary to get their
+        // java/lang/Class instances, which would itself take a round trip.
+        //
+        std::vector<TR::KnownObjectTable::Index> constRefKois;
+        for (TR::KnownObjectTable::Index koi = 1; koi < knot->getEndIndex(); koi++) {
+            if (self()->getConstRefLabel(koi) != NULL) {
+                constRefKois.push_back(koi);
             }
-         }
+        }
 
-      auto &keepaliveClassSet = comp()->keepaliveClasses();
-      std::vector<TR_OpaqueClassBlock*> keepaliveClasses;
-      for (auto it = keepaliveClassSet.begin(); it != keepaliveClassSet.end(); it++)
-         {
-         keepaliveClasses.push_back(*it);
-         }
+        auto &keepaliveClassSet = comp()->keepaliveClasses();
+        std::vector<TR_OpaqueClassBlock *> keepaliveClasses;
+        for (auto it = keepaliveClassSet.begin(); it != keepaliveClassSet.end(); it++) {
+            keepaliveClasses.push_back(*it);
+        }
 
-      std::vector<J9::ResolvedInlinedCallSite> inliningTable;
-      std::vector<J9::RepeatRetainedMethodsAnalysis::InlinedSiteInfo> inlinedSiteInfo;
-      std::vector<TR_ResolvedMethod*> keepaliveMethods;
-      std::vector<TR_ResolvedMethod*> bondMethods;
-      J9::RepeatRetainedMethodsAnalysis::getDataForClient(
-         comp(), inliningTable, inlinedSiteInfo, keepaliveMethods, bondMethods);
+        std::vector<J9::ResolvedInlinedCallSite> inliningTable;
+        std::vector<J9::RepeatRetainedMethodsAnalysis::InlinedSiteInfo> inlinedSiteInfo;
+        std::vector<TR_ResolvedMethod *> keepaliveMethods;
+        std::vector<TR_ResolvedMethod *> bondMethods;
+        J9::RepeatRetainedMethodsAnalysis::getDataForClient(comp(), inliningTable, inlinedSiteInfo, keepaliveMethods,
+            bondMethods);
 
-      JITServer::ServerStream *stream = comp()->getStream();
-      stream->write(
-         JITServer::MessageType::CodeGenerator_assignKeepaliveConstRefLabels,
-         constRefKois,
-         keepaliveClasses,
-         inliningTable,
-         inlinedSiteInfo,
-         keepaliveMethods,
-         bondMethods);
+        JITServer::ServerStream *stream = comp()->getStream();
+        stream->write(JITServer::MessageType::CodeGenerator_assignKeepaliveConstRefLabels, constRefKois,
+            keepaliveClasses, inliningTable, inlinedSiteInfo, keepaliveMethods, bondMethods);
 
-      comp()->setClientAlreadyRepeatedRetainedMethodsAnalysis();
+        comp()->setClientAlreadyRepeatedRetainedMethodsAnalysis();
 
-      auto recv = stream->read<
-         std::vector<std::tuple<TR::KnownObjectTable::Index, uintptr_t*>>,
-         std::vector<TR::KnownObjectTable::Index>,
-         std::vector<J9::ConstProvenanceGraph::RawEdge>,
-         std::vector<TR_ClientBondMethod>
-      >();
+        auto recv = stream->read<std::vector<std::tuple<TR::KnownObjectTable::Index, uintptr_t *> >,
+            std::vector<TR::KnownObjectTable::Index>, std::vector<J9::ConstProvenanceGraph::RawEdge>,
+            std::vector<TR_ClientBondMethod> >();
 
-      auto &newKnownObjects = std::get<0>(recv);
-      auto &oldKnobKeepalives = std::get<1>(recv);
-      auto &provenanceEdges = std::get<2>(recv);
-      auto &clientBondMethods = std::get<3>(recv);
+        auto &newKnownObjects = std::get<0>(recv);
+        auto &oldKnobKeepalives = std::get<1>(recv);
+        auto &provenanceEdges = std::get<2>(recv);
+        auto &clientBondMethods = std::get<3>(recv);
 
-      for (auto it = newKnownObjects.begin(); it != newKnownObjects.end(); it++)
-         {
-         TR::KnownObjectTable::Index koi = std::get<0>(*it);
-         uintptr_t *loc = std::get<1>(*it);
-         knot->updateKnownObjectTableAtServer(koi, loc);
-         assignNewConstRefLabel(koi);
-         }
+        for (auto it = newKnownObjects.begin(); it != newKnownObjects.end(); it++) {
+            TR::KnownObjectTable::Index koi = std::get<0>(*it);
+            uintptr_t *loc = std::get<1>(*it);
+            knot->updateKnownObjectTableAtServer(koi, loc);
+            assignNewConstRefLabel(koi);
+        }
 
-      for (auto it = oldKnobKeepalives.begin(); it != oldKnobKeepalives.end(); it++)
-         {
-         assignNewConstRefLabel(*it);
-         }
+        for (auto it = oldKnobKeepalives.begin(); it != oldKnobKeepalives.end(); it++) {
+            assignNewConstRefLabel(*it);
+        }
 
-      comp()->constProvenanceGraph()->addRawEdgesOnServer(provenanceEdges);
+        comp()->constProvenanceGraph()->addRawEdgesOnServer(provenanceEdges);
 
-      ((TR_J9ServerVM*)comp()->fej9())->addBondMethodsFromClient(
-         comp(), clientBondMethods);
+        ((TR_J9ServerVM *)comp()->fej9())->addBondMethodsFromClient(comp(), clientBondMethods);
 
-      return;
-      }
+        return;
+    }
 #endif // defined(J9VM_OPT_JITSERVER)
 
-   // First take account of the fact that the const refs we need anyway could
-   // make one or more keepalives redundant.
-   retainedMethods = retainedMethods->withBondsAttested();
+    // First take account of the fact that the const refs we need anyway could
+    // make one or more keepalives redundant.
+    retainedMethods = retainedMethods->withBondsAttested();
 
-   TR::VMAccessCriticalSection addKeepalivesCS(comp()->fej9());
+    TR::VMAccessCriticalSection addKeepalivesCS(comp()->fej9());
 
-   // We can't use _constRefSortOrder because it isn't populated yet.
-   for (TR::KnownObjectTable::Index koi = 0; koi < knot->getEndIndex(); koi++)
-      {
-      if (self()->getConstRefLabel(koi) == NULL)
-         {
-         continue;
-         }
+    // We can't use _constRefSortOrder because it isn't populated yet.
+    for (TR::KnownObjectTable::Index koi = 0; koi < knot->getEndIndex(); koi++) {
+        if (self()->getConstRefLabel(koi) == NULL) {
+            continue;
+        }
 
-      uintptr_t obj = comp()->getKnownObjectTable()->getPointer(koi);
-      TR_OpaqueClassBlock *clazz = comp()->fej9()->getObjectClass(obj);
-      if (clazz == comp()->getClassClassPointer())
-         {
-         clazz = TR::Compiler->cls.classFromJavaLangClass(comp(), obj);
-         }
+        uintptr_t obj = comp()->getKnownObjectTable()->getPointer(koi);
+        TR_OpaqueClassBlock *clazz = comp()->fej9()->getObjectClass(obj);
+        if (clazz == comp()->getClassClassPointer()) {
+            clazz = TR::Compiler->cls.classFromJavaLangClass(comp(), obj);
+        }
 
-      retainedMethods->attestWillRemainLoaded(clazz);
-      }
+        retainedMethods->attestWillRemainLoaded(clazz);
+    }
 
-   // Determine the full set of keepalive classes. These are the compilation's
-   // keepalive classes due to IL transformations plus the defining classes of
-   // the root retained method set's keepalive methods.
-   //
-   // Redundant classes (already guaranteed by a bond, a const ref, or another
-   // keepalive) will be omitted. However, no attempt is made to find a minimal
-   // set, since that could be computationally expensive.
-   //
-   TR::list<TR_OpaqueClassBlock*, TR::Region&> classes(
-      comp()->trMemory()->currentStackRegion());
+    // Determine the full set of keepalive classes. These are the compilation's
+    // keepalive classes due to IL transformations plus the defining classes of
+    // the root retained method set's keepalive methods.
+    //
+    // Redundant classes (already guaranteed by a bond, a const ref, or another
+    // keepalive) will be omitted. However, no attempt is made to find a minimal
+    // set, since that could be computationally expensive.
+    //
+    TR::list<TR_OpaqueClassBlock *, TR::Region &> classes(comp()->trMemory()->currentStackRegion());
 
-   auto keepaliveMethods = retainedMethods->keepaliveMethods();
-   while (keepaliveMethods.next(&m))
-      {
-      bool redundant = retainedMethods->willRemainLoaded(m);
-      logprintf(
-         trace, log,
-         "keepalive method %p%s\n",
-         m->getNonPersistentIdentifier(),
-         redundant ? " is redundant" : "");
+    auto keepaliveMethods = retainedMethods->keepaliveMethods();
+    while (keepaliveMethods.next(&m)) {
+        bool redundant = retainedMethods->willRemainLoaded(m);
+        logprintf(trace, log, "keepalive method %p%s\n", m->getNonPersistentIdentifier(),
+            redundant ? " is redundant" : "");
 
-      if (redundant)
-         {
-         continue;
-         }
+        if (redundant) {
+            continue;
+        }
 
-      TR_OpaqueClassBlock *c = m->containingClass();
-      classes.push_back(c);
-      retainedMethods->attestWillRemainLoaded(c);
-      }
+        TR_OpaqueClassBlock *c = m->containingClass();
+        classes.push_back(c);
+        retainedMethods->attestWillRemainLoaded(c);
+    }
 
-   const auto &keepaliveClasses = comp()->keepaliveClasses();
-   for (auto it = keepaliveClasses.begin(); it != keepaliveClasses.end(); it++)
-      {
-      TR_OpaqueClassBlock *c = *it;
-      bool redundant = retainedMethods->willRemainLoaded(c);
-      logprintf(trace, log, "keepalive class %p%s\n", c, redundant ? " is redundant" : "");
-      if (redundant)
-         {
-         continue;
-         }
+    const auto &keepaliveClasses = comp()->keepaliveClasses();
+    for (auto it = keepaliveClasses.begin(); it != keepaliveClasses.end(); it++) {
+        TR_OpaqueClassBlock *c = *it;
+        bool redundant = retainedMethods->willRemainLoaded(c);
+        logprintf(trace, log, "keepalive class %p%s\n", c, redundant ? " is redundant" : "");
+        if (redundant) {
+            continue;
+        }
 
-      classes.push_back(c);
-      retainedMethods->attestWillRemainLoaded(c);
-      }
+        classes.push_back(c);
+        retainedMethods->attestWillRemainLoaded(c);
+    }
 
-   // For each keepalive class, add the corresponding java/lang/Class instance
-   // to the known object table and assign it a snippet label. This label won't
-   // be used by any instructions, since the keepalive reference isn't loaded
-   // anywhere. (If it were loaded, the class would have been attested above,
-   // and the keepalive would have been ignored as redundant.) So the label is
-   // only there to flag that const refs should be generated for these objects
-   // (for GC to scan).
-   if (classes.empty())
-      {
-      logprints(trace, log, "no keepalives\n");
-      }
+    // For each keepalive class, add the corresponding java/lang/Class instance
+    // to the known object table and assign it a snippet label. This label won't
+    // be used by any instructions, since the keepalive reference isn't loaded
+    // anywhere. (If it were loaded, the class would have been attested above,
+    // and the keepalive would have been ignored as redundant.) So the label is
+    // only there to flag that const refs should be generated for these objects
+    // (for GC to scan).
+    if (classes.empty()) {
+        logprints(trace, log, "no keepalives\n");
+    }
 
-   for (auto it = classes.begin(); it != classes.end(); it++)
-      {
-      TR_OpaqueClassBlock *c = *it;
-      J9Class *j9c = TR::Compiler->cls.convertClassOffsetToClassPtr(*it);
-      uintptr_t classObj = (uintptr_t)j9c->classObject;
-      TR::KnownObjectTable::Index koi = knot->getOrCreateIndex(classObj);
+    for (auto it = classes.begin(); it != classes.end(); it++) {
+        TR_OpaqueClassBlock *c = *it;
+        J9Class *j9c = TR::Compiler->cls.convertClassOffsetToClassPtr(*it);
+        uintptr_t classObj = (uintptr_t)j9c->classObject;
+        TR::KnownObjectTable::Index koi = knot->getOrCreateIndex(classObj);
 
-      int32_t len;
-      const char *name = TR::Compiler->cls.classNameChars(comp(), c, len);
-      logprintf(trace, log, "keepalive obj%d java/lang/Class of %p %.*s\n", koi, c, len, name);
+        int32_t len;
+        const char *name = TR::Compiler->cls.classNameChars(comp(), c, len);
+        logprintf(trace, log, "keepalive obj%d java/lang/Class of %p %.*s\n", koi, c, len, name);
 
-      J9::ConstProvenanceGraph *cpg = comp()->constProvenanceGraph();
-      cpg->addEdge(c, cpg->knownObject(koi));
+        J9::ConstProvenanceGraph *cpg = comp()->constProvenanceGraph();
+        cpg->addEdge(c, cpg->knownObject(koi));
 
-      // Assign a new label. There must not already be one. (See the reasoning
-      // above for why the keepalive object is not loaded anywhere.)
-      assignNewConstRefLabel(koi);
-      }
+        // Assign a new label. There must not already be one. (See the reasoning
+        // above for why the keepalive object is not loaded anywhere.)
+        assignNewConstRefLabel(koi);
+    }
 
-   logprintln(trace, log);
+    logprintln(trace, log);
 #endif // defined(J9VM_OPT_OPENJDK_METHODHANDLE)
-   }
+}
 
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE)
 
 namespace { // file-local
 
-struct CPGSearchState
-   {
-   typedef J9::ConstProvenanceGraph::Place Place;
+struct CPGSearchState {
+    typedef J9::ConstProvenanceGraph::Place Place;
 
-   TR::Compilation * const _comp;
-   J9::ConstProvenanceGraph * const _cpg;
-   TR::vector<Place, TR::Region&> _queue; // vector works well for LIFO
-   TR::set<Place> _seen;
-   TR::vector<TR_OpaqueClassBlock*, TR::Region&> &_constRefOwningClasses;
-   TR_OpaqueClassBlock *_firstSpecificOwningClass;
-   const bool _trace;
+    TR::Compilation * const _comp;
+    J9::ConstProvenanceGraph * const _cpg;
+    TR::vector<Place, TR::Region &> _queue; // vector works well for LIFO
+    TR::set<Place> _seen;
+    TR::vector<TR_OpaqueClassBlock *, TR::Region &> &_constRefOwningClasses;
+    TR_OpaqueClassBlock *_firstSpecificOwningClass;
+    const bool _trace;
 
-   CPGSearchState(
-      TR::Compilation *comp,
-      TR::vector<TR_OpaqueClassBlock*, TR::Region&> &constRefOwningClasses);
+    CPGSearchState(TR::Compilation *comp, TR::vector<TR_OpaqueClassBlock *, TR::Region &> &constRefOwningClasses);
 
-   void search(Place root, TR_OpaqueClassBlock *owningClass);
-   void enqueue(Place p, TR_OpaqueClassBlock *owningClass);
-   };
+    void search(Place root, TR_OpaqueClassBlock *owningClass);
+    void enqueue(Place p, TR_OpaqueClassBlock *owningClass);
+};
 
-CPGSearchState::CPGSearchState(
-   TR::Compilation *comp,
-   TR::vector<TR_OpaqueClassBlock*, TR::Region&> &constRefOwningClasses)
-   : _comp(comp)
-   , _cpg(comp->constProvenanceGraph())
-   , _queue(comp->trMemory()->currentStackRegion())
-   , _seen(comp->trMemory()->currentStackRegion())
-   , _constRefOwningClasses(constRefOwningClasses)
-   , _firstSpecificOwningClass(NULL)
-   , _trace(comp->getOption(TR_TraceCG) || _cpg->trace())
-   {
-   // empty
-   }
+CPGSearchState::CPGSearchState(TR::Compilation *comp,
+    TR::vector<TR_OpaqueClassBlock *, TR::Region &> &constRefOwningClasses)
+    : _comp(comp)
+    , _cpg(comp->constProvenanceGraph())
+    , _queue(comp->trMemory()->currentStackRegion())
+    , _seen(comp->trMemory()->currentStackRegion())
+    , _constRefOwningClasses(constRefOwningClasses)
+    , _firstSpecificOwningClass(NULL)
+    , _trace(comp->getOption(TR_TraceCG) || _cpg->trace())
+{
+    // empty
+}
 
-void
-CPGSearchState::search(Place root, TR_OpaqueClassBlock *owningClass)
-   {
-   TR_ASSERT_FATAL(_queue.empty(), "queue should be empty");
+void CPGSearchState::search(Place root, TR_OpaqueClassBlock *owningClass)
+{
+    TR_ASSERT_FATAL(_queue.empty(), "queue should be empty");
 
-   enqueue(root, owningClass);
-   while (!_queue.empty())
-      {
-      // Order doesn't matter for determining reachability so do depth-first
-      // because LIFO is efficient.
-      J9::ConstProvenanceGraph::Place p = _queue.back();
-      _queue.pop_back();
-      auto referents = _cpg->referents(p);
-      for (auto it = referents.begin(); it != referents.end(); it++)
-         {
-         enqueue(*it, owningClass);
-         }
-      }
-   }
+    enqueue(root, owningClass);
+    while (!_queue.empty()) {
+        // Order doesn't matter for determining reachability so do depth-first
+        // because LIFO is efficient.
+        J9::ConstProvenanceGraph::Place p = _queue.back();
+        _queue.pop_back();
+        auto referents = _cpg->referents(p);
+        for (auto it = referents.begin(); it != referents.end(); it++) {
+            enqueue(*it, owningClass);
+        }
+    }
+}
 
-void
-CPGSearchState::enqueue(Place p, TR_OpaqueClassBlock *owningClass)
-   {
-   if (_seen.count(p) != 0)
-      {
-      return;
-      }
+void CPGSearchState::enqueue(Place p, TR_OpaqueClassBlock *owningClass)
+{
+    if (_seen.count(p) != 0) {
+        return;
+    }
 
-   OMR::Logger *log = _comp->log();
-   if (_trace)
-      {
-      log->prints("  reachable: ");
-      _cpg->trace(p);
-      log->println();
-      }
+    OMR::Logger *log = _comp->log();
+    if (_trace) {
+        log->prints("  reachable: ");
+        _cpg->trace(p);
+        log->println();
+    }
 
-   _queue.push_back(p);
-   _seen.insert(p);
-   if (p.kind() == J9::ConstProvenanceGraph::PlaceKind_KnownObject)
-      {
-      TR::KnownObjectTable::Index koi = p.getKnownObject();
-      if (_comp->cg()->getConstRefLabel(koi) != NULL)
-         {
-         _constRefOwningClasses[koi] = owningClass;
-         if (_firstSpecificOwningClass == NULL && owningClass != NULL)
-            {
-            _firstSpecificOwningClass = owningClass;
+    _queue.push_back(p);
+    _seen.insert(p);
+    if (p.kind() == J9::ConstProvenanceGraph::PlaceKind_KnownObject) {
+        TR::KnownObjectTable::Index koi = p.getKnownObject();
+        if (_comp->cg()->getConstRefLabel(koi) != NULL) {
+            _constRefOwningClasses[koi] = owningClass;
+            if (_firstSpecificOwningClass == NULL && owningClass != NULL) {
+                _firstSpecificOwningClass = owningClass;
             }
-         }
-      }
-   }
+        }
+    }
+}
 
 } // anonymous namespace
 
-void
-J9::CodeGenerator::sortConstRefs()
-   {
-   typedef J9::ConstProvenanceGraph::Place Place;
+void J9::CodeGenerator::sortConstRefs()
+{
+    typedef J9::ConstProvenanceGraph::Place Place;
 
-   if (!self()->hasConstRefs())
-      {
-      return;
-      }
+    if (!self()->hasConstRefs()) {
+        return;
+    }
 
-   TR_ASSERT_FATAL(
-      comp()->useConstRefs(),
-      "const refs exist even though they are not enabled");
+    TR_ASSERT_FATAL(comp()->useConstRefs(), "const refs exist even though they are not enabled");
 
-   TR::KnownObjectTable *knot = comp()->getKnownObjectTable();
-   TR::KnownObjectTable::Index knotEnd = knot->getEndIndex();
-   _constRefOwningClasses.reserve(knotEnd);
-   for (TR::KnownObjectTable::Index i = 0; i < knotEnd; i++)
-      {
-      _constRefOwningClasses.push_back(NULL);
-      }
+    TR::KnownObjectTable *knot = comp()->getKnownObjectTable();
+    TR::KnownObjectTable::Index knotEnd = knot->getEndIndex();
+    _constRefOwningClasses.reserve(knotEnd);
+    for (TR::KnownObjectTable::Index i = 0; i < knotEnd; i++) {
+        _constRefOwningClasses.push_back(NULL);
+    }
 
-   CPGSearchState state(comp(), _constRefOwningClasses);
-   J9::ConstProvenanceGraph *cpg = state._cpg;
-   OMR::Logger *log = comp()->log();
-   bool trace = state._trace;
+    CPGSearchState state(comp(), _constRefOwningClasses);
+    J9::ConstProvenanceGraph *cpg = state._cpg;
+    OMR::Logger *log = comp()->log();
+    bool trace = state._trace;
 
-   TR_ResolvedMethod *outermostMethod = comp()->getMethodBeingCompiled();
-   TR_OpaqueClassBlock *outermostClass = outermostMethod->classOfMethod();
+    TR_ResolvedMethod *outermostMethod = comp()->getMethodBeingCompiled();
+    TR_OpaqueClassBlock *outermostClass = outermostMethod->classOfMethod();
 
-   if (!cpg->isConstProvenanceEnabled())
-      {
-      // No const provenance. It's either unnecessary or disabled by option.
-      logprints(
-         trace, log,
-         "const provenance is disabled\n"
-         "assign all const refs to the class of the outermost method\n");
+    if (!cpg->isConstProvenanceEnabled()) {
+        // No const provenance. It's either unnecessary or disabled by option.
+        logprints(trace, log,
+            "const provenance is disabled\n"
+            "assign all const refs to the class of the outermost method\n");
 
-      for (auto it = _constRefSortOrder.begin(); it != _constRefSortOrder.end(); it++)
-         {
-         _constRefOwningClasses[*it] = outermostClass;
-         }
-      }
-   else
-      {
+        for (auto it = _constRefSortOrder.begin(); it != _constRefSortOrder.end(); it++) {
+            _constRefOwningClasses[*it] = outermostClass;
+        }
+    } else {
 #if defined(J9VM_OPT_JITSERVER)
-      if (comp()->isOutOfProcessCompilation())
-         {
-         // The client most likely has const provenance edges that we don't
-         // have on the server. Get the edges from the client to ensure that we
-         // have the full graph to search.
-         if (!cpg->hasServerAddedRawEdgesFromClient())
-            {
-            std::vector<J9::ResolvedInlinedCallSite> inliningTable;
-            std::vector<J9::RepeatRetainedMethodsAnalysis::InlinedSiteInfo> inlinedSiteInfo;
-            std::vector<TR_ResolvedMethod*> keepaliveMethods;
-            std::vector<TR_ResolvedMethod*> bondMethods;
-            J9::RepeatRetainedMethodsAnalysis::getDataForClient(
-               comp(), inliningTable, inlinedSiteInfo, keepaliveMethods, bondMethods);
+        if (comp()->isOutOfProcessCompilation()) {
+            // The client most likely has const provenance edges that we don't
+            // have on the server. Get the edges from the client to ensure that we
+            // have the full graph to search.
+            if (!cpg->hasServerAddedRawEdgesFromClient()) {
+                std::vector<J9::ResolvedInlinedCallSite> inliningTable;
+                std::vector<J9::RepeatRetainedMethodsAnalysis::InlinedSiteInfo> inlinedSiteInfo;
+                std::vector<TR_ResolvedMethod *> keepaliveMethods;
+                std::vector<TR_ResolvedMethod *> bondMethods;
+                J9::RepeatRetainedMethodsAnalysis::getDataForClient(comp(), inliningTable, inlinedSiteInfo,
+                    keepaliveMethods, bondMethods);
 
-            JITServer::ServerStream *stream = comp()->getStream();
-            stream->write(
-               JITServer::MessageType::CodeGenerator_getConstProvenanceEdges,
-               inliningTable,
-               inlinedSiteInfo,
-               keepaliveMethods,
-               bondMethods);
+                JITServer::ServerStream *stream = comp()->getStream();
+                stream->write(JITServer::MessageType::CodeGenerator_getConstProvenanceEdges, inliningTable,
+                    inlinedSiteInfo, keepaliveMethods, bondMethods);
 
-            comp()->setClientAlreadyRepeatedRetainedMethodsAnalysis();
+                comp()->setClientAlreadyRepeatedRetainedMethodsAnalysis();
 
-            auto recv = stream->read<
-               std::vector<J9::ConstProvenanceGraph::RawEdge>,
-               std::vector<TR_ClientBondMethod>
-            >();
+                auto recv
+                    = stream->read<std::vector<J9::ConstProvenanceGraph::RawEdge>, std::vector<TR_ClientBondMethod> >();
 
-            auto &clientEdges = std::get<0>(recv);
-            auto &clientBondMethods = std::get<1>(recv);
+                auto &clientEdges = std::get<0>(recv);
+                auto &clientBondMethods = std::get<1>(recv);
 
-            cpg->addRawEdgesOnServer(clientEdges);
-            ((TR_J9ServerVM*)comp()->fej9())->addBondMethodsFromClient(
-               comp(), clientBondMethods);
+                cpg->addRawEdgesOnServer(clientEdges);
+                ((TR_J9ServerVM *)comp()->fej9())->addBondMethodsFromClient(comp(), clientBondMethods);
             }
-         }
+        }
 #endif
 
-      if (trace)
-         {
-         cpg->dumpDot(log);
-         }
+        if (trace) {
+            cpg->dumpDot(log);
+        }
 
-      // First search for all known objects reachable from permanent roots.
-      // Const refs for these can be attributed to any class.
-      logprints(
-         trace, log,
-         "assigning const refs to classes based on const provenance\n"
-         "\nsearch graph from permanent roots\n");
+        // First search for all known objects reachable from permanent roots.
+        // Const refs for these can be attributed to any class.
+        logprints(trace, log,
+            "assigning const refs to classes based on const provenance\n"
+            "\nsearch graph from permanent roots\n");
 
-      state.search(Place::makePermanentRoot(), NULL);
+        state.search(Place::makePermanentRoot(), NULL);
 
-      // Next search starting from the outermost method.
-      if (trace)
-         {
-         log->prints("\nsearch graph from outermost ");
-         cpg->trace(outermostMethod);
-         log->println();
-         }
+        // Next search starting from the outermost method.
+        if (trace) {
+            log->prints("\nsearch graph from outermost ");
+            cpg->trace(outermostMethod);
+            log->println();
+        }
 
-      state.search(cpg->place(outermostMethod), outermostClass);
+        state.search(cpg->place(outermostMethod), outermostClass);
 
-      // Finally, search starting from inlined methods.
-      if (comp()->mustTrackRetainedMethods())
-         {
-         // This is the usual case. Search from each bond method.
-         //
-         // It's important that all const refs (or at least all keepalives) be
-         // owned by the class of either the outermost method or a bond method.
-         // This way, if this JIT body will survive a GC cycle without getting
-         // invalidated by a bond unload assumption, then (the classes of) the
-         // outermost method and all bond methods are live. Because all of the
-         // keepalives are owned by one of those, the keepalives are all live
-         // as well, which means that all inlined methods are live.
-         //
+        // Finally, search starting from inlined methods.
+        if (comp()->mustTrackRetainedMethods()) {
+            // This is the usual case. Search from each bond method.
+            //
+            // It's important that all const refs (or at least all keepalives) be
+            // owned by the class of either the outermost method or a bond method.
+            // This way, if this JIT body will survive a GC cycle without getting
+            // invalidated by a bond unload assumption, then (the classes of) the
+            // outermost method and all bond methods are live. Because all of the
+            // keepalives are owned by one of those, the keepalives are all live
+            // as well, which means that all inlined methods are live.
+            //
 
-         TR::vector<TR_ResolvedMethod*, TR::Region&> localBondMethods(
-            comp()->trMemory()->currentStackRegion());
+            TR::vector<TR_ResolvedMethod *, TR::Region &> localBondMethods(comp()->trMemory()->currentStackRegion());
 
-         const TR::vector<TR_ResolvedMethod*, TR::Region&> *bondMethods = NULL;
+            const TR::vector<TR_ResolvedMethod *, TR::Region &> *bondMethods = NULL;
 #if defined(J9VM_OPT_JITSERVER)
-         if (comp()->isOutOfProcessCompilation())
-            {
-            bondMethods = &comp()->bondMethodsFromClient();
-            }
-         else
+            if (comp()->isOutOfProcessCompilation()) {
+                bondMethods = &comp()->bondMethodsFromClient();
+            } else
 #endif
             {
-            auto iter = comp()->retainedMethods()->bondMethods();
-            TR_ResolvedMethod *m = NULL;
-            while (iter.next(&m))
-               {
-               localBondMethods.push_back(m);
-               }
+                auto iter = comp()->retainedMethods()->bondMethods();
+                TR_ResolvedMethod *m = NULL;
+                while (iter.next(&m)) {
+                    localBondMethods.push_back(m);
+                }
 
-            bondMethods = &localBondMethods;
+                bondMethods = &localBondMethods;
             }
 
-         for (auto it = bondMethods->begin(), end = bondMethods->end(); it != end; it++)
-            {
-            TR_ResolvedMethod *bondMethod = *it;
-            if (trace)
-               {
-               log->prints("\nsearch graph from bond ");
-               cpg->trace(bondMethod);
-               log->println();
-               }
+            for (auto it = bondMethods->begin(), end = bondMethods->end(); it != end; it++) {
+                TR_ResolvedMethod *bondMethod = *it;
+                if (trace) {
+                    log->prints("\nsearch graph from bond ");
+                    cpg->trace(bondMethod);
+                    log->println();
+                }
 
-            state.search(cpg->place(bondMethod), bondMethod->classOfMethod());
+                state.search(cpg->place(bondMethod), bondMethod->classOfMethod());
             }
-         }
-      else
-         {
-         // No retained method tracking in this compilation. Because const
-         // provenance is enabled, this should only ever be due to
-         // -Xjit:allowJitBodyToOutliveInlinedCode.
-         TR_ASSERT_FATAL(
-            comp()->getOption(TR_AllowJitBodyToOutliveInlinedCode),
-            "const provenance without retained method tracking must be due to "
-            "allowJitBodyToOutliveInlinedCode");
+        } else {
+            // No retained method tracking in this compilation. Because const
+            // provenance is enabled, this should only ever be due to
+            // -Xjit:allowJitBodyToOutliveInlinedCode.
+            TR_ASSERT_FATAL(comp()->getOption(TR_AllowJitBodyToOutliveInlinedCode),
+                "const provenance without retained method tracking must be due to "
+                "allowJitBodyToOutliveInlinedCode");
 
-         logprints(trace, log, "\nJIT body is allowed to outlive inlined methods\n");
+            logprints(trace, log, "\nJIT body is allowed to outlive inlined methods\n");
 
-         // There are no bonds or keepalives. Search from every inlined method.
-         //
-         // If a known object must be attributed to an inlined method, it's
-         // possible that that inlined method could be unloaded before the
-         // outermost method. However, if that happens, and if the JIT body is
-         // re-entered afterward, at that point the body is allowed to be
-         // incorrect because allowJitBodyToOutliveInlinedCode was specified.
-         // In particular, in that scenario it's OK that the const ref will
-         // have disappeared even though not all of its uses are necessarily
-         // guarded.
-         //
-         uint32_t numInlinedCallSites = comp()->getNumInlinedCallSites();
-         for (uint32_t i = 0; i < numInlinedCallSites; i++)
-            {
-            TR_ResolvedMethod *m = comp()->getInlinedResolvedMethod(i);
-            if (trace)
-               {
-               log->prints("\nsearch graph from inlined ");
-               cpg->trace(m);
-               log->println();
-               }
+            // There are no bonds or keepalives. Search from every inlined method.
+            //
+            // If a known object must be attributed to an inlined method, it's
+            // possible that that inlined method could be unloaded before the
+            // outermost method. However, if that happens, and if the JIT body is
+            // re-entered afterward, at that point the body is allowed to be
+            // incorrect because allowJitBodyToOutliveInlinedCode was specified.
+            // In particular, in that scenario it's OK that the const ref will
+            // have disappeared even though not all of its uses are necessarily
+            // guarded.
+            //
+            uint32_t numInlinedCallSites = comp()->getNumInlinedCallSites();
+            for (uint32_t i = 0; i < numInlinedCallSites; i++) {
+                TR_ResolvedMethod *m = comp()->getInlinedResolvedMethod(i);
+                if (trace) {
+                    log->prints("\nsearch graph from inlined ");
+                    cpg->trace(m);
+                    log->println();
+                }
 
-            state.search(cpg->place(m), m->classOfMethod());
+                state.search(cpg->place(m), m->classOfMethod());
             }
-         }
+        }
 
-      // Check for orphaned const refs (whose known object was not found).
-      // These are a problem because we don't know an acceptable owning class.
-      // Usually this will cause an assertion failure, but there are two JIT
-      // options that request more graceful handling:
-      // - orphanedConstRefs=top: Assume they're reachable from the outermost method.
-      // - orphanedConstRefs=fail: Fail the compilation.
-      //
-      // This is done in a separate pass so that if there's a log file, all
-      // unreachable known objects will be logged before the compilation ends.
-      //
-      // Really, all known objects should have been seen, but we only require
-      // the ones that will become const refs.
-      //
-      char orphansMem[256];
-      TR::Region &stackRegion = comp()->trMemory()->currentStackRegion();
-      TR::StringBuf orphans(stackRegion, orphansMem, sizeof(orphansMem));
+        // Check for orphaned const refs (whose known object was not found).
+        // These are a problem because we don't know an acceptable owning class.
+        // Usually this will cause an assertion failure, but there are two JIT
+        // options that request more graceful handling:
+        // - orphanedConstRefs=top: Assume they're reachable from the outermost method.
+        // - orphanedConstRefs=fail: Fail the compilation.
+        //
+        // This is done in a separate pass so that if there's a log file, all
+        // unreachable known objects will be logged before the compilation ends.
+        //
+        // Really, all known objects should have been seen, but we only require
+        // the ones that will become const refs.
+        //
+        char orphansMem[256];
+        TR::Region &stackRegion = comp()->trMemory()->currentStackRegion();
+        TR::StringBuf orphans(stackRegion, orphansMem, sizeof(orphansMem));
 
-      bool alreadyLoggedUnreachable = false;
-      for (auto it = _constRefSortOrder.begin(); it != _constRefSortOrder.end(); it++)
-         {
-         TR::KnownObjectTable::Index koi = *it;
-         if (state._seen.count(Place::makeKnownObject(koi)) != 0)
-            {
-            continue;
+        bool alreadyLoggedUnreachable = false;
+        for (auto it = _constRefSortOrder.begin(); it != _constRefSortOrder.end(); it++) {
+            TR::KnownObjectTable::Index koi = *it;
+            if (state._seen.count(Place::makeKnownObject(koi)) != 0) {
+                continue;
             }
 
-         if (trace || comp()->getOptions()->getAnyOption(TR_TraceAll))
-            {
-            const char *blank = alreadyLoggedUnreachable ? "" : "\n";
-            alreadyLoggedUnreachable = true;
-            log->printf("%s!!! const provenance: obj%d is unreachable\n", blank, koi);
+            if (trace || comp()->getOptions()->getAnyOption(TR_TraceAll)) {
+                const char *blank = alreadyLoggedUnreachable ? "" : "\n";
+                alreadyLoggedUnreachable = true;
+                log->printf("%s!!! const provenance: obj%d is unreachable\n", blank, koi);
             }
 
-         if (comp()->getOption(TR_OrphanedConstRefsTop))
-            {
-            _constRefOwningClasses[koi] = outermostClass;
-            if (state._firstSpecificOwningClass == NULL)
-               {
-               state._firstSpecificOwningClass = outermostClass;
-               }
+            if (comp()->getOption(TR_OrphanedConstRefsTop)) {
+                _constRefOwningClasses[koi] = outermostClass;
+                if (state._firstSpecificOwningClass == NULL) {
+                    state._firstSpecificOwningClass = outermostClass;
+                }
+            } else {
+                const char *comma = orphans.len() == 0 ? "" : ", ";
+                orphans.appendf("%sobj%d", comma, koi);
             }
-         else
-            {
-            const char *comma = orphans.len() == 0 ? "" : ", ";
-            orphans.appendf("%sobj%d", comma, koi);
-            }
-         }
+        }
 
-      if (orphans.len() != 0)
-         {
-         if (comp()->getOption(TR_OrphanedConstRefsFail))
-            {
-            comp()->failCompilation<TR::CompilationException>("orphaned const refs");
+        if (orphans.len() != 0) {
+            if (comp()->getOption(TR_OrphanedConstRefsFail)) {
+                comp()->failCompilation<TR::CompilationException>("orphaned const refs");
+            } else {
+                // jitdump will enable traceRetainedMethods and traceConstProvenance.
+                comp()->setCrashedDueToOrphanedConstRefs();
+                TR_ASSERT_FATAL(false,
+                    "orphaned const refs: %s\n"
+                    "\tthe const provenance graph is missing at least one edge",
+                    orphans.text());
             }
-         else
-            {
-            // jitdump will enable traceRetainedMethods and traceConstProvenance.
-            comp()->setCrashedDueToOrphanedConstRefs();
-            TR_ASSERT_FATAL(
-               false,
-               "orphaned const refs: %s\n"
-               "\tthe const provenance graph is missing at least one edge",
-               orphans.text());
+        }
+
+        // Finally, assign an owning class to the const refs whose known objects
+        // were reachable from permanent roots. These can be owned by any class.
+        // Use a class that has already been assigned const refs if possible.
+        TR_OpaqueClassBlock *permanentObjOwningClass = state._firstSpecificOwningClass;
+        if (permanentObjOwningClass == NULL) {
+            permanentObjOwningClass = outermostClass;
+        }
+
+        for (auto it = _constRefSortOrder.begin(); it != _constRefSortOrder.end(); it++) {
+            TR::KnownObjectTable::Index koi = *it;
+            if (_constRefOwningClasses[koi] == NULL) {
+                _constRefOwningClasses[koi] = permanentObjOwningClass;
             }
-         }
+        }
+    }
 
-      // Finally, assign an owning class to the const refs whose known objects
-      // were reachable from permanent roots. These can be owned by any class.
-      // Use a class that has already been assigned const refs if possible.
-      TR_OpaqueClassBlock *permanentObjOwningClass = state._firstSpecificOwningClass;
-      if (permanentObjOwningClass == NULL)
-         {
-         permanentObjOwningClass = outermostClass;
-         }
-
-      for (auto it = _constRefSortOrder.begin(); it != _constRefSortOrder.end(); it++)
-         {
-         TR::KnownObjectTable::Index koi = *it;
-         if (_constRefOwningClasses[koi] == NULL)
-            {
-            _constRefOwningClasses[koi] = permanentObjOwningClass;
+    if (trace) {
+        // Show the attributed owning classes in order of known object index.
+        log->prints("\nconst ref owning classes:\n");
+        for (TR::KnownObjectTable::Index i = 0; i < knotEnd; i++) {
+            if (self()->getConstRefLabel(i) != NULL) {
+                TR_OpaqueClassBlock *c = _constRefOwningClasses[i];
+                int32_t len;
+                const char *name = TR::Compiler->cls.classNameChars(comp(), c, len);
+                log->printf("  obj%-4d  %p %.*s\n", i, c, len, name);
             }
-         }
-      }
+        }
 
-   if (trace)
-      {
-      // Show the attributed owning classes in order of known object index.
-      log->prints("\nconst ref owning classes:\n");
-      for (TR::KnownObjectTable::Index i = 0; i < knotEnd; i++)
-         {
-         if (self()->getConstRefLabel(i) != NULL)
-            {
-            TR_OpaqueClassBlock *c = _constRefOwningClasses[i];
-            int32_t len;
-            const char *name = TR::Compiler->cls.classNameChars(comp(), c, len);
-            log->printf("  obj%-4d  %p %.*s\n", i, c, len, name);
-            }
-         }
-
-      log->println();
-      }
+        log->println();
+    }
 
 // Temporarily disable the sorting step on z/OS due to lack of support of the
 // variant of std::sort used here in the version of XLC used for z/OS builds,
@@ -6056,329 +5311,292 @@ J9::CodeGenerator::sortConstRefs()
 // platforms to benefit from const refs sorting while an alternative
 // implementation is worked on for z/OS.
 #if !defined(J9ZOS390)
-   // Now that owning classes are assigned, sort the const refs by owning class.
-   // The important thing is really just grouping by owning class, which ensures
-   // that we'll create no more than one const ref array per class.
-   struct OwningClassCmp
-      {
-      const TR::vector<TR_OpaqueClassBlock*, TR::Region&> &_owningClasses;
+    // Now that owning classes are assigned, sort the const refs by owning class.
+    // The important thing is really just grouping by owning class, which ensures
+    // that we'll create no more than one const ref array per class.
+    struct OwningClassCmp {
+        const TR::vector<TR_OpaqueClassBlock *, TR::Region &> &_owningClasses;
 
-      OwningClassCmp(const TR::vector<TR_OpaqueClassBlock*, TR::Region&> &owningClasses)
-         : _owningClasses(owningClasses)
-         {
-         // empty
-         }
+        OwningClassCmp(const TR::vector<TR_OpaqueClassBlock *, TR::Region &> &owningClasses)
+            : _owningClasses(owningClasses)
+        {
+            // empty
+        }
 
-      bool operator()(TR::KnownObjectTable::Index i, TR::KnownObjectTable::Index j) const
-         {
-         // Use known object index as a tiebreaker, just because it will read
-         // better in log output.
-         std::less<TR_OpaqueClassBlock*> lt;
-         TR_OpaqueClassBlock *classI = _owningClasses[i];
-         TR_OpaqueClassBlock *classJ = _owningClasses[j];
-         return classI == classJ ? i < j : lt(classI, classJ);
-         }
-      };
+        bool operator()(TR::KnownObjectTable::Index i, TR::KnownObjectTable::Index j) const
+        {
+            // Use known object index as a tiebreaker, just because it will read
+            // better in log output.
+            std::less<TR_OpaqueClassBlock *> lt;
+            TR_OpaqueClassBlock *classI = _owningClasses[i];
+            TR_OpaqueClassBlock *classJ = _owningClasses[j];
+            return classI == classJ ? i < j : lt(classI, classJ);
+        }
+    };
 
-   OwningClassCmp cmp(_constRefOwningClasses);
-   std::sort(_constRefSortOrder.begin(), _constRefSortOrder.end(), cmp);
+    OwningClassCmp cmp(_constRefOwningClasses);
+    std::sort(_constRefSortOrder.begin(), _constRefSortOrder.end(), cmp);
 #endif // !defined(J9ZOS390)
 
-   if (trace)
-      {
-      log->prints("const ref sort order (with owning class):\n");
-      for (auto it = _constRefSortOrder.begin(); it != _constRefSortOrder.end(); it++)
-         {
-         TR::KnownObjectTable::Index koi = *it;
-         TR_OpaqueClassBlock *c = _constRefOwningClasses[koi];
-         int32_t len;
-         const char *name = TR::Compiler->cls.classNameChars(comp(), c, len);
-         log->printf("  obj%-4d  %p %.*s\n", koi, c, len, name);
-         }
+    if (trace) {
+        log->prints("const ref sort order (with owning class):\n");
+        for (auto it = _constRefSortOrder.begin(); it != _constRefSortOrder.end(); it++) {
+            TR::KnownObjectTable::Index koi = *it;
+            TR_OpaqueClassBlock *c = _constRefOwningClasses[koi];
+            int32_t len;
+            const char *name = TR::Compiler->cls.classNameChars(comp(), c, len);
+            log->printf("  obj%-4d  %p %.*s\n", koi, c, len, name);
+        }
 
-      log->println();
-      }
-   }
+        log->println();
+    }
+}
 
-void
-J9::CodeGenerator::initConstRefs(J9JITExceptionTable *metaData)
-   {
-   TR_ASSERT_FATAL(
-      metaData->constRefArrays == NULL,
-      "unexpected const ref array %p for J9JITExceptionTable %p",
-      metaData->constRefArrays,
-      metaData);
+void J9::CodeGenerator::initConstRefs(J9JITExceptionTable *metaData)
+{
+    TR_ASSERT_FATAL(metaData->constRefArrays == NULL, "unexpected const ref array %p for J9JITExceptionTable %p",
+        metaData->constRefArrays, metaData);
 
-   if (!hasConstRefs())
-      {
-      return;
-      }
+    if (!hasConstRefs()) {
+        return;
+    }
 
-   bool trace = comp()->getOption(TR_TraceOptDetails) || comp()->getOption(TR_TraceCG);
+    bool trace = comp()->getOption(TR_TraceOptDetails) || comp()->getOption(TR_TraceCG);
 
-   TR_ASSERT_FATAL(
-      comp()->useConstRefs(),
-      "const refs must be enabled to exist");
+    TR_ASSERT_FATAL(comp()->useConstRefs(), "const refs must be enabled to exist");
 
-   TR::KnownObjectTable *knot = comp()->getKnownObjectTable();
-   J9VMThread *vmThread = comp()->j9VMThread();
-   J9JavaVM *vm = vmThread->javaVM;
+    TR::KnownObjectTable *knot = comp()->getKnownObjectTable();
+    J9VMThread *vmThread = comp()->j9VMThread();
+    J9JavaVM *vm = vmThread->javaVM;
 
-   // Zero-initialize the slots and find where they start so that the GC can be
-   // told where they are.
-   //
-   // Really, the slots should already have been zeroed during binary encoding,
-   // but it doesn't hurt to zero them again.
-   //
-   // NOTE: Don't fully initialize them yet, since that requires a write
-   // barrier, and it's probably good to delay that until the GC is aware of
-   // the slots.
+    // Zero-initialize the slots and find where they start so that the GC can be
+    // told where they are.
+    //
+    // Really, the slots should already have been zeroed during binary encoding,
+    // but it doesn't hurt to zero them again.
+    //
+    // NOTE: Don't fully initialize them yet, since that requires a write
+    // barrier, and it's probably good to delay that until the GC is aware of
+    // the slots.
 
-   omrthread_jit_write_protect_disable();
-   for (auto it = _constRefSortOrder.begin(); it != _constRefSortOrder.end(); it++)
-      {
-      TR::KnownObjectTable::Index koi = *it;
-      TR::LabelSymbol *label = getConstRefLabel(koi);
-      j9object_t *slot = (j9object_t*)label->getCodeLocation();
-      *slot = NULL;
-      }
+    omrthread_jit_write_protect_disable();
+    for (auto it = _constRefSortOrder.begin(); it != _constRefSortOrder.end(); it++) {
+        TR::KnownObjectTable::Index koi = *it;
+        TR::LabelSymbol *label = getConstRefLabel(koi);
+        j9object_t *slot = (j9object_t *)label->getCodeLocation();
+        *slot = NULL;
+    }
 
-   omrthread_jit_write_protect_enable();
+    omrthread_jit_write_protect_enable();
 
-   auto firstSlot =
-      (j9object_t *)getConstRefLabel(_constRefSortOrder[0])->getCodeLocation();
+    auto firstSlot = (j9object_t *)getConstRefLabel(_constRefSortOrder[0])->getCodeLocation();
 
-   // Inform the GC of these slots.
+    // Inform the GC of these slots.
 
-   omrthread_monitor_enter(vm->constRefsMutex);
+    omrthread_monitor_enter(vm->constRefsMutex);
 
-   // We must not throw while the mutex is held, so in particular we can't
-   // failCompilation(). Instead set ok to false on failure, and conditionally
-   // fail the compilation after releasing the lock.
-   bool ok = true;
+    // We must not throw while the mutex is held, so in particular we can't
+    // failCompilation(). Instead set ok to false on failure, and conditionally
+    // fail the compilation after releasing the lock.
+    bool ok = true;
 
-   J9ConstRefArray *firstNode = NULL;
-   J9ConstRefArray *lastNode = NULL;
-   size_t totalSlotsCount = _constRefSortOrder.size();
-   size_t start = 0;
-   while (start < totalSlotsCount)
-      {
-      TR_OpaqueClassBlock *owningClass =
-         _constRefOwningClasses[_constRefSortOrder[start]];
+    J9ConstRefArray *firstNode = NULL;
+    J9ConstRefArray *lastNode = NULL;
+    size_t totalSlotsCount = _constRefSortOrder.size();
+    size_t start = 0;
+    while (start < totalSlotsCount) {
+        TR_OpaqueClassBlock *owningClass = _constRefOwningClasses[_constRefSortOrder[start]];
 
-      size_t end = start + 1;
-      for (; end < totalSlotsCount; end++)
-         {
-         TR::KnownObjectTable::Index koi = _constRefSortOrder[end];
-         if (_constRefOwningClasses[koi] != owningClass)
-            {
-            break;
+        size_t end = start + 1;
+        for (; end < totalSlotsCount; end++) {
+            TR::KnownObjectTable::Index koi = _constRefSortOrder[end];
+            if (_constRefOwningClasses[koi] != owningClass) {
+                break;
             }
-         }
+        }
 
-      // Create a J9ConstRefArray for the slots at indices [start, end), which
-      // all have the same owning class.
-      //
-      // NOTE: The GC could be scanning the const refs belonging to owningClass
-      // right now as part of a concurrent GC phase. It doesn't lock the mutex
-      // in order to do so.
-      //
-      // While we hold the mutex to serialize w.r.t. other compilation threads
-      // creating const refs and maintain invariants, updates still need to be
-      // done atomically from the POV of the GC. Thankfully, GC scanning treats
-      // the list as though it's singly linked, ignoring the other pointers.
-      // And since there are no other concurrent modifications, this addition
-      // only has to be atomic w.r.t. a reader, so in particular there is no
-      // need to use atomic CAS.
-      //
-      J9Class *owningJ9C =
-         TR::Compiler->cls.convertClassOffsetToClassPtr(owningClass);
+        // Create a J9ConstRefArray for the slots at indices [start, end), which
+        // all have the same owning class.
+        //
+        // NOTE: The GC could be scanning the const refs belonging to owningClass
+        // right now as part of a concurrent GC phase. It doesn't lock the mutex
+        // in order to do so.
+        //
+        // While we hold the mutex to serialize w.r.t. other compilation threads
+        // creating const refs and maintain invariants, updates still need to be
+        // done atomically from the POV of the GC. Thankfully, GC scanning treats
+        // the list as though it's singly linked, ignoring the other pointers.
+        // And since there are no other concurrent modifications, this addition
+        // only has to be atomic w.r.t. a reader, so in particular there is no
+        // need to use atomic CAS.
+        //
+        J9Class *owningJ9C = TR::Compiler->cls.convertClassOffsetToClassPtr(owningClass);
 
-      J9ConstRefArray *sentinel = owningJ9C->constRefArrays;
-      if (sentinel == NULL)
-         {
-         sentinel = (J9ConstRefArray*)pool_newElement(vm->constRefArrayPool);
-         if (sentinel == NULL)
-            {
+        J9ConstRefArray *sentinel = owningJ9C->constRefArrays;
+        if (sentinel == NULL) {
+            sentinel = (J9ConstRefArray *)pool_newElement(vm->constRefArrayPool);
+            if (sentinel == NULL) {
+                ok = false;
+                break;
+            }
+
+            sentinel->count = 0;
+            sentinel->references = NULL;
+            sentinel->jitBodyMetaData = NULL;
+            sentinel->prevInClass = sentinel;
+            sentinel->nextInClass = sentinel;
+            sentinel->nextInJITBody = sentinel;
+
+            // Ensure that all of the field initialization stores are visible to
+            // other threads before publishing sentinel.
+            VM_AtomicSupport::writeBarrier();
+
+            owningJ9C->constRefArrays = sentinel;
+        }
+
+        J9ConstRefArray *node = (J9ConstRefArray *)pool_newElement(vm->constRefArrayPool);
+        if (node == NULL) {
             ok = false;
             break;
-            }
+        }
 
-         sentinel->count = 0;
-         sentinel->references = NULL;
-         sentinel->jitBodyMetaData = NULL;
-         sentinel->prevInClass = sentinel;
-         sentinel->nextInClass = sentinel;
-         sentinel->nextInJITBody = sentinel;
+        node->count = end - start;
+        node->references = firstSlot + start;
+        node->jitBodyMetaData = metaData;
 
-         // Ensure that all of the field initialization stores are visible to
-         // other threads before publishing sentinel.
-         VM_AtomicSupport::writeBarrier();
+        // Insert node at the beginning of the list.
+        J9ConstRefArray *prev = sentinel;
+        J9ConstRefArray *next = sentinel->nextInClass;
+        node->prevInClass = prev;
+        node->nextInClass = next;
 
-         owningJ9C->constRefArrays = sentinel;
-         }
+        // Ensure that all of the field initialization stores and the zero-init
+        // slot stores are visible to other threads before publishing node.
+        VM_AtomicSupport::writeBarrier();
 
-      J9ConstRefArray *node = (J9ConstRefArray*)pool_newElement(vm->constRefArrayPool);
-      if (node == NULL)
-         {
-         ok = false;
-         break;
-         }
+        // node will be visible to concurrent GC scanning if and only if it
+        // sees this update to prev->nextInClass.
+        prev->nextInClass = node;
+        next->prevInClass = node;
 
-      node->count = end - start;
-      node->references = firstSlot + start;
-      node->jitBodyMetaData = metaData;
+        // Add this node to the list of const ref arrays for this body. Later, if
+        // any of them are destroyed, then the body will be defunct, so all of
+        // the others can and will be destroyed as well.
+        node->nextInJITBody = lastNode;
 
-      // Insert node at the beginning of the list.
-      J9ConstRefArray *prev = sentinel;
-      J9ConstRefArray *next = sentinel->nextInClass;
-      node->prevInClass = prev;
-      node->nextInClass = next;
+        if (firstNode == NULL) {
+            firstNode = node;
+        }
 
-      // Ensure that all of the field initialization stores and the zero-init
-      // slot stores are visible to other threads before publishing node.
-      VM_AtomicSupport::writeBarrier();
+        lastNode = node;
+        firstNode->nextInJITBody = node;
 
-      // node will be visible to concurrent GC scanning if and only if it
-      // sees this update to prev->nextInClass.
-      prev->nextInClass = node;
-      next->prevInClass = node;
+        // Move past the contiguous range [start, end) for this owning class.
+        start = end;
+    }
 
-      // Add this node to the list of const ref arrays for this body. Later, if
-      // any of them are destroyed, then the body will be defunct, so all of
-      // the others can and will be destroyed as well.
-      node->nextInJITBody = lastNode;
+    // In case of code cache reclamation (later), destroy all nodes that were
+    // sucessfully created for this body. firstNode is enough because the others
+    // can be found via nextInJITBody. This is also used for cleanup in case of
+    // compilation failure.
+    metaData->constRefArrays = firstNode;
 
-      if (firstNode == NULL)
-         {
-         firstNode = node;
-         }
+    omrthread_monitor_exit(vm->constRefsMutex);
 
-      lastNode = node;
-      firstNode->nextInJITBody = node;
+    if (!ok) {
+        // Don't clean up const ref arrays that were successfully created here.
+        // That's already handled as part of compilation failure.
+        comp()->failCompilation<TR::CompilationException>("failed to create const refs");
+    }
 
-      // Move past the contiguous range [start, end) for this owning class.
-      start = end;
-      }
+    // Now finally initialize the slots for real.
+    TR::VMAccessCriticalSection initConstRefSlotsCR(comp()->fej9());
+    omrthread_jit_write_protect_disable();
+    for (auto it = _constRefSortOrder.begin(); it != _constRefSortOrder.end(); it++) {
+        TR::KnownObjectTable::Index koi = *it;
 
-   // In case of code cache reclamation (later), destroy all nodes that were
-   // sucessfully created for this body. firstNode is enough because the others
-   // can be found via nextInJITBody. This is also used for cleanup in case of
-   // compilation failure.
-   metaData->constRefArrays = firstNode;
+        TR_OpaqueClassBlock *owningClass = _constRefOwningClasses[koi];
+        J9Class *owningJ9C = TR::Compiler->cls.convertClassOffsetToClassPtr(owningClass);
 
-   omrthread_monitor_exit(vm->constRefsMutex);
+        TR::LabelSymbol *label = getConstRefLabel(koi);
+        j9object_t *slot = (j9object_t *)label->getCodeLocation();
+        j9object_t obj = (j9object_t)knot->getPointer(koi);
+        bool isVolatile = false;
+        vm->memoryManagerFunctions->j9gc_objaccess_staticStoreObject(vmThread, owningJ9C, slot, obj, isVolatile);
+    }
 
-   if (!ok)
-      {
-      // Don't clean up const ref arrays that were successfully created here.
-      // That's already handled as part of compilation failure.
-      comp()->failCompilation<TR::CompilationException>("failed to create const refs");
-      }
-
-   // Now finally initialize the slots for real.
-   TR::VMAccessCriticalSection initConstRefSlotsCR(comp()->fej9());
-   omrthread_jit_write_protect_disable();
-   for (auto it = _constRefSortOrder.begin(); it != _constRefSortOrder.end(); it++)
-      {
-      TR::KnownObjectTable::Index koi = *it;
-
-      TR_OpaqueClassBlock *owningClass = _constRefOwningClasses[koi];
-      J9Class *owningJ9C =
-         TR::Compiler->cls.convertClassOffsetToClassPtr(owningClass);
-
-      TR::LabelSymbol *label = getConstRefLabel(koi);
-      j9object_t *slot = (j9object_t*)label->getCodeLocation();
-      j9object_t obj = (j9object_t)knot->getPointer(koi);
-      bool isVolatile = false;
-      vm->memoryManagerFunctions->j9gc_objaccess_staticStoreObject(
-         vmThread, owningJ9C, slot, obj, isVolatile);
-      }
-
-   omrthread_jit_write_protect_enable();
-   }
+    omrthread_jit_write_protect_enable();
+}
 
 #endif // defined(J9VM_OPT_OPENJDK_METHODHANDLE)
 
 #if defined(J9VM_OPT_OPENJDK_METHODHANDLE) && defined(J9VM_OPT_JITSERVER)
 
-void
-J9::CodeGenerator::getConstRefInfoOnServer(std::vector<ConstRefInfo> &out)
-   {
-   TR_ASSERT_FATAL(comp()->isOutOfProcessCompilation(), "server only");
+void J9::CodeGenerator::getConstRefInfoOnServer(std::vector<ConstRefInfo> &out)
+{
+    TR_ASSERT_FATAL(comp()->isOutOfProcessCompilation(), "server only");
 
-   uint8_t *startPC = self()->getCodeStart();
+    uint8_t *startPC = self()->getCodeStart();
 
-   out.clear();
-   out.reserve(_constRefSortOrder.size());
+    out.clear();
+    out.reserve(_constRefSortOrder.size());
 
-   for (auto it = _constRefSortOrder.begin(); it != _constRefSortOrder.end(); it++)
-      {
-      TR::KnownObjectTable::Index koi = *it;
-      ConstRefInfo info = {};
-      info._koi = koi;
-      info._owningClass = _constRefOwningClasses[koi];
-      info._labelOffset = getConstRefLabel(koi)->getCodeLocation() - startPC;
-      out.push_back(info);
-      }
-   }
+    for (auto it = _constRefSortOrder.begin(); it != _constRefSortOrder.end(); it++) {
+        TR::KnownObjectTable::Index koi = *it;
+        ConstRefInfo info = {};
+        info._koi = koi;
+        info._owningClass = _constRefOwningClasses[koi];
+        info._labelOffset = getConstRefLabel(koi)->getCodeLocation() - startPC;
+        out.push_back(info);
+    }
+}
 
-void
-J9::CodeGenerator::setConstRefInfoOnClient(
-   const std::vector<ConstRefInfo> &info, uint8_t *startPC)
-   {
-   TR_ASSERT_FATAL(comp()->isRemoteCompilation(), "client only");
+void J9::CodeGenerator::setConstRefInfoOnClient(const std::vector<ConstRefInfo> &info, uint8_t *startPC)
+{
+    TR_ASSERT_FATAL(comp()->isRemoteCompilation(), "client only");
 
-   TR::KnownObjectTable *knot = comp()->getKnownObjectTable();
-   if (knot == NULL)
-      {
-      TR_ASSERT_FATAL(info.empty(), "nonempty const ref info but no known object table");
-      return;
-      }
+    TR::KnownObjectTable *knot = comp()->getKnownObjectTable();
+    if (knot == NULL) {
+        TR_ASSERT_FATAL(info.empty(), "nonempty const ref info but no known object table");
+        return;
+    }
 
-   TR_ASSERT_FATAL(_constRefOwningClasses.empty(), "_constRefOwningClasses should be empty");
+    TR_ASSERT_FATAL(_constRefOwningClasses.empty(), "_constRefOwningClasses should be empty");
 
-   // The client may have already created const ref labels for the purpose of
-   // assignKeepaliveConstRefLabels(), which looks at them. Make sure that all
-   // known objects for which const ref labels have already been created are
-   // also listed in info.
-   std::vector<bool> isConstRefInInfo(knot->getEndIndex(), false);
-   for (auto it = info.begin(); it != info.end(); it++)
-      {
-      isConstRefInInfo[it->_koi] = true;
-      }
+    // The client may have already created const ref labels for the purpose of
+    // assignKeepaliveConstRefLabels(), which looks at them. Make sure that all
+    // known objects for which const ref labels have already been created are
+    // also listed in info.
+    std::vector<bool> isConstRefInInfo(knot->getEndIndex(), false);
+    for (auto it = info.begin(); it != info.end(); it++) {
+        isConstRefInInfo[it->_koi] = true;
+    }
 
-   for (auto it = _constRefSortOrder.begin(); it != _constRefSortOrder.end(); it++)
-      {
-      TR::KnownObjectTable::Index koi = *it;
-      TR_ASSERT_FATAL(
-         isConstRefInInfo[koi],
-         "have const ref for obj%d on client but not on server\n",
-         koi);
-      }
+    for (auto it = _constRefSortOrder.begin(); it != _constRefSortOrder.end(); it++) {
+        TR::KnownObjectTable::Index koi = *it;
+        TR_ASSERT_FATAL(isConstRefInInfo[koi], "have const ref for obj%d on client but not on server\n", koi);
+    }
 
-   // Copy the owning classes and label addresses.
-   _constRefOwningClasses.reserve(knot->getEndIndex());
-   _constRefOwningClasses.resize(knot->getEndIndex(), NULL);
+    // Copy the owning classes and label addresses.
+    _constRefOwningClasses.reserve(knot->getEndIndex());
+    _constRefOwningClasses.resize(knot->getEndIndex(), NULL);
 
-   for (auto it = info.begin(); it != info.end(); it++)
-      {
-      _constRefOwningClasses[it->_koi] = it->_owningClass;
+    for (auto it = info.begin(); it != info.end(); it++) {
+        _constRefOwningClasses[it->_koi] = it->_owningClass;
 
-      // Don't use assignNewConstRefLabel(). Some might already exist.
-      uint8_t *labelAddr = startPC + it->_labelOffset;
-      self()->assignConstRefLabel(it->_koi)->setCodeLocation(labelAddr);
-      }
+        // Don't use assignNewConstRefLabel(). Some might already exist.
+        uint8_t *labelAddr = startPC + it->_labelOffset;
+        self()->assignConstRefLabel(it->_koi)->setCodeLocation(labelAddr);
+    }
 
-   // At this point _constRefSortOrder contains the known object indices for
-   // all const refs in info, but probably in the wrong order. Ignore the
-   // current contents and replace it with the order from info.
-   _constRefSortOrder.clear();
-   _constRefSortOrder.reserve(info.size());
-   for (auto it = info.begin(); it != info.end(); it++)
-      {
-      _constRefSortOrder.push_back(it->_koi);
-      }
-   }
+    // At this point _constRefSortOrder contains the known object indices for
+    // all const refs in info, but probably in the wrong order. Ignore the
+    // current contents and replace it with the order from info.
+    _constRefSortOrder.clear();
+    _constRefSortOrder.reserve(info.size());
+    for (auto it = info.begin(); it != info.end(); it++) {
+        _constRefSortOrder.push_back(it->_koi);
+    }
+}
 
 #endif // defined(J9VM_OPT_OPENJDK_METHODHANDLE) && defined(J9VM_OPT_JITSERVER)

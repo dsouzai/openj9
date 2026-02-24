@@ -25,12 +25,10 @@
 
 #include <stdio.h>
 
+namespace TR {
+struct FilePointer;
 
-namespace TR
-{
-   struct FilePointer;
-
-   typedef TR::FilePointer FILE;
-}
+typedef TR::FilePointer FILE;
+} // namespace TR
 
 #endif

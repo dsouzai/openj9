@@ -28,10 +28,14 @@
  */
 #ifndef J9_CPU_CONNECTOR
 #define J9_CPU_CONNECTOR
+
 namespace J9 {
-namespace X86 { class CPU; }
-typedef J9::X86::CPU CPUConnector;
+namespace X86 {
+class CPU;
 }
+
+typedef J9::X86::CPU CPUConnector;
+} // namespace J9
 #else
 #error J9::X86::CPU expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -39,62 +43,59 @@ typedef J9::X86::CPU CPUConnector;
 #include "compiler/env/J9CPU.hpp"
 #include "env/ProcessorInfo.hpp"
 
-namespace J9
-{
+namespace J9 { namespace X86 {
 
-namespace X86
-{
-
-class OMR_EXTENSIBLE CPU : public J9::CPU
-   {
+class OMR_EXTENSIBLE CPU : public J9::CPU {
 protected:
+    CPU()
+        : J9::CPU()
+    {}
 
-   CPU() : J9::CPU() {}
-   CPU(const OMRProcessorDesc& processorDescription) : J9::CPU(processorDescription) {}
+    CPU(const OMRProcessorDesc &processorDescription)
+        : J9::CPU(processorDescription)
+    {}
 
 public:
+    /**
+     * @brief A factory method used to construct a CPU object for portable AOT compilations
+     * @param[in] omrPortLib : the port library
+     * @return TR::CPU
+     */
+    static TR::CPU detectRelocatable(OMRPortLibrary * const omrPortLib);
 
-   /**
-    * @brief A factory method used to construct a CPU object for portable AOT compilations
-    * @param[in] omrPortLib : the port library
-    * @return TR::CPU
-    */
-   static TR::CPU detectRelocatable(OMRPortLibrary * const omrPortLib);
+    /**
+     * @brief A factory method used to construct a CPU object based on the underlying hardware
+     * @param[in] omrPortLib : the port library
+     * @return TR::CPU
+     */
+    static TR::CPU detect(OMRPortLibrary * const omrPortLib);
 
-   /**
-    * @brief A factory method used to construct a CPU object based on the underlying hardware
-    * @param[in] omrPortLib : the port library
-    * @return TR::CPU
-    */
-   static TR::CPU detect(OMRPortLibrary * const omrPortLib);
+    /**
+     * @brief Intialize _supportedFeatureMasks to the list of processor features that will be exploited by the compiler
+     * and set _isSupportedFeatureMasksEnabled to true
+     * @return void
+     */
+    static void enableFeatureMasks();
 
-   /**
-    * @brief Intialize _supportedFeatureMasks to the list of processor features that will be exploited by the compiler and set _isSupportedFeatureMasksEnabled to true
-    * @return void
-    */
-   static void enableFeatureMasks();
+    bool is(OMRProcessorArchitecture p);
+    bool supportsFeature(uint32_t feature);
 
-   bool is(OMRProcessorArchitecture p);
-   bool supportsFeature(uint32_t feature);
+    TR_X86CPUIDBuffer *queryX86TargetCPUID();
+    const char *getProcessorVendorId();
+    uint32_t getProcessorSignature();
 
-   TR_X86CPUIDBuffer *queryX86TargetCPUID();
-   const char * getProcessorVendorId();
-   uint32_t getProcessorSignature();
+    bool testOSForSSESupport() { return true; } // VM guarantees SSE/SSE2 are available
 
-   bool testOSForSSESupport() { return true; } // VM guarantees SSE/SSE2 are available
+    bool isCompatible(const OMRProcessorDesc &processorDescription);
 
-   bool isCompatible(const OMRProcessorDesc& processorDescription);
+    uint32_t getX86ProcessorFeatureFlags();
+    uint32_t getX86ProcessorFeatureFlags2();
+    uint32_t getX86ProcessorFeatureFlags8();
 
-   uint32_t getX86ProcessorFeatureFlags();
-   uint32_t getX86ProcessorFeatureFlags2();
-   uint32_t getX86ProcessorFeatureFlags8();
+    bool is_test(OMRProcessorArchitecture p);
+    bool supports_feature_test(uint32_t feature);
+};
 
-   bool is_test(OMRProcessorArchitecture p);
-   bool supports_feature_test(uint32_t feature);
-   };
-
-}
-
-}
+}} // namespace J9::X86
 
 #endif

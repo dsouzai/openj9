@@ -37,1240 +37,1116 @@
 #include "runtime/J9ValueProfiler.hpp"
 #include "util_api.h"
 
-TR::Register*
-J9::TreeEvaluator::zdchkEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdloadEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdloadiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdstoreEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdstoreiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pd2zdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zd2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdsleLoadEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdslsLoadEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdstsLoadEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdsleLoadiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdslsLoadiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdstsLoadiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdsleStoreEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdslsStoreEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdstsStoreEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdsleStoreiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdslsStoreiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdstsStoreiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zd2zdsleEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zd2zdslsEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zd2zdstsEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdsle2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdsls2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdsts2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdsle2zdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdsls2zdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::zdsts2zdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pd2zdslsEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pd2zdslsSetSignEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pd2zdstsEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pd2zdstsSetSignEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::udLoadEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::udslLoadEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::udstLoadEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::udLoadiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::udslLoadiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::udstLoadiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::udStoreEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::udslStoreEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::udstStoreEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::udStoreiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::udslStoreiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::udstStoreiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pd2udEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pd2udslEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pd2udstEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::udsl2udEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::udst2udEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::ud2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::udsl2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::udst2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdloadEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdloadiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdstoreEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdstoreiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdaddEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdsubEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdmulEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pddivEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdremEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdnegEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdabsEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdshrEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdshlEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdshrSetSignEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdshlSetSignEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdshlOverflowEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdchkEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pd2iEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pd2iuEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pd2iOverflowEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::i2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::iu2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pd2lEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pd2luEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pd2lOverflowEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::l2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::lu2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pd2fEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pd2dEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::f2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::d2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdcmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdcmpneEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdcmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdcmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdcmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdcmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdcleanEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdclearEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdclearSetSignEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdSetSignEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::pdModifyPrecisionEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::countDigitsEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Register*
-J9::TreeEvaluator::BCDCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
-   }
-
-TR::Snippet *
-J9::TreeEvaluator::getFieldWatchInstanceSnippet(TR::CodeGenerator *cg, TR::Node *node, J9Method *m, UDATA loc, UDATA os)
-   {
-   return new (cg->trHeapMemory()) TR::J9WatchedInstanceFieldSnippet(cg, node, m, loc, os);
-   }
-
-TR::Snippet *
-J9::TreeEvaluator::getFieldWatchStaticSnippet(TR::CodeGenerator *cg, TR::Node *node, J9Method *m, UDATA loc, void *fieldAddress, J9Class *fieldClass)
-   {
-   return new (cg->trHeapMemory()) TR::J9WatchedStaticFieldSnippet(cg, node, m, loc, fieldAddress, fieldClass);
-   }
-
-void
-J9::TreeEvaluator::rdWrtbarHelperForFieldWatch(TR::Node *node, TR::CodeGenerator *cg, TR::Register *sideEffectRegister, TR::Register *valueReg)
-   {
-   TR_ASSERT_FATAL(J9ClassHasWatchedFields >= std::numeric_limits<uint16_t>::min() && J9ClassHasWatchedFields <= std::numeric_limits<uint16_t>::max(), "Expecting value of J9ClassHasWatchedFields to be within 16 bits. Currently it's %d(%p).", J9ClassHasWatchedFields, J9ClassHasWatchedFields);
-
-   // Populate a data snippet with the required information so we can call a VM helper to report the Field Watch event.
-   TR::SymbolReference *symRef = node->getSymbolReference();
-   J9Method *owningMethod = reinterpret_cast<J9Method *>(node->getOwningMethod());
-   TR::Register *dataSnippetRegister = cg->allocateRegister();
-   bool isWrite = node->getOpCode().isWrtBar();
-   bool isUnresolved = symRef->isUnresolved();
-   int32_t bcIndex = node->getByteCodeInfo().getByteCodeIndex();
-
-   TR::Snippet *dataSnippet = NULL;
-   if (symRef->getSymbol()->isStatic())
-      {
-      void *fieldAddress = isUnresolved ? reinterpret_cast<void *>(-1) : symRef->getSymbol()->getStaticSymbol()->getStaticAddress();
-      J9Class *fieldClass = isUnresolved ? NULL : reinterpret_cast<J9Class *>(symRef->getOwningMethod(cg->comp())->getDeclaringClassFromFieldOrStatic(cg->comp(), symRef->getCPIndex()));
-      dataSnippet = TR::TreeEvaluator::getFieldWatchStaticSnippet(cg, node, owningMethod, bcIndex, fieldAddress, fieldClass);
-      }
-   else
-      {
-      dataSnippet = TR::TreeEvaluator::getFieldWatchInstanceSnippet(cg, node, owningMethod, bcIndex, isUnresolved ? -1 : symRef->getOffset() - TR::Compiler->om.objectHeaderSizeInBytes());
-      }
-   cg->addSnippet(dataSnippet);
-
-   // If unresolved, then we generate instructions to populate the data snippet's fields correctly at runtime.
-   // Note: We also call the VM Helper routine to fill in the data snippet's fields if this is an AOT compilation.
-   // Once the infrastructure to support AOT during fieldwatch is enabled and functionally correct, we can remove is check.
-   if (isUnresolved || cg->needClassAndMethodPointerRelocations())
-      {
-      // Resolve and populate dataSnippet fields.
-      TR::TreeEvaluator::generateFillInDataBlockSequenceForUnresolvedField(cg, node, dataSnippet, isWrite, sideEffectRegister, dataSnippetRegister);
-      }
-   // Generate instructions to call the VM helper and report the fieldwatch event
-   TR::TreeEvaluator::generateTestAndReportFieldWatchInstructions(cg, node, dataSnippet, isWrite, sideEffectRegister, valueReg, dataSnippetRegister);
-
-   cg->stopUsingRegister(dataSnippetRegister);
-   }
-
-TR::Register *
-J9::TreeEvaluator::bwrtbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Register *valueReg = cg->evaluate(node->getFirstChild());
-   TR::Node *sideEffectNode = node->getSecondChild();
-   TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, valueReg);
-      }
-
-   // Note: The reference count for valueReg's node is not decremented here because the
-   // store evaluator also uses it and so it will evaluate+decrement it. Thus we must skip decrementing here
-   // to avoid double decrementing.
-   cg->decReferenceCount(sideEffectNode);
-   return TR::TreeEvaluator::bstoreEvaluator(node, cg);
-   }
-
-TR::Register *
-J9::TreeEvaluator::bwrtbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Register *valueReg = cg->evaluate(node->getSecondChild());
-   TR::Node *sideEffectNode = node->getThirdChild();
-   TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, valueReg);
-      }
-
-   // Note: The reference count for valueReg's node is not decremented here because the
-   // store evaluator also uses it and so it will evaluate+decrement it. Thus we must skip decrementing here
-   // to avoid double decrementing.
-   cg->decReferenceCount(sideEffectNode);
-   return TR::TreeEvaluator::bstoreEvaluator(node, cg);
-   }
-
-TR::Register *
-J9::TreeEvaluator::swrtbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Register *valueReg = cg->evaluate(node->getFirstChild());
-   TR::Node *sideEffectNode = node->getSecondChild();
-   TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, valueReg);
-      }
-
-   // Note: The reference count for valueReg's node is not decremented here because the
-   // store evaluator also uses it and so it will evaluate+decrement it. Thus we must skip decrementing here
-   // to avoid double decrementing.
-   cg->decReferenceCount(sideEffectNode);
-   return TR::TreeEvaluator::sstoreEvaluator(node, cg);
-   }
-
-TR::Register *
-J9::TreeEvaluator::swrtbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Register *valueReg = cg->evaluate(node->getSecondChild());
-   TR::Node *sideEffectNode = node->getThirdChild();
-   TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, valueReg);
-      }
-
-   // Note: The reference count for valueReg's node is not decremented here because the
-   // store evaluator also uses it and so it will evaluate+decrement it. Thus we must skip decrementing here
-   // to avoid double decrementing.
-   cg->decReferenceCount(sideEffectNode);
-   return TR::TreeEvaluator::sstoreEvaluator(node, cg);
-   }
-
-TR::Register *
-J9::TreeEvaluator::iwrtbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Register *valueReg = cg->evaluate(node->getFirstChild());
-   TR::Node *sideEffectNode = node->getSecondChild();
-   TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, valueReg);
-      }
-
-   // Note: The reference count for valueReg's node is not decremented here because the
-   // store evaluator also uses it and so it will evaluate+decrement it. Thus we must skip decrementing here
-   // to avoid double decrementing.
-   cg->decReferenceCount(sideEffectNode);
-   return TR::TreeEvaluator::istoreEvaluator(node, cg);
-   }
-
-TR::Register *
-J9::TreeEvaluator::iwrtbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Register *valueReg = cg->evaluate(node->getSecondChild());
-   TR::Node *sideEffectNode = node->getThirdChild();
-   TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, valueReg);
-      }
-
-   // Note: The reference count for valueReg's node is not decremented here because the
-   // store evaluator also uses it and so it will evaluate+decrement it. Thus we must skip decrementing here
-   // to avoid double decrementing.
-   cg->decReferenceCount(sideEffectNode);
-   return TR::TreeEvaluator::istoreEvaluator(node, cg);
-   }
-
-TR::Register *
-J9::TreeEvaluator::lwrtbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Register *valueReg = cg->evaluate(node->getFirstChild());
-   TR::Node *sideEffectNode = node->getSecondChild();
-   TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, valueReg);
-      }
-
-   // Note: The reference count for valueReg's node is not decremented here because the
-   // store evaluator also uses it and so it will evaluate+decrement it. Thus we must skip decrementing here
-   // to avoid double decrementing.
-   cg->decReferenceCount(sideEffectNode);
-   return TR::TreeEvaluator::lstoreEvaluator(node, cg);
-   }
-
-TR::Register *
-J9::TreeEvaluator::lwrtbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Register *valueReg = cg->evaluate(node->getSecondChild());
-   TR::Node *sideEffectNode = node->getThirdChild();
-   TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, valueReg);
-      }
-
-   // Note: The reference count for valueReg's node is not decremented here because the
-   // store evaluator also uses it and so it will evaluate+decrement it. Thus we must skip decrementing here
-   // to avoid double decrementing.
-   cg->decReferenceCount(sideEffectNode);
-   return TR::TreeEvaluator::lstoreEvaluator(node, cg);
-   }
-
-TR::Register *
-J9::TreeEvaluator::frdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Node *sideEffectNode = node->getFirstChild();
-   TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
-      }
-
-   cg->decReferenceCount(sideEffectNode);
-   return TR::TreeEvaluator::floadEvaluator(node, cg);
-   }
-
-TR::Register *
-J9::TreeEvaluator::frdbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Register *sideEffectRegister = cg->evaluate(node->getFirstChild());
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
-      }
-   // Note: For indirect rdbar nodes, the first child (sideEffectNode) is also used by the
-   // load evaluator. The load evaluator will also evaluate+decrement it. In order to avoid double
-   // decrementing the node we skip doing it here and let the load evaluator do it.
-   return TR::TreeEvaluator::floadEvaluator(node, cg);
-   }
-
-TR::Register *
-J9::TreeEvaluator::drdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Node *sideEffectNode = node->getFirstChild();
-   TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
-      }
-
-   cg->decReferenceCount(sideEffectNode);
-   return TR::TreeEvaluator::dloadEvaluator(node, cg);
-   }
-
-TR::Register *
-J9::TreeEvaluator::drdbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Register *sideEffectRegister = cg->evaluate(node->getFirstChild());
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
-      }
-
-   // Note: For indirect rdbar nodes, the first child (sideEffectNode) is also used by the
-   // load evaluator. The load evaluator will also evaluate+decrement it. In order to avoid double
-   // decrementing the node we skip doing it here and let the load evaluator do it.
-   return TR::TreeEvaluator::dloadEvaluator(node, cg);
-   }
-
-TR::Register *
-J9::TreeEvaluator::brdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Node *sideEffectNode = node->getFirstChild();
-   TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
-      }
-
-   cg->decReferenceCount(sideEffectNode);
-   return TR::TreeEvaluator::bloadEvaluator(node, cg);
-   }
-
-TR::Register *
-J9::TreeEvaluator::brdbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Register *sideEffectRegister = cg->evaluate(node->getFirstChild());
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
-      }
-
-   // Note: For indirect rdbar nodes, the first child (sideEffectNode) is also used by the
-   // load evaluator. The load evaluator will also evaluate+decrement it. In order to avoid double
-   // decrementing the node we skip doing it here and let the load evaluator do it.
-   return TR::TreeEvaluator::bloadEvaluator(node, cg);
-   }
-
-TR::Register *
-J9::TreeEvaluator::srdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Node *sideEffectNode = node->getFirstChild();
-   TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
-      }
-
-   cg->decReferenceCount(sideEffectNode);
-   return TR::TreeEvaluator::sloadEvaluator(node, cg);
-   }
-
-TR::Register *
-J9::TreeEvaluator::srdbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Register *sideEffectRegister = cg->evaluate(node->getFirstChild());
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
-      }
-
-   // Note: For indirect rdbar nodes, the first child (sideEffectNode) is also used by the
-   // load evaluator. The load evaluator will also evaluate+decrement it. In order to avoid double
-   // decrementing the node we skip doing it here and let the load evaluator do it.
-   return TR::TreeEvaluator::sloadEvaluator(node, cg);
-   }
-
-TR::Register *
-J9::TreeEvaluator::lrdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Node *sideEffectNode = node->getFirstChild();
-   TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
-      }
-
-   cg->decReferenceCount(sideEffectNode);
-   return TR::TreeEvaluator::lloadEvaluator(node, cg);
-   }
-
-TR::Register *
-J9::TreeEvaluator::lrdbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // For rdbar and wrtbar nodes we first evaluate the children we need to
-   // handle the side effects. Then we delegate the evaluation of the remaining
-   // children and the load/store operation to the appropriate load/store evaluator.
-   TR::Register *sideEffectRegister = cg->evaluate(node->getFirstChild());
-
-   if (cg->comp()->getOption(TR_EnableFieldWatch))
-      {
-      TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
-      }
-
-   // Note: For indirect rdbar nodes, the first child (sideEffectNode) is also used by the
-   // load evaluator. The load evaluator will also evaluate+decrement it. In order to avoid double
-   // decrementing the node we skip doing it here and let the load evaluator do it.
-   return TR::TreeEvaluator::lloadEvaluator(node, cg);
-   }
+TR::Register *J9::TreeEvaluator::zdchkEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdloadEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdloadiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdstoreEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdstoreiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pd2zdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zd2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdsleLoadEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdslsLoadEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdstsLoadEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdsleLoadiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdslsLoadiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdstsLoadiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdsleStoreEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdslsStoreEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdstsStoreEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdsleStoreiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdslsStoreiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdstsStoreiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zd2zdsleEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zd2zdslsEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zd2zdstsEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdsle2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdsls2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdsts2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdsle2zdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdsls2zdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::zdsts2zdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pd2zdslsEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pd2zdslsSetSignEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pd2zdstsEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pd2zdstsSetSignEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::udLoadEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::udslLoadEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::udstLoadEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::udLoadiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::udslLoadiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::udstLoadiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::udStoreEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::udslStoreEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::udstStoreEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::udStoreiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::udslStoreiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::udstStoreiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pd2udEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pd2udslEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pd2udstEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::udsl2udEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::udst2udEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::ud2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::udsl2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::udst2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdloadEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdloadiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdstoreEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdstoreiEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdaddEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdsubEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdmulEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pddivEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdremEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdnegEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdabsEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdshrEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdshlEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdshrSetSignEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdshlSetSignEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdshlOverflowEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdchkEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pd2iEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pd2iuEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pd2iOverflowEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::i2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::iu2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pd2lEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pd2luEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pd2lOverflowEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::l2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::lu2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pd2fEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pd2dEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::f2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::d2pdEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdcmpeqEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdcmpneEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdcmpltEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdcmpgeEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdcmpgtEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdcmpleEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdcleanEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdclearEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdclearSetSignEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdSetSignEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::pdModifyPrecisionEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::countDigitsEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::BCDCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    return TR::TreeEvaluator::unImpOpEvaluator(node, cg);
+}
+
+TR::Snippet *J9::TreeEvaluator::getFieldWatchInstanceSnippet(TR::CodeGenerator *cg, TR::Node *node, J9Method *m,
+    UDATA loc, UDATA os)
+{
+    return new (cg->trHeapMemory()) TR::J9WatchedInstanceFieldSnippet(cg, node, m, loc, os);
+}
+
+TR::Snippet *J9::TreeEvaluator::getFieldWatchStaticSnippet(TR::CodeGenerator *cg, TR::Node *node, J9Method *m,
+    UDATA loc, void *fieldAddress, J9Class *fieldClass)
+{
+    return new (cg->trHeapMemory()) TR::J9WatchedStaticFieldSnippet(cg, node, m, loc, fieldAddress, fieldClass);
+}
+
+void J9::TreeEvaluator::rdWrtbarHelperForFieldWatch(TR::Node *node, TR::CodeGenerator *cg,
+    TR::Register *sideEffectRegister, TR::Register *valueReg)
+{
+    TR_ASSERT_FATAL(J9ClassHasWatchedFields >= std::numeric_limits<uint16_t>::min()
+            && J9ClassHasWatchedFields <= std::numeric_limits<uint16_t>::max(),
+        "Expecting value of J9ClassHasWatchedFields to be within 16 bits. Currently it's %d(%p).",
+        J9ClassHasWatchedFields, J9ClassHasWatchedFields);
+
+    // Populate a data snippet with the required information so we can call a VM helper to report the Field Watch event.
+    TR::SymbolReference *symRef = node->getSymbolReference();
+    J9Method *owningMethod = reinterpret_cast<J9Method *>(node->getOwningMethod());
+    TR::Register *dataSnippetRegister = cg->allocateRegister();
+    bool isWrite = node->getOpCode().isWrtBar();
+    bool isUnresolved = symRef->isUnresolved();
+    int32_t bcIndex = node->getByteCodeInfo().getByteCodeIndex();
+
+    TR::Snippet *dataSnippet = NULL;
+    if (symRef->getSymbol()->isStatic()) {
+        void *fieldAddress
+            = isUnresolved ? reinterpret_cast<void *>(-1) : symRef->getSymbol()->getStaticSymbol()->getStaticAddress();
+        J9Class *fieldClass = isUnresolved
+            ? NULL
+            : reinterpret_cast<J9Class *>(symRef->getOwningMethod(cg->comp())
+                                              ->getDeclaringClassFromFieldOrStatic(cg->comp(), symRef->getCPIndex()));
+        dataSnippet
+            = TR::TreeEvaluator::getFieldWatchStaticSnippet(cg, node, owningMethod, bcIndex, fieldAddress, fieldClass);
+    } else {
+        dataSnippet = TR::TreeEvaluator::getFieldWatchInstanceSnippet(cg, node, owningMethod, bcIndex,
+            isUnresolved ? -1 : symRef->getOffset() - TR::Compiler->om.objectHeaderSizeInBytes());
+    }
+    cg->addSnippet(dataSnippet);
+
+    // If unresolved, then we generate instructions to populate the data snippet's fields correctly at runtime.
+    // Note: We also call the VM Helper routine to fill in the data snippet's fields if this is an AOT compilation.
+    // Once the infrastructure to support AOT during fieldwatch is enabled and functionally correct, we can remove is
+    // check.
+    if (isUnresolved || cg->needClassAndMethodPointerRelocations()) {
+        // Resolve and populate dataSnippet fields.
+        TR::TreeEvaluator::generateFillInDataBlockSequenceForUnresolvedField(cg, node, dataSnippet, isWrite,
+            sideEffectRegister, dataSnippetRegister);
+    }
+    // Generate instructions to call the VM helper and report the fieldwatch event
+    TR::TreeEvaluator::generateTestAndReportFieldWatchInstructions(cg, node, dataSnippet, isWrite, sideEffectRegister,
+        valueReg, dataSnippetRegister);
+
+    cg->stopUsingRegister(dataSnippetRegister);
+}
+
+TR::Register *J9::TreeEvaluator::bwrtbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Register *valueReg = cg->evaluate(node->getFirstChild());
+    TR::Node *sideEffectNode = node->getSecondChild();
+    TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, valueReg);
+    }
+
+    // Note: The reference count for valueReg's node is not decremented here because the
+    // store evaluator also uses it and so it will evaluate+decrement it. Thus we must skip decrementing here
+    // to avoid double decrementing.
+    cg->decReferenceCount(sideEffectNode);
+    return TR::TreeEvaluator::bstoreEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::bwrtbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Register *valueReg = cg->evaluate(node->getSecondChild());
+    TR::Node *sideEffectNode = node->getThirdChild();
+    TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, valueReg);
+    }
+
+    // Note: The reference count for valueReg's node is not decremented here because the
+    // store evaluator also uses it and so it will evaluate+decrement it. Thus we must skip decrementing here
+    // to avoid double decrementing.
+    cg->decReferenceCount(sideEffectNode);
+    return TR::TreeEvaluator::bstoreEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::swrtbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Register *valueReg = cg->evaluate(node->getFirstChild());
+    TR::Node *sideEffectNode = node->getSecondChild();
+    TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, valueReg);
+    }
+
+    // Note: The reference count for valueReg's node is not decremented here because the
+    // store evaluator also uses it and so it will evaluate+decrement it. Thus we must skip decrementing here
+    // to avoid double decrementing.
+    cg->decReferenceCount(sideEffectNode);
+    return TR::TreeEvaluator::sstoreEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::swrtbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Register *valueReg = cg->evaluate(node->getSecondChild());
+    TR::Node *sideEffectNode = node->getThirdChild();
+    TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, valueReg);
+    }
+
+    // Note: The reference count for valueReg's node is not decremented here because the
+    // store evaluator also uses it and so it will evaluate+decrement it. Thus we must skip decrementing here
+    // to avoid double decrementing.
+    cg->decReferenceCount(sideEffectNode);
+    return TR::TreeEvaluator::sstoreEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::iwrtbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Register *valueReg = cg->evaluate(node->getFirstChild());
+    TR::Node *sideEffectNode = node->getSecondChild();
+    TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, valueReg);
+    }
+
+    // Note: The reference count for valueReg's node is not decremented here because the
+    // store evaluator also uses it and so it will evaluate+decrement it. Thus we must skip decrementing here
+    // to avoid double decrementing.
+    cg->decReferenceCount(sideEffectNode);
+    return TR::TreeEvaluator::istoreEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::iwrtbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Register *valueReg = cg->evaluate(node->getSecondChild());
+    TR::Node *sideEffectNode = node->getThirdChild();
+    TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, valueReg);
+    }
+
+    // Note: The reference count for valueReg's node is not decremented here because the
+    // store evaluator also uses it and so it will evaluate+decrement it. Thus we must skip decrementing here
+    // to avoid double decrementing.
+    cg->decReferenceCount(sideEffectNode);
+    return TR::TreeEvaluator::istoreEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::lwrtbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Register *valueReg = cg->evaluate(node->getFirstChild());
+    TR::Node *sideEffectNode = node->getSecondChild();
+    TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, valueReg);
+    }
+
+    // Note: The reference count for valueReg's node is not decremented here because the
+    // store evaluator also uses it and so it will evaluate+decrement it. Thus we must skip decrementing here
+    // to avoid double decrementing.
+    cg->decReferenceCount(sideEffectNode);
+    return TR::TreeEvaluator::lstoreEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::lwrtbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Register *valueReg = cg->evaluate(node->getSecondChild());
+    TR::Node *sideEffectNode = node->getThirdChild();
+    TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, valueReg);
+    }
+
+    // Note: The reference count for valueReg's node is not decremented here because the
+    // store evaluator also uses it and so it will evaluate+decrement it. Thus we must skip decrementing here
+    // to avoid double decrementing.
+    cg->decReferenceCount(sideEffectNode);
+    return TR::TreeEvaluator::lstoreEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::frdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Node *sideEffectNode = node->getFirstChild();
+    TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
+    }
+
+    cg->decReferenceCount(sideEffectNode);
+    return TR::TreeEvaluator::floadEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::frdbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Register *sideEffectRegister = cg->evaluate(node->getFirstChild());
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
+    }
+    // Note: For indirect rdbar nodes, the first child (sideEffectNode) is also used by the
+    // load evaluator. The load evaluator will also evaluate+decrement it. In order to avoid double
+    // decrementing the node we skip doing it here and let the load evaluator do it.
+    return TR::TreeEvaluator::floadEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::drdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Node *sideEffectNode = node->getFirstChild();
+    TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
+    }
+
+    cg->decReferenceCount(sideEffectNode);
+    return TR::TreeEvaluator::dloadEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::drdbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Register *sideEffectRegister = cg->evaluate(node->getFirstChild());
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
+    }
+
+    // Note: For indirect rdbar nodes, the first child (sideEffectNode) is also used by the
+    // load evaluator. The load evaluator will also evaluate+decrement it. In order to avoid double
+    // decrementing the node we skip doing it here and let the load evaluator do it.
+    return TR::TreeEvaluator::dloadEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::brdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Node *sideEffectNode = node->getFirstChild();
+    TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
+    }
+
+    cg->decReferenceCount(sideEffectNode);
+    return TR::TreeEvaluator::bloadEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::brdbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Register *sideEffectRegister = cg->evaluate(node->getFirstChild());
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
+    }
+
+    // Note: For indirect rdbar nodes, the first child (sideEffectNode) is also used by the
+    // load evaluator. The load evaluator will also evaluate+decrement it. In order to avoid double
+    // decrementing the node we skip doing it here and let the load evaluator do it.
+    return TR::TreeEvaluator::bloadEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::srdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Node *sideEffectNode = node->getFirstChild();
+    TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
+    }
+
+    cg->decReferenceCount(sideEffectNode);
+    return TR::TreeEvaluator::sloadEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::srdbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Register *sideEffectRegister = cg->evaluate(node->getFirstChild());
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
+    }
+
+    // Note: For indirect rdbar nodes, the first child (sideEffectNode) is also used by the
+    // load evaluator. The load evaluator will also evaluate+decrement it. In order to avoid double
+    // decrementing the node we skip doing it here and let the load evaluator do it.
+    return TR::TreeEvaluator::sloadEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::lrdbarEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Node *sideEffectNode = node->getFirstChild();
+    TR::Register *sideEffectRegister = cg->evaluate(sideEffectNode);
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
+    }
+
+    cg->decReferenceCount(sideEffectNode);
+    return TR::TreeEvaluator::lloadEvaluator(node, cg);
+}
+
+TR::Register *J9::TreeEvaluator::lrdbariEvaluator(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // For rdbar and wrtbar nodes we first evaluate the children we need to
+    // handle the side effects. Then we delegate the evaluation of the remaining
+    // children and the load/store operation to the appropriate load/store evaluator.
+    TR::Register *sideEffectRegister = cg->evaluate(node->getFirstChild());
+
+    if (cg->comp()->getOption(TR_EnableFieldWatch)) {
+        TR::TreeEvaluator::rdWrtbarHelperForFieldWatch(node, cg, sideEffectRegister, NULL);
+    }
+
+    // Note: For indirect rdbar nodes, the first child (sideEffectNode) is also used by the
+    // load evaluator. The load evaluator will also evaluate+decrement it. In order to avoid double
+    // decrementing the node we skip doing it here and let the load evaluator do it.
+    return TR::TreeEvaluator::lloadEvaluator(node, cg);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // monexitfence -- do nothing, just a placeholder for live monitor meta data
 ///////////////////////////////////////////////////////////////////////////////////////
-TR::Register *
-J9::TreeEvaluator::monexitfenceEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   return NULL;
-   }
+TR::Register *J9::TreeEvaluator::monexitfenceEvaluator(TR::Node *node, TR::CodeGenerator *cg) { return NULL; }
 
-bool J9::TreeEvaluator::getIndirectWrtbarValueNode(TR::CodeGenerator *cg, TR::Node *node, TR::Node*& sourceChild, bool incSrcRefCount)
-   {
-   TR_ASSERT_FATAL(node->getOpCode().isIndirect() && node->getOpCode().isWrtBar(), "getIndirectWrtbarValueNode expects indirect wrtbar nodes only n%dn (%p)\n", node->getGlobalIndex(), node);
-   bool usingCompressedPointers = false;
-   sourceChild = node->getSecondChild();
+bool J9::TreeEvaluator::getIndirectWrtbarValueNode(TR::CodeGenerator *cg, TR::Node *node, TR::Node *&sourceChild,
+    bool incSrcRefCount)
+{
+    TR_ASSERT_FATAL(node->getOpCode().isIndirect() && node->getOpCode().isWrtBar(),
+        "getIndirectWrtbarValueNode expects indirect wrtbar nodes only n%dn (%p)\n", node->getGlobalIndex(), node);
+    bool usingCompressedPointers = false;
+    sourceChild = node->getSecondChild();
 
-   if (cg->comp()->useCompressedPointers() && (node->getSymbolReference()->getSymbol()->getDataType() == TR::Address) &&
-         (node->getSecondChild()->getDataType() != TR::Address))
-      {
-      // pattern match the sequence
-      //     awrtbari f     awrtbari f         <- node
-      //       aload O       aload O
-      //     value           l2i
-      //                       lshr
-      //                         lsub        <- translatedNode
-      //                           a2l
-      //                             value   <- sourceChild
-      //                           lconst HB
-      //                         iconst shftKonst
-      //
-      // -or- if the field is known to be null
-      // awrtbari f
-      //    aload O
-      //    l2i
-      //      a2l
-      //        value  <- sourceChild
-      //
-      TR::Node *translatedNode = sourceChild;
-      if (translatedNode->getOpCodeValue() == TR::l2i)
-         {
-         translatedNode = translatedNode->getFirstChild();
-         }
-      if (translatedNode->getOpCode().isRightShift())
-         {
-         TR::Node *shiftAmountChild = translatedNode->getSecondChild();
-         TR_ASSERT_FATAL(TR::Compiler->om.compressedReferenceShiftOffset() == shiftAmountChild->getConstValue(),
-                "Expect shift amount in the compressedref conversion sequence to be %d but get %d for indirect wrtbar node n%dn (%p)\n",
-                TR::Compiler->om.compressedReferenceShiftOffset(), shiftAmountChild->getConstValue(), node->getGlobalIndex(), node);
+    if (cg->comp()->useCompressedPointers() && (node->getSymbolReference()->getSymbol()->getDataType() == TR::Address)
+        && (node->getSecondChild()->getDataType() != TR::Address)) {
+        // pattern match the sequence
+        //     awrtbari f     awrtbari f         <- node
+        //       aload O       aload O
+        //     value           l2i
+        //                       lshr
+        //                         lsub        <- translatedNode
+        //                           a2l
+        //                             value   <- sourceChild
+        //                           lconst HB
+        //                         iconst shftKonst
+        //
+        // -or- if the field is known to be null
+        // awrtbari f
+        //    aload O
+        //    l2i
+        //      a2l
+        //        value  <- sourceChild
+        //
+        TR::Node *translatedNode = sourceChild;
+        if (translatedNode->getOpCodeValue() == TR::l2i) {
+            translatedNode = translatedNode->getFirstChild();
+        }
+        if (translatedNode->getOpCode().isRightShift()) {
+            TR::Node *shiftAmountChild = translatedNode->getSecondChild();
+            TR_ASSERT_FATAL(TR::Compiler->om.compressedReferenceShiftOffset() == shiftAmountChild->getConstValue(),
+                "Expect shift amount in the compressedref conversion sequence to be %d but get %d for indirect wrtbar "
+                "node n%dn (%p)\n",
+                TR::Compiler->om.compressedReferenceShiftOffset(), shiftAmountChild->getConstValue(),
+                node->getGlobalIndex(), node);
 
-         translatedNode = translatedNode->getFirstChild();
-         }
+            translatedNode = translatedNode->getFirstChild();
+        }
 
-      usingCompressedPointers = true;
+        usingCompressedPointers = true;
 
-      while ((sourceChild->getNumChildren() > 0) && (sourceChild->getOpCodeValue() != TR::a2l))
-         {
-         sourceChild = sourceChild->getFirstChild();
-         }
-      if (sourceChild->getOpCodeValue() == TR::a2l)
-         {
-         sourceChild = sourceChild->getFirstChild();
-         }
+        while ((sourceChild->getNumChildren() > 0) && (sourceChild->getOpCodeValue() != TR::a2l)) {
+            sourceChild = sourceChild->getFirstChild();
+        }
+        if (sourceChild->getOpCodeValue() == TR::a2l) {
+            sourceChild = sourceChild->getFirstChild();
+        }
 
-      // Artificially bump up the refCount on the value so
-      // that different registers are allocated for the actual
-      // and compressed values. This is done so that the VMwrtbarEvaluator
-      // uses the uncompressed value. We only need to do this when the caller
-      // is evaluating the actual write barrier.
-      if (incSrcRefCount)
-         {
-         sourceChild->incReferenceCount();
-         }
-      }
-   return usingCompressedPointers;
-   }
+        // Artificially bump up the refCount on the value so
+        // that different registers are allocated for the actual
+        // and compressed values. This is done so that the VMwrtbarEvaluator
+        // uses the uncompressed value. We only need to do this when the caller
+        // is evaluating the actual write barrier.
+        if (incSrcRefCount) {
+            sourceChild->incReferenceCount();
+        }
+    }
+    return usingCompressedPointers;
+}
 
-static
-void traceInstanceOfOrCheckCastProfilingInfo(TR::CodeGenerator *cg, TR::Node *node, TR_OpaqueClassBlock *castClass)
-   {
-   TR::Compilation *comp = cg->comp();
-   OMR::Logger *log = comp->log();
-   bool trace = comp->getOption(TR_TraceCG);
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
-   TR_ByteCodeInfo bcInfo = node->getByteCodeInfo();
-   TR_ValueProfileInfoManager *valueProfileInfo = TR_ValueProfileInfoManager::get(comp);
+static void traceInstanceOfOrCheckCastProfilingInfo(TR::CodeGenerator *cg, TR::Node *node,
+    TR_OpaqueClassBlock *castClass)
+{
+    TR::Compilation *comp = cg->comp();
+    OMR::Logger *log = comp->log();
+    bool trace = comp->getOption(TR_TraceCG);
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
+    TR_ByteCodeInfo bcInfo = node->getByteCodeInfo();
+    TR_ValueProfileInfoManager *valueProfileInfo = TR_ValueProfileInfoManager::get(comp);
 
-   if (!valueProfileInfo)
-      {
-      return;
-      }
+    if (!valueProfileInfo) {
+        return;
+    }
 
-   TR_AddressInfo * valueInfo = static_cast<TR_AddressInfo*>(valueProfileInfo->getValueInfo(bcInfo, comp, AddressInfo, TR_ValueProfileInfoManager::justInterpreterProfileInfo));
-   if (!valueInfo || valueInfo->getNumProfiledValues() == 0)
-      {
-      return;
-      }
+    TR_AddressInfo *valueInfo = static_cast<TR_AddressInfo *>(valueProfileInfo->getValueInfo(bcInfo, comp, AddressInfo,
+        TR_ValueProfileInfoManager::justInterpreterProfileInfo));
+    if (!valueInfo || valueInfo->getNumProfiledValues() == 0) {
+        return;
+    }
 
-   logprintf(trace, log, "%s:\n", __func__);
+    logprintf(trace, log, "%s:\n", __func__);
 
-   TR_ScratchList<TR_ExtraAddressInfo> valuesSortedByFrequency(comp->trMemory());
+    TR_ScratchList<TR_ExtraAddressInfo> valuesSortedByFrequency(comp->trMemory());
 
-   valueInfo->getSortedList(comp, &valuesSortedByFrequency);
+    valueInfo->getSortedList(comp, &valuesSortedByFrequency);
 
-   ListIterator<TR_ExtraAddressInfo> sortedValuesIt(&valuesSortedByFrequency);
-   for (TR_ExtraAddressInfo *profiledInfo = sortedValuesIt.getFirst(); profiledInfo != NULL; profiledInfo = sortedValuesIt.getNext())
-      {
-      TR_OpaqueClassBlock *profiledClass = fej9->getProfiledClassFromProfiledInfo(profiledInfo);
+    ListIterator<TR_ExtraAddressInfo> sortedValuesIt(&valuesSortedByFrequency);
+    for (TR_ExtraAddressInfo *profiledInfo = sortedValuesIt.getFirst(); profiledInfo != NULL;
+         profiledInfo = sortedValuesIt.getNext()) {
+        TR_OpaqueClassBlock *profiledClass = fej9->getProfiledClassFromProfiledInfo(profiledInfo);
 
-      logprintf(trace, log, "%s:\tProfiled class [" POINTER_PRINTF_FORMAT "] (%u/%u)\n",
-            node->getOpCode().getName(), profiledClass, profiledInfo->_frequency, valueInfo->getTotalFrequency());
+        logprintf(trace, log, "%s:\tProfiled class [" POINTER_PRINTF_FORMAT "] (%u/%u)\n", node->getOpCode().getName(),
+            profiledClass, profiledInfo->_frequency, valueInfo->getTotalFrequency());
 
-      if (!profiledClass)
-         continue;
+        if (!profiledClass)
+            continue;
 
-      if (comp->getPersistentInfo()->isObsoleteClass(profiledClass, fej9))
-         {
-         logprintf(trace, log, "%s:\tProfiled class [" POINTER_PRINTF_FORMAT "] is obsolete\n",
-               node->getOpCode().getName(), profiledClass);
-         continue;
-         }
+        if (comp->getPersistentInfo()->isObsoleteClass(profiledClass, fej9)) {
+            logprintf(trace, log, "%s:\tProfiled class [" POINTER_PRINTF_FORMAT "] is obsolete\n",
+                node->getOpCode().getName(), profiledClass);
+            continue;
+        }
 
-      bool isInstanceOf = fej9->instanceOfOrCheckCastNoCacheUpdate((J9Class *)profiledClass, (J9Class *)castClass);
-      logprintf(trace, log, "%s:\tProfiled class [" POINTER_PRINTF_FORMAT "] is %san instance of cast class\n",
+        bool isInstanceOf = fej9->instanceOfOrCheckCastNoCacheUpdate((J9Class *)profiledClass, (J9Class *)castClass);
+        logprintf(trace, log, "%s:\tProfiled class [" POINTER_PRINTF_FORMAT "] is %san instance of cast class\n",
             node->getOpCode().getName(), profiledClass, isInstanceOf ? "" : "not ");
-      }
-   }
-/**   \brief Generates an array of profiled classes with the boolean representing if the profiled class is instanceOf cast class or not
+    }
+}
+
+/**   \brief Generates an array of profiled classes with the boolean representing if the profiled class is instanceOf
+ *cast class or not
  **   \param profiledClassList
- **      An array of InstanceOfOrCheckCasrProfiledClasses structure passed from the main evaluator to fill up with profiled classes info
+ **      An array of InstanceOfOrCheckCasrProfiledClasses structure passed from the main evaluator to fill up with
+ *profiled classes info
  **   \param topClassProbability
- **      float pointer passed from main evaluator, we update the value with the probability for the top profiled class to be castClass
+ **      float pointer passed from main evaluator, we update the value with the probability for the top profiled class
+ *to be castClass
  **   \param maxProfiledClass
  **      An int denoting how many profiled classes we want
  **/
-static
-uint32_t getInstanceOfOrCheckCastTopProfiledClass(TR::CodeGenerator *cg, TR::Node *node, TR_OpaqueClassBlock *castClass, J9::TreeEvaluator::InstanceOfOrCheckCastProfiledClasses *profiledClassList, bool *topClassWasCastClass, uint32_t maxProfiledClass, float *topClassProbability)
-   {
-   TR::Compilation *comp = cg->comp();
-   OMR::Logger *log = comp->log();
-   bool trace = comp->getOption(TR_TraceCG);
+static uint32_t getInstanceOfOrCheckCastTopProfiledClass(TR::CodeGenerator *cg, TR::Node *node,
+    TR_OpaqueClassBlock *castClass, J9::TreeEvaluator::InstanceOfOrCheckCastProfiledClasses *profiledClassList,
+    bool *topClassWasCastClass, uint32_t maxProfiledClass, float *topClassProbability)
+{
+    TR::Compilation *comp = cg->comp();
+    OMR::Logger *log = comp->log();
+    bool trace = comp->getOption(TR_TraceCG);
 
-   if (trace)
-      {
-      static bool traceProfilingInfo = feGetEnv("TR_traceInstanceOfOrCheckCastProfilingInfo") != NULL;
-      if (traceProfilingInfo)
-         traceInstanceOfOrCheckCastProfilingInfo(cg, node, castClass);
-      }
+    if (trace) {
+        static bool traceProfilingInfo = feGetEnv("TR_traceInstanceOfOrCheckCastProfilingInfo") != NULL;
+        if (traceProfilingInfo)
+            traceInstanceOfOrCheckCastProfilingInfo(cg, node, castClass);
+    }
 
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
-   TR_ByteCodeInfo bcInfo = node->getByteCodeInfo();
-   TR_ValueProfileInfoManager *valueProfileInfo = TR_ValueProfileInfoManager::get(comp);
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
+    TR_ByteCodeInfo bcInfo = node->getByteCodeInfo();
+    TR_ValueProfileInfoManager *valueProfileInfo = TR_ValueProfileInfoManager::get(comp);
 
-   // We do not have validation record to verify that relocated profiled class
-   // in the load run is instanceof castclass or not. So without that
-   // verification, we could end up generating code where we have a defined
-   // relationship between profiled class and cast class which could not be
-   // true in load run and we could end up with incorrect execution in the
-   // application.
-   // TODO: Once we have validation record for instanceOfOrCheckCastNoCacheUpdate
-   // enable profiled class test in AOT when SVM is enabled.
-   if (!valueProfileInfo || comp->compileRelocatableCode())
-      {
-      return 0;
-      }
+    // We do not have validation record to verify that relocated profiled class
+    // in the load run is instanceof castclass or not. So without that
+    // verification, we could end up generating code where we have a defined
+    // relationship between profiled class and cast class which could not be
+    // true in load run and we could end up with incorrect execution in the
+    // application.
+    // TODO: Once we have validation record for instanceOfOrCheckCastNoCacheUpdate
+    // enable profiled class test in AOT when SVM is enabled.
+    if (!valueProfileInfo || comp->compileRelocatableCode()) {
+        return 0;
+    }
 
-   TR_AddressInfo * valueInfo = static_cast<TR_AddressInfo*>(valueProfileInfo->getValueInfo(bcInfo, comp, AddressInfo, TR_ValueProfileInfoManager::justInterpreterProfileInfo));
-   if (!valueInfo || valueInfo->getNumProfiledValues() == 0)
-      {
-      return 0;
-      }
+    TR_AddressInfo *valueInfo = static_cast<TR_AddressInfo *>(valueProfileInfo->getValueInfo(bcInfo, comp, AddressInfo,
+        TR_ValueProfileInfoManager::justInterpreterProfileInfo));
+    if (!valueInfo || valueInfo->getNumProfiledValues() == 0) {
+        return 0;
+    }
 
-   if (topClassWasCastClass)
-      *topClassWasCastClass = false;
+    if (topClassWasCastClass)
+        *topClassWasCastClass = false;
 
-   TR_ScratchList<TR_ExtraAddressInfo> valuesSortedByFrequency(comp->trMemory());
+    TR_ScratchList<TR_ExtraAddressInfo> valuesSortedByFrequency(comp->trMemory());
 
-   valueInfo->getSortedList(comp, &valuesSortedByFrequency);
+    valueInfo->getSortedList(comp, &valuesSortedByFrequency);
 
-   float totalFrequency = valueInfo->getTotalFrequency();
+    float totalFrequency = valueInfo->getTotalFrequency();
 
-   ListIterator<TR_ExtraAddressInfo> sortedValuesIt(&valuesSortedByFrequency);
-   uint32_t numProfiledClasses = 0;
-   for (TR_ExtraAddressInfo *profiledInfo = sortedValuesIt.getFirst(); profiledInfo != NULL && numProfiledClasses < maxProfiledClass ; profiledInfo = sortedValuesIt.getNext())
-      {
-      TR_OpaqueClassBlock *tempProfiledClass = fej9->getProfiledClassFromProfiledInfo(profiledInfo);
+    ListIterator<TR_ExtraAddressInfo> sortedValuesIt(&valuesSortedByFrequency);
+    uint32_t numProfiledClasses = 0;
+    for (TR_ExtraAddressInfo *profiledInfo = sortedValuesIt.getFirst();
+         profiledInfo != NULL && numProfiledClasses < maxProfiledClass; profiledInfo = sortedValuesIt.getNext()) {
+        TR_OpaqueClassBlock *tempProfiledClass = fej9->getProfiledClassFromProfiledInfo(profiledInfo);
 
-      if (!tempProfiledClass)
-         continue;
-
-      // Skip unloaded classes.
-      //
-      if (comp->getPersistentInfo()->isObsoleteClass(tempProfiledClass, fej9))
-         {
-         logprintf(trace, log, "%s: Profiled class [" POINTER_PRINTF_FORMAT "] is obsolete, skipping\n", node->getOpCode().getName(), tempProfiledClass);
-         continue;
-         }
-
-      // For checkcast, skip classes that will fail the cast, not much value in optimizing for those cases.
-      // We also don't want to pollute the cast class cache with a failing class for the same reason.
-      //
-      bool isInstanceOf = fej9->instanceOfOrCheckCastNoCacheUpdate((J9Class *)tempProfiledClass, (J9Class *)castClass);
-      if (node->getOpCode().isCheckCast() && !isInstanceOf)
-         {
-         logprintf(trace, log, "%s: Profiled class [" POINTER_PRINTF_FORMAT "] is not an instance of cast class, skipping\n", node->getOpCode().getName(), tempProfiledClass);
-         continue;
-         }
-
-      // If the cast class is the top class skip it and return the next highest class if the caller requested it by providing an output param.
-      //
-      if (tempProfiledClass == castClass && topClassWasCastClass && numProfiledClasses == 0)
-         {
-         logprintf(trace, log, "%s: Profiled class [" POINTER_PRINTF_FORMAT "] is the cast class, informing caller and skipping\n", node->getOpCode().getName(), tempProfiledClass);
-         *topClassWasCastClass = true;
-         *topClassProbability = profiledInfo->_frequency / totalFrequency;
-         continue;
-         }
-
-      // For AOT compiles with a SymbolValidationManager, skip any classes which cannot be verified.
-      //
-      if (comp->compileRelocatableCode() && comp->getOption(TR_UseSymbolValidationManager))
-         if (!comp->getSymbolValidationManager()->addProfiledClassRecord(tempProfiledClass))
+        if (!tempProfiledClass)
             continue;
 
-      float frequency = profiledInfo->_frequency / totalFrequency;
-      if ( frequency >= TR::Options::getMinProfiledCheckcastFrequency() )
-         {
-         // We have a winner.
-         //
-         profiledClassList[numProfiledClasses].profiledClass = tempProfiledClass;
-         profiledClassList[numProfiledClasses].isProfiledClassInstanceOfCastClass = isInstanceOf;
-         profiledClassList[numProfiledClasses].frequency = frequency;
-         numProfiledClasses++;
-         }
-      else
-         {
-         // Profiled Class is sorted by frequency so if the frequency is less than the Minimum don't bother with generating another profiled Class
-         break;
-         }
-      }
-   return numProfiledClasses;
-   }
+        // Skip unloaded classes.
+        //
+        if (comp->getPersistentInfo()->isObsoleteClass(tempProfiledClass, fej9)) {
+            logprintf(trace, log, "%s: Profiled class [" POINTER_PRINTF_FORMAT "] is obsolete, skipping\n",
+                node->getOpCode().getName(), tempProfiledClass);
+            continue;
+        }
 
-/**   \brief Generates an array of profiled classes with the boolean representing if the profiled class is instanceOf cast class or not
+        // For checkcast, skip classes that will fail the cast, not much value in optimizing for those cases.
+        // We also don't want to pollute the cast class cache with a failing class for the same reason.
+        //
+        bool isInstanceOf
+            = fej9->instanceOfOrCheckCastNoCacheUpdate((J9Class *)tempProfiledClass, (J9Class *)castClass);
+        if (node->getOpCode().isCheckCast() && !isInstanceOf) {
+            logprintf(trace, log,
+                "%s: Profiled class [" POINTER_PRINTF_FORMAT "] is not an instance of cast class, skipping\n",
+                node->getOpCode().getName(), tempProfiledClass);
+            continue;
+        }
+
+        // If the cast class is the top class skip it and return the next highest class if the caller requested it by
+        // providing an output param.
+        //
+        if (tempProfiledClass == castClass && topClassWasCastClass && numProfiledClasses == 0) {
+            logprintf(trace, log,
+                "%s: Profiled class [" POINTER_PRINTF_FORMAT "] is the cast class, informing caller and skipping\n",
+                node->getOpCode().getName(), tempProfiledClass);
+            *topClassWasCastClass = true;
+            *topClassProbability = profiledInfo->_frequency / totalFrequency;
+            continue;
+        }
+
+        // For AOT compiles with a SymbolValidationManager, skip any classes which cannot be verified.
+        //
+        if (comp->compileRelocatableCode() && comp->getOption(TR_UseSymbolValidationManager))
+            if (!comp->getSymbolValidationManager()->addProfiledClassRecord(tempProfiledClass))
+                continue;
+
+        float frequency = profiledInfo->_frequency / totalFrequency;
+        if (frequency >= TR::Options::getMinProfiledCheckcastFrequency()) {
+            // We have a winner.
+            //
+            profiledClassList[numProfiledClasses].profiledClass = tempProfiledClass;
+            profiledClassList[numProfiledClasses].isProfiledClassInstanceOfCastClass = isInstanceOf;
+            profiledClassList[numProfiledClasses].frequency = frequency;
+            numProfiledClasses++;
+        } else {
+            // Profiled Class is sorted by frequency so if the frequency is less than the Minimum don't bother with
+            // generating another profiled Class
+            break;
+        }
+    }
+    return numProfiledClasses;
+}
+
+/**   \brief Generates an array of profiled classes with the boolean representing if the profiled class is instanceOf
+ *cast class or not
  **   \param profiledClassList
- **      An array of InstanceOfOrCheckCasrProfiledClasses structure passed from the main evaluator to fill up with profiled classes info
+ **      An array of InstanceOfOrCheckCasrProfiledClasses structure passed from the main evaluator to fill up with
+ *profiled classes info
  **   \param numberOfProfiledClass
- **      An int pointer passed from main evaluator, we update the value with the number of classes we get from profilef info
+ **      An int pointer passed from main evaluator, we update the value with the number of classes we get from profilef
+ *info
  **   \param maxProfiledClass
  **      An int denoting how many profiled classes we want
  **   \param topClassProbability
@@ -1278,910 +1154,780 @@ uint32_t getInstanceOfOrCheckCastTopProfiledClass(TR::CodeGenerator *cg, TR::Nod
  **   \param topClassWasCastClass
  **      Boolean pointer which will be set to true or false depending on if top profiled class was cast class or not
  **/
-uint32_t J9::TreeEvaluator::calculateInstanceOfOrCheckCastSequences(TR::Node *instanceOfOrCheckCastNode, InstanceOfOrCheckCastSequences *sequences, TR_OpaqueClassBlock **compileTimeGuessClass, TR::CodeGenerator *cg, InstanceOfOrCheckCastProfiledClasses *profiledClassList, uint32_t *numberOfProfiledClass, uint32_t maxProfiledClass, float * topClassProbability, bool *topClassWasCastClass)
-   {
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
-   OMR::Logger *log = cg->comp()->log();
-   bool trace = cg->comp()->getOption(TR_TraceCG);
-   TR_ASSERT(instanceOfOrCheckCastNode->getOpCode().isCheckCast() || instanceOfOrCheckCastNode->getOpCodeValue() == TR::instanceof, "Unexpected node opcode");
+uint32_t J9::TreeEvaluator::calculateInstanceOfOrCheckCastSequences(TR::Node *instanceOfOrCheckCastNode,
+    InstanceOfOrCheckCastSequences *sequences, TR_OpaqueClassBlock **compileTimeGuessClass, TR::CodeGenerator *cg,
+    InstanceOfOrCheckCastProfiledClasses *profiledClassList, uint32_t *numberOfProfiledClass, uint32_t maxProfiledClass,
+    float *topClassProbability, bool *topClassWasCastClass)
+{
+    TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
+    OMR::Logger *log = cg->comp()->log();
+    bool trace = cg->comp()->getOption(TR_TraceCG);
+    TR_ASSERT(instanceOfOrCheckCastNode->getOpCode().isCheckCast()
+                  || instanceOfOrCheckCastNode->getOpCodeValue() == TR::
+                  instanceof, "Unexpected node opcode");
 
-   TR::Node *objectNode = instanceOfOrCheckCastNode->getFirstChild();
-   TR::Node *castClassNode = instanceOfOrCheckCastNode->getSecondChild();
+    TR::Node *objectNode = instanceOfOrCheckCastNode->getFirstChild();
+    TR::Node *castClassNode = instanceOfOrCheckCastNode->getSecondChild();
 
-   bool isInstanceOf = instanceOfOrCheckCastNode->getOpCodeValue() == TR::instanceof;
-   bool mayBeNull = !instanceOfOrCheckCastNode->isReferenceNonNull() && !objectNode->isNonNull();
+    bool isInstanceOf = instanceOfOrCheckCastNode->getOpCodeValue() == TR:: instanceof ;
+    bool mayBeNull = !instanceOfOrCheckCastNode->isReferenceNonNull() && !objectNode->isNonNull();
 
-   // By default maxOnsiteCacheSlotForInstanceOf is set to 0 which means cache is disable.
-   // To enable test pass JIT option maxOnsiteCacheSlotForInstanceOf=<number_of_slots>
-   bool createDynamicCacheTests = cg->comp()->getOptions()->getMaxOnsiteCacheSlotForInstanceOf() > 0 && isInstanceOf;
+    // By default maxOnsiteCacheSlotForInstanceOf is set to 0 which means cache is disable.
+    // To enable test pass JIT option maxOnsiteCacheSlotForInstanceOf=<number_of_slots>
+    bool createDynamicCacheTests = cg->comp()->getOptions()->getMaxOnsiteCacheSlotForInstanceOf() > 0 && isInstanceOf;
 
+    uint32_t i = 0;
+    uint32_t numProfiledClasses = 0;
 
-   uint32_t i = 0;
-   uint32_t numProfiledClasses = 0;
+    if (castClassNode->getReferenceCount() > 1) {
+        sequences[i++] = EvaluateCastClass;
+    }
 
-   if (castClassNode->getReferenceCount() > 1)
-      {
-      sequences[i++] = EvaluateCastClass;
-      }
+    TR::SymbolReference *castClassSymRef = castClassNode->getSymbolReference();
 
-   TR::SymbolReference *castClassSymRef = castClassNode->getSymbolReference();
-
-   if ((cg->comp()->getOption(TR_DisableInlineCheckCast) && (instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcast || instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcastAndNULLCHK)) || (cg->comp()->getOption(TR_DisableInlineInstanceOf) && instanceOfOrCheckCastNode->getOpCodeValue() == TR::instanceof))
-      {
-      if (instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcastAndNULLCHK)
-         sequences[i++] = NullTest;
-      sequences[i++] = HelperCall;
-      }
-   // Object is known to be null, usually removed by the optimizer, but in case they're not we know the result of the cast/instanceof.
-   //
-   else if (objectNode->isNull())
-      {
-      if (instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcastAndNULLCHK)
+    if ((cg->comp()->getOption(TR_DisableInlineCheckCast)
+            && (instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcast
+                || instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcastAndNULLCHK))
+        || (cg->comp()->getOption(TR_DisableInlineInstanceOf) && instanceOfOrCheckCastNode->getOpCodeValue() == TR::
+                instanceof)) {
+        if (instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcastAndNULLCHK)
             sequences[i++] = NullTest;
-      sequences[i++] = isInstanceOf ? GoToFalse : GoToTrue;
-      }
-   // Cast class is unresolved, not a lot of room to be fancy here.
-   //
-   else if (castClassSymRef->isUnresolved())
-      {
-      logprints(trace, log, "Cast Class unresolved\n");
-      if (mayBeNull)
-         sequences[i++] = NullTest;
-      sequences[i++] = ClassEqualityTest;
-      // There is a possibility of attempt to cast object to another class and having cache on that object updated by helper.
-      // Before going to helper checking the cache.
-      sequences[i++] = CastClassCacheTest;
-      if (createDynamicCacheTests)
-         sequences[i++] = DynamicCacheObjectClassTest;
-      sequences[i++] = HelperCall;
-      }
-   // Cast class is a runtime variable, still not a lot of room to be fancy.
-   //
-   else if (!OMR::TreeEvaluator::isStaticClassSymRef(castClassSymRef))
-      {
-      logprints(trace, log, "Cast Class runtimeVariable\n");
-      if (mayBeNull)
-         sequences[i++] = NullTest;
-      sequences[i++] = ClassEqualityTest;
-      sequences[i++] = CastClassCacheTest;
-      // On Z, We were having support for Super Class Test for dynamic Cast Class so adding it here. It can be guarded if Power/X do not need it.
-      if ( (cg->supportsInliningOfIsInstance() || instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcast) &&
-         instanceOfOrCheckCastNode->getSecondChild()->getOpCodeValue() != TR::loadaddr)
-         sequences[i++] = SuperClassTest;
-      if (createDynamicCacheTests)
-         sequences[i++] = DynamicCacheDynamicCastClassTest;
-      sequences[i++] = HelperCall;
-      }
-
-   // Cast class is a compile-time constant, we can generate better code in this case.
-   //
-   else
-      {
-
-      TR::StaticSymbol   *castClassSym = castClassSymRef->getSymbol()->getStaticSymbol();
-      TR_OpaqueClassBlock *castClass = (TR_OpaqueClassBlock *)castClassSym->getStaticAddress();
-      J9UTF8              *castClassName = J9ROMCLASS_CLASSNAME(TR::Compiler->cls.romClassOf((TR_OpaqueClassBlock *) castClass));
-      // Cast class is a primitive (implies this is an instanceof, since you can't cast an object to a primitive).
-      // Usually removed by the optimizer, but in case they're not we know they'll always fail, no object can be of a primitive type.
-      // We don't even need to do a null test unless it's a checkcastAndNULLCHK node.
-      //
-      if (TR::Compiler->cls.isPrimitiveClass(cg->comp(), castClass))
-         {
-         TR_ASSERT(isInstanceOf, "Expecting instanceof when cast class is a primitive");
-         if (instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcastAndNULLCHK)
+        sequences[i++] = HelperCall;
+    }
+    // Object is known to be null, usually removed by the optimizer, but in case they're not we know the result of the
+    // cast/instanceof.
+    //
+    else if (objectNode->isNull()) {
+        if (instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcastAndNULLCHK)
             sequences[i++] = NullTest;
-         sequences[i++] = GoToFalse;
-         }
-      // Cast class is java/lang/Object.
-      // Usually removed by the optimizer, if not we know everything is an Object, instanceof on null is the only thing that needs to be checked.
-      //
-      else if (cg->comp()->getObjectClassPointer() == castClass)
-         {
-         if (isInstanceOf)
-            {
-            if (mayBeNull)
-               sequences[i++] = NullTest;
-            sequences[i++] = GoToTrue;
-            }
-         else
-            {
+        sequences[i++] = isInstanceOf ? GoToFalse : GoToTrue;
+    }
+    // Cast class is unresolved, not a lot of room to be fancy here.
+    //
+    else if (castClassSymRef->isUnresolved()) {
+        logprints(trace, log, "Cast Class unresolved\n");
+        if (mayBeNull)
+            sequences[i++] = NullTest;
+        sequences[i++] = ClassEqualityTest;
+        // There is a possibility of attempt to cast object to another class and having cache on that object updated by
+        // helper. Before going to helper checking the cache.
+        sequences[i++] = CastClassCacheTest;
+        if (createDynamicCacheTests)
+            sequences[i++] = DynamicCacheObjectClassTest;
+        sequences[i++] = HelperCall;
+    }
+    // Cast class is a runtime variable, still not a lot of room to be fancy.
+    //
+    else if (!OMR::TreeEvaluator::isStaticClassSymRef(castClassSymRef)) {
+        logprints(trace, log, "Cast Class runtimeVariable\n");
+        if (mayBeNull)
+            sequences[i++] = NullTest;
+        sequences[i++] = ClassEqualityTest;
+        sequences[i++] = CastClassCacheTest;
+        // On Z, We were having support for Super Class Test for dynamic Cast Class so adding it here. It can be guarded
+        // if Power/X do not need it.
+        if ((cg->supportsInliningOfIsInstance() || instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcast)
+            && instanceOfOrCheckCastNode->getSecondChild()->getOpCodeValue() != TR::loadaddr)
+            sequences[i++] = SuperClassTest;
+        if (createDynamicCacheTests)
+            sequences[i++] = DynamicCacheDynamicCastClassTest;
+        sequences[i++] = HelperCall;
+    }
+
+    // Cast class is a compile-time constant, we can generate better code in this case.
+    //
+    else {
+        TR::StaticSymbol *castClassSym = castClassSymRef->getSymbol()->getStaticSymbol();
+        TR_OpaqueClassBlock *castClass = (TR_OpaqueClassBlock *)castClassSym->getStaticAddress();
+        J9UTF8 *castClassName = J9ROMCLASS_CLASSNAME(TR::Compiler->cls.romClassOf((TR_OpaqueClassBlock *)castClass));
+        // Cast class is a primitive (implies this is an instanceof, since you can't cast an object to a primitive).
+        // Usually removed by the optimizer, but in case they're not we know they'll always fail, no object can be of a
+        // primitive type. We don't even need to do a null test unless it's a checkcastAndNULLCHK node.
+        //
+        if (TR::Compiler->cls.isPrimitiveClass(cg->comp(), castClass)) {
+            TR_ASSERT(isInstanceOf, "Expecting instanceof when cast class is a primitive");
             if (instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcastAndNULLCHK)
-               sequences[i++] = NullTest;
-            sequences[i++] = GoToTrue;
+                sequences[i++] = NullTest;
+            sequences[i++] = GoToFalse;
+        }
+        // Cast class is java/lang/Object.
+        // Usually removed by the optimizer, if not we know everything is an Object, instanceof on null is the only
+        // thing that needs to be checked.
+        //
+        else if (cg->comp()->getObjectClassPointer() == castClass) {
+            if (isInstanceOf) {
+                if (mayBeNull)
+                    sequences[i++] = NullTest;
+                sequences[i++] = GoToTrue;
+            } else {
+                if (instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcastAndNULLCHK)
+                    sequences[i++] = NullTest;
+                sequences[i++] = GoToTrue;
             }
-         }
-      else
-         {
-         if (mayBeNull)
-            {
-            sequences[i++] = NullTest;
-            }
-
-         TR_OpaqueClassBlock *topProfiledClass = NULL;
-
-         // If the caller doesn't provide the output param don't bother with profiling.
-         //
-         if (profiledClassList)
-            {
-            *numberOfProfiledClass = getInstanceOfOrCheckCastTopProfiledClass(cg, instanceOfOrCheckCastNode, castClass, profiledClassList, topClassWasCastClass, maxProfiledClass, topClassProbability);
-            numProfiledClasses = *numberOfProfiledClass;
-            if (cg->comp()->getOption(TR_TraceCG))
-               {
-               for (int i=0; i<numProfiledClasses; i++)
-                  {
-                  J9UTF8 *profiledClassName = J9ROMCLASS_CLASSNAME(TR::Compiler->cls.romClassOf((TR_OpaqueClassBlock *) profiledClassList[i].profiledClass));
-                  logprintf(trace, log, "%s:Interpreter profiling instance class: [" POINTER_PRINTF_FORMAT "] %.*s, probability=%.1f\n",
-                        instanceOfOrCheckCastNode->getOpCode().getName(), profiledClassList[i].profiledClass, J9UTF8_LENGTH(profiledClassName),
-                        J9UTF8_DATA(profiledClassName), profiledClassList[i].frequency);
-                  }
-               }
+        } else {
+            if (mayBeNull) {
+                sequences[i++] = NullTest;
             }
 
-         TR_OpaqueClassBlock *singleImplementerClass = NULL;
+            TR_OpaqueClassBlock *topProfiledClass = NULL;
 
-         // If the caller doesn't provide the output param don't bother with guessing.
-         //
-         if ((!cg->comp()->compileRelocatableCode() || cg->comp()->getOption(TR_UseSymbolValidationManager))
-               && compileTimeGuessClass
-               && !TR::Compiler->cls.isConcreteClass(cg->comp(), castClass))
-            {
-            // Figuring out that an interface/abstract class has a single concrete implementation is not as useful for instanceof as it is for checkcast.
-            // For checkcast we expect the cast to succeed and the single concrete implementation is the logical class to do a quick up front test against.
-            // For instanceof false can be a common result and the single concrete implementation doesn't tell us anything special.
+            // If the caller doesn't provide the output param don't bother with profiling.
             //
-            if (!isInstanceOf)
-               {
-               singleImplementerClass = cg->comp()->getPersistentInfo()->getPersistentCHTable()->findSingleConcreteSubClass(castClass, cg->comp());
-               if (cg->comp()->getOption(TR_TraceCG))
-                  {
-                  if (singleImplementerClass)
-                     {
-                     J9UTF8 *singleImplementerClassName = J9ROMCLASS_CLASSNAME(TR::Compiler->cls.romClassOf((TR_OpaqueClassBlock *) singleImplementerClass));
-                     logprintf(trace, log, "%s: Single implementer for interface/abstract class: [" POINTER_PRINTF_FORMAT "] %.*s\n",
-                           instanceOfOrCheckCastNode->getOpCode().getName(), singleImplementerClass, J9UTF8_LENGTH(singleImplementerClassName), J9UTF8_DATA(singleImplementerClassName));
-                     }
-                  }
-               }
-            *compileTimeGuessClass = singleImplementerClass;
+            if (profiledClassList) {
+                *numberOfProfiledClass = getInstanceOfOrCheckCastTopProfiledClass(cg, instanceOfOrCheckCastNode,
+                    castClass, profiledClassList, topClassWasCastClass, maxProfiledClass, topClassProbability);
+                numProfiledClasses = *numberOfProfiledClass;
+                if (cg->comp()->getOption(TR_TraceCG)) {
+                    for (int i = 0; i < numProfiledClasses; i++) {
+                        J9UTF8 *profiledClassName = J9ROMCLASS_CLASSNAME(
+                            TR::Compiler->cls.romClassOf((TR_OpaqueClassBlock *)profiledClassList[i].profiledClass));
+                        logprintf(trace, log,
+                            "%s:Interpreter profiling instance class: [" POINTER_PRINTF_FORMAT
+                            "] %.*s, probability=%.1f\n",
+                            instanceOfOrCheckCastNode->getOpCode().getName(), profiledClassList[i].profiledClass,
+                            J9UTF8_LENGTH(profiledClassName), J9UTF8_DATA(profiledClassName),
+                            profiledClassList[i].frequency);
+                    }
+                }
             }
 
-         if (TR::Compiler->cls.isClassArray(cg->comp(), castClass))
-            {
-            if (TR::Compiler->cls.isReferenceArray(cg->comp(), castClass))
-               {
-               TR_OpaqueClassBlock *componentClass = fej9->getComponentClassFromArrayClass(castClass);
-               TR_OpaqueClassBlock *leafClass = fej9->getLeafComponentClassFromArrayClass(castClass);
+            TR_OpaqueClassBlock *singleImplementerClass = NULL;
 
-               // Cast class is a single dim array of java/lang/Object, all we need to do is check if the object is an array of non-primitives.
-               //
-               if (cg->comp()->getObjectClassPointer() == componentClass && componentClass == leafClass)
-                  {
-                  sequences[i++] = ArrayOfJavaLangObjectTest;
-                  sequences[i++] = GoToFalse;
-                  }
-               // Cast class is a single dim array of a final class, all we need to do is check if the object is of this type, anything else is false.
-               //
-               else if (fej9->isClassFinal(componentClass) && componentClass == leafClass)
-                  {
-                  sequences[i++] = ClassEqualityTest;
-                  sequences[i++] = GoToFalse;
-                  }
-               // Cast class is an array of some non-final class or multiple dimensions.
-               //
-               else
-                  {
-                  if (numProfiledClasses  > 0)
-                     {
-                     if (!*topClassWasCastClass)
-                        {
-                        sequences[i++] = ProfiledClassTest;
-                        sequences[i++] = CastClassCacheTest;
+            // If the caller doesn't provide the output param don't bother with guessing.
+            //
+            if ((!cg->comp()->compileRelocatableCode() || cg->comp()->getOption(TR_UseSymbolValidationManager))
+                && compileTimeGuessClass && !TR::Compiler->cls.isConcreteClass(cg->comp(), castClass)) {
+                // Figuring out that an interface/abstract class has a single concrete implementation is not as useful
+                // for instanceof as it is for checkcast. For checkcast we expect the cast to succeed and the single
+                // concrete implementation is the logical class to do a quick up front test against. For instanceof
+                // false can be a common result and the single concrete implementation doesn't tell us anything special.
+                //
+                if (!isInstanceOf) {
+                    singleImplementerClass
+                        = cg->comp()->getPersistentInfo()->getPersistentCHTable()->findSingleConcreteSubClass(castClass,
+                            cg->comp());
+                    if (cg->comp()->getOption(TR_TraceCG)) {
+                        if (singleImplementerClass) {
+                            J9UTF8 *singleImplementerClassName = J9ROMCLASS_CLASSNAME(
+                                TR::Compiler->cls.romClassOf((TR_OpaqueClassBlock *)singleImplementerClass));
+                            logprintf(trace, log,
+                                "%s: Single implementer for interface/abstract class: [" POINTER_PRINTF_FORMAT
+                                "] %.*s\n",
+                                instanceOfOrCheckCastNode->getOpCode().getName(), singleImplementerClass,
+                                J9UTF8_LENGTH(singleImplementerClassName), J9UTF8_DATA(singleImplementerClassName));
                         }
-                     else
-                        {
+                    }
+                }
+                *compileTimeGuessClass = singleImplementerClass;
+            }
+
+            if (TR::Compiler->cls.isClassArray(cg->comp(), castClass)) {
+                if (TR::Compiler->cls.isReferenceArray(cg->comp(), castClass)) {
+                    TR_OpaqueClassBlock *componentClass = fej9->getComponentClassFromArrayClass(castClass);
+                    TR_OpaqueClassBlock *leafClass = fej9->getLeafComponentClassFromArrayClass(castClass);
+
+                    // Cast class is a single dim array of java/lang/Object, all we need to do is check if the object is
+                    // an array of non-primitives.
+                    //
+                    if (cg->comp()->getObjectClassPointer() == componentClass && componentClass == leafClass) {
+                        sequences[i++] = ArrayOfJavaLangObjectTest;
+                        sequences[i++] = GoToFalse;
+                    }
+                    // Cast class is a single dim array of a final class, all we need to do is check if the object is of
+                    // this type, anything else is false.
+                    //
+                    else if (fej9->isClassFinal(componentClass) && componentClass == leafClass) {
+                        sequences[i++] = ClassEqualityTest;
+                        sequences[i++] = GoToFalse;
+                    }
+                    // Cast class is an array of some non-final class or multiple dimensions.
+                    //
+                    else {
+                        if (numProfiledClasses > 0) {
+                            if (!*topClassWasCastClass) {
+                                sequences[i++] = ProfiledClassTest;
+                                sequences[i++] = CastClassCacheTest;
+                            } else {
+                                sequences[i++] = ClassEqualityTest;
+                                sequences[i++] = ProfiledClassTest;
+                                sequences[i++] = CastClassCacheTest;
+                            }
+                        } else {
+                            sequences[i++] = ClassEqualityTest;
+                            sequences[i++] = CastClassCacheTest;
+                        }
+
+                        sequences[i++] = HelperCall;
+                    }
+                }
+                // Cast class is an array of some primitive, all we need to do is check if the object is of this type,
+                // anything else is false.
+                //
+                else {
+                    sequences[i++] = ClassEqualityTest;
+                    sequences[i++] = GoToFalse;
+                }
+            }
+            // Cast class is an interface, we can skip the class equality test.
+            //
+            else if (TR::Compiler->cls.isInterfaceClass(cg->comp(), castClass)) {
+                if (singleImplementerClass) {
+                    sequences[i++] = CompileTimeGuessClassTest;
+                } else if (numProfiledClasses > 0) {
+                    sequences[i++] = ProfiledClassTest;
+                    sequences[i++] = CastClassCacheTest;
+                } else {
+                    sequences[i++] = CastClassCacheTest;
+                }
+                if (createDynamicCacheTests)
+                    sequences[i++] = DynamicCacheObjectClassTest;
+                sequences[i++] = HelperCall;
+            }
+            // Cast class is an abstract class, we can skip the class equality test, a superclass test is enough.
+            //
+            else if (fej9->isAbstractClass(castClass)) {
+                // Don't bother with the cast class cache, it's not updated by the VM when the cast can be determined
+                // via a superclass test.
+                //
+                if (singleImplementerClass)
+                    sequences[i++] = CompileTimeGuessClassTest;
+                else if (numProfiledClasses > 0)
+                    sequences[i++] = ProfiledClassTest;
+
+                sequences[i++] = SuperClassTest;
+                sequences[i++] = GoToFalse;
+            }
+            // Cast class is a final class, all we need to do is check if the object is of this type, anything else is
+            // false.
+            //
+            else if (fej9->isClassFinal(castClass)) {
+                sequences[i++] = ClassEqualityTest;
+                sequences[i++] = GoToFalse;
+            }
+            // Arbitrary concrete class.
+            //
+            else {
+                // Don't bother with the cast class cache, it's not updated by the VM when the cast can be determined
+                // via a superclass test.
+                //
+                if (numProfiledClasses > 0) {
+                    if (!*topClassWasCastClass) {
+                        sequences[i++] = ProfiledClassTest;
+                        sequences[i++] = ClassEqualityTest;
+                    } else {
                         sequences[i++] = ClassEqualityTest;
                         sequences[i++] = ProfiledClassTest;
-                        sequences[i++] = CastClassCacheTest;
-                        }
-                     }
-                  else
-                     {
-                     sequences[i++] = ClassEqualityTest;
-                     sequences[i++] = CastClassCacheTest;
-                     }
+                    }
+                } else {
+                    sequences[i++] = ClassEqualityTest;
+                }
 
-                  sequences[i++] = HelperCall;
-                  }
-               }
-            // Cast class is an array of some primitive, all we need to do is check if the object is of this type, anything else is false.
+                sequences[i++] = SuperClassTest;
+                sequences[i++] = GoToFalse;
+            }
+        }
+    }
+
+    // Insert LoadObjectClass and/or EvaluateCastClass where required.
+    //
+    bool objectClassLoaded = false;
+    bool castClassEvaluated = false;
+
+    for (uint32_t j = 0; j < i; ++j) {
+        InstanceOfOrCheckCastSequences s = sequences[j];
+        if (s == EvaluateCastClass) {
+            castClassEvaluated = true;
+        } else if (s == LoadObjectClass) {
+            objectClassLoaded = true;
+        } else {
+            if (s == ProfiledClassTest || s == CompileTimeGuessClassTest || s == ArrayOfJavaLangObjectTest
+                || s == ClassEqualityTest || s == SuperClassTest || s == CastClassCacheTest) {
+                if (!objectClassLoaded) {
+                    memmove(&sequences[j + 1], &sequences[j], (i - j) * sizeof(InstanceOfOrCheckCastSequences));
+                    sequences[j] = LoadObjectClass;
+                    i += 1;
+                    objectClassLoaded = true;
+                }
+            }
+            // Even though the helper call also needs the cast class, we expect to generate the helper call out of line
+            // and can load it there. Here we just want to know whether the cast class is needed in the main line
+            // sequence.
             //
-            else
-               {
-               sequences[i++] = ClassEqualityTest;
-               sequences[i++] = GoToFalse;
-               }
+            if (s == ClassEqualityTest || s == SuperClassTest || s == CastClassCacheTest) {
+                if (!castClassEvaluated) {
+                    // Ideally we would insert EvaluateCastClass at sequences[j], however
+                    // if the cast class needs to be evaluated it needs to be done before carrying out any tests
+                    // in order to prevent evaluation inside internal control flow. Therefore,
+                    // we insert it at the front of the list rather than at 'j'.
+                    const uint32_t insertAt = 0;
+                    memmove(&sequences[insertAt + 1], &sequences[insertAt],
+                        (i - insertAt) * sizeof(InstanceOfOrCheckCastSequences));
+                    sequences[insertAt] = EvaluateCastClass;
+                    i += 1;
+                    castClassEvaluated = true;
+                }
             }
-         // Cast class is an interface, we can skip the class equality test.
-         //
-         else if (TR::Compiler->cls.isInterfaceClass(cg->comp(), castClass))
-            {
-            if (singleImplementerClass)
-               {
-               sequences[i++] = CompileTimeGuessClassTest;
-               }
-            else if (numProfiledClasses  > 0)
-               {
-               sequences[i++] = ProfiledClassTest;
-               sequences[i++] = CastClassCacheTest;
-               }
-            else
-               {
-               sequences[i++] = CastClassCacheTest;
-               }
-            if (createDynamicCacheTests)
-               sequences[i++] = DynamicCacheObjectClassTest;
-            sequences[i++] = HelperCall;
-            }
-         // Cast class is an abstract class, we can skip the class equality test, a superclass test is enough.
-         //
-         else if (fej9->isAbstractClass(castClass))
-            {
-            // Don't bother with the cast class cache, it's not updated by the VM when the cast can be determined via a superclass test.
-            //
-            if (singleImplementerClass)
-               sequences[i++] = CompileTimeGuessClassTest;
-            else if (numProfiledClasses  > 0)
-               sequences[i++] = ProfiledClassTest;
+        }
+    }
 
-            sequences[i++] = SuperClassTest;
-            sequences[i++] = GoToFalse;
-            }
-         // Cast class is a final class, all we need to do is check if the object is of this type, anything else is false.
-         //
-         else if (fej9->isClassFinal(castClass))
-            {
-            sequences[i++] = ClassEqualityTest;
-            sequences[i++] = GoToFalse;
-            }
-         // Arbitrary concrete class.
-         //
-         else
-            {
-            // Don't bother with the cast class cache, it's not updated by the VM when the cast can be determined via a superclass test.
-            //
-            if (numProfiledClasses  > 0)
-               {
-               if (!*topClassWasCastClass)
-                  {
-                  sequences[i++] = ProfiledClassTest;
-                  sequences[i++] = ClassEqualityTest;
-                  }
-               else
-                  {
-                  sequences[i++] = ClassEqualityTest;
-                  sequences[i++] = ProfiledClassTest;
-                  }
-               }
-            else
-               {
-               sequences[i++] = ClassEqualityTest;
-               }
+    TR_ASSERT(sequences[i - 1] == HelperCall || sequences[i - 1] == GoToTrue || sequences[i - 1] == GoToFalse,
+        "Expecting last sequence to be a terminal sequence (that provides a definitive answer)");
 
-            sequences[i++] = SuperClassTest;
-            sequences[i++] = GoToFalse;
-            }
-         }
-      }
-
-   // Insert LoadObjectClass and/or EvaluateCastClass where required.
-   //
-   bool objectClassLoaded = false;
-   bool castClassEvaluated = false;
-
-   for (uint32_t j = 0; j < i; ++j)
-      {
-      InstanceOfOrCheckCastSequences s = sequences[j];
-      if (s == EvaluateCastClass)
-         {
-         castClassEvaluated = true;
-         }
-      else if (s == LoadObjectClass)
-         {
-         objectClassLoaded = true;
-         }
-      else
-         {
-         if (s == ProfiledClassTest ||
-             s == CompileTimeGuessClassTest ||
-             s == ArrayOfJavaLangObjectTest ||
-             s == ClassEqualityTest ||
-             s == SuperClassTest ||
-             s == CastClassCacheTest)
-            {
-            if (!objectClassLoaded)
-               {
-               memmove(&sequences[j + 1], &sequences[j], (i - j) * sizeof(InstanceOfOrCheckCastSequences));
-               sequences[j] = LoadObjectClass;
-               i += 1;
-               objectClassLoaded = true;
-               }
-            }
-         // Even though the helper call also needs the cast class, we expect to generate the helper call out of line
-         // and can load it there. Here we just want to know whether the cast class is needed in the main line sequence.
-         //
-         if (s == ClassEqualityTest ||
-             s == SuperClassTest ||
-             s == CastClassCacheTest)
-            {
-            if (!castClassEvaluated)
-               {
-               // Ideally we would insert EvaluateCastClass at sequences[j], however
-               // if the cast class needs to be evaluated it needs to be done before carrying out any tests
-               // in order to prevent evaluation inside internal control flow. Therefore,
-               // we insert it at the front of the list rather than at 'j'.
-               const uint32_t insertAt = 0;
-               memmove(&sequences[insertAt + 1], &sequences[insertAt], (i - insertAt) * sizeof(InstanceOfOrCheckCastSequences));
-               sequences[insertAt] = EvaluateCastClass;
-               i += 1;
-               castClassEvaluated = true;
-               }
-            }
-         }
-      }
-
-   TR_ASSERT(sequences[i - 1] == HelperCall ||
-             sequences[i - 1] == GoToTrue ||
-             sequences[i - 1] == GoToFalse,
-             "Expecting last sequence to be a terminal sequence (that provides a definitive answer)");
-
-   return i;
-   }
+    return i;
+}
 
 /*
  * if recordAll is true, record all result in classArray, skip MinProfiledCheckcastFrequency check
- * if probability is not null, record class' corresponding probability in this array. Used for cost/benefit analysis for profiled check.
+ * if probability is not null, record class' corresponding probability in this array. Used for cost/benefit analysis for
+ * profiled check.
  */
-uint8_t
-J9::TreeEvaluator::interpreterProfilingInstanceOfOrCheckCastInfo(
-      TR::CodeGenerator * cg,
-      TR::Node * node,
-      TR_OpaqueClassBlock **classArray,
-      float* probability,
-      bool recordAll)
-   {
-   TR_ByteCodeInfo bcInfo = node->getByteCodeInfo();
-   TR::Compilation *comp = cg->comp();
-   OMR::Logger *log = comp->log();
-   TR_ValueProfileInfoManager * valueProfileInfo = TR_ValueProfileInfoManager::get(comp);
-   static const char *p = feGetEnv("TR_TracePIC");
-   bool p1 = p && comp->getOption(TR_TraceCG); // allow per method tracing
+uint8_t J9::TreeEvaluator::interpreterProfilingInstanceOfOrCheckCastInfo(TR::CodeGenerator *cg, TR::Node *node,
+    TR_OpaqueClassBlock **classArray, float *probability, bool recordAll)
+{
+    TR_ByteCodeInfo bcInfo = node->getByteCodeInfo();
+    TR::Compilation *comp = cg->comp();
+    OMR::Logger *log = comp->log();
+    TR_ValueProfileInfoManager *valueProfileInfo = TR_ValueProfileInfoManager::get(comp);
+    static const char *p = feGetEnv("TR_TracePIC");
+    bool p1 = p && comp->getOption(TR_TraceCG); // allow per method tracing
 
-   if (!valueProfileInfo)
-      return 0;
+    if (!valueProfileInfo)
+        return 0;
 
-   TR_AddressInfo * valueInfo = static_cast<TR_AddressInfo*>(valueProfileInfo->getValueInfo(bcInfo, comp, AddressInfo, TR_ValueProfileInfoManager::justInterpreterProfileInfo));
-   if (!valueInfo || valueInfo->getNumProfiledValues()==0)
-      {
-      logprintf(p1, log, "==TPIC==No IProfiler info on node %p in %s\n", node, comp->signature());
-      return 0;
-      }
-
-   TR_OpaqueClassBlock *topValue = (TR_OpaqueClassBlock *) valueInfo->getTopValue();
-   if (!topValue)
-      {
-      logprintf(p1, log, "==TPIC==No topvalue on node %p in %s\n", node, comp->signature());
-      return 0;
-      }
-
-   if ((recordAll == false) && valueInfo->getTopProbability() < TR::Options::getMinProfiledCheckcastFrequency())
-      {
-      logprintf(p1, log, "==TPIC==low top probability on node %p in %s\n", node, comp->signature());
-      return 0;
-      }
-
-   if (comp->getPersistentInfo()->isObsoleteClass(topValue, cg->fe()))
-      {
-      logprintf(p1, log, "==TPIC==%p unloaded on node %p in %s\n", topValue, node, comp->signature());
-      return 0;
-      }
-
-   uintptr_t totalFrequency = valueInfo->getTotalFrequency();
-   TR_ScratchList<TR_ExtraAddressInfo> valuesSortedByFrequency(comp->trMemory());
-   valueInfo->getSortedList(comp, &valuesSortedByFrequency);
-
-   ListIterator<TR_ExtraAddressInfo> sortedValuesIt(&valuesSortedByFrequency);
-   TR_ExtraAddressInfo *profiledInfo;
-   uint8_t number = 0;
-   for (profiledInfo = sortedValuesIt.getFirst(); profiledInfo != NULL; profiledInfo = sortedValuesIt.getNext())
-      {
-      TR_OpaqueClassBlock * classPointer = (TR_OpaqueClassBlock *)(profiledInfo->_value);
-      if (!classPointer)
-         continue;
-
-      if (comp->getPersistentInfo()->isObsoleteClass((void *)classPointer, cg->fe()))
-         {
-         return 0;
-         }
-
-      TR_OpaqueClassBlock *thisType = cg->fej9()->getProfiledClassFromProfiledInfo(profiledInfo);
-      if (!thisType)
-         continue;
-      if (p1)
-         {
-         char *name;
-         int32_t len;
-         name = comp->fej9()->getClassNameChars(thisType, len);
-         log->printf("==TPIC==Freq %d (%.2f%%) %.*s @ %p\n", profiledInfo->_frequency, (float) profiledInfo->_frequency/totalFrequency, len, name, thisType);
-         }
-      if ((recordAll == false) && ((float) profiledInfo->_frequency/totalFrequency) < TR::Options::getMinProfiledCheckcastFrequency())
-         continue;
-
-      classArray[number] = thisType;
-      if (probability)
-         {
-         probability[number] = ((float)profiledInfo->_frequency)/totalFrequency;
-         }
-      number++;
-      }
-   return number;
-   }
-
-
-TR_OpaqueClassBlock *
-J9::TreeEvaluator::interpreterProfilingInstanceOfOrCheckCastInfo(TR::CodeGenerator * cg, TR::Node * node)
-   {
-   TR::Compilation *comp= cg->comp();
-   TR_ByteCodeInfo bcInfo = node->getByteCodeInfo();
-   TR_ValueProfileInfoManager * valueProfileInfo = TR_ValueProfileInfoManager::get(comp);
-
-   if (!valueProfileInfo)
-      return NULL;
-
-   TR_AddressInfo * valueInfo = static_cast<TR_AddressInfo*>(valueProfileInfo->getValueInfo(bcInfo, comp, AddressInfo, TR_ValueProfileInfoManager::justInterpreterProfileInfo));
-   if (!valueInfo || valueInfo->getNumProfiledValues()==0)
-      {
-      return NULL;
-      }
-
-   TR_OpaqueClassBlock *topValue = (TR_OpaqueClassBlock *) valueInfo->getTopValue();
-   if (!topValue)
-      {
-      return NULL;
-      }
-
-   if (valueInfo->getTopProbability() < TR::Options::getMinProfiledCheckcastFrequency())
-      return NULL;
-
-   if (comp->getPersistentInfo()->isObsoleteClass(topValue, cg->fe()))
-      {
-      return NULL;
-      }
-
-   return topValue;
-   }
-
-
-bool
-J9::TreeEvaluator::checkcastShouldOutlineSuperClassTest(TR::Node *node, TR::CodeGenerator *cg)
-    {
-    // caller should always first call instanceOfOrCheckCastNeedSuperTest
-   TR::Node            *castClassNode    = node->getSecondChild();
-   TR::MethodSymbol    *helperSym        = node->getSymbol()->castToMethodSymbol();
-   TR::SymbolReference *castClassSymRef  = castClassNode->getSymbolReference();
-   TR_ByteCodeInfo bcInfo = node->getByteCodeInfo();
-   TR::Compilation *comp= cg->comp();
-
-   TR_ValueProfileInfoManager * valueProfileInfo = TR_ValueProfileInfoManager::get(comp);
-
-   if (castClassSymRef->isUnresolved())
-      {
-      return false;
-      }
-
-   if (!TR::TreeEvaluator::isStaticClassSymRef(castClassSymRef))
-      {
-      // We could theoretically do a super test on something with no sym, but it would require significant
-      // changes to platform code. The benefit is little at this point (shows up from reference arraycopy reductions)
-      return false;
-      }
-
-   TR::StaticSymbol    *castClassSym = castClassSymRef->getSymbol()->getStaticSymbol();
-
-   if (!valueProfileInfo)
-      return false;
-
-   TR_AddressInfo * valueInfo = static_cast<TR_AddressInfo*>(valueProfileInfo->getValueInfo(bcInfo, comp, AddressInfo, TR_ValueProfileInfoManager::justInterpreterProfileInfo));
-
-   if (!valueInfo || valueInfo->getNumProfiledValues()==0)
-      {
-      return false;
-      }
-
-   TR_OpaqueClassBlock *topValue = (TR_OpaqueClassBlock *) valueInfo->getTopValue();
-
-   if (!topValue)
-      {
-      return false;
-      }
-
-   if (valueInfo->getTopProbability() < TR::Options::getMinProfiledCheckcastFrequency())
-      return false;
-
-   if (comp->getPersistentInfo()->isObsoleteClass(topValue, cg->fe()))
-      {
-      return false;
-      }
-
-   if (topValue == (TR_OpaqueClassBlock *) castClassSym->getStaticAddress())
-        {
-        return true;
-        }
-
-   return false;
+    TR_AddressInfo *valueInfo = static_cast<TR_AddressInfo *>(valueProfileInfo->getValueInfo(bcInfo, comp, AddressInfo,
+        TR_ValueProfileInfoManager::justInterpreterProfileInfo));
+    if (!valueInfo || valueInfo->getNumProfiledValues() == 0) {
+        logprintf(p1, log, "==TPIC==No IProfiler info on node %p in %s\n", node, comp->signature());
+        return 0;
     }
 
+    TR_OpaqueClassBlock *topValue = (TR_OpaqueClassBlock *)valueInfo->getTopValue();
+    if (!topValue) {
+        logprintf(p1, log, "==TPIC==No topvalue on node %p in %s\n", node, comp->signature());
+        return 0;
+    }
+
+    if ((recordAll == false) && valueInfo->getTopProbability() < TR::Options::getMinProfiledCheckcastFrequency()) {
+        logprintf(p1, log, "==TPIC==low top probability on node %p in %s\n", node, comp->signature());
+        return 0;
+    }
+
+    if (comp->getPersistentInfo()->isObsoleteClass(topValue, cg->fe())) {
+        logprintf(p1, log, "==TPIC==%p unloaded on node %p in %s\n", topValue, node, comp->signature());
+        return 0;
+    }
+
+    uintptr_t totalFrequency = valueInfo->getTotalFrequency();
+    TR_ScratchList<TR_ExtraAddressInfo> valuesSortedByFrequency(comp->trMemory());
+    valueInfo->getSortedList(comp, &valuesSortedByFrequency);
+
+    ListIterator<TR_ExtraAddressInfo> sortedValuesIt(&valuesSortedByFrequency);
+    TR_ExtraAddressInfo *profiledInfo;
+    uint8_t number = 0;
+    for (profiledInfo = sortedValuesIt.getFirst(); profiledInfo != NULL; profiledInfo = sortedValuesIt.getNext()) {
+        TR_OpaqueClassBlock *classPointer = (TR_OpaqueClassBlock *)(profiledInfo->_value);
+        if (!classPointer)
+            continue;
+
+        if (comp->getPersistentInfo()->isObsoleteClass((void *)classPointer, cg->fe())) {
+            return 0;
+        }
+
+        TR_OpaqueClassBlock *thisType = cg->fej9()->getProfiledClassFromProfiledInfo(profiledInfo);
+        if (!thisType)
+            continue;
+        if (p1) {
+            char *name;
+            int32_t len;
+            name = comp->fej9()->getClassNameChars(thisType, len);
+            log->printf("==TPIC==Freq %d (%.2f%%) %.*s @ %p\n", profiledInfo->_frequency,
+                (float)profiledInfo->_frequency / totalFrequency, len, name, thisType);
+        }
+        if ((recordAll == false)
+            && ((float)profiledInfo->_frequency / totalFrequency) < TR::Options::getMinProfiledCheckcastFrequency())
+            continue;
+
+        classArray[number] = thisType;
+        if (probability) {
+            probability[number] = ((float)profiledInfo->_frequency) / totalFrequency;
+        }
+        number++;
+    }
+    return number;
+}
+
+TR_OpaqueClassBlock *J9::TreeEvaluator::interpreterProfilingInstanceOfOrCheckCastInfo(TR::CodeGenerator *cg,
+    TR::Node *node)
+{
+    TR::Compilation *comp = cg->comp();
+    TR_ByteCodeInfo bcInfo = node->getByteCodeInfo();
+    TR_ValueProfileInfoManager *valueProfileInfo = TR_ValueProfileInfoManager::get(comp);
+
+    if (!valueProfileInfo)
+        return NULL;
+
+    TR_AddressInfo *valueInfo = static_cast<TR_AddressInfo *>(valueProfileInfo->getValueInfo(bcInfo, comp, AddressInfo,
+        TR_ValueProfileInfoManager::justInterpreterProfileInfo));
+    if (!valueInfo || valueInfo->getNumProfiledValues() == 0) {
+        return NULL;
+    }
+
+    TR_OpaqueClassBlock *topValue = (TR_OpaqueClassBlock *)valueInfo->getTopValue();
+    if (!topValue) {
+        return NULL;
+    }
+
+    if (valueInfo->getTopProbability() < TR::Options::getMinProfiledCheckcastFrequency())
+        return NULL;
+
+    if (comp->getPersistentInfo()->isObsoleteClass(topValue, cg->fe())) {
+        return NULL;
+    }
+
+    return topValue;
+}
+
+bool J9::TreeEvaluator::checkcastShouldOutlineSuperClassTest(TR::Node *node, TR::CodeGenerator *cg)
+{
+    // caller should always first call instanceOfOrCheckCastNeedSuperTest
+    TR::Node *castClassNode = node->getSecondChild();
+    TR::MethodSymbol *helperSym = node->getSymbol()->castToMethodSymbol();
+    TR::SymbolReference *castClassSymRef = castClassNode->getSymbolReference();
+    TR_ByteCodeInfo bcInfo = node->getByteCodeInfo();
+    TR::Compilation *comp = cg->comp();
+
+    TR_ValueProfileInfoManager *valueProfileInfo = TR_ValueProfileInfoManager::get(comp);
+
+    if (castClassSymRef->isUnresolved()) {
+        return false;
+    }
+
+    if (!TR::TreeEvaluator::isStaticClassSymRef(castClassSymRef)) {
+        // We could theoretically do a super test on something with no sym, but it would require significant
+        // changes to platform code. The benefit is little at this point (shows up from reference arraycopy reductions)
+        return false;
+    }
+
+    TR::StaticSymbol *castClassSym = castClassSymRef->getSymbol()->getStaticSymbol();
+
+    if (!valueProfileInfo)
+        return false;
+
+    TR_AddressInfo *valueInfo = static_cast<TR_AddressInfo *>(valueProfileInfo->getValueInfo(bcInfo, comp, AddressInfo,
+        TR_ValueProfileInfoManager::justInterpreterProfileInfo));
+
+    if (!valueInfo || valueInfo->getNumProfiledValues() == 0) {
+        return false;
+    }
+
+    TR_OpaqueClassBlock *topValue = (TR_OpaqueClassBlock *)valueInfo->getTopValue();
+
+    if (!topValue) {
+        return false;
+    }
+
+    if (valueInfo->getTopProbability() < TR::Options::getMinProfiledCheckcastFrequency())
+        return false;
+
+    if (comp->getPersistentInfo()->isObsoleteClass(topValue, cg->fe())) {
+        return false;
+    }
+
+    if (topValue == (TR_OpaqueClassBlock *)castClassSym->getStaticAddress()) {
+        return true;
+    }
+
+    return false;
+}
 
 // only need a helper call if the class is not super and not final, otherwise
 // it can be determined without a call-out
 bool J9::TreeEvaluator::instanceOfNeedHelperCall(bool testCastClassIsSuper, bool isFinalClass)
-   {
-   return !testCastClassIsSuper && !isFinalClass;
-   }
+{
+    return !testCastClassIsSuper && !isFinalClass;
+}
 
+bool J9::TreeEvaluator::instanceOfOrCheckCastIsJavaLangObjectArray(TR::Node *node, TR::CodeGenerator *cg)
+{
+    TR::Node *castClassNode = node->getSecondChild();
+    TR::SymbolReference *castClassSymRef = castClassNode->getSymbolReference();
 
-bool J9::TreeEvaluator::instanceOfOrCheckCastIsJavaLangObjectArray(TR::Node * node, TR::CodeGenerator *cg)
-   {
-   TR::Node            *castClassNode    = node->getSecondChild();
-   TR::SymbolReference *castClassSymRef  = castClassNode->getSymbolReference();
+    if (!TR::TreeEvaluator::isStaticClassSymRef(castClassSymRef)) {
+        return false;
+    }
 
-   if (!TR::TreeEvaluator::isStaticClassSymRef(castClassSymRef))
-      {
-      return false;
-      }
+    TR::StaticSymbol *castClassSym = castClassSymRef->getSymbol()->getStaticSymbol();
 
-   TR::StaticSymbol    *castClassSym = castClassSymRef->getSymbol()->getStaticSymbol();
+    if (castClassSymRef->isUnresolved()) {
+        return false;
+    } else {
+        TR_OpaqueClassBlock *clazz;
+        if (castClassSym && (clazz = (TR_OpaqueClassBlock *)castClassSym->getStaticAddress())
+            && TR::Compiler->cls.isClassArray(cg->comp(), clazz)) {
+            TR_OpaqueClassBlock *objectClass = cg->fej9()->getSystemClassFromClassName("java/lang/Object", 16);
+            clazz = cg->fej9()->getComponentClassFromArrayClass(clazz);
+            return (objectClass) && objectClass == clazz;
+        }
+    }
+    return false;
+}
 
-   if (castClassSymRef->isUnresolved())
-      {
-      return false;
-      }
-   else
-      {
-      TR_OpaqueClassBlock * clazz;
-      if (castClassSym &&
-          (clazz = (TR_OpaqueClassBlock *) castClassSym->getStaticAddress()) &&
-          TR::Compiler->cls.isClassArray(cg->comp(), clazz))
-         {
-         TR_OpaqueClassBlock *objectClass = cg->fej9()->getSystemClassFromClassName("java/lang/Object", 16);
-         clazz = cg->fej9()->getComponentClassFromArrayClass(clazz);
-         return (objectClass) && objectClass == clazz;
-         }
-      }
-   return false;
-   }
+TR_OpaqueClassBlock *J9::TreeEvaluator::getCastClassAddress(TR::Node *castClassNode)
+{
+    TR::SymbolReference *symRef = castClassNode->getSymbolReference();
+    if (!TR::TreeEvaluator::isStaticClassSymRef(symRef)) {
+        return NULL;
+    }
 
+    TR::Symbol *symbol = symRef->getSymbol();
 
-TR_OpaqueClassBlock *
-J9::TreeEvaluator::getCastClassAddress(TR::Node * castClassNode)
-   {
-   TR::SymbolReference * symRef = castClassNode->getSymbolReference();
-   if (!TR::TreeEvaluator::isStaticClassSymRef(symRef))
-      {
-      return NULL;
-      }
-
-   TR::Symbol * symbol = symRef->getSymbol();
-
-   if (symRef->isUnresolved())
-      {
-      return NULL; // node is unresolved - class address not known yet
-      }
-   TR_OpaqueClassBlock * staticAddressValue = (TR_OpaqueClassBlock*) symbol->castToStaticSymbol()->getStaticAddress();
-   return staticAddressValue;
-   }
-
+    if (symRef->isUnresolved()) {
+        return NULL; // node is unresolved - class address not known yet
+    }
+    TR_OpaqueClassBlock *staticAddressValue = (TR_OpaqueClassBlock *)symbol->castToStaticSymbol()->getStaticAddress();
+    return staticAddressValue;
+}
 
 /*
  * return true if instanceof/checkcast's checking class is final array
  */
-bool
-J9::TreeEvaluator::instanceOfOrCheckCastIsFinalArray(TR::Node * node, TR::CodeGenerator *cg)
-   {
-   TR::Node            *castClassNode    = node->getSecondChild();
-   TR::SymbolReference *castClassSymRef  = castClassNode->getSymbolReference();
+bool J9::TreeEvaluator::instanceOfOrCheckCastIsFinalArray(TR::Node *node, TR::CodeGenerator *cg)
+{
+    TR::Node *castClassNode = node->getSecondChild();
+    TR::SymbolReference *castClassSymRef = castClassNode->getSymbolReference();
 
-   if (!TR::TreeEvaluator::isStaticClassSymRef(castClassSymRef))
-      {
-         return false;
-      }
+    if (!TR::TreeEvaluator::isStaticClassSymRef(castClassSymRef)) {
+        return false;
+    }
 
-   TR::StaticSymbol    *castClassSym = castClassSymRef->getSymbol()->getStaticSymbol();
+    TR::StaticSymbol *castClassSym = castClassSymRef->getSymbol()->getStaticSymbol();
 
-   if (castClassSymRef->isUnresolved())
-      {
-      return false;
-      }
-   else
-      {
-      TR_OpaqueClassBlock * clazz;
-      // If the class is a regular class (i.e., not an interface nor an array) and
-      // not known to be a final class, an inline superclass test can be generated.
-      // If the helper does not preserve all the registers there will not be
-      // enough registers to do the superclass test inline.
-      // Also, don't generate the superclass test if optimizing for space.
-      //
-      if (castClassSym &&
-          (clazz = (TR_OpaqueClassBlock *) castClassSym->getStaticAddress()) &&
-          TR::Compiler->cls.isClassArray(cg->comp(), clazz) &&
-          (clazz = cg->fej9()->getLeafComponentClassFromArrayClass(clazz)) &&
-          (cg->fej9()->isClassFinal(clazz) || TR::Compiler->cls.isPrimitiveClass(cg->comp(), clazz))
-          )
-         return true;
-      }
-   return false;
-   }
+    if (castClassSymRef->isUnresolved()) {
+        return false;
+    } else {
+        TR_OpaqueClassBlock *clazz;
+        // If the class is a regular class (i.e., not an interface nor an array) and
+        // not known to be a final class, an inline superclass test can be generated.
+        // If the helper does not preserve all the registers there will not be
+        // enough registers to do the superclass test inline.
+        // Also, don't generate the superclass test if optimizing for space.
+        //
+        if (castClassSym && (clazz = (TR_OpaqueClassBlock *)castClassSym->getStaticAddress())
+            && TR::Compiler->cls.isClassArray(cg->comp(), clazz)
+            && (clazz = cg->fej9()->getLeafComponentClassFromArrayClass(clazz))
+            && (cg->fej9()->isClassFinal(clazz) || TR::Compiler->cls.isPrimitiveClass(cg->comp(), clazz)))
+            return true;
+    }
+    return false;
+}
 
+void J9::TreeEvaluator::evaluateLockForReservation(TR::Node *node, bool *reservingLock,
+    bool *normalLockPreservingReservation, TR::CodeGenerator *cg)
+{
+    static const char *allPreserving = feGetEnv("TR_AllLocksPreserving");
+    TR::Compilation *comp = cg->comp();
 
-void
-J9::TreeEvaluator::evaluateLockForReservation(TR::Node *node, bool *reservingLock, bool *normalLockPreservingReservation, TR::CodeGenerator *cg)
-   {
-   static const char *allPreserving = feGetEnv("TR_AllLocksPreserving");
-   TR::Compilation *comp= cg->comp();
+    if (!node->isSyncMethodMonitor()) {
+        *reservingLock = false;
+        *normalLockPreservingReservation = false;
+        return;
+    }
 
-   if (!node->isSyncMethodMonitor())
-      {
-      *reservingLock = false;
-      *normalLockPreservingReservation = false;
-      return;
-      }
+    if (comp->getOption(TR_ReserveAllLocks)) {
+        *reservingLock = true;
+        *normalLockPreservingReservation = false;
+        return;
+    }
 
-   if (comp->getOption(TR_ReserveAllLocks))
-      {
-      *reservingLock = true;
-      *normalLockPreservingReservation = false;
-      return;
-      }
+    if (allPreserving) {
+        *reservingLock = false;
+        *normalLockPreservingReservation = true;
+        return;
+    }
 
-   if (allPreserving)
-      {
-      *reservingLock = false;
-      *normalLockPreservingReservation = true;
-      return;
-      }
+    TR_OpaqueMethodBlock *owningMethod = node->getOwningMethod();
+    TR_OpaqueClassBlock *classPointer = cg->fej9()->getClassOfMethod(owningMethod);
+    TR_PersistentClassInfo *persistentClassInfo
+        = comp->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(classPointer, comp);
 
-   TR_OpaqueMethodBlock *owningMethod = node->getOwningMethod();
-   TR_OpaqueClassBlock *classPointer = cg->fej9()->getClassOfMethod(owningMethod);
-   TR_PersistentClassInfo * persistentClassInfo =
-      comp->getPersistentInfo()->getPersistentCHTable()->findClassInfoAfterLocking(classPointer, comp);
-
-   if (persistentClassInfo && persistentClassInfo->isReservable())
-      {
-      if (comp->getMethodHotness() >= warm)
-         *reservingLock = true;
-      else
-         *normalLockPreservingReservation = true;
-      }
-   }
-
-
+    if (persistentClassInfo && persistentClassInfo->isReservable()) {
+        if (comp->getMethodHotness() >= warm)
+            *reservingLock = true;
+        else
+            *normalLockPreservingReservation = true;
+    }
+}
 
 static TR::Node *scanForMonitorExitNode(TR::TreeTop *firstTree)
-   {
-   TR::TreeTop *currTree = firstTree;
-   while (currTree)
-      {
-      TR::Node *currNode = currTree->getNode();
-      if (currNode->getOpCodeValue() == TR::monexit)
-         {
-         if (currNode->isSyncMethodMonitor())
-            return currNode;
-         else
-              return NULL;
-         }
-      else if (currNode->getNumChildren() > 0 &&
-               currNode->getFirstChild()->getNumChildren() > 0 &&
-               currNode->getFirstChild()->getOpCodeValue() == TR::monexit)
-         {
-         if (currNode->getFirstChild()->isSyncMethodMonitor())
-            return currNode->getFirstChild();
-         else
-              return NULL;
-         }
+{
+    TR::TreeTop *currTree = firstTree;
+    while (currTree) {
+        TR::Node *currNode = currTree->getNode();
+        if (currNode->getOpCodeValue() == TR::monexit) {
+            if (currNode->isSyncMethodMonitor())
+                return currNode;
+            else
+                return NULL;
+        } else if (currNode->getNumChildren() > 0 && currNode->getFirstChild()->getNumChildren() > 0
+            && currNode->getFirstChild()->getOpCodeValue() == TR::monexit) {
+            if (currNode->getFirstChild()->isSyncMethodMonitor())
+                return currNode->getFirstChild();
+            else
+                return NULL;
+        }
 
-      if ((currNode->getOpCodeValue() == TR::monent ||
-          currNode->exceptionsRaised() != 0        ||
-          currNode->canCauseGC()                   ||
-          currNode->getOpCode().isBranch()))
-         {
-         return NULL;
-         }
+        if ((currNode->getOpCodeValue() == TR::monent || currNode->exceptionsRaised() != 0 || currNode->canCauseGC()
+                || currNode->getOpCode().isBranch())) {
+            return NULL;
+        }
 
-      currTree = currTree->getNextTreeTop();
-      }
+        currTree = currTree->getNextTreeTop();
+    }
 
-   return NULL;
-   }
+    return NULL;
+}
 
+bool J9::TreeEvaluator::isPrimitiveMonitor(TR::Node *monNode, TR::CodeGenerator *cg)
+{
+    // TODO: enable primitive monitors once we have the standard ones working
+    // The primitive monitors will need separate monexit helper where the
+    // recursive count is incremented in case FLC is set. The state of RES and FLC set
+    // while the count is 0 is illegal.
+    static const char *allReservingPrimitive = feGetEnv("TR_AllLocksReservingPrimitive");
+    static const char *noReservingPrimitiveLocks = feGetEnv("TR_NoReservingPrimitiveLocks");
 
-bool
-J9::TreeEvaluator::isPrimitiveMonitor(TR::Node *monNode, TR::CodeGenerator *cg)
-   {
-   // TODO: enable primitive monitors once we have the standard ones working
-   // The primitive monitors will need separate monexit helper where the
-   // recursive count is incremented in case FLC is set. The state of RES and FLC set
-   // while the count is 0 is illegal.
-   static const char *allReservingPrimitive = feGetEnv("TR_AllLocksReservingPrimitive");
-   static const char *noReservingPrimitiveLocks = feGetEnv("TR_NoReservingPrimitiveLocks");
+    if (allReservingPrimitive)
+        return true;
 
-   if (allReservingPrimitive)
-      return true;
+    if (noReservingPrimitiveLocks)
+        return false;
 
-   if (noReservingPrimitiveLocks)
-      return false;
+    TR::Node *object = monNode->getFirstChild();
 
-   TR::Node *object = monNode->getFirstChild();
+    TR_ASSERT(monNode->getOpCodeValue() == TR::monent,
+        "Primitive monitor region check should only be done on monitor enter node");
 
-   TR_ASSERT(monNode->getOpCodeValue() == TR::monent, "Primitive monitor region check should only be done on monitor enter node");
+    TR::Node *guardExit = NULL;
 
-   TR::Node *guardExit = NULL;
+    TR::TreeTop *currTree = cg->getCurrentEvaluationTreeTop()->getNextTreeTop();
+    while (currTree) {
+        TR::Node *currNode = currTree->getNode();
+        if (currNode->getOpCodeValue() == TR::monexit) {
+            if (currNode->getFirstChild() == object) {
+                monNode->setPrimitiveLockedRegion();
+                currNode->setPrimitiveLockedRegion();
 
-   TR::TreeTop *currTree = cg->getCurrentEvaluationTreeTop()->getNextTreeTop();
-   while (currTree)
-      {
-      TR::Node *currNode = currTree->getNode();
-      if (currNode->getOpCodeValue() == TR::monexit)
-         {
-         if (currNode->getFirstChild() == object)
-            {
-            monNode->setPrimitiveLockedRegion();
-            currNode->setPrimitiveLockedRegion();
+                if (guardExit != NULL) {
+                    guardExit->setPrimitiveLockedRegion();
+                }
+                return true;
+            } else
+                return false;
+        } else if (currNode->getNumChildren() > 0 && currNode->getFirstChild()->getNumChildren() > 0
+            && currNode->getFirstChild()->getOpCodeValue() == TR::monexit) {
+            if (currNode->getFirstChild()->getFirstChild() == object) {
+                monNode->setPrimitiveLockedRegion();
+                currNode->getFirstChild()->setPrimitiveLockedRegion();
 
-            if (guardExit != NULL)
-                {
-               guardExit->setPrimitiveLockedRegion();
-               }
-            return true;
-            }
-         else
+                if (guardExit != NULL) {
+                    guardExit->setPrimitiveLockedRegion();
+                }
+                return true;
+            } else
+                return false;
+        }
+
+        if ((currNode->getOpCodeValue() == TR::monent || currNode->exceptionsRaised() != 0 || currNode->canCauseGC()
+                || currNode->getOpCode().isBranch()
+                || (currNode->getOpCodeValue() == TR::BBStart
+                    && !currNode->getBlock()->isExtensionOfPreviousBlock()))) {
+            if ((currNode->getOpCode().isIf() && currNode->isNonoverriddenGuard())) {
+                guardExit = scanForMonitorExitNode(currNode->getBranchDestination());
+
+                if (!guardExit && monNode->isSyncMethodMonitor())
+                    return false;
+            } else
+                return false;
+        }
+
+        currTree = currTree->getNextTreeTop();
+    }
+
+    return false;
+}
+
+bool J9::TreeEvaluator::isDummyMonitorEnter(TR::Node *monNode, TR::CodeGenerator *cg)
+{
+    TR::Node *object = monNode->getFirstChild();
+
+    TR_ASSERT(monNode->getOpCodeValue() == TR::monent,
+        "Primitive monitor region check should only be done on monitor enter node");
+
+    TR::Node *guardExit = NULL;
+
+    TR::TreeTop *currTree = cg->getCurrentEvaluationTreeTop()->getNextTreeTop();
+    TR::Node *currNode = currTree->getNode();
+
+    if (currNode->getOpCode().isIf() && currNode->isNonoverriddenGuard() && monNode->isSyncMethodMonitor()) {
+        guardExit = scanForMonitorExitNode(currNode->getBranchDestination());
+
+        if (!guardExit)
             return false;
-         }
-      else if (currNode->getNumChildren() > 0 &&
-               currNode->getFirstChild()->getNumChildren() > 0 &&
-               currNode->getFirstChild()->getOpCodeValue() == TR::monexit)
-         {
-         if (currNode->getFirstChild()->getFirstChild() == object)
-            {
-            monNode->setPrimitiveLockedRegion();
-            currNode->getFirstChild()->setPrimitiveLockedRegion();
 
-            if (guardExit != NULL)
-                {
-               guardExit->setPrimitiveLockedRegion();
-               }
-            return true;
-            }
-         else
-            return false;
-         }
+        currTree = currTree->getNextTreeTop();
+    }
 
-      if ((currNode->getOpCodeValue() == TR::monent ||
-          currNode->exceptionsRaised() != 0        ||
-          currNode->canCauseGC()                   ||
-          currNode->getOpCode().isBranch()         ||
-          (currNode->getOpCodeValue() == TR::BBStart && !currNode->getBlock()->isExtensionOfPreviousBlock())
-          ))
-         {
-         if ((currNode->getOpCode().isIf() && currNode->isNonoverriddenGuard()))
-              {
-              guardExit = scanForMonitorExitNode( currNode->getBranchDestination());
+    if (currTree) {
+        currNode = currTree->getNode();
+        if (currNode->getOpCodeValue() == TR::monexit) {
+            if (currNode->getFirstChild() == object) {
+                return true;
+            } else
+                return false;
+        } else if (currNode->getNumChildren() > 0 && currNode->getFirstChild()->getNumChildren() > 0
+            && currNode->getFirstChild()->getOpCodeValue() == TR::monexit) {
+            if (currNode->getFirstChild()->getFirstChild() == object) {
+                return true;
+            } else
+                return false;
+        }
+    }
 
-              if (!guardExit && monNode->isSyncMethodMonitor())
-                  return false;
-              }
-         else
-            return false;
-         }
+    return false;
+}
 
-      currTree = currTree->getNextTreeTop();
-      }
+bool J9::TreeEvaluator::isDummyMonitorExit(TR::Node *monNode, TR::CodeGenerator *cg)
+{
+    TR::Node *object = monNode->getFirstChild();
 
-   return false;
-   }
+    TR_ASSERT(monNode->getOpCodeValue() == TR::monexit,
+        "Primitive monitor region check should only be done on monitor exit node");
 
-bool
-J9::TreeEvaluator::isDummyMonitorEnter(TR::Node *monNode, TR::CodeGenerator *cg)
-   {
-   TR::Node *object = monNode->getFirstChild();
+    TR::TreeTop *currTree = cg->getCurrentEvaluationTreeTop()->getPrevTreeTop();
+    TR::Node *currNode = currTree->getNode();
 
-   TR_ASSERT(monNode->getOpCodeValue() == TR::monent, "Primitive monitor region check should only be done on monitor enter node");
+    if (currNode->getOpCode().isIf() && currNode->isNonoverriddenGuard() && monNode->isSyncMethodMonitor()) {
+        currTree = currTree->getPrevTreeTop();
+    }
 
-   TR::Node *guardExit = NULL;
+    if (currTree) {
+        currNode = currTree->getNode();
+        if (currNode->getOpCodeValue() == TR::monent) {
+            if (currNode->getFirstChild() == object) {
+                return true;
+            } else
+                return false;
+        } else if (currNode->getNumChildren() > 0 && currNode->getFirstChild()->getNumChildren() > 0
+            && currNode->getFirstChild()->getOpCodeValue() == TR::monent) {
+            if (currNode->getFirstChild()->getFirstChild() == object) {
+                return true;
+            } else
+                return false;
+        }
+    }
 
-   TR::TreeTop *currTree = cg->getCurrentEvaluationTreeTop()->getNextTreeTop();
-   TR::Node *currNode = currTree->getNode();
-
-
-   if (currNode->getOpCode().isIf() && currNode->isNonoverriddenGuard() && monNode->isSyncMethodMonitor())
-      {
-      guardExit = scanForMonitorExitNode(currNode->getBranchDestination());
-
-      if (!guardExit)
-         return false;
-
-      currTree = currTree->getNextTreeTop();
-      }
-
-   if (currTree)
-      {
-      currNode = currTree->getNode();
-      if (currNode->getOpCodeValue() == TR::monexit)
-         {
-         if (currNode->getFirstChild() == object)
-            {
-            return true;
-            }
-         else
-            return false;
-         }
-      else if (currNode->getNumChildren() > 0 &&
-               currNode->getFirstChild()->getNumChildren() > 0 &&
-               currNode->getFirstChild()->getOpCodeValue() == TR::monexit)
-         {
-         if (currNode->getFirstChild()->getFirstChild() == object)
-            {
-            return true;
-            }
-         else
-            return false;
-         }
-      }
-
-   return false;
-   }
-
-bool
-J9::TreeEvaluator::isDummyMonitorExit(TR::Node *monNode, TR::CodeGenerator *cg)
-   {
-   TR::Node *object = monNode->getFirstChild();
-
-   TR_ASSERT(monNode->getOpCodeValue() == TR::monexit, "Primitive monitor region check should only be done on monitor exit node");
-
-   TR::TreeTop *currTree = cg->getCurrentEvaluationTreeTop()->getPrevTreeTop();
-   TR::Node *currNode = currTree->getNode();
-
-   if (currNode->getOpCode().isIf() && currNode->isNonoverriddenGuard() && monNode->isSyncMethodMonitor())
-      {
-      currTree = currTree->getPrevTreeTop();
-      }
-
-   if (currTree)
-      {
-      currNode = currTree->getNode();
-      if (currNode->getOpCodeValue() == TR::monent)
-         {
-         if (currNode->getFirstChild() == object)
-            {
-            return true;
-            }
-         else
-            return false;
-         }
-      else if (currNode->getNumChildren() > 0 &&
-               currNode->getFirstChild()->getNumChildren() > 0 &&
-               currNode->getFirstChild()->getOpCodeValue() == TR::monent)
-         {
-         if (currNode->getFirstChild()->getFirstChild() == object)
-            {
-            return true;
-            }
-         else
-            return false;
-         }
-      }
-
-   return false;
-   }
-
+    return false;
+}
 
 // Helper Functions for BNDCHKwithSpineCHK
 
@@ -2200,52 +1946,48 @@ J9::TreeEvaluator::isDummyMonitorExit(TR::Node *monNode, TR::CodeGenerator *cg)
 //       a spinechk (there could be some complications here though).
 //
 void J9::TreeEvaluator::preEvaluateEscapingNodesForSpineCheck(TR::Node *root, TR::CodeGenerator *cg)
-   {
-   TR::TreeEvaluator::initializeStrictlyFutureUseCounts(root, cg->comp()->incVisitCount(), cg);
-   TR::TreeEvaluator::evaluateNodesWithFutureUses(root, cg);
-   }
-
+{
+    TR::TreeEvaluator::initializeStrictlyFutureUseCounts(root, cg->comp()->incVisitCount(), cg);
+    TR::TreeEvaluator::evaluateNodesWithFutureUses(root, cg);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // resolveCHKEvaluator - Resolve check a static, field or method. child 1 is reference
 //   to be resolved. Symbolref indicates failure action/destination
 ///////////////////////////////////////////////////////////////////////////////////////
 TR::Register *J9::TreeEvaluator::resolveCHKEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // No code is generated for the resolve check. The child will reference an
-   // unresolved symbol and all check handling is done via the corresponding
-   // snippet.
-   //
-   TR::Node *firstChild = node->getFirstChild();
-   cg->evaluate(firstChild);
-   cg->decReferenceCount(firstChild);
-   return NULL;
-   }
+{
+    // No code is generated for the resolve check. The child will reference an
+    // unresolved symbol and all check handling is done via the corresponding
+    // snippet.
+    //
+    TR::Node *firstChild = node->getFirstChild();
+    cg->evaluate(firstChild);
+    cg->decReferenceCount(firstChild);
+    return NULL;
+}
 
+bool J9::TreeEvaluator::requireHelperCallValueTypeAllocation(TR::Node *node, TR::CodeGenerator *cg)
+{
+    if (TR::Compiler->om.areValueTypesEnabled() && node->getOpCodeValue() == TR::New) {
+        TR::Compilation *comp = cg->comp();
+        TR::SymbolReference *newValueSymRef
+            = comp->getSymRefTab()->findOrCreateNewValueSymbolRef(comp->getMethodSymbol());
+        TR::SymbolReference *nodeSymRef = node->getSymbolReference();
+        TR::SymbolReference *classSymRef = node->getFirstChild()->getSymbolReference();
 
-bool
-J9::TreeEvaluator::requireHelperCallValueTypeAllocation(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   if (TR::Compiler->om.areValueTypesEnabled() && node->getOpCodeValue() == TR::New)
-      {
-      TR::Compilation *comp = cg->comp();
-      TR::SymbolReference *newValueSymRef = comp->getSymRefTab()->findOrCreateNewValueSymbolRef(comp->getMethodSymbol());
-      TR::SymbolReference *nodeSymRef = node->getSymbolReference();
-      TR::SymbolReference *classSymRef = node->getFirstChild()->getSymbolReference();
+        TR_OpaqueClassBlock *clazz = NULL;
+        if (!classSymRef->isUnresolved())
+            clazz = (TR_OpaqueClassBlock *)classSymRef->getSymbol()->getStaticSymbol()->getStaticAddress();
 
-      TR_OpaqueClassBlock *clazz = NULL;
-      if (!classSymRef->isUnresolved())
-         clazz = (TR_OpaqueClassBlock *)classSymRef->getSymbol()->getStaticSymbol()->getStaticAddress();
+        bool isValueTypeClass = clazz ? TR::Compiler->cls.isValueTypeClass(clazz) : false;
 
-      bool isValueTypeClass = clazz ? TR::Compiler->cls.isValueTypeClass(clazz) : false;
-
-      // If "new jitNewValue" is used to create a non value type, or if "new jitNewObject" is used to
-      // create a value type, InstantiationError exception needs to be thrown. Use helper call in these cases.
-      if (((nodeSymRef == newValueSymRef) && !isValueTypeClass)
-          || ((nodeSymRef != newValueSymRef) && isValueTypeClass))
-         {
-         return true;
-         }
-      }
-   return false;
-   }
+        // If "new jitNewValue" is used to create a non value type, or if "new jitNewObject" is used to
+        // create a value type, InstantiationError exception needs to be thrown. Use helper call in these cases.
+        if (((nodeSymRef == newValueSymRef) && !isValueTypeClass)
+            || ((nodeSymRef != newValueSymRef) && isValueTypeClass)) {
+            return true;
+        }
+    }
+    return false;
+}

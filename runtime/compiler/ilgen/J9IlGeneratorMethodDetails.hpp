@@ -28,10 +28,11 @@
  */
 #ifndef J9_ILGENERATOR_METHOD_DETAILS_CONNECTOR
 #define J9_ILGENERATOR_METHOD_DETAILS_CONNECTOR
+
 namespace J9 {
 class IlGeneratorMethodDetails;
 typedef J9::IlGeneratorMethodDetails IlGeneratorMethodDetailsConnector;
-}
+} // namespace J9
 #endif
 
 #include "ilgen/OMRIlGeneratorMethodDetails.hpp"
@@ -51,136 +52,139 @@ class TR_IlGenerator;
 class TR_InlineBlocks;
 class TR_J9VMBase;
 class TR_ResolvedMethod;
-namespace OMR { class Logger; }
+
+namespace OMR {
+class Logger;
+}
+
 namespace TR {
 class Compilation;
 class IlGeneratorMethodDetails;
 class ResolvedMethodSymbol;
 class SymbolReferenceTable;
-}
+} // namespace TR
 
-namespace J9
-{
+namespace J9 {
 #if defined(J9VM_OPT_JITSERVER)
-enum IlGeneratorMethodDetailsType
-   {
-   EMPTY = 0,
-   ORDINARY_METHOD = 1<<0,
-   DUMP_METHOD = 1<<1,
-   NEW_INSTANCE_THUNK = 1<<2,
-   METHOD_IN_PROGRESS = 1<<3,
-   ARCHETYPE_SPECIMEN = 1<<4,
-   METHOD_HANDLE_THUNK = 1<<5,
-   SHAREABLE_THUNK = 1<<6,
-   CUSTOM_THUNK = 1<<7,
-   };
+enum IlGeneratorMethodDetailsType {
+    EMPTY = 0,
+    ORDINARY_METHOD = 1 << 0,
+    DUMP_METHOD = 1 << 1,
+    NEW_INSTANCE_THUNK = 1 << 2,
+    METHOD_IN_PROGRESS = 1 << 3,
+    ARCHETYPE_SPECIMEN = 1 << 4,
+    METHOD_HANDLE_THUNK = 1 << 5,
+    SHAREABLE_THUNK = 1 << 6,
+    CUSTOM_THUNK = 1 << 7,
+};
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
-class OMR_EXTENSIBLE IlGeneratorMethodDetails : public OMR::IlGeneratorMethodDetailsConnector
-   {
-   friend class IlGeneratorMethodDetailsOverrideForReplay;
+class OMR_EXTENSIBLE IlGeneratorMethodDetails : public OMR::IlGeneratorMethodDetailsConnector {
+    friend class IlGeneratorMethodDetailsOverrideForReplay;
 
 public:
-   IlGeneratorMethodDetails() :
-      OMR::IlGeneratorMethodDetailsConnector()
-      {
-      _method = NULL;
-      }
+    IlGeneratorMethodDetails()
+        : OMR::IlGeneratorMethodDetailsConnector()
+    {
+        _method = NULL;
+    }
 
-   IlGeneratorMethodDetails(J9Method* method) :
-      OMR::IlGeneratorMethodDetailsConnector(),
-      _method(method)
-   { }
+    IlGeneratorMethodDetails(J9Method *method)
+        : OMR::IlGeneratorMethodDetailsConnector()
+        , _method(method)
+    {}
 
-   IlGeneratorMethodDetails(TR_ResolvedMethod *method);
+    IlGeneratorMethodDetails(TR_ResolvedMethod *method);
 
-   IlGeneratorMethodDetails(const TR::IlGeneratorMethodDetails & other);
+    IlGeneratorMethodDetails(const TR::IlGeneratorMethodDetails &other);
 
-   static TR::IlGeneratorMethodDetails & create(TR::IlGeneratorMethodDetails & target, TR_ResolvedMethod *method);
+    static TR::IlGeneratorMethodDetails &create(TR::IlGeneratorMethodDetails &target, TR_ResolvedMethod *method);
 
-   static TR::IlGeneratorMethodDetails * clone(TR::IlGeneratorMethodDetails & storage, const TR::IlGeneratorMethodDetails & other);
+    static TR::IlGeneratorMethodDetails *clone(TR::IlGeneratorMethodDetails &storage,
+        const TR::IlGeneratorMethodDetails &other);
 
 #if defined(J9VM_OPT_JITSERVER)
-   // Constructs a new IlGeneratorMethodDetails object of given type based on an existing TR::IlGeneratorMethodDetails object (other).
-   // The existing TR::IlGeneratorMethodDetails object (other) is obtained through de-serialization. It is missing the vtable pointer.
-   // Therefore the new object instance type cannot be determined through the virtual function calls such as other.isOrdinaryMethod(), etc.
-   static TR::IlGeneratorMethodDetails * clone(TR::IlGeneratorMethodDetails & storage, const TR::IlGeneratorMethodDetails & other, const IlGeneratorMethodDetailsType type);
+    // Constructs a new IlGeneratorMethodDetails object of given type based on an existing TR::IlGeneratorMethodDetails
+    // object (other). The existing TR::IlGeneratorMethodDetails object (other) is obtained through de-serialization. It
+    // is missing the vtable pointer. Therefore the new object instance type cannot be determined through the virtual
+    // function calls such as other.isOrdinaryMethod(), etc.
+    static TR::IlGeneratorMethodDetails *clone(TR::IlGeneratorMethodDetails &storage,
+        const TR::IlGeneratorMethodDetails &other, const IlGeneratorMethodDetailsType type);
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
-   virtual const char * name() const { return "OrdinaryMethod"; }
+    virtual const char *name() const { return "OrdinaryMethod"; }
 
-   virtual bool isOrdinaryMethod()     const { return true; }
-   virtual bool isJitDumpMethod()      const { return false; }
-   virtual bool isJitDumpAOTMethod()   const { return false; }
-   virtual bool isNewInstanceThunk()   const { return false; }
-   virtual bool isMethodInProgress()   const { return false; }
-   virtual bool isArchetypeSpecimen()  const { return false; }
-   virtual bool isMethodHandleThunk()  const { return false; }
-   virtual bool supportsInvalidation() const { return true; }
+    virtual bool isOrdinaryMethod() const { return true; }
 
-   J9Method *getMethod() const { return _method; }
-   virtual J9Class *getClass() const;
+    virtual bool isJitDumpMethod() const { return false; }
+
+    virtual bool isJitDumpAOTMethod() const { return false; }
+
+    virtual bool isNewInstanceThunk() const { return false; }
+
+    virtual bool isMethodInProgress() const { return false; }
+
+    virtual bool isArchetypeSpecimen() const { return false; }
+
+    virtual bool isMethodHandleThunk() const { return false; }
+
+    virtual bool supportsInvalidation() const { return true; }
+
+    J9Method *getMethod() const { return _method; }
+
+    virtual J9Class *getClass() const;
 #if defined(J9VM_OPT_JITSERVER)
-   IlGeneratorMethodDetailsType getType() const;
+    IlGeneratorMethodDetailsType getType() const;
 #endif /* defined(J9VM_OPT_JITSERVER) */
-   virtual const J9ROMClass *getRomClass() const;
-   virtual const J9ROMMethod *getRomMethod(TR_J9VMBase *fe);
+    virtual const J9ROMClass *getRomClass() const;
+    virtual const J9ROMMethod *getRomMethod(TR_J9VMBase *fe);
 
+    virtual TR_IlGenerator *getIlGenerator(TR::ResolvedMethodSymbol *methodSymbol, TR_FrontEnd *fe,
+        TR::Compilation *comp, TR::SymbolReferenceTable *symRefTab, bool forceClassLookahead,
+        TR_InlineBlocks *blocksToInline);
 
-   virtual TR_IlGenerator *getIlGenerator(TR::ResolvedMethodSymbol *methodSymbol,
-                                          TR_FrontEnd * fe,
-                                          TR::Compilation *comp,
-                                          TR::SymbolReferenceTable *symRefTab,
-                                          bool forceClassLookahead,
-                                          TR_InlineBlocks *blocksToInline);
+    virtual bool sameAs(TR::IlGeneratorMethodDetails &other, TR_FrontEnd *fe);
 
-   virtual bool sameAs(TR::IlGeneratorMethodDetails & other, TR_FrontEnd *fe);
+    bool sameMethod(TR::IlGeneratorMethodDetails &other);
 
-   bool sameMethod(TR::IlGeneratorMethodDetails & other);
+    void print(OMR::Logger *log, TR_FrontEnd *fe);
 
-   void print(OMR::Logger *log, TR_FrontEnd *fe);
-
-   virtual void printDetails(OMR::Logger *log, TR_FrontEnd *fe);
+    virtual void printDetails(OMR::Logger *log, TR_FrontEnd *fe);
 
 protected:
+    // All data across subclasses of IlGeneratorMethodDetails MUST be stored in the base class
+    //    (using a union to save space across the hierarchy where possible)
+    // Primary reason is that an embedded instance of this class is stored in MethodToBeCompiled so that instance
+    //    must be able to transmute itself into any kind of IlGeneratorMethodDetails in place (i.e. via placement new)
 
-   // All data across subclasses of IlGeneratorMethodDetails MUST be stored in the base class
-   //    (using a union to save space across the hierarchy where possible)
-   // Primary reason is that an embedded instance of this class is stored in MethodToBeCompiled so that instance
-   //    must be able to transmute itself into any kind of IlGeneratorMethodDetails in place (i.e. via placement new)
+    J9Method *_method;
 
-   J9Method *_method;
-   union
-      {
-      J9Class *_class;
-      int32_t _byteCodeIndex;
-      struct
-         {
-         uintptr_t *_handleRef;
-         uintptr_t *_argRef;
-         } _methodHandleData;
-      bool _aotCompile;
-      } _data;
+    union {
+        J9Class *_class;
+        int32_t _byteCodeIndex;
 
-   /// A cached options object from the original (crashed) compilation thread
-   TR::Options *_optionsFromOriginalCompile;
-   };
+        struct {
+            uintptr_t *_handleRef;
+            uintptr_t *_argRef;
+        } _methodHandleData;
+
+        bool _aotCompile;
+    } _data;
+
+    /// A cached options object from the original (crashed) compilation thread
+    TR::Options *_optionsFromOriginalCompile;
+};
 
 // Replay compilation support that must not be used by anyone else because it breaks encapsulation
 //
-class IlGeneratorMethodDetailsOverrideForReplay
-   {
+class IlGeneratorMethodDetailsOverrideForReplay {
 public:
+    // When replay compilation initializes it needs to redirect the existing
+    // details object to compile the requested replay method.
+    //
+    static void changeMethod(TR::IlGeneratorMethodDetails &details, J9Method *newMethod);
+};
 
-   // When replay compilation initializes it needs to redirect the existing
-   // details object to compile the requested replay method.
-   //
-   static void changeMethod(TR::IlGeneratorMethodDetails & details, J9Method *newMethod);
-   };
-
-
-
-
-}
+} // namespace J9
 
 #endif

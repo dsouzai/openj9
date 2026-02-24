@@ -25,12 +25,8 @@
 
 #include "codegen/J9TreeEvaluator.hpp"
 
-namespace TR
-{
-class OMR_EXTENSIBLE TreeEvaluator: public J9::TreeEvaluatorConnector
-   {
-   };
-}
-
+namespace TR {
+class OMR_EXTENSIBLE TreeEvaluator : public J9::TreeEvaluatorConnector {};
+} // namespace TR
 
 #endif

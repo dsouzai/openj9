@@ -32,65 +32,51 @@
 #include "ras/Logger.hpp"
 
 int32_t TR_PostEscapeAnalysis::perform()
-   {
-   if (!optimizer()->isEnabled(OMR::escapeAnalysis))
-      {
-      if (comp()->trace(OMR::escapeAnalysis))
-         {
-         comp()->log()->prints("EscapeAnalysis is disabled - skipping Post-EscapeAnalysis\n");
-         }
-      return 0;
-      }
+{
+    if (!optimizer()->isEnabled(OMR::escapeAnalysis)) {
+        if (comp()->trace(OMR::escapeAnalysis)) {
+            comp()->log()->prints("EscapeAnalysis is disabled - skipping Post-EscapeAnalysis\n");
+        }
+        return 0;
+    }
 
-   if (comp()->getOSRMode() != TR::voluntaryOSR)
-      {
-      if (comp()->trace(OMR::escapeAnalysis))
-         {
-         comp()->log()->prints("Special handling of OSR points is not possible outside of voluntary OSR - nothing to do\n");
-         }
-      return 0;
-      }
-   if (optimizer()->getOptimization(OMR::escapeAnalysis)->numPassesCompleted() != 0)
-      {
-      if (comp()->trace(OMR::escapeAnalysis))
-         {
-         comp()->log()->prints("EA has self enabled - skipping clean-up\n");
-         }
-      return 0;
-      }
+    if (comp()->getOSRMode() != TR::voluntaryOSR) {
+        if (comp()->trace(OMR::escapeAnalysis)) {
+            comp()->log()->prints(
+                "Special handling of OSR points is not possible outside of voluntary OSR - nothing to do\n");
+        }
+        return 0;
+    }
+    if (optimizer()->getOptimization(OMR::escapeAnalysis)->numPassesCompleted() != 0) {
+        if (comp()->trace(OMR::escapeAnalysis)) {
+            comp()->log()->prints("EA has self enabled - skipping clean-up\n");
+        }
+        return 0;
+    }
 
-   for (TR::TreeTop *itr = comp()->getStartTree(); itr; itr = itr->getNextTreeTop())
-      {
-      // Remove any fake escape calls that were added to OSR
-      // induction blocks by TR_PreEscapeAnalysis
-      if (itr->getNode()->getNumChildren() == 1
-          && itr->getNode()->getFirstChild()->getOpCodeValue() == TR::call
-          && TR_EscapeAnalysisTools::isFakeEscape(itr->getNode()->getFirstChild()))
-         {
-         dumpOptDetails(comp(), " Removing fake call <eaEscapeHelper> n%dn\n", itr->getNode()->getFirstChild()->getGlobalIndex());
-         itr = itr->getPrevTreeTop();
-         if (optimizer()->getUseDefInfo() != NULL)
-            {
-            optimizer()->setUseDefInfo(NULL);
+    for (TR::TreeTop *itr = comp()->getStartTree(); itr; itr = itr->getNextTreeTop()) {
+        // Remove any fake escape calls that were added to OSR
+        // induction blocks by TR_PreEscapeAnalysis
+        if (itr->getNode()->getNumChildren() == 1 && itr->getNode()->getFirstChild()->getOpCodeValue() == TR::call
+            && TR_EscapeAnalysisTools::isFakeEscape(itr->getNode()->getFirstChild())) {
+            dumpOptDetails(comp(), " Removing fake call <eaEscapeHelper> n%dn\n",
+                itr->getNode()->getFirstChild()->getGlobalIndex());
+            itr = itr->getPrevTreeTop();
+            if (optimizer()->getUseDefInfo() != NULL) {
+                optimizer()->setUseDefInfo(NULL);
             }
-         if (optimizer()->getValueNumberInfo())
-            {
-            optimizer()->setValueNumberInfo(NULL);
+            if (optimizer()->getValueNumberInfo()) {
+                optimizer()->setValueNumberInfo(NULL);
             }
-         TR::TransformUtil::removeTree(comp(), itr->getNextTreeTop());
-         }
-      }
+            TR::TransformUtil::removeTree(comp(), itr->getNextTreeTop());
+        }
+    }
 
-   if (comp()->trace(OMR::escapeAnalysis))
-      {
-      comp()->dumpMethodTrees(comp()->log(), "Trees after Post-Escape Analysis");
-      }
+    if (comp()->trace(OMR::escapeAnalysis)) {
+        comp()->dumpMethodTrees(comp()->log(), "Trees after Post-Escape Analysis");
+    }
 
-   return 1;
-   }
+    return 1;
+}
 
-const char *
-TR_PostEscapeAnalysis::optDetailString() const throw()
-   {
-   return "O^O POST ESCAPE ANALYSIS: ";
-   }
+const char *TR_PostEscapeAnalysis::optDetailString() const throw() { return "O^O POST ESCAPE ANALYSIS: "; }

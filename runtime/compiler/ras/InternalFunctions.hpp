@@ -38,37 +38,36 @@
 #include "env/TRMemory.hpp"
 
 class TR_FrontEnd;
+
 namespace TR {
 class Compilation;
 }
 
-
-class TR_InternalFunctions
-   {
+class TR_InternalFunctions {
 public:
-   TR_ALLOC(TR_Memory::InternalFunctionsBase);
+    TR_ALLOC(TR_Memory::InternalFunctionsBase);
 
-   TR_InternalFunctions(TR_FrontEnd * fe, TR_PersistentMemory *persistentMemory, TR_Memory * trMemory, TR::Compilation *comp) :
-      _fe(fe),
-      _persistentMemory(persistentMemory),
-      _trMemory(trMemory),
-      _comp(comp)
-      { }
+    TR_InternalFunctions(TR_FrontEnd *fe, TR_PersistentMemory *persistentMemory, TR_Memory *trMemory,
+        TR::Compilation *comp)
+        : _fe(fe)
+        , _persistentMemory(persistentMemory)
+        , _trMemory(trMemory)
+        , _comp(comp)
+    {}
 
-   TR_PersistentMemory * persistentMemory();
+    TR_PersistentMemory *persistentMemory();
 
-   virtual void fprintf(TR::FILE *file, const char * format, ...);
+    virtual void fprintf(TR::FILE *file, const char *format, ...);
 
-   TR_Memory * trMemory();
+    TR_Memory *trMemory();
 
-   TR_FrontEnd *fe() { return _fe; }
+    TR_FrontEnd *fe() { return _fe; }
 
-   protected:
-
-   TR_FrontEnd * _fe;
-   TR_PersistentMemory * _persistentMemory;
-   TR::Compilation * _comp;
-   TR_Memory * _trMemory;
-   };
+protected:
+    TR_FrontEnd *_fe;
+    TR_PersistentMemory *_persistentMemory;
+    TR::Compilation *_comp;
+    TR_Memory *_trMemory;
+};
 
 #endif

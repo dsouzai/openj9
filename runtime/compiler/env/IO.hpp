@@ -26,14 +26,10 @@
 #include "infra/Annotations.hpp"
 #include "env/J9IO.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE IO : public J9::IOConnector
-   {
+class OMR_EXTENSIBLE IO : public J9::IOConnector {};
 
-   };
-
-}
+} // namespace TR
 
 #endif

@@ -25,24 +25,22 @@
 
 #include "il/J9ILOps.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class ILOpCode : public J9::ILOpCode
-   {
+class ILOpCode : public J9::ILOpCode {
 public:
-   ILOpCode() : J9::ILOpCode() {}
+    ILOpCode()
+        : J9::ILOpCode()
+    {}
 
-   ILOpCode(TR::ILOpCodes opCode)
-      : J9::ILOpCode(opCode)
-      {
-      TR_ASSERT(opCode < NumAllIlOps, "assertion failure");
-      }
+    ILOpCode(TR::ILOpCodes opCode)
+        : J9::ILOpCode(opCode)
+    {
+        TR_ASSERT(opCode < NumAllIlOps, "assertion failure");
+    }
+};
 
-
-   };
-
-}
+} // namespace TR
 
 #endif
 

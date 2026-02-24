@@ -28,6 +28,7 @@
 namespace J9 {
 struct PersistentAllocatorKit;
 }
+
 namespace TR {
 using J9::PersistentAllocatorKit;
 }
@@ -38,23 +39,20 @@ extern "C" {
 struct J9JavaVM;
 }
 
-namespace J9
-{
+namespace J9 {
 
-struct PersistentAllocatorKit
-   {
-   PersistentAllocatorKit(size_t const minimumSegmentSize, J9JavaVM &javaVM, uint32_t memType = 0) :
-      minimumSegmentSize(minimumSegmentSize),
-      javaVM(javaVM),
-      memoryType(memType)
-      {
-      }
+struct PersistentAllocatorKit {
+    PersistentAllocatorKit(size_t const minimumSegmentSize, J9JavaVM &javaVM, uint32_t memType = 0)
+        : minimumSegmentSize(minimumSegmentSize)
+        , javaVM(javaVM)
+        , memoryType(memType)
+    {}
 
-   size_t const minimumSegmentSize;
-   J9JavaVM &javaVM;
-   uint32_t memoryType; // extra flags to be passed to the persistent allocator
-   };
+    size_t const minimumSegmentSize;
+    J9JavaVM &javaVM;
+    uint32_t memoryType; // extra flags to be passed to the persistent allocator
+};
 
-}
+} // namespace J9
 
 #endif // PERSISTENTALLOCATORKIT_HPP

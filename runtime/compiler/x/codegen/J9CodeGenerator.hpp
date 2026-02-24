@@ -29,113 +29,104 @@ namespace TR {
 class Recompilation;
 }
 
-namespace J9
-{
+namespace J9 { namespace X86 {
 
-namespace X86
-{
-
-class OMR_EXTENSIBLE CodeGenerator : public J9::CodeGenerator
-   {
-
+class OMR_EXTENSIBLE CodeGenerator : public J9::CodeGenerator {
 protected:
-
-   CodeGenerator(TR::Compilation *comp);
+    CodeGenerator(TR::Compilation *comp);
 
 public:
+    void initialize();
 
-   void initialize();
+    TR::Recompilation *allocateRecompilationInfo();
 
-   TR::Recompilation *allocateRecompilationInfo();
+    TR::SymbolReference *getNanoTimeTemp();
 
-   TR::SymbolReference *getNanoTimeTemp();
+    void beginInstructionSelection();
 
-   void beginInstructionSelection();
+    void endInstructionSelection();
 
-   void endInstructionSelection();
+    /**
+     * @brief This function is a hook that executes immediately before Binary Encoding.
+     */
+    void preBinaryEncodingHook();
 
-   /**
-    * @brief This function is a hook that executes immediately before Binary Encoding.
-    */
-   void preBinaryEncodingHook();
+    /**
+     * @brief Determines the maximum preferred vector length for compiler intrinsics based on the target
+     * microarchitecture.
+     *
+     * This function queries the underlying hardware capabilities and internal knowledge about
+     * CPU microarchitectures to recommend the optimal vector length (e.g., 128-bit, 256-bit, 512-bit)
+     * that is likely to yield the best performance without incurring significant frequency scaling
+     * penalties. This function does not take into account profiling data or any other runtime
+     * information in the decision making process.
+     *
+     * @note All new vectorized intrinsics that support 256 or 512-bit vectorization should query this
+     * function instead of relying strictly on whether the CPU supports vectorization at a given vector
+     * length.
+     *
+     * @return The maximum preferred vector length in bits (e.g., 128, 256, 512).
+     * This function will return a minimum of TR::VectorLength128 on all target hardware.
+     */
+    TR::VectorLength getMaxPreferredVectorLength();
 
-   /**
-    * @brief Determines the maximum preferred vector length for compiler intrinsics based on the target microarchitecture.
-    *
-    * This function queries the underlying hardware capabilities and internal knowledge about
-    * CPU microarchitectures to recommend the optimal vector length (e.g., 128-bit, 256-bit, 512-bit)
-    * that is likely to yield the best performance without incurring significant frequency scaling
-    * penalties. This function does not take into account profiling data or any other runtime
-    * information in the decision making process.
-    *
-    * @note All new vectorized intrinsics that support 256 or 512-bit vectorization should query this
-    * function instead of relying strictly on whether the CPU supports vectorization at a given vector
-    * length.
-    *
-    * @return The maximum preferred vector length in bits (e.g., 128, 256, 512).
-    * This function will return a minimum of TR::VectorLength128 on all target hardware.
-    */
-   TR::VectorLength getMaxPreferredVectorLength();
+    TR::Instruction *generateSwitchToInterpreterPrePrologue(TR::Instruction *prev, uint8_t alignment,
+        uint8_t alignmentMargin);
 
-   TR::Instruction *generateSwitchToInterpreterPrePrologue(
-         TR::Instruction *prev,
-         uint8_t alignment,
-         uint8_t alignmentMargin);
+    // Stack frame padding
+    int32_t getStackFramePaddingSizeInBytes() { return _stackFramePaddingSizeInBytes; }
 
-   // Stack frame padding
-   int32_t getStackFramePaddingSizeInBytes() {return _stackFramePaddingSizeInBytes;}
-   int32_t setStackFramePaddingSizeInBytes(int32_t s) {return (_stackFramePaddingSizeInBytes = s);}
-   int32_t _stackFramePaddingSizeInBytes;
+    int32_t setStackFramePaddingSizeInBytes(int32_t s) { return (_stackFramePaddingSizeInBytes = s); }
 
-   bool nopsAlsoProcessedByRelocations();
+    int32_t _stackFramePaddingSizeInBytes;
+
+    bool nopsAlsoProcessedByRelocations();
 
 #ifdef J9VM_OPT_JAVA_CRYPTO_ACCELERATION
-   bool inlineCryptoMethod(TR::Node *node, TR::Register *&resultReg);
+    bool inlineCryptoMethod(TR::Node *node, TR::Register *&resultReg);
 #endif
 
-   bool enableAESInHardwareTransformations();
+    bool enableAESInHardwareTransformations();
 
-   bool suppressInliningOfRecognizedMethod(TR::RecognizedMethod method);
+    bool suppressInliningOfRecognizedMethod(TR::RecognizedMethod method);
 
-   /** \brief
-    *     Determines whether the code generator supports inlining of java/lang/Class.isAssignableFrom
-    */
-   bool supportsInliningOfIsAssignableFrom();
+    /** \brief
+     *     Determines whether the code generator supports inlining of java/lang/Class.isAssignableFrom
+     */
+    bool supportsInliningOfIsAssignableFrom();
 
-   /*
-    * \brief Reserve space in the code cache for a specified number of trampolines.
-    *        This is useful for inline caches where the methods are not yet known at
-    *        compile-time but for which trampolines may be required for compiled
-    *        bodies in the future.
-    *
-    * \param[in] numTrampolines : number of trampolines to reserve
-    *
-    * \return : none
-    */
-   void reserveNTrampolines(int32_t numTrampolines);
+    /*
+     * \brief Reserve space in the code cache for a specified number of trampolines.
+     *        This is useful for inline caches where the methods are not yet known at
+     *        compile-time but for which trampolines may be required for compiled
+     *        bodies in the future.
+     *
+     * \param[in] numTrampolines : number of trampolines to reserve
+     *
+     * \return : none
+     */
+    void reserveNTrampolines(int32_t numTrampolines);
 
-   /**
-    * \brief Determines whether the code generator supports stack allocations
-    */
-   bool supportsStackAllocations() { return true; }
+    /**
+     * \brief Determines whether the code generator supports stack allocations
+     */
+    bool supportsStackAllocations() { return true; }
 
-   // See OMR::CodeGenerator::supportsNonHelper
-   bool supportsNonHelper(TR::SymbolReferenceTable::CommonNonhelperSymbol symbol);
+    // See OMR::CodeGenerator::supportsNonHelper
+    bool supportsNonHelper(TR::SymbolReferenceTable::CommonNonhelperSymbol symbol);
 
-   // See J9::CodeGenerator::guaranteesResolvedDirectDispatchForSVM
-   bool guaranteesResolvedDirectDispatchForSVM() { return true; }
+    // See J9::CodeGenerator::guaranteesResolvedDirectDispatchForSVM
+    bool guaranteesResolvedDirectDispatchForSVM() { return true; }
 
-   // See J9::CodeGenerator::guaranteesResolvedVirtualDispatchForSVM
-   bool guaranteesResolvedVirtualDispatchForSVM() { return true; }
+    // See J9::CodeGenerator::guaranteesResolvedVirtualDispatchForSVM
+    bool guaranteesResolvedVirtualDispatchForSVM() { return true; }
 
-   bool willBeEvaluatedAsCallByCodeGen(TR::Node *node, TR::Compilation *comp);
+    bool willBeEvaluatedAsCallByCodeGen(TR::Node *node, TR::Compilation *comp);
 
 private:
-   TR::SymbolReference *_nanoTimeTemp;
-   };
+    TR::SymbolReference *_nanoTimeTemp;
+};
 
-}
-
-}
+}} // namespace J9::X86
 
 #endif

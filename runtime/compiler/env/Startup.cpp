@@ -25,29 +25,20 @@
 #include "j9.h"
 
 bool initializeJIT(J9JavaVM *vm)
-   {
+{
+    // Create a bootstrap raw allocator.
+    //
+    TR::RawAllocator rawAllocator(vm);
 
-   // Create a bootstrap raw allocator.
-   //
-   TR::RawAllocator rawAllocator(vm);
+    try {
+        // Allocate the host environment structure
+        //
+        TR::Compiler = new (rawAllocator) TR::CompilerEnv(vm, rawAllocator, (TR::PersistentAllocatorKit(1 << 20, *vm)));
+    } catch (const std::bad_alloc &ba) {
+        return false;
+    }
 
-   try
-      {
-      // Allocate the host environment structure
-      //
-      TR::Compiler = new (rawAllocator)
-         TR::CompilerEnv(
-            vm,
-            rawAllocator,
-            (TR::PersistentAllocatorKit( 1 << 20, *vm))
-            );
-      }
-   catch (const std::bad_alloc& ba)
-      {
-      return false;
-      }
+    TR::Compiler->initialize();
 
-   TR::Compiler->initialize();
-
-   return true;
-   }
+    return true;
+}

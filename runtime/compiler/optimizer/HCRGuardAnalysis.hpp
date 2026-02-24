@@ -25,24 +25,22 @@ namespace TR {
 class NodeChecklist;
 }
 
-class TR_HCRGuardAnalysis : public TR_UnionSingleBitContainerAnalysis
-   {
-   public:
+class TR_HCRGuardAnalysis : public TR_UnionSingleBitContainerAnalysis {
+public:
+    TR_HCRGuardAnalysis(TR::Compilation *comp, TR::Optimizer *optimizer, TR_Structure *);
 
-   TR_HCRGuardAnalysis(TR::Compilation *comp, TR::Optimizer *optimizer, TR_Structure *);
+    virtual Kind getKind();
 
-   virtual Kind getKind();
+    bool traceHCRGuardAnalysis() { return _traceHCRGuardAnalysis; }
 
-   bool traceHCRGuardAnalysis() { return _traceHCRGuardAnalysis; }
+    virtual int32_t getNumberOfBits();
+    virtual bool supportsGenAndKillSets();
+    virtual void initializeGenAndKillSetInfo();
+    virtual void analyzeNode(TR::Node *, vcount_t, TR_BlockStructure *, TR_SingleBitContainer *);
+    virtual void analyzeTreeTopsInBlockStructure(TR_BlockStructure *);
+    virtual bool postInitializationProcessing();
+    bool shouldSkipBlock(TR::Block *block);
 
-   virtual int32_t getNumberOfBits();
-   virtual bool supportsGenAndKillSets();
-   virtual void initializeGenAndKillSetInfo();
-   virtual void analyzeNode(TR::Node *, vcount_t, TR_BlockStructure *, TR_SingleBitContainer *);
-   virtual void analyzeTreeTopsInBlockStructure(TR_BlockStructure *);
-   virtual bool postInitializationProcessing();
-   bool shouldSkipBlock(TR::Block *block);
-
-   private:
-   bool _traceHCRGuardAnalysis;
-   };
+private:
+    bool _traceHCRGuardAnalysis;
+};

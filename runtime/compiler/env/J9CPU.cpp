@@ -21,78 +21,72 @@
  *******************************************************************************/
 
 #if defined(J9ZOS390)
-#pragma csect(CODE,"J9J9CPU#C")
-#pragma csect(STATIC,"J9J9CPU#S")
-#pragma csect(TEST,"J9J9CPU#T")
+#pragma csect(CODE, "J9J9CPU#C")
+#pragma csect(STATIC, "J9J9CPU#S")
+#pragma csect(TEST, "J9J9CPU#T")
 #endif
 
 #include "env/CPU.hpp"
 #include "env/VMJ9.h"
-#include "infra/Assert.hpp"                         // for TR_ASSERT
+#include "infra/Assert.hpp" // for TR_ASSERT
 
-OMRProcessorDesc J9::CPU::_supportedFeatureMasks = {OMR_PROCESSOR_UNDEFINED, OMR_PROCESSOR_UNDEFINED, {}};
+OMRProcessorDesc J9::CPU::_supportedFeatureMasks = { OMR_PROCESSOR_UNDEFINED, OMR_PROCESSOR_UNDEFINED, {} };
 bool J9::CPU::_isSupportedFeatureMasksEnabled = false;
 
-const char *
-J9::CPU::getProcessorVendorId() 
-   {
-   TR_ASSERT_FATAL(false, "Vendor ID not defined for this platform!");
-   return NULL;
-   }
+const char *J9::CPU::getProcessorVendorId()
+{
+    TR_ASSERT_FATAL(false, "Vendor ID not defined for this platform!");
+    return NULL;
+}
 
-uint32_t 
-J9::CPU::getProcessorSignature()
-   {
-   TR_ASSERT_FATAL(false, "Processor Signature not defined for this platform!"); 
-   return 0;
-   }
+uint32_t J9::CPU::getProcessorSignature()
+{
+    TR_ASSERT_FATAL(false, "Processor Signature not defined for this platform!");
+    return 0;
+}
 
-void
-J9::CPU::enableFeatureMasks()
-   {
-   // Assume all features will be utilized by default
-   memset(_supportedFeatureMasks.features, ~0, OMRPORT_SYSINFO_FEATURES_SIZE*sizeof(uint32_t));
-   _isSupportedFeatureMasksEnabled = true;
-   }
+void J9::CPU::enableFeatureMasks()
+{
+    // Assume all features will be utilized by default
+    memset(_supportedFeatureMasks.features, ~0, OMRPORT_SYSINFO_FEATURES_SIZE * sizeof(uint32_t));
+    _isSupportedFeatureMasksEnabled = true;
+}
 
-TR::CPU
-J9::CPU::customize(OMRProcessorDesc processorDescription)
-   {
-   if (_isSupportedFeatureMasksEnabled)
-      {
-      // mask out any cpu features that the compiler doesn't care about
-      for (size_t i = 0; i < OMRPORT_SYSINFO_FEATURES_SIZE; i++)
-         {
-         processorDescription.features[i] &= _supportedFeatureMasks.features[i];
-         }
-      }
-   return TR::CPU(processorDescription);
-   }
+TR::CPU J9::CPU::customize(OMRProcessorDesc processorDescription)
+{
+    if (_isSupportedFeatureMasksEnabled) {
+        // mask out any cpu features that the compiler doesn't care about
+        for (size_t i = 0; i < OMRPORT_SYSINFO_FEATURES_SIZE; i++) {
+            processorDescription.features[i] &= _supportedFeatureMasks.features[i];
+        }
+    }
+    return TR::CPU(processorDescription);
+}
 
-TR::CPU
-J9::CPU::detect(OMRPortLibrary * const omrPortLib)
-   {   
-   if (omrPortLib == NULL)
-      return TR::CPU();
+TR::CPU J9::CPU::detect(OMRPortLibrary * const omrPortLib)
+{
+    if (omrPortLib == NULL)
+        return TR::CPU();
 
-   OMRPORT_ACCESS_FROM_OMRPORT(omrPortLib);
-   OMRProcessorDesc processorDescription;
-   omrsysinfo_get_processor_description(&processorDescription);
+    OMRPORT_ACCESS_FROM_OMRPORT(omrPortLib);
+    OMRProcessorDesc processorDescription;
+    omrsysinfo_get_processor_description(&processorDescription);
 
-   TR::CPU::enableFeatureMasks();
-   return TR::CPU::customize(processorDescription);
-   }
+    TR::CPU::enableFeatureMasks();
+    return TR::CPU::customize(processorDescription);
+}
 
-bool
-J9::CPU::supportsFeature(uint32_t feature)
-   {
-   OMRPORT_ACCESS_FROM_OMRPORT(TR::Compiler->omrPortLib);
+bool J9::CPU::supportsFeature(uint32_t feature)
+{
+    OMRPORT_ACCESS_FROM_OMRPORT(TR::Compiler->omrPortLib);
 
-   static bool disableCPUDetectionTest = feGetEnv("TR_DisableCPUDetectionTest");
-   if (!disableCPUDetectionTest && _isSupportedFeatureMasksEnabled)
-      {
-      TR_ASSERT_FATAL(TRUE == omrsysinfo_processor_has_feature(&_supportedFeatureMasks, feature), "New processor feature usage detected, please add feature %d to _supportedFeatureMasks via TR::CPU::enableFeatureMasks()\n", feature);
-      }
+    static bool disableCPUDetectionTest = feGetEnv("TR_DisableCPUDetectionTest");
+    if (!disableCPUDetectionTest && _isSupportedFeatureMasksEnabled) {
+        TR_ASSERT_FATAL(TRUE == omrsysinfo_processor_has_feature(&_supportedFeatureMasks, feature),
+            "New processor feature usage detected, please add feature %d to _supportedFeatureMasks via "
+            "TR::CPU::enableFeatureMasks()\n",
+            feature);
+    }
 
-   return TRUE == omrsysinfo_processor_has_feature(&_processorDescription, feature);
-   }
+    return TRUE == omrsysinfo_processor_has_feature(&_processorDescription, feature);
+}

@@ -30,198 +30,213 @@
 
 class TR_IPBytecodeHashTableEntry;
 
-using IPTableHeapEntry = UnorderedMap<uint32_t, TR_IPBytecodeHashTableEntry*>;
+using IPTableHeapEntry = UnorderedMap<uint32_t, TR_IPBytecodeHashTableEntry *>;
 using IPTableHeap_t = UnorderedMap<J9Method *, IPTableHeapEntry *>;
 using ResolvedMirrorMethodsPersistIP_t = Vector<TR_ResolvedJ9Method *>;
 using ClassOfStatic_t = UnorderedMap<std::pair<TR_OpaqueClassBlock *, int32_t>, TR_OpaqueClassBlock *>;
 using FieldOrStaticAttrTable_t = UnorderedMap<std::pair<TR_OpaqueClassBlock *, int32_t>, TR_J9MethodFieldAttributes>;
 using NullClassSignatureCache_t = UnorderedSet<ClassLoaderStringPair>;
 
-using CompilationRequest = std::tuple<
-   uint64_t, uint32_t, uint32_t, J9Method *, J9Class *, TR_OptimizationPlan, std::string,
-   J9::IlGeneratorMethodDetailsType, std::vector<TR_OpaqueClassBlock *>, std::vector<TR_OpaqueClassBlock *>,
-   JITServerHelpers::ClassInfoTuple, std::string, std::string, std::string, std::string,
-   bool, bool, bool, bool, uint32_t, uintptr_t, std::vector<J9Class *>, std::vector<J9Class *>,
-   std::vector<JITServerHelpers::ClassInfoTuple>, std::vector<uintptr_t>, size_t
->;
+using CompilationRequest = std::tuple<uint64_t, uint32_t, uint32_t, J9Method *, J9Class *, TR_OptimizationPlan,
+    std::string, J9::IlGeneratorMethodDetailsType, std::vector<TR_OpaqueClassBlock *>,
+    std::vector<TR_OpaqueClassBlock *>, JITServerHelpers::ClassInfoTuple, std::string, std::string, std::string,
+    std::string, bool, bool, bool, bool, uint32_t, uintptr_t, std::vector<J9Class *>, std::vector<J9Class *>,
+    std::vector<JITServerHelpers::ClassInfoTuple>, std::vector<uintptr_t>, size_t>;
 
 void outOfProcessCompilationEnd(TR_MethodToBeCompiled *entry, TR::Compilation *comp);
 
-namespace TR
-{
+namespace TR {
 // Objects of this type are instantiated at JITServer
-class CompilationInfoPerThreadRemote : public TR::CompilationInfoPerThread
-   {
+class CompilationInfoPerThreadRemote : public TR::CompilationInfoPerThread {
 public:
-   friend class TR::CompilationInfo;
-   CompilationInfoPerThreadRemote(TR::CompilationInfo &compInfo, J9JITConfig *jitConfig, int32_t id, bool isDiagnosticThread);
+    friend class TR::CompilationInfo;
+    CompilationInfoPerThreadRemote(TR::CompilationInfo &compInfo, J9JITConfig *jitConfig, int32_t id,
+        bool isDiagnosticThread);
 
-   virtual void processEntry(TR_MethodToBeCompiled &entry, J9::J9SegmentProvider &scratchSegmentProvider) override;
-   TR_PersistentMethodInfo *getRecompilationMethodInfo() const { return _recompilationMethodInfo; }
+    virtual void processEntry(TR_MethodToBeCompiled &entry, J9::J9SegmentProvider &scratchSegmentProvider) override;
 
-   uint32_t getSeqNo() const { return _seqNo; }; // For ordering requests at the server
-   void setSeqNo(uint32_t seqNo) { _seqNo = seqNo; }
-   uint32_t getExpectedSeqNo() const { return _expectedSeqNo; }
-   void setExpectedSeqNo(uint32_t seqNo) { _expectedSeqNo = seqNo; }
+    TR_PersistentMethodInfo *getRecompilationMethodInfo() const { return _recompilationMethodInfo; }
 
-   void notifyAndDetachWaitingRequests(ClientSessionData *clientSession);
-   void waitForMyTurn(ClientSessionData *clientSession, TR_MethodToBeCompiled &entry); // Return false if timeout
-   bool getWaitToBeNotified() const { return _waitToBeNotified; }
-   void setWaitToBeNotified(bool b) { _waitToBeNotified = b; }
-   static int32_t getNumClearedCaches() { return _numClearedCaches; }
-   void incNumClearedCaches() { _numClearedCaches++; }
+    uint32_t getSeqNo() const { return _seqNo; }; // For ordering requests at the server
 
-   void copyClientOptions(const std::string &clientOptStr, TR_PersistentMemory *persistentMemory)
-      {
-      size_t clientOptSize = clientOptStr.size();
-      _clientOptionsSize = clientOptSize;
-      _clientOptions = new (persistentMemory->_persistentAllocator.get()) char[clientOptSize];
-      memcpy(_clientOptions, clientOptStr.data(), clientOptSize);
-      }
+    void setSeqNo(uint32_t seqNo) { _seqNo = seqNo; }
 
-   void deleteClientOptions(TR_PersistentMemory *persistentMemory)
-      {
-      if (_clientOptions)
-         {
-         persistentMemory->freePersistentMemory(_clientOptions);
-         _clientOptions = NULL;
-         _clientOptionsSize = 0;
-         }
-      }
+    uint32_t getExpectedSeqNo() const { return _expectedSeqNo; }
 
-   char *getClientOptions() { return _clientOptions; }
-   size_t getClientOptionsSize() { return _clientOptionsSize; }
+    void setExpectedSeqNo(uint32_t seqNo) { _expectedSeqNo = seqNo; }
 
-   bool cacheIProfilerInfo(TR_OpaqueMethodBlock *method, uint32_t byteCodeIndex, TR_IPBytecodeHashTableEntry *entry);
-   bool cacheIProfilerInfo(TR_OpaqueMethodBlock *method, const Vector<TR_IPBytecodeHashTableEntry *> &entries);
+    void notifyAndDetachWaitingRequests(ClientSessionData *clientSession);
+    void waitForMyTurn(ClientSessionData *clientSession, TR_MethodToBeCompiled &entry); // Return false if timeout
 
-   TR_IPBytecodeHashTableEntry *getCachedIProfilerInfo(TR_OpaqueMethodBlock *method, uint32_t byteCodeIndex, bool *methodInfoPresent);
+    bool getWaitToBeNotified() const { return _waitToBeNotified; }
 
-   void cacheResolvedMethod(TR_ResolvedMethodKey key, TR_OpaqueMethodBlock *method, uint32_t vTableSlot, const TR_ResolvedJ9JITServerMethodInfo &methodInfo, bool isUnresolvedInCP, int32_t ttlForUnresolved = 2);
-   bool getCachedResolvedMethod(TR_ResolvedMethodKey key, TR_ResolvedJ9JITServerMethod *owningMethod, TR_ResolvedMethod **resolvedMethod, bool *unresolvedInCP = NULL);
-   TR_ResolvedMethodKey getResolvedMethodKey(TR_ResolvedMethodType type, TR_OpaqueClassBlock *ramClass, int32_t cpIndex, TR_OpaqueClassBlock *classObject = NULL);
+    void setWaitToBeNotified(bool b) { _waitToBeNotified = b; }
 
-   void cacheResolvedMirrorMethodsPersistIPInfo(TR_ResolvedJ9Method *resolvedMethod);
-   ResolvedMirrorMethodsPersistIP_t *getCachedResolvedMirrorMethodsPersistIPInfo() const { return _resolvedMirrorMethodsPersistIPInfo; }
+    static int32_t getNumClearedCaches() { return _numClearedCaches; }
 
-   void cacheNullClassOfStatic(TR_OpaqueClassBlock *ramClass, int32_t cpIndex);
-   bool getCachedNullClassOfStatic(TR_OpaqueClassBlock *ramClass, int32_t cpIndex);
+    void incNumClearedCaches() { _numClearedCaches++; }
 
-   void cacheFieldOrStaticAttributes(TR_OpaqueClassBlock *ramClass, int32_t cpIndex, const TR_J9MethodFieldAttributes &attrs, bool isStatic);
-   bool getCachedFieldOrStaticAttributes(TR_OpaqueClassBlock *ramClass, int32_t cpIndex, TR_J9MethodFieldAttributes &attrs, bool isStatic);
+    void copyClientOptions(const std::string &clientOptStr, TR_PersistentMemory *persistentMemory)
+    {
+        size_t clientOptSize = clientOptStr.size();
+        _clientOptionsSize = clientOptSize;
+        _clientOptions = new (persistentMemory->_persistentAllocator.get()) char[clientOptSize];
+        memcpy(_clientOptions, clientOptStr.data(), clientOptSize);
+    }
 
-   void addClassToNullClassSignatureCache(const ClassLoaderStringPair &clsp);
-   bool classIsInNullClassSignatureCache(const ClassLoaderStringPair &clsp);
+    void deleteClientOptions(TR_PersistentMemory *persistentMemory)
+    {
+        if (_clientOptions) {
+            persistentMemory->freePersistentMemory(_clientOptions);
+            _clientOptions = NULL;
+            _clientOptionsSize = 0;
+        }
+    }
 
-   void cacheIsUnresolvedStr(TR_OpaqueClassBlock *ramClass, int32_t cpIndex, const TR_IsUnresolvedString &stringAttrs);
-   bool getCachedIsUnresolvedStr(TR_OpaqueClassBlock *ramClass, int32_t cpIndex, TR_IsUnresolvedString &stringAttrs);
+    char *getClientOptions() { return _clientOptions; }
 
-   void clearPerCompilationCaches();
-   void deleteClientSessionData(uint64_t clientId, TR::CompilationInfo* compInfo, J9VMThread* compThread);
-   virtual void freeAllResources() override;
+    size_t getClientOptionsSize() { return _clientOptionsSize; }
 
-   void incrementClassUnloadReadMutexDepth() { _classUnloadReadMutexDepth++; }
-   void decrementClassUnloadReadMutexDepth() { _classUnloadReadMutexDepth--; }
-   int32_t getClassUnloadReadMutexDepth() { return _classUnloadReadMutexDepth; }
+    bool cacheIProfilerInfo(TR_OpaqueMethodBlock *method, uint32_t byteCodeIndex, TR_IPBytecodeHashTableEntry *entry);
+    bool cacheIProfilerInfo(TR_OpaqueMethodBlock *method, const Vector<TR_IPBytecodeHashTableEntry *> &entries);
 
-   bool isAOTCacheStore() const { return _aotCacheStore; }
-   uint32_t getMethodIndex() const { return _methodIndex; }
-   const AOTCacheClassChainRecord *getDefiningClassChainRecord() { return _definingClassChainRecord; }
+    TR_IPBytecodeHashTableEntry *getCachedIProfilerInfo(TR_OpaqueMethodBlock *method, uint32_t byteCodeIndex,
+        bool *methodInfoPresent);
+
+    void cacheResolvedMethod(TR_ResolvedMethodKey key, TR_OpaqueMethodBlock *method, uint32_t vTableSlot,
+        const TR_ResolvedJ9JITServerMethodInfo &methodInfo, bool isUnresolvedInCP, int32_t ttlForUnresolved = 2);
+    bool getCachedResolvedMethod(TR_ResolvedMethodKey key, TR_ResolvedJ9JITServerMethod *owningMethod,
+        TR_ResolvedMethod **resolvedMethod, bool *unresolvedInCP = NULL);
+    TR_ResolvedMethodKey getResolvedMethodKey(TR_ResolvedMethodType type, TR_OpaqueClassBlock *ramClass,
+        int32_t cpIndex, TR_OpaqueClassBlock *classObject = NULL);
+
+    void cacheResolvedMirrorMethodsPersistIPInfo(TR_ResolvedJ9Method *resolvedMethod);
+
+    ResolvedMirrorMethodsPersistIP_t *getCachedResolvedMirrorMethodsPersistIPInfo() const
+    {
+        return _resolvedMirrorMethodsPersistIPInfo;
+    }
+
+    void cacheNullClassOfStatic(TR_OpaqueClassBlock *ramClass, int32_t cpIndex);
+    bool getCachedNullClassOfStatic(TR_OpaqueClassBlock *ramClass, int32_t cpIndex);
+
+    void cacheFieldOrStaticAttributes(TR_OpaqueClassBlock *ramClass, int32_t cpIndex,
+        const TR_J9MethodFieldAttributes &attrs, bool isStatic);
+    bool getCachedFieldOrStaticAttributes(TR_OpaqueClassBlock *ramClass, int32_t cpIndex,
+        TR_J9MethodFieldAttributes &attrs, bool isStatic);
+
+    void addClassToNullClassSignatureCache(const ClassLoaderStringPair &clsp);
+    bool classIsInNullClassSignatureCache(const ClassLoaderStringPair &clsp);
+
+    void cacheIsUnresolvedStr(TR_OpaqueClassBlock *ramClass, int32_t cpIndex, const TR_IsUnresolvedString &stringAttrs);
+    bool getCachedIsUnresolvedStr(TR_OpaqueClassBlock *ramClass, int32_t cpIndex, TR_IsUnresolvedString &stringAttrs);
+
+    void clearPerCompilationCaches();
+    void deleteClientSessionData(uint64_t clientId, TR::CompilationInfo *compInfo, J9VMThread *compThread);
+    virtual void freeAllResources() override;
+
+    void incrementClassUnloadReadMutexDepth() { _classUnloadReadMutexDepth++; }
+
+    void decrementClassUnloadReadMutexDepth() { _classUnloadReadMutexDepth--; }
+
+    int32_t getClassUnloadReadMutexDepth() { return _classUnloadReadMutexDepth; }
+
+    bool isAOTCacheStore() const { return _aotCacheStore; }
+
+    uint32_t getMethodIndex() const { return _methodIndex; }
+
+    const AOTCacheClassChainRecord *getDefiningClassChainRecord() { return _definingClassChainRecord; }
 
 private:
-   /* Template method for allocating a cache of type T on the heap.
-    * Cache pointer must be NULL.
-    */
-   template <typename T>
-   bool initializePerCompilationCache(T* &cache)
-      {
-      // Initialize map
-      TR_ASSERT(!cache, "Cache already initialized");
-      TR_Memory *trMemory = getCompilation()->trMemory();
-      cache = new (trMemory->trHeapMemory()) T(typename T::allocator_type(trMemory->heapMemoryRegion()));
-      return cache != NULL;
-      }
+    /* Template method for allocating a cache of type T on the heap.
+     * Cache pointer must be NULL.
+     */
+    template<typename T> bool initializePerCompilationCache(T *&cache)
+    {
+        // Initialize map
+        TR_ASSERT(!cache, "Cache already initialized");
+        TR_Memory *trMemory = getCompilation()->trMemory();
+        cache = new (trMemory->trHeapMemory()) T(typename T::allocator_type(trMemory->heapMemoryRegion()));
+        return cache != NULL;
+    }
 
-   /* Template method for storing key-value pairs (of types K and V respectively)
-    * to a heap-allocated unordered map.
-    * If a map is NULL, will allocate it.
-    */
-   template <typename K, typename V>
-   void cacheToPerCompilationMap(UnorderedMap<K, V>* &map, const K &key, const V &value)
-      {
-      if (!map)
-         initializePerCompilationCache(map);
-      map->insert({ key, value });
-      }
+    /* Template method for storing key-value pairs (of types K and V respectively)
+     * to a heap-allocated unordered map.
+     * If a map is NULL, will allocate it.
+     */
+    template<typename K, typename V>
+    void cacheToPerCompilationMap(UnorderedMap<K, V> *&map, const K &key, const V &value)
+    {
+        if (!map)
+            initializePerCompilationCache(map);
+        map->insert({ key, value });
+    }
 
-   /* Template method for retrieving values from heap-allocated unordered map.
-    * If the map is NULL or value is not found, returns false.
-    * Otherwise, sets value to retrieved value and returns true
-    */
-   template <typename K, typename V>
-   bool getCachedValueFromPerCompilationMap(UnorderedMap<K, V>* &map, const K &key, V &value)
-      {
-      if (!map)
-         return false;
-      auto it = map->find(key);
-      if (it != map->end())
-         {
-         // Found entry at a given key
-         value = it->second;
-         return true;
-         }
-      return false;
-      }
+    /* Template method for retrieving values from heap-allocated unordered map.
+     * If the map is NULL or value is not found, returns false.
+     * Otherwise, sets value to retrieved value and returns true
+     */
+    template<typename K, typename V>
+    bool getCachedValueFromPerCompilationMap(UnorderedMap<K, V> *&map, const K &key, V &value)
+    {
+        if (!map)
+            return false;
+        auto it = map->find(key);
+        if (it != map->end()) {
+            // Found entry at a given key
+            value = it->second;
+            return true;
+        }
+        return false;
+    }
 
-   /* Template method for clearing a heap-allocated cache.
-    * Simply sets pointer to cache to NULL.
-    */
-   template <typename T>
-   void clearPerCompilationCache(T* &cache)
-      {
-      // Since cache was heap-allocated,
-      // memory will be released automatically at the end of the compilation
-      cache = NULL;
-      }
+    /* Template method for clearing a heap-allocated cache.
+     * Simply sets pointer to cache to NULL.
+     */
+    template<typename T> void clearPerCompilationCache(T *&cache)
+    {
+        // Since cache was heap-allocated,
+        // memory will be released automatically at the end of the compilation
+        cache = NULL;
+    }
 
-   bool serveCachedAOTMethod(TR_MethodToBeCompiled &entry, J9Method *method, J9Class *definingClass,
-                             TR_OptimizationPlan *optPlan, ClientSessionData *clientData,
-                             J9::J9SegmentProvider &scratchSegmentProvider);
+    bool serveCachedAOTMethod(TR_MethodToBeCompiled &entry, J9Method *method, J9Class *definingClass,
+        TR_OptimizationPlan *optPlan, ClientSessionData *clientData, J9::J9SegmentProvider &scratchSegmentProvider);
 
-   void processCompilationRequest(CompilationRequest& req, JITServer::ServerStream *stream,
-                                  TR::CompilationInfo *compInfo, J9VMThread *compThread,
-                                  ClientSessionData *& clientSession, TR_MethodToBeCompiled &entry,
-                                  TR_OptimizationPlan *& optPlan, J9::J9SegmentProvider &scratchSegmentProvider,
-                                  uint64_t& clientId, uint32_t& seqNo, bool& hasUpdatedSeqNo,
-                                  bool& useAotCompilation, bool& isCriticalRequest, bool& hasIncNumActiveThreads,
-                                  bool& aotCacheHit, bool& abortCompilation);
+    void processCompilationRequest(CompilationRequest &req, JITServer::ServerStream *stream,
+        TR::CompilationInfo *compInfo, J9VMThread *compThread, ClientSessionData *&clientSession,
+        TR_MethodToBeCompiled &entry, TR_OptimizationPlan *&optPlan, J9::J9SegmentProvider &scratchSegmentProvider,
+        uint64_t &clientId, uint32_t &seqNo, bool &hasUpdatedSeqNo, bool &useAotCompilation, bool &isCriticalRequest,
+        bool &hasIncNumActiveThreads, bool &aotCacheHit, bool &abortCompilation);
 
-   void processAOTCacheMapRequest(const std::string& aotCacheName,
-                                  TR::CompilationInfo *compInfo,
-                                  JITServer::ServerStream *stream);
+    void processAOTCacheMapRequest(const std::string &aotCacheName, TR::CompilationInfo *compInfo,
+        JITServer::ServerStream *stream);
 
-   TR_PersistentMethodInfo *_recompilationMethodInfo;
-   uint32_t _seqNo;
-   uint32_t _expectedSeqNo; // this request is allowed to go if _expectedSeqNo is processed
-   bool _waitToBeNotified; // accessed with clientSession->_sequencingMonitor in hand
-   char *_clientOptions;
-   size_t _clientOptionsSize;
-   IPTableHeap_t *_methodIPDataPerComp;
-   TR_ResolvedMethodInfoCache *_resolvedMethodInfoMap;
-   ResolvedMirrorMethodsPersistIP_t *_resolvedMirrorMethodsPersistIPInfo; // list of mirrors of resolved methods for persisting IProfiler info
-   ClassOfStatic_t *_classOfStaticMap;
-   FieldOrStaticAttrTable_t *_fieldAttributesCache;
-   FieldOrStaticAttrTable_t *_staticAttributesCache;
-   NullClassSignatureCache_t *_nullClassSignatureCache;
-   UnorderedMap<std::pair<TR_OpaqueClassBlock *, int32_t>, TR_IsUnresolvedString> *_isUnresolvedStrCache;
-   int32_t _classUnloadReadMutexDepth;
-   bool _aotCacheStore; // True if the result of this compilation will be stored in AOT cache
-   uint32_t _methodIndex; // Index of the method being compiled in the array of methods of its defining class
-   const AOTCacheClassChainRecord *_definingClassChainRecord; // Used to store the result of the compilation in AOT cache
+    TR_PersistentMethodInfo *_recompilationMethodInfo;
+    uint32_t _seqNo;
+    uint32_t _expectedSeqNo; // this request is allowed to go if _expectedSeqNo is processed
+    bool _waitToBeNotified; // accessed with clientSession->_sequencingMonitor in hand
+    char *_clientOptions;
+    size_t _clientOptionsSize;
+    IPTableHeap_t *_methodIPDataPerComp;
+    TR_ResolvedMethodInfoCache *_resolvedMethodInfoMap;
+    ResolvedMirrorMethodsPersistIP_t
+        *_resolvedMirrorMethodsPersistIPInfo; // list of mirrors of resolved methods for persisting IProfiler info
+    ClassOfStatic_t *_classOfStaticMap;
+    FieldOrStaticAttrTable_t *_fieldAttributesCache;
+    FieldOrStaticAttrTable_t *_staticAttributesCache;
+    NullClassSignatureCache_t *_nullClassSignatureCache;
+    UnorderedMap<std::pair<TR_OpaqueClassBlock *, int32_t>, TR_IsUnresolvedString> *_isUnresolvedStrCache;
+    int32_t _classUnloadReadMutexDepth;
+    bool _aotCacheStore; // True if the result of this compilation will be stored in AOT cache
+    uint32_t _methodIndex; // Index of the method being compiled in the array of methods of its defining class
+    const AOTCacheClassChainRecord
+        *_definingClassChainRecord; // Used to store the result of the compilation in AOT cache
 
-   static int32_t _numClearedCaches; // number of instances JITServer was forced to clear its internal per-client caches
+    static int32_t
+        _numClearedCaches; // number of instances JITServer was forced to clear its internal per-client caches
 
-   }; // class CompilationInfoPerThreadRemote
+}; // class CompilationInfoPerThreadRemote
 } // namespace TR
 
 #endif // defined(JITSERVER_COMPILATION_THREAD_H)

@@ -31,6 +31,7 @@
 struct J9Class;
 struct J9ClassLoader;
 struct J9JITExceptionTable;
+
 namespace TR {
 class Compilation;
 }
@@ -44,93 +45,77 @@ namespace J9 {
  *
  * See OMR::RetainedMethodSet. Virtual methods in this class are just overrides.
  */
-class RetainedMethodSet : public OMR::RetainedMethodSet
-   {
-   private:
+class RetainedMethodSet : public OMR::RetainedMethodSet {
+private:
+    class InliningTable;
+    class CompInliningTable;
+    class VectorInliningTable;
 
-   class InliningTable;
-   class CompInliningTable;
-   class VectorInliningTable;
+    RetainedMethodSet(TR::Compilation *comp, TR_ResolvedMethod *method, J9::RetainedMethodSet *parent,
+        InliningTable *inliningTable);
 
-   RetainedMethodSet(
-      TR::Compilation *comp,
-      TR_ResolvedMethod *method,
-      J9::RetainedMethodSet *parent,
-      InliningTable *inliningTable);
+public:
+    static J9::RetainedMethodSet *create(TR::Compilation *comp, TR_ResolvedMethod *method);
 
-   public:
+    static J9::RetainedMethodSet *create(TR::Compilation *comp, TR_ResolvedMethod *method,
+        const TR::vector<J9::ResolvedInlinedCallSite, TR::Region &> &inliningTable);
 
-   static J9::RetainedMethodSet *create(
-      TR::Compilation *comp, TR_ResolvedMethod *method);
+    static const TR::vector<J9::ResolvedInlinedCallSite, TR::Region &> &copyInliningTable(TR::Compilation *comp,
+        J9JITExceptionTable *metadata);
 
-   static J9::RetainedMethodSet *create(
-      TR::Compilation *comp,
-      TR_ResolvedMethod *method,
-      const TR::vector<J9::ResolvedInlinedCallSite, TR::Region&> &inliningTable);
+    virtual J9::RetainedMethodSet *createChild(TR_ResolvedMethod *method);
 
-   static const TR::vector<J9::ResolvedInlinedCallSite, TR::Region&> &
-      copyInliningTable(TR::Compilation *comp, J9JITExceptionTable *metadata);
+    virtual bool willRemainLoaded(TR_ResolvedMethod *method);
+    bool willRemainLoaded(TR_OpaqueClassBlock *clazz);
+    bool willRemainLoaded(J9Class *clazz);
+    bool willRemainLoaded(J9ClassLoader *loader);
+    virtual J9::RetainedMethodSet *withLinkedCalleeAttested(TR_ByteCodeInfo bci);
+    void attestWillRemainLoaded(TR_OpaqueClassBlock *clazz);
+    virtual void keepalive();
+    virtual void bond();
+    virtual J9::RetainedMethodSet *withKeepalivesAttested();
+    virtual J9::RetainedMethodSet *withBondsAttested();
 
-   virtual J9::RetainedMethodSet *createChild(TR_ResolvedMethod *method);
+    // This is protected in OMR::RetainedMethodSet, but it's useful for
+    // J9::RepeatRetainedMethodsAnalysis::analyzeOnClient(), and it doesn't hurt
+    // for it to be public.
+    virtual void *unloadingKey(TR_ResolvedMethod *method);
 
-   virtual bool willRemainLoaded(TR_ResolvedMethod *method);
-   bool willRemainLoaded(TR_OpaqueClassBlock *clazz);
-   bool willRemainLoaded(J9Class *clazz);
-   bool willRemainLoaded(J9ClassLoader *loader);
-   virtual J9::RetainedMethodSet *withLinkedCalleeAttested(TR_ByteCodeInfo bci);
-   void attestWillRemainLoaded(TR_OpaqueClassBlock *clazz);
-   virtual void keepalive();
-   virtual void bond();
-   virtual J9::RetainedMethodSet *withKeepalivesAttested();
-   virtual J9::RetainedMethodSet *withBondsAttested();
+protected:
+    struct KeepalivesAndBonds : public OMR::RetainedMethodSet::KeepalivesAndBonds {
+        // Set contents implied by the keepalives, for withKeepalivesAttested().
+        TR::set<J9ClassLoader *> _keepaliveLoaders;
+        TR::set<J9Class *> _keepaliveAnonClasses;
 
-   // This is protected in OMR::RetainedMethodSet, but it's useful for
-   // J9::RepeatRetainedMethodsAnalysis::analyzeOnClient(), and it doesn't hurt
-   // for it to be public.
-   virtual void *unloadingKey(TR_ResolvedMethod *method);
+        // Set contents implied by the bonds, for withBondsAttested().
+        TR::set<J9ClassLoader *> _bondLoaders;
+        TR::set<J9Class *> _bondAnonClasses;
 
-   protected:
+        KeepalivesAndBonds(TR::Region &heapRegion);
+    };
 
-   struct KeepalivesAndBonds : public OMR::RetainedMethodSet::KeepalivesAndBonds
-      {
-      // Set contents implied by the keepalives, for withKeepalivesAttested().
-      TR::set<J9ClassLoader*> _keepaliveLoaders;
-      TR::set<J9Class*> _keepaliveAnonClasses;
+    J9::RetainedMethodSet *parent() { return static_cast<J9::RetainedMethodSet *>(OMR::RetainedMethodSet::parent()); }
 
-      // Set contents implied by the bonds, for withBondsAttested().
-      TR::set<J9ClassLoader*> _bondLoaders;
-      TR::set<J9Class*> _bondAnonClasses;
+    J9::RetainedMethodSet::KeepalivesAndBonds *keepalivesAndBonds()
+    {
+        return static_cast<J9::RetainedMethodSet::KeepalivesAndBonds *>(OMR::RetainedMethodSet::keepalivesAndBonds());
+    }
 
-      KeepalivesAndBonds(TR::Region &heapRegion);
-      };
+    virtual J9::RetainedMethodSet::KeepalivesAndBonds *createKeepalivesAndBonds();
 
-   J9::RetainedMethodSet *parent()
-      {
-      return static_cast<J9::RetainedMethodSet*>(OMR::RetainedMethodSet::parent());
-      }
+private:
+    void init();
+    void attestWillRemainLoaded(TR_ResolvedMethod *method);
+    void scan(J9Class *clazz);
+    void scan(J9ClassLoader *loader);
+    bool willAnonymousClassRemainLoaded(J9Class *clazz);
+    J9ClassLoader *getLoader(J9Class *clazz);
+    bool isAnonymousClass(J9Class *clazz);
 
-   J9::RetainedMethodSet::KeepalivesAndBonds *keepalivesAndBonds()
-      {
-      return static_cast<J9::RetainedMethodSet::KeepalivesAndBonds*>(
-         OMR::RetainedMethodSet::keepalivesAndBonds());
-      }
-
-   virtual J9::RetainedMethodSet::KeepalivesAndBonds *createKeepalivesAndBonds();
-
-   private:
-
-   void init();
-   void attestWillRemainLoaded(TR_ResolvedMethod *method);
-   void scan(J9Class *clazz);
-   void scan(J9ClassLoader *loader);
-   bool willAnonymousClassRemainLoaded(J9Class *clazz);
-   J9ClassLoader *getLoader(J9Class *clazz);
-   bool isAnonymousClass(J9Class *clazz);
-
-   TR::set<J9ClassLoader*> _loaders;
-   TR::set<J9Class*> _anonClasses;
-   InliningTable * const _inliningTable;
-   };
+    TR::set<J9ClassLoader *> _loaders;
+    TR::set<J9Class *> _anonClasses;
+    InliningTable * const _inliningTable;
+};
 
 } // namespace J9
 

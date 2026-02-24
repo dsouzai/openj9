@@ -28,10 +28,14 @@
  */
 #ifndef J9_UNRESOLVEDDATASNIPPET_CONNECTOR
 #define J9_UNRESOLVEDDATASNIPPET_CONNECTOR
+
 namespace J9 {
-namespace ARM64 { class UnresolvedDataSnippet; }
-typedef J9::ARM64::UnresolvedDataSnippet UnresolvedDataSnippetConnector;
+namespace ARM64 {
+class UnresolvedDataSnippet;
 }
+
+typedef J9::ARM64::UnresolvedDataSnippet UnresolvedDataSnippetConnector;
+} // namespace J9
 #else
 #error J9::ARM64::UnresolvedDataSnippet expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -43,70 +47,63 @@ typedef J9::ARM64::UnresolvedDataSnippet UnresolvedDataSnippetConnector;
 namespace TR {
 class MemoryReference;
 class Symbol;
-}
+} // namespace TR
 
-namespace J9
-{
+namespace J9 { namespace ARM64 {
 
-namespace ARM64
-{
+class UnresolvedDataSnippet : public J9::UnresolvedDataSnippet {
+    TR::MemoryReference *_memoryReference;
 
-class UnresolvedDataSnippet : public J9::UnresolvedDataSnippet
-   {
+public:
+    /**
+     * @brief Constructor
+     */
+    UnresolvedDataSnippet(TR::CodeGenerator *cg, TR::Node *node, TR::SymbolReference *symRef, bool isStore,
+        bool isGCSafePoint);
 
-   TR::MemoryReference  *_memoryReference;
+    /**
+     * @brief Answers the Snippet kind
+     * @return Snippet kind
+     */
+    virtual Kind getKind() { return IsUnresolvedData; }
 
-   public:
+    /**
+     * @brief Answers the DataSymbol
+     * @return DataSymbol
+     */
+    TR::Symbol *getDataSymbol() { return getDataSymbolReference()->getSymbol(); }
 
-   /**
-    * @brief Constructor
-    */
-   UnresolvedDataSnippet(TR::CodeGenerator *cg, TR::Node *node, TR::SymbolReference *symRef, bool isStore, bool isGCSafePoint);
+    /**
+     * @brief Answers the MemoryReference
+     * @return MemoryReference
+     */
+    TR::MemoryReference *getMemoryReference() { return _memoryReference; }
 
-   /**
-    * @brief Answers the Snippet kind
-    * @return Snippet kind
-    */
-   virtual Kind getKind() { return IsUnresolvedData; }
+    /**
+     * @brief Sets the MemoryReference
+     * @return MemoryReference
+     */
+    TR::MemoryReference *setMemoryReference(TR::MemoryReference *mr) { return (_memoryReference = mr); }
 
-   /**
-    * @brief Answers the DataSymbol
-    * @return DataSymbol
-    */
-   TR::Symbol *getDataSymbol() { return getDataSymbolReference()->getSymbol(); }
+    /**
+     * @brief Answers runtime helper
+     * @return runtime helper
+     */
+    TR_RuntimeHelper getHelper();
 
-   /**
-    * @brief Answers the MemoryReference
-    * @return MemoryReference
-    */
-   TR::MemoryReference *getMemoryReference() { return _memoryReference; }
-   /**
-    * @brief Sets the MemoryReference
-    * @return MemoryReference
-    */
-   TR::MemoryReference *setMemoryReference(TR::MemoryReference *mr) { return (_memoryReference = mr); }
+    /**
+     * @brief Emits the Snippet body
+     * @return instruction cursor
+     */
+    virtual uint8_t *emitSnippetBody();
 
-   /**
-    * @brief Answers runtime helper
-    * @return runtime helper
-    */
-   TR_RuntimeHelper getHelper();
+    /**
+     * @brief Answers the Snippet length
+     * @return Snippet length
+     */
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
+};
 
-   /**
-    * @brief Emits the Snippet body
-    * @return instruction cursor
-    */
-   virtual uint8_t *emitSnippetBody();
-
-   /**
-    * @brief Answers the Snippet length
-    * @return Snippet length
-    */
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-   };
-
-}
-
-}
+}} // namespace J9::ARM64
 
 #endif

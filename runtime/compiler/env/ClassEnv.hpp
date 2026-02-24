@@ -26,17 +26,15 @@
 #include "env/J9ClassEnv.hpp"
 #include "infra/Annotations.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE ClassEnv : public J9::ClassEnvConnector
-   {
+class OMR_EXTENSIBLE ClassEnv : public J9::ClassEnvConnector {
 public:
+    ClassEnv()
+        : J9::ClassEnvConnector()
+    {}
+};
 
-   ClassEnv() : J9::ClassEnvConnector() {}
-
-   };
-
-}
+} // namespace TR
 
 #endif

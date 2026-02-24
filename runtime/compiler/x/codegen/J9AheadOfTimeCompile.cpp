@@ -44,51 +44,40 @@
 #include "runtime/SymbolValidationManager.hpp"
 
 void J9::X86::AheadOfTimeCompile::processRelocations()
-   {
-   TR::Compilation *comp = _cg->comp();
+{
+    TR::Compilation *comp = _cg->comp();
 
-   if (comp->target().is64Bit()
-       && TR::CodeCacheManager::instance()->codeCacheConfig().needsMethodTrampolines()
-       && _cg->getPicSlotCount())
-      {
-      _cg->addExternalRelocation(
-         TR::ExternalRelocation::create(
-            NULL,
-            (uint8_t *)(uintptr_t)_cg->getPicSlotCount(),
-            TR_PicTrampolines,
-            _cg),
-         __FILE__,
-         __LINE__,
-         NULL);
-      }
+    if (comp->target().is64Bit() && TR::CodeCacheManager::instance()->codeCacheConfig().needsMethodTrampolines()
+        && _cg->getPicSlotCount()) {
+        _cg->addExternalRelocation(
+            TR::ExternalRelocation::create(NULL, (uint8_t *)(uintptr_t)_cg->getPicSlotCount(), TR_PicTrampolines, _cg),
+            __FILE__, __LINE__, NULL);
+    }
 
-   J9::AheadOfTimeCompile::processRelocations();
-   }
+    J9::AheadOfTimeCompile::processRelocations();
+}
 
-bool
-J9::X86::AheadOfTimeCompile::initializePlatformSpecificAOTRelocationHeader(TR::IteratedExternalRelocation *relocation,
-                                                                           TR_RelocationTarget *reloTarget,
-                                                                           TR_RelocationRecord *reloRecord,
-                                                                           uint8_t targetKind)
-   {
-   bool platformSpecificReloInitialized = true;
+bool J9::X86::AheadOfTimeCompile::initializePlatformSpecificAOTRelocationHeader(
+    TR::IteratedExternalRelocation *relocation, TR_RelocationTarget *reloTarget, TR_RelocationRecord *reloRecord,
+    uint8_t targetKind)
+{
+    bool platformSpecificReloInitialized = true;
 
-   switch (targetKind)
-      {
-      case TR_PicTrampolines:
-         {
-         TR_RelocationRecordPicTrampolines *ptRecord = reinterpret_cast<TR_RelocationRecordPicTrampolines *>(reloRecord);
+    switch (targetKind) {
+        case TR_PicTrampolines: {
+            TR_RelocationRecordPicTrampolines *ptRecord
+                = reinterpret_cast<TR_RelocationRecordPicTrampolines *>(reloRecord);
 
-         TR_ASSERT(self()->comp()->target().is64Bit(), "TR_PicTrampolines not supported on 32-bit");
-         uint32_t numTrampolines = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(relocation->getTargetAddress()));
-         ptRecord->setNumTrampolines(reloTarget, numTrampolines);
-         }
-        break;
+            TR_ASSERT(self()->comp()->target().is64Bit(), "TR_PicTrampolines not supported on 32-bit");
+            uint32_t numTrampolines
+                = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(relocation->getTargetAddress()));
+            ptRecord->setNumTrampolines(reloTarget, numTrampolines);
+        } break;
 
-      default:
-         platformSpecificReloInitialized = false;
-      }
+        default:
+            platformSpecificReloInitialized = false;
+    }
 
-   return platformSpecificReloInitialized;
-   }
+    return platformSpecificReloInitialized;
+}
 

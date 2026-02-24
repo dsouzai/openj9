@@ -38,140 +38,125 @@
 // These are only here to make the rest of the code below somewhat
 // self-documenting.
 //
-enum
-   {
-   RETURN_ADDRESS_SIZE=8,
-   GPR_REG_WIDTH=8,
-   AMD64_STACK_SLOT_SIZE=8,
-   AMD64_DEFAULT_STACK_ALIGNMENT=16,
-   AMD64_ABI_NUM_INTEGER_LINKAGE_REGS=6,
-   AMD64_ABI_NUM_FLOAT_LINKAGE_REGS=8,
-   WIN64_FAST_ABI_NUM_INTEGER_LINKAGE_REGS=4,
-   WIN64_FAST_ABI_NUM_FLOAT_LINKAGE_REGS=4
-   };
-
+enum {
+    RETURN_ADDRESS_SIZE = 8,
+    GPR_REG_WIDTH = 8,
+    AMD64_STACK_SLOT_SIZE = 8,
+    AMD64_DEFAULT_STACK_ALIGNMENT = 16,
+    AMD64_ABI_NUM_INTEGER_LINKAGE_REGS = 6,
+    AMD64_ABI_NUM_FLOAT_LINKAGE_REGS = 8,
+    WIN64_FAST_ABI_NUM_INTEGER_LINKAGE_REGS = 4,
+    WIN64_FAST_ABI_NUM_FLOAT_LINKAGE_REGS = 4
+};
 
 TR::AMD64J9Win64FastCallLinkage::AMD64J9Win64FastCallLinkage(TR::CodeGenerator *cg)
-   : TR::AMD64SystemLinkage(cg), TR::AMD64J9SystemLinkage(cg), TR::AMD64Win64FastCallLinkage(cg)
-   {
-   _properties._framePointerRegister = TR::RealRegister::esp;
-   _properties._methodMetaDataRegister = TR::RealRegister::ebp;
-   }
-
+    : TR::AMD64SystemLinkage(cg)
+    , TR::AMD64J9SystemLinkage(cg)
+    , TR::AMD64Win64FastCallLinkage(cg)
+{
+    _properties._framePointerRegister = TR::RealRegister::esp;
+    _properties._methodMetaDataRegister = TR::RealRegister::ebp;
+}
 
 TR::AMD64J9ABILinkage::AMD64J9ABILinkage(TR::CodeGenerator *cg)
-   : TR::AMD64SystemLinkage(cg), TR::AMD64J9SystemLinkage(cg), TR::AMD64ABILinkage(cg)
-   {
-   _properties._framePointerRegister = TR::RealRegister::esp;
-   _properties._methodMetaDataRegister = TR::RealRegister::ebp;
-   }
+    : TR::AMD64SystemLinkage(cg)
+    , TR::AMD64J9SystemLinkage(cg)
+    , TR::AMD64ABILinkage(cg)
+{
+    _properties._framePointerRegister = TR::RealRegister::esp;
+    _properties._methodMetaDataRegister = TR::RealRegister::ebp;
+}
 
+TR::Register *TR::AMD64J9SystemLinkage::buildVolatileAndReturnDependencies(TR::Node *callNode,
+    TR::RegisterDependencyConditions *deps)
+{
+    TR::Register *returnRegister = TR::AMD64SystemLinkage::buildVolatileAndReturnDependencies(callNode, deps);
 
+    deps->addPostCondition(cg()->getVMThreadRegister(), TR::RealRegister::ebp, cg());
 
-TR::Register *
-TR::AMD64J9SystemLinkage::buildVolatileAndReturnDependencies(
-   TR::Node *callNode,
-   TR::RegisterDependencyConditions *deps)
-   {
-   TR::Register* returnRegister = TR::AMD64SystemLinkage::buildVolatileAndReturnDependencies(callNode, deps);
+    deps->stopAddingPostConditions();
 
-   deps->addPostCondition(cg()->getVMThreadRegister(), TR::RealRegister::ebp, cg());
+    return returnRegister;
+}
 
-   deps->stopAddingPostConditions();
+TR::Register *TR::AMD64J9SystemLinkage::buildDirectDispatch(TR::Node *callNode, bool spillFPRegs)
+{
+    TR::SymbolReference *methodSymRef = callNode->getSymbolReference();
+    TR::MethodSymbol *methodSymbol = methodSymRef->getSymbol()->castToMethodSymbol();
 
-   return returnRegister;
-   }
+    TR::Register *returnReg;
 
+    TR::X86VFPDedicateInstruction *vfpDedicateInstruction = generateVFPDedicateInstruction(
+        machine()->getRealRegister(getProperties().getIntegerScratchRegister(0)), callNode, cg());
 
-TR::Register *TR::AMD64J9SystemLinkage::buildDirectDispatch(
-      TR::Node *callNode,
-      bool spillFPRegs)
-   {
-   TR::SymbolReference *methodSymRef = callNode->getSymbolReference();
-   TR::MethodSymbol *methodSymbol = methodSymRef->getSymbol()->castToMethodSymbol();
+    TR::J9LinkageUtils::switchToMachineCStack(callNode, cg());
 
-   TR::Register *returnReg;
+    // Allocate adequate register dependencies.
+    //
+    // pre = number of argument registers
+    // post = number of volatile + VMThread + return register
+    //
+    uint32_t pre = getProperties().getNumIntegerArgumentRegisters() + getProperties().getNumFloatArgumentRegisters();
+    uint32_t post = getProperties().getNumVolatileRegisters() + 1 + (callNode->getDataType() == TR::NoType ? 0 : 1);
+    TR::RegisterDependencyConditions *preDeps = generateRegisterDependencyConditions(pre, 0, cg());
+    TR::RegisterDependencyConditions *postDeps = generateRegisterDependencyConditions(0, post, cg());
 
-   TR::X86VFPDedicateInstruction *vfpDedicateInstruction =
-      generateVFPDedicateInstruction(machine()->getRealRegister(getProperties().getIntegerScratchRegister(0)), callNode, cg());
+    // Evaluate outgoing arguments on the system stack and build pre-conditions.
+    //
+    int32_t memoryArgSize = buildArgs(callNode, preDeps);
 
-   TR::J9LinkageUtils::switchToMachineCStack(callNode, cg());
+    // Build post-conditions.
+    //
+    returnReg = buildVolatileAndReturnDependencies(callNode, postDeps);
 
-   // Allocate adequate register dependencies.
-   //
-   // pre = number of argument registers
-   // post = number of volatile + VMThread + return register
-   //
-   uint32_t pre = getProperties().getNumIntegerArgumentRegisters() + getProperties().getNumFloatArgumentRegisters();
-   uint32_t post = getProperties().getNumVolatileRegisters() + 1 + (callNode->getDataType() == TR::NoType ? 0 : 1);
-   TR::RegisterDependencyConditions *preDeps = generateRegisterDependencyConditions(pre, 0, cg());
-   TR::RegisterDependencyConditions *postDeps = generateRegisterDependencyConditions(0, post, cg());
+    // Find the second scratch register in the post dependency list.
+    //
+    TR::Register *scratchReg = NULL;
+    TR::RealRegister::RegNum scratchRegIndex = getProperties().getIntegerScratchRegister(1);
+    for (int32_t i = 0; i < post; i++) {
+        if (postDeps->getPostConditions()->getRegisterDependency(i)->getRealRegister() == scratchRegIndex) {
+            scratchReg = postDeps->getPostConditions()->getRegisterDependency(i)->getRegister();
+            break;
+        }
+    }
 
-   // Evaluate outgoing arguments on the system stack and build pre-conditions.
-   //
-   int32_t memoryArgSize = buildArgs(callNode, preDeps);
+    TR::Instruction *instr;
+    if (methodSymbol->getMethodAddress()) {
+        TR_ASSERT(scratchReg, "could not find second scratch register");
+        generateRegImm64Instruction(TR::InstOpCode::MOV8RegImm64, callNode, scratchReg,
+            (uintptr_t)methodSymbol->getMethodAddress(), cg());
 
-   // Build post-conditions.
-   //
-   returnReg = buildVolatileAndReturnDependencies(callNode, postDeps);
+        instr = generateRegInstruction(TR::InstOpCode::CALLReg, callNode, scratchReg, preDeps, cg());
+    } else {
+        instr = generateImmSymInstruction(TR::InstOpCode::CALLImm4, callNode,
+            (uintptr_t)methodSymbol->getMethodAddress(), methodSymRef, preDeps, cg());
+    }
 
-   // Find the second scratch register in the post dependency list.
-   //
-   TR::Register *scratchReg = NULL;
-   TR::RealRegister::RegNum scratchRegIndex = getProperties().getIntegerScratchRegister(1);
-   for (int32_t i=0; i<post; i++)
-      {
-      if (postDeps->getPostConditions()->getRegisterDependency(i)->getRealRegister() == scratchRegIndex)
-         {
-         scratchReg = postDeps->getPostConditions()->getRegisterDependency(i)->getRegister();
-         break;
-         }
-      }
+    instr->setNeedsGCMap(getProperties().getPreservedRegisterMapForGC());
 
+    cg()->stopUsingRegister(scratchReg);
 
-   TR::Instruction *instr;
-   if (methodSymbol->getMethodAddress())
-      {
-      TR_ASSERT(scratchReg, "could not find second scratch register");
-      generateRegImm64Instruction(
-         TR::InstOpCode::MOV8RegImm64,
-         callNode,
-         scratchReg,
-         (uintptr_t)methodSymbol->getMethodAddress(),
-         cg());
+    if (getProperties().getCallerCleanup() && memoryArgSize > 0) {
+        // adjust sp is necessary, because for java, the stack is native stack, not java stack.
+        // we need to restore native stack sp properly to the correct place.
+        TR::RealRegister *espReal = machine()->getRealRegister(TR::RealRegister::esp);
+        TR::InstOpCode::Mnemonic op = (memoryArgSize >= -128 && memoryArgSize <= 127) ? TR::InstOpCode::ADDRegImms()
+                                                                                      : TR::InstOpCode::ADDRegImm4();
+        generateRegImmInstruction(op, callNode, espReal, memoryArgSize, cg());
+    }
 
-      instr = generateRegInstruction(TR::InstOpCode::CALLReg, callNode, scratchReg, preDeps, cg());
-      }
-   else
-      {
-      instr = generateImmSymInstruction(TR::InstOpCode::CALLImm4, callNode, (uintptr_t)methodSymbol->getMethodAddress(), methodSymRef, preDeps, cg());
-      }
+    if (returnReg && !(methodSymbol->isHelper()))
+        TR::J9LinkageUtils::cleanupReturnValue(callNode, returnReg, returnReg, cg());
 
-   instr->setNeedsGCMap(getProperties().getPreservedRegisterMapForGC());
+    TR::J9LinkageUtils::switchToJavaStack(callNode, cg());
 
-   cg()->stopUsingRegister(scratchReg);
+    generateVFPReleaseInstruction(vfpDedicateInstruction, callNode, cg());
 
-   if (getProperties().getCallerCleanup() && memoryArgSize > 0)
-      {
-      // adjust sp is necessary, because for java, the stack is native stack, not java stack.
-      // we need to restore native stack sp properly to the correct place.
-      TR::RealRegister *espReal = machine()->getRealRegister(TR::RealRegister::esp);
-      TR::InstOpCode::Mnemonic op = (memoryArgSize >= -128 && memoryArgSize <= 127) ? TR::InstOpCode::ADDRegImms() : TR::InstOpCode::ADDRegImm4();
-      generateRegImmInstruction(op, callNode, espReal, memoryArgSize, cg());
-      }
+    TR::LabelSymbol *postDepLabel = generateLabelSymbol(cg());
+    generateLabelInstruction(TR::InstOpCode::label, callNode, postDepLabel, postDeps, cg());
 
-   if (returnReg && !(methodSymbol->isHelper()))
-      TR::J9LinkageUtils::cleanupReturnValue(callNode, returnReg, returnReg, cg());
-
-   TR::J9LinkageUtils::switchToJavaStack(callNode, cg());
-
-   generateVFPReleaseInstruction(vfpDedicateInstruction, callNode, cg());
-
-   TR::LabelSymbol *postDepLabel = generateLabelSymbol(cg());
-   generateLabelInstruction(TR::InstOpCode::label, callNode, postDepLabel, postDeps, cg());
-
-   return returnReg;
-   }
+    return returnReg;
+}
 
 #endif
 

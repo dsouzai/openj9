@@ -28,60 +28,65 @@
  */
 #ifndef J9_CPU_CONNECTOR
 #define J9_CPU_CONNECTOR
+
 namespace J9 {
 class CPU;
 typedef CPU CPUConnector;
-}
+} // namespace J9
 #endif
 
 #include "env/OMRCPU.hpp"
 
-namespace J9
-{
-class OMR_EXTENSIBLE CPU : public OMR::CPUConnector
-   {
+namespace J9 {
+class OMR_EXTENSIBLE CPU : public OMR::CPUConnector {
 protected:
+    CPU()
+        : OMR::CPUConnector()
+    {}
 
-   CPU() : OMR::CPUConnector() {}
-   CPU(const OMRProcessorDesc& processorDescription) : OMR::CPUConnector(processorDescription) {}
+    CPU(const OMRProcessorDesc &processorDescription)
+        : OMR::CPUConnector(processorDescription)
+    {}
 
-   /**
-    * @brief Contains the list of processor features exploited by the compiler, initialized via TR::CPU::initializeFeatureMasks()
-    */
-   static OMRProcessorDesc _supportedFeatureMasks;
+    /**
+     * @brief Contains the list of processor features exploited by the compiler, initialized via
+     * TR::CPU::initializeFeatureMasks()
+     */
+    static OMRProcessorDesc _supportedFeatureMasks;
 
-   /**
-    * @brief _isSupportedFeatureMasksEnabled tells you whether _supportedFeatureMasks was used for masking out unused processor features
-    */
-   static bool _isSupportedFeatureMasksEnabled;
+    /**
+     * @brief _isSupportedFeatureMasksEnabled tells you whether _supportedFeatureMasks was used for masking out unused
+     * processor features
+     */
+    static bool _isSupportedFeatureMasksEnabled;
 
 public:
+    /**
+     * @brief A factory method used to construct a CPU object based on the underlying hardware
+     * @param[in] omrPortLib : the port library
+     * @return TR::CPU
+     */
+    static TR::CPU detect(OMRPortLibrary * const omrPortLib);
 
-   /** 
-    * @brief A factory method used to construct a CPU object based on the underlying hardware
-    * @param[in] omrPortLib : the port library
-    * @return TR::CPU
-    */
-   static TR::CPU detect(OMRPortLibrary * const omrPortLib);
+    /**
+     * @brief A factory method used to construct a CPU object based on user customized processorDescription
+     * @param[in] OMRProcessorDesc : the processor description
+     * @return TR::CPU
+     */
+    static TR::CPU customize(OMRProcessorDesc processorDescription);
 
-   /** 
-    * @brief A factory method used to construct a CPU object based on user customized processorDescription
-    * @param[in] OMRProcessorDesc : the processor description
-    * @return TR::CPU
-    */
-   static TR::CPU customize(OMRProcessorDesc processorDescription);
+    /**
+     * @brief Intialize _supportedFeatureMasks to the list of processor features that will be exploited by the compiler
+     * and set _isSupportedFeatureMasksEnabled to true
+     * @return void
+     */
+    static void enableFeatureMasks();
 
-   /**
-    * @brief Intialize _supportedFeatureMasks to the list of processor features that will be exploited by the compiler and set _isSupportedFeatureMasksEnabled to true
-    * @return void
-    */
-   static void enableFeatureMasks();
+    bool supportsFeature(uint32_t feature);
 
-   bool supportsFeature(uint32_t feature);
-   
-   const char *getProcessorVendorId();
-   uint32_t getProcessorSignature();
-   };
-}
+    const char *getProcessorVendorId();
+    uint32_t getProcessorSignature();
+};
+} // namespace J9
 
 #endif

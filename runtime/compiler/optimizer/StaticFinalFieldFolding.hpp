@@ -95,22 +95,21 @@ class NodeChecklist;
  * is considered too expensive.
  */
 
-class TR_StaticFinalFieldFolding : public TR::Optimization
-   {
-   TR::NodeChecklist *_checklist;
-   void visitNode(TR::TreeTop * currentTree, TR::Node *node);
+class TR_StaticFinalFieldFolding : public TR::Optimization {
+    TR::NodeChecklist *_checklist;
+    void visitNode(TR::TreeTop *currentTree, TR::Node *node);
 
-   public:
+public:
+    TR_StaticFinalFieldFolding(TR::OptimizationManager *manager)
+        : TR::Optimization(manager)
+    {}
 
-   TR_StaticFinalFieldFolding(TR::OptimizationManager *manager)
-      : TR::Optimization(manager)
-      {}
-   static TR::Optimization *create(TR::OptimizationManager *manager)
-      {
-      return new (manager->allocator()) TR_StaticFinalFieldFolding(manager);
-      }
-   virtual int32_t perform();
-   virtual const char * optDetailString() const throw();
+    static TR::Optimization *create(TR::OptimizationManager *manager)
+    {
+        return new (manager->allocator()) TR_StaticFinalFieldFolding(manager);
+    }
 
-   };
+    virtual int32_t perform();
+    virtual const char *optDetailString() const throw();
+};
 #endif

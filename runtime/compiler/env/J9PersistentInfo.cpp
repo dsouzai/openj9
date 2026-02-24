@@ -25,29 +25,26 @@
 #include "control/CompilationThread.hpp"
 #include "runtime/JITClientSession.hpp"
 
-
 JITServer::RemoteCompilationModes J9::PersistentInfo::_remoteCompilationMode = JITServer::NONE;
 #endif
 
-TR_PersistentCHTable *
-J9::PersistentInfo::getPersistentCHTable()
-   {
+TR_PersistentCHTable *J9::PersistentInfo::getPersistentCHTable()
+{
 #if defined(J9VM_OPT_JITSERVER)
-   if (getRemoteCompilationMode() == JITServer::SERVER)
-      {
-      // Get per-client CH table
-      auto clientSession = TR::compInfoPT->getClientData();
-      return clientSession->getCHTable();
-      }
+    if (getRemoteCompilationMode() == JITServer::SERVER) {
+        // Get per-client CH table
+        auto clientSession = TR::compInfoPT->getClientData();
+        return clientSession->getCHTable();
+    }
 #endif
-   return _persistentCHTable;
-   }
+    return _persistentCHTable;
+}
 
-void
-J9::PersistentInfo::setPersistentCHTable(TR_PersistentCHTable *table)
-   {
+void J9::PersistentInfo::setPersistentCHTable(TR_PersistentCHTable *table)
+{
 #if defined(J9VM_OPT_JITSERVER)
-   TR_ASSERT_FATAL(getRemoteCompilationMode() != JITServer::SERVER, "server-side CH table must be set per-client in ClientSessionData");
+    TR_ASSERT_FATAL(getRemoteCompilationMode() != JITServer::SERVER,
+        "server-side CH table must be set per-client in ClientSessionData");
 #endif
-   _persistentCHTable = table;
-   }
+    _persistentCHTable = table;
+}

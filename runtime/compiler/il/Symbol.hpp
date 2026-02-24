@@ -27,26 +27,24 @@
 #include "il/DataTypes.hpp"
 #include "il/J9Symbol.hpp"
 
-namespace TR
-{
+namespace TR {
 
-class OMR_EXTENSIBLE Symbol : public J9::SymbolConnector
-   {
-
+class OMR_EXTENSIBLE Symbol : public J9::SymbolConnector {
 public:
+    Symbol()
+        : J9::SymbolConnector()
+    {}
 
-   Symbol() :
-      J9::SymbolConnector() {}
+    Symbol(TR::DataType d)
+        : J9::SymbolConnector(d)
+    {}
 
-   Symbol(TR::DataType d) :
-      J9::SymbolConnector(d) {}
+    Symbol(TR::DataType d, uint32_t s)
+        : J9::SymbolConnector(d, s)
+    {}
+};
 
-   Symbol(TR::DataType d, uint32_t s) :
-      J9::SymbolConnector(d,s) {}
-
-   };
-
-}
+} // namespace TR
 
 #include "il/J9Symbol_inlines.hpp"
 

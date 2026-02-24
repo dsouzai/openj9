@@ -25,65 +25,62 @@
 
 #include "il/OMRILProps.hpp"
 
-namespace ILTypeProp
-   {
-   /**
-    * Expands on the Type properties from the OMR layer. 
-    */
-   enum
-      {
-      // Available                      = LastOMRILTypeProp << 1,
-      PackedDecimal                     = LastOMRILTypeProp << 2,
-      UnicodeDecimal                    = LastOMRILTypeProp << 3,
-      UnicodeDecimalSignLeading         = LastOMRILTypeProp << 4,
-      UnicodeDecimalSignTrailing        = LastOMRILTypeProp << 5,
-      ZonedDecimal                      = LastOMRILTypeProp << 6,
-      ZonedDecimalSignLeadingEmbedded   = LastOMRILTypeProp << 7,
-      ZonedDecimalSignLeadingSeparate   = LastOMRILTypeProp << 8,
-      ZonedDecimalSignTrailingSeparate  = LastOMRILTypeProp << 9,
-      };
+namespace ILTypeProp {
+/**
+ * Expands on the Type properties from the OMR layer.
+ */
+enum {
+    // Available                      = LastOMRILTypeProp << 1,
+    PackedDecimal = LastOMRILTypeProp << 2,
+    UnicodeDecimal = LastOMRILTypeProp << 3,
+    UnicodeDecimalSignLeading = LastOMRILTypeProp << 4,
+    UnicodeDecimalSignTrailing = LastOMRILTypeProp << 5,
+    ZonedDecimal = LastOMRILTypeProp << 6,
+    ZonedDecimalSignLeadingEmbedded = LastOMRILTypeProp << 7,
+    ZonedDecimalSignLeadingSeparate = LastOMRILTypeProp << 8,
+    ZonedDecimalSignTrailingSeparate = LastOMRILTypeProp << 9,
+};
 
-   }
+} // namespace ILTypeProp
 
 // Property flags for property word 4
-namespace ILProp4
-   {
-   enum
-      {
-      // Available                     = 0x00000001,
-      SetSign                          = 0x00000002,
-      SetSignOnNode                    = 0x00000004, ///< the setSign value is tracked in a field on the node vs as a child (SetSign has the setSign value in a child)
-      ModifyPrecision                  = 0x00000008,
-      BinaryCodedDecimalOp             = 0x00000010,
-      ConversionHasFraction            = 0x00000020,
-      // Available                     = 0x00000040,
-      PackedArithmeticOverflowMessage  = 0x00000080,
-      // Available                     = 0x00000100,
-      CanHaveStorageReferenceHint      = 0x00000200,
-      CanHavePaddingAddress            = 0x00000400,
-      CanUseStoreAsAnAccumulator       = 0x00000800,
-      TrackLineNo                      = 0x00001000, ///< Indicates if the node's line number should be retained when the node is commoned
-      // Available                     = 0x00002000,
-      // Available                     = 0x00004000,
-      // Available                     = 0x00008000,
-      // Available                     = 0x00010000,
-      // Available                     = 0x00020000,
-      // Available                     = 0x00040000,
-      // Available                     = 0x00080000,
-      // Available                     = 0x00100000,
-      // Available                     = 0x00200000,
-      // Available                     = 0x00400000,
-      // Available                     = 0x00800000,
-      // Available                     = 0x01000000,
-      // Available                     = 0x02000000,
-      // Available                     = 0x04000000,
-      // Available                     = 0x08000000,
-      // Available                     = 0x10000000,
-      // Available                     = 0x20000000,
-      // Available                     = 0x40000000,
-      // Available                     = 0x80000000,
-      };
-   }
+namespace ILProp4 {
+enum {
+    // Available                     = 0x00000001,
+    SetSign = 0x00000002,
+    SetSignOnNode = 0x00000004, ///< the setSign value is tracked in a field on the node vs as a child (SetSign has the
+                                ///< setSign value in a child)
+    ModifyPrecision = 0x00000008,
+    BinaryCodedDecimalOp = 0x00000010,
+    ConversionHasFraction = 0x00000020,
+    // Available                     = 0x00000040,
+    PackedArithmeticOverflowMessage = 0x00000080,
+    // Available                     = 0x00000100,
+    CanHaveStorageReferenceHint = 0x00000200,
+    CanHavePaddingAddress = 0x00000400,
+    CanUseStoreAsAnAccumulator = 0x00000800,
+    TrackLineNo = 0x00001000, ///< Indicates if the node's line number should be retained when the node is commoned
+    // Available                     = 0x00002000,
+    // Available                     = 0x00004000,
+    // Available                     = 0x00008000,
+    // Available                     = 0x00010000,
+    // Available                     = 0x00020000,
+    // Available                     = 0x00040000,
+    // Available                     = 0x00080000,
+    // Available                     = 0x00100000,
+    // Available                     = 0x00200000,
+    // Available                     = 0x00400000,
+    // Available                     = 0x00800000,
+    // Available                     = 0x01000000,
+    // Available                     = 0x02000000,
+    // Available                     = 0x04000000,
+    // Available                     = 0x08000000,
+    // Available                     = 0x10000000,
+    // Available                     = 0x20000000,
+    // Available                     = 0x40000000,
+    // Available                     = 0x80000000,
+};
+} // namespace ILProp4
 
 #endif
 

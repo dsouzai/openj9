@@ -29,13 +29,11 @@
 #include "net/RawTypeConvert.hpp"
 #include "net/CommunicationStream.hpp"
 
-namespace JITServer
-{
-enum VersionCheckStatus
-   {
-   NOT_DONE = 0,
-   PASSED = 1,
-   };
+namespace JITServer {
+enum VersionCheckStatus {
+    NOT_DONE = 0,
+    PASSED = 1,
+};
 
 /**
    @class ClientStream
@@ -53,167 +51,149 @@ enum VersionCheckStatus
           auto recv = client->getRecvData<uint32_t, std::string, std::string, .......>();
    (5) install compiled code into code cache
 */
-class ClientStream : public CommunicationStream
-   {
+class ClientStream : public CommunicationStream {
 public:
-   /**
-       @brief Function called to perform static initialization of ClientStream
+    /**
+        @brief Function called to perform static initialization of ClientStream
 
-       This is called during startup from rossa.cpp.
-       Creates SSL context, loads certificates and keys.
-       Only needs to be done once during JVM initialization.
+        This is called during startup from rossa.cpp.
+        Creates SSL context, loads certificates and keys.
+        Only needs to be done once during JVM initialization.
 
-       Returns 0 if successful;; Otherwise, returns -1.
-   */
-   static int static_init(TR::CompilationInfo *compInfo);
-   static void freeSSLContext();
+        Returns 0 if successful;; Otherwise, returns -1.
+    */
+    static int static_init(TR::CompilationInfo *compInfo);
+    static void freeSSLContext();
 
-   explicit ClientStream(TR::PersistentInfo *info);
-   virtual ~ClientStream()
-      {
-      _numConnectionsClosed++;
-      }
+    explicit ClientStream(TR::PersistentInfo *info);
 
-   /**
-      @brief Send a compilation request to the JITServer
+    virtual ~ClientStream() { _numConnectionsClosed++; }
 
-      As a side-effect, this function may also embed version information in the message
-      if this is the first message sent after a connection request.
-   */
-   template <typename... T>
-   void buildCompileRequest(T... args)
-      {
-      if (getVersionCheckStatus() == NOT_DONE)
-         {
-         _cMsg.setFullVersion(getJITServerVersion(), CONFIGURATION_FLAGS);
-         write(MessageType::compilationRequest, args...);
-         _cMsg.clearFullVersion();
-         }
-      else // getVersionCheckStatus() == PASSED
-         {
-         _cMsg.clearFullVersion(); // the compatibility check is done. We clear the version to save message size.
-         write(MessageType::compilationRequest, args...);
-         }
-      }
+    /**
+       @brief Send a compilation request to the JITServer
 
-   /**
-      @brief Send a message to the JITServer
+       As a side-effect, this function may also embed version information in the message
+       if this is the first message sent after a connection request.
+    */
+    template<typename... T> void buildCompileRequest(T... args)
+    {
+        if (getVersionCheckStatus() == NOT_DONE) {
+            _cMsg.setFullVersion(getJITServerVersion(), CONFIGURATION_FLAGS);
+            write(MessageType::compilationRequest, args...);
+            _cMsg.clearFullVersion();
+        } else // getVersionCheckStatus() == PASSED
+        {
+            _cMsg.clearFullVersion(); // the compatibility check is done. We clear the version to save message size.
+            write(MessageType::compilationRequest, args...);
+        }
+    }
 
-      @param [in] type Message type
-      @param [in] args Additional arguments sent to the JITServer
-   */
-   template <typename ...T>
-   void write(MessageType type, T... args)
-      {
-      _cMsg.setType(type);
-      setArgsRaw<T...>(_cMsg, args...);
+    /**
+       @brief Send a message to the JITServer
 
-      writeMessage(_cMsg);
-      }
+       @param [in] type Message type
+       @param [in] args Additional arguments sent to the JITServer
+    */
+    template<typename... T> void write(MessageType type, T... args)
+    {
+        _cMsg.setType(type);
+        setArgsRaw<T...>(_cMsg, args...);
 
-   /**
-      @brief Read a message from the server
+        writeMessage(_cMsg);
+    }
 
-      The read operation is blocking (subject to a timeout)
+    /**
+       @brief Read a message from the server
 
-      @return Returns the type of the message being received
-   */
-   MessageType read()
-      {
-      readMessage(_sMsg);
-      return _sMsg.type();
-      }
+       The read operation is blocking (subject to a timeout)
 
-   /**
-       @brief Extract the data from the received message and return it
-   */
-   template <typename ...T>
-   std::tuple<T...> getRecvData()
-      {
-      return getArgsRaw<T...>(_sMsg);
-      }
+       @return Returns the type of the message being received
+    */
+    MessageType read()
+    {
+        readMessage(_sMsg);
+        return _sMsg.type();
+    }
 
-   /**
-      @brief Send an error message to the JITServer
+    /**
+        @brief Extract the data from the received message and return it
+    */
+    template<typename... T> std::tuple<T...> getRecvData() { return getArgsRaw<T...>(_sMsg); }
 
-      Examples of error messages include 'compilationInterrupted' (e.g. when class unloading happens),
-      'clientSessionTerminate' (e.g. when the client is about to exit),
-      and 'connectionTerminate' (e.g. when the client is closing the connection)
-   */
-   template <typename ...T>
-   void writeError(MessageType type, T... args)
-      {
-      _cMsg.setType(type);
-      if (type == MessageType::compilationInterrupted || type == MessageType::connectionTerminate)
-         {
-         // _cMsg.clear();
-         }
-      else
-         setArgsRaw<T...>(_cMsg, args...);
-      writeMessage(_cMsg);
-      }
+    /**
+       @brief Send an error message to the JITServer
 
-   VersionCheckStatus getVersionCheckStatus()
-      {
-      return _versionCheckStatus;
-      }
+       Examples of error messages include 'compilationInterrupted' (e.g. when class unloading happens),
+       'clientSessionTerminate' (e.g. when the client is about to exit),
+       and 'connectionTerminate' (e.g. when the client is closing the connection)
+    */
+    template<typename... T> void writeError(MessageType type, T... args)
+    {
+        _cMsg.setType(type);
+        if (type == MessageType::compilationInterrupted || type == MessageType::connectionTerminate) {
+            // _cMsg.clear();
+        } else
+            setArgsRaw<T...>(_cMsg, args...);
+        writeMessage(_cMsg);
+    }
 
-   void setVersionCheckStatus()
-      {
-      _versionCheckStatus = PASSED;
-      }
+    VersionCheckStatus getVersionCheckStatus() { return _versionCheckStatus; }
 
-   /**
-      @brief Function called when JITServer was discovered to be incompatible with the client
-   */
-   static void incrementIncompatibilityCount(OMRPortLibrary *portLibrary)
-      {
-      OMRPORT_ACCESS_FROM_OMRPORT(portLibrary);
-      _incompatibilityCount += 1;
-      _incompatibleStartTime = omrtime_current_time_millis();
-      }
+    void setVersionCheckStatus() { _versionCheckStatus = PASSED; }
 
-   /**
-       @brief Function that answers whether JITServer is compatible with the client
+    /**
+       @brief Function called when JITServer was discovered to be incompatible with the client
+    */
+    static void incrementIncompatibilityCount(OMRPortLibrary *portLibrary)
+    {
+        OMRPORT_ACCESS_FROM_OMRPORT(portLibrary);
+        _incompatibilityCount += 1;
+        _incompatibleStartTime = omrtime_current_time_millis();
+    }
 
-       Note that the discovery of the incompatibility is done in the first message
-       that the client sends to the server. This function is actually called to
-       determine if we need to try the compatibilty check again. The idea is that
-       the incompatible server could be killed and another one (compatible) could be
-       instantiated. If enough time has passed since the server was found to be
-       incompatible, then the client should try again. "Enough time" is defined as a
-       constant 10 second interval.
-   */
-   static bool isServerCompatible(OMRPortLibrary *portLibrary)
-      {
-      OMRPORT_ACCESS_FROM_OMRPORT(portLibrary);
-      uint64_t current_time = omrtime_current_time_millis();
-      // the client periodically checks whether the server is compatible or not
-      // the retry interval is defined by RETRY_COMPATIBILITY_INTERVAL_MS
-      // we set _incompatibilityCount to 0 when it's time to retry for compatibility check
-      // otherwise, check if we exceed the number of incompatible connections
-      if ((current_time - _incompatibleStartTime) > RETRY_COMPATIBILITY_INTERVAL_MS)
-         _incompatibilityCount = 0;
+    /**
+        @brief Function that answers whether JITServer is compatible with the client
 
-      return _incompatibilityCount < INCOMPATIBILITY_COUNT_LIMIT;
-      }
+        Note that the discovery of the incompatibility is done in the first message
+        that the client sends to the server. This function is actually called to
+        determine if we need to try the compatibilty check again. The idea is that
+        the incompatible server could be killed and another one (compatible) could be
+        instantiated. If enough time has passed since the server was found to be
+        incompatible, then the client should try again. "Enough time" is defined as a
+        constant 10 second interval.
+    */
+    static bool isServerCompatible(OMRPortLibrary *portLibrary)
+    {
+        OMRPORT_ACCESS_FROM_OMRPORT(portLibrary);
+        uint64_t current_time = omrtime_current_time_millis();
+        // the client periodically checks whether the server is compatible or not
+        // the retry interval is defined by RETRY_COMPATIBILITY_INTERVAL_MS
+        // we set _incompatibilityCount to 0 when it's time to retry for compatibility check
+        // otherwise, check if we exceed the number of incompatible connections
+        if ((current_time - _incompatibleStartTime) > RETRY_COMPATIBILITY_INTERVAL_MS)
+            _incompatibilityCount = 0;
 
-   // Statistics
-   static int getNumConnectionsOpened() { return _numConnectionsOpened; }
-   static int getNumConnectionsClosed() { return _numConnectionsClosed; }
+        return _incompatibilityCount < INCOMPATIBILITY_COUNT_LIMIT;
+    }
+
+    // Statistics
+    static int getNumConnectionsOpened() { return _numConnectionsOpened; }
+
+    static int getNumConnectionsClosed() { return _numConnectionsClosed; }
 
 private:
-   static int _numConnectionsOpened;
-   static int _numConnectionsClosed;
-   VersionCheckStatus _versionCheckStatus; // indicates whether a version checking has been performed
-   static int _incompatibilityCount;
-   static uint64_t _incompatibleStartTime; // Time when version incomptibility has been detected
-   static const uint64_t RETRY_COMPATIBILITY_INTERVAL_MS; // (ms) When we should perform again a version compatibilty check
-   static const int INCOMPATIBILITY_COUNT_LIMIT;
+    static int _numConnectionsOpened;
+    static int _numConnectionsClosed;
+    VersionCheckStatus _versionCheckStatus; // indicates whether a version checking has been performed
+    static int _incompatibilityCount;
+    static uint64_t _incompatibleStartTime; // Time when version incomptibility has been detected
+    static const uint64_t
+        RETRY_COMPATIBILITY_INTERVAL_MS; // (ms) When we should perform again a version compatibilty check
+    static const int INCOMPATIBILITY_COUNT_LIMIT;
 
-   static SSL_CTX *_sslCtx;
-   };
+    static SSL_CTX *_sslCtx;
+};
 
-}
+} // namespace JITServer
 
 #endif // CLIENT_STREAM_H

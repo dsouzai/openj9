@@ -24,107 +24,84 @@
 #include "infra/Assert.hpp"
 #include "env/VerboseLog.hpp"
 
-namespace JITServer
+namespace JITServer {
+const char * const Message::DataDescriptor::_descriptorNames[] = { "INT32", "INT64", "UINT32", "UINT64", "BOOL",
+    "STRING", "OBJECT", "ENUM", "VECTOR", "SIMPLE_VECTOR", "EMPTY_VECTOR", "TUPLE", "INVALID" };
+
+uint32_t Message::addData(const DataDescriptor &desc, const void *dataStart, bool needs64BitAlignment)
 {
-   const char* const Message::DataDescriptor::_descriptorNames[] = {
-      "INT32",
-      "INT64",
-      "UINT32",
-      "UINT64",
-      "BOOL",
-      "STRING",
-      "OBJECT",
-      "ENUM",
-      "VECTOR",
-      "SIMPLE_VECTOR",
-      "EMPTY_VECTOR",
-      "TUPLE",
-      "INVALID"
-   };
+    // Write the descriptor itself
+    uint32_t descOffset = _buffer.writeValue(desc);
 
-uint32_t
-Message::addData(const DataDescriptor &desc, const void *dataStart, bool needs64BitAlignment)
-   {
-   // Write the descriptor itself
-   uint32_t descOffset = _buffer.writeValue(desc);
+    // If the data following the descriptor needs to be 64-bit aligned,
+    // add some initial padding in the outgoing buffer and write the
+    // offset to the real payload into the descriptor
+    uint8_t initialPadding = 0;
+    if (needs64BitAlignment && !_buffer.is64BitAligned()) {
+        initialPadding = _buffer.alignCurrentPositionOn64Bit();
+        TR_ASSERT(initialPadding != 0, "Initial padding must be non zero because we checked alignment");
+        DataDescriptor *serializedDescriptor = _buffer.getValueAtOffset<DataDescriptor>(descOffset);
+        serializedDescriptor->addInitialPadding(initialPadding);
+    }
 
-   // If the data following the descriptor needs to be 64-bit aligned,
-   // add some initial padding in the outgoing buffer and write the
-   // offset to the real payload into the descriptor
-   uint8_t initialPadding = 0;
-   if (needs64BitAlignment && !_buffer.is64BitAligned())
-      {
-      initialPadding = _buffer.alignCurrentPositionOn64Bit();
-      TR_ASSERT(initialPadding != 0, "Initial padding must be non zero because we checked alignment");
-      DataDescriptor *serializedDescriptor = _buffer.getValueAtOffset<DataDescriptor>(descOffset);
-      serializedDescriptor->addInitialPadding(initialPadding);
-      }
+    // Write the real data and possibly some padding at the end
+    _buffer.writeData(dataStart, desc.getPayloadSize(), desc.getPaddingSize());
+    _descriptorOffsets.push_back(descOffset);
+    return desc.getTotalSize() + initialPadding;
+}
 
-   // Write the real data and possibly some padding at the end
-   _buffer.writeData(dataStart, desc.getPayloadSize(), desc.getPaddingSize()); 
-   _descriptorOffsets.push_back(descOffset);
-   return desc.getTotalSize() + initialPadding;
-   }
+void Message::deserialize()
+{
+    // Assume that buffer is populated with data that defines a valid message
+    // Reconstruct the message by setting metadata and pointers to descriptors
+    // Note that the size of the entire message buffer has already been stripped
+    //
+    _buffer.readValue<MetaData>(); // This only advances curPtr in the MessageBuffer
 
-void
-Message::deserialize()
-   {
-   // Assume that buffer is populated with data that defines a valid message
-   // Reconstruct the message by setting metadata and pointers to descriptors
-   // Note that the size of the entire message buffer has already been stripped
-   //
-   _buffer.readValue<MetaData>(); // This only advances curPtr in the MessageBuffer
+    uint32_t numDataPoints = getMetaData()->_numDataPoints;
 
-   uint32_t numDataPoints = getMetaData()->_numDataPoints;
+    _descriptorOffsets.reserve(numDataPoints);
+    // TODO: do I need to clear the vector of _descriptorOffsets just in case?
+    for (uint32_t i = 0; i < numDataPoints; ++i) {
+        uint32_t descOffset = _buffer.readValue<DataDescriptor>(); // Read the descriptor itself
+        _descriptorOffsets.push_back(descOffset);
 
-   _descriptorOffsets.reserve(numDataPoints);
-   // TODO: do I need to clear the vector of _descriptorOffsets just in case?
-   for (uint32_t i = 0; i < numDataPoints; ++i)
-      {
-      uint32_t descOffset = _buffer.readValue<DataDescriptor>(); // Read the descriptor itself
-      _descriptorOffsets.push_back(descOffset);
+        // skip the data segment, which is processed in getArgs
+        _buffer.readData(getLastDescriptor()->getTotalSize());
+    }
+}
 
-      // skip the data segment, which is processed in getArgs
-      _buffer.readData(getLastDescriptor()->getTotalSize());
-      }
-   }
+uint32_t Message::DataDescriptor::print(uint32_t nestingLevel)
+{
+    uint32_t numDescriptorsPrinted = 1;
+    TR_VerboseLog::write(TR_Vlog_JITServer, "");
+    for (uint32_t i = 0; i < nestingLevel; ++i)
+        TR_VerboseLog::write("\t");
+    TR_VerboseLog::writeLine("DataDescriptor[%p]: type=%d(%6s) payload_size=%u dataOffset=%u, padding=%u", this,
+        getDataType(), _descriptorNames[getDataType()], getPayloadSize(), getDataOffset(), getPaddingSize());
+    if (!isPrimitive()) {
+        TR_VerboseLog::writeLine(TR_Vlog_JITServer, "DataDescriptor[%p]: nested data begin", this);
+        DataDescriptor *curDesc = static_cast<DataDescriptor *>(getDataStart());
+        while ((char *)curDesc->getDataStart() + curDesc->getTotalSize() - (char *)getDataStart() <= getTotalSize()) {
+            numDescriptorsPrinted += curDesc->print(nestingLevel + 1);
+            curDesc = curDesc->getNextDescriptor();
+        }
+        TR_VerboseLog::writeLine(TR_Vlog_JITServer, "DataDescriptor[%p] nested data end", this);
+    }
 
-uint32_t
-Message::DataDescriptor::print(uint32_t nestingLevel)
-   {
-   uint32_t numDescriptorsPrinted = 1;
-   TR_VerboseLog::write(TR_Vlog_JITServer, "");
-   for (uint32_t i = 0; i < nestingLevel; ++i)
-      TR_VerboseLog::write("\t");
-   TR_VerboseLog::writeLine("DataDescriptor[%p]: type=%d(%6s) payload_size=%u dataOffset=%u, padding=%u", 
-                        this, getDataType(), _descriptorNames[getDataType()], getPayloadSize(), getDataOffset(), getPaddingSize());
-   if (!isPrimitive())
-      {
-      TR_VerboseLog::writeLine(TR_Vlog_JITServer, "DataDescriptor[%p]: nested data begin", this);
-      DataDescriptor *curDesc = static_cast<DataDescriptor *>(getDataStart());
-      while ((char *) curDesc->getDataStart() + curDesc->getTotalSize() - (char *) getDataStart() <= getTotalSize())
-         {
-         numDescriptorsPrinted += curDesc->print(nestingLevel + 1);
-         curDesc = curDesc->getNextDescriptor();
-         }
-      TR_VerboseLog::writeLine(TR_Vlog_JITServer, "DataDescriptor[%p] nested data end", this);
-      }
+    return numDescriptorsPrinted;
+}
 
-   return numDescriptorsPrinted;
-   }
-
-void
-Message::print()
-   {
-   const MetaData *metaData = getMetaData();
-   TR_VerboseLog::CriticalSection vlogLock;
-   TR_VerboseLog::writeLine(TR_Vlog_JITServer, "Message: type=%d numDataPoints=%u version=%lu numDescriptors=%lu",
-                            metaData->_type, metaData->_numDataPoints, metaData->_version, _descriptorOffsets.size());
-   uint32_t numDescriptorsPrinted = 0;
-   for (uint32_t i = 0; i < _descriptorOffsets.size(); i += numDescriptorsPrinted)
-      {
-      DataDescriptor* desc = getDescriptor(i);
-      numDescriptorsPrinted = desc->print(0);
-      }
-   }
-};
+void Message::print()
+{
+    const MetaData *metaData = getMetaData();
+    TR_VerboseLog::CriticalSection vlogLock;
+    TR_VerboseLog::writeLine(TR_Vlog_JITServer, "Message: type=%d numDataPoints=%u version=%lu numDescriptors=%lu",
+        metaData->_type, metaData->_numDataPoints, metaData->_version, _descriptorOffsets.size());
+    uint32_t numDescriptorsPrinted = 0;
+    for (uint32_t i = 0; i < _descriptorOffsets.size(); i += numDescriptorsPrinted) {
+        DataDescriptor *desc = getDescriptor(i);
+        numDescriptorsPrinted = desc->print(0);
+    }
+}
+}; // namespace JITServer

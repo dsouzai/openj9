@@ -25,10 +25,14 @@
 
 #ifndef J9_AHEADOFTIMECOMPILE_CONNECTOR
 #define J9_AHEADOFTIMECOMPILE_CONNECTOR
+
 namespace J9 {
-namespace ARM { class AheadOfTimeCompile; }
-typedef J9::ARM::AheadOfTimeCompile AheadOfTimeCompileConnector;
+namespace ARM {
+class AheadOfTimeCompile;
 }
+
+typedef J9::ARM::AheadOfTimeCompile AheadOfTimeCompileConnector;
+} // namespace J9
 #endif // J9_AHEADOFTIMECOMPILE_CONNECTOR
 
 #include "compiler/codegen/J9AheadOfTimeCompile.hpp"
@@ -46,39 +50,32 @@ class ARMRelocation;
  *  reflected on the cookie map. More importantly, it should be reflected*
  *  on the trampoline setup and PicBuilder requests.                     *
  *************************************************************************/
- 
-namespace J9
-{
 
-namespace ARM
-{
+namespace J9 { namespace ARM {
 
-class OMR_EXTENSIBLE AheadOfTimeCompile : public J9::AheadOfTimeCompile
-   {
+class OMR_EXTENSIBLE AheadOfTimeCompile : public J9::AheadOfTimeCompile {
 public:
-   AheadOfTimeCompile(TR::CodeGenerator *cg);
+    AheadOfTimeCompile(TR::CodeGenerator *cg);
 
-   virtual void     processRelocations();
+    virtual void processRelocations();
 
-   /**
-    * @brief Refer to J9::AheadOfTimeCompile::initializePlatformSpecificAOTRelocationHeader
-    */
-   bool initializePlatformSpecificAOTRelocationHeader(TR::IteratedExternalRelocation *relocation, TR_RelocationTarget *reloTarget, TR_RelocationRecord *reloRecord, uint8_t targetKind);
+    /**
+     * @brief Refer to J9::AheadOfTimeCompile::initializePlatformSpecificAOTRelocationHeader
+     */
+    bool initializePlatformSpecificAOTRelocationHeader(TR::IteratedExternalRelocation *relocation,
+        TR_RelocationTarget *reloTarget, TR_RelocationRecord *reloRecord, uint8_t targetKind);
 
-   List<TR::ARMRelocation>& getRelocationList() {return _relocationList;}
+    List<TR::ARMRelocation> &getRelocationList() { return _relocationList; }
 
-   TR::CodeGenerator *cg() {return _cg;}
+    TR::CodeGenerator *cg() { return _cg; }
 
-   static bool classAddressUsesReloRecordInfo() { return true; }
+    static bool classAddressUsesReloRecordInfo() { return true; }
 
 private:
+    List<TR::ARMRelocation> _relocationList;
+    TR::CodeGenerator *_cg;
+};
 
-   List<TR::ARMRelocation>     _relocationList;
-   TR::CodeGenerator       *_cg;
-   };
-
-} // namespace ARM
-
-} // namespace J9
+}} // namespace J9::ARM
 
 #endif

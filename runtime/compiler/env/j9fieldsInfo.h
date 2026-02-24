@@ -29,26 +29,27 @@
 #include "env/IO.hpp"
 #include "env/VMJ9.h"
 
-class TR_VMFieldsInfo
-   {
+class TR_VMFieldsInfo {
 public:
-   TR_ALLOC(TR_Memory::VMFieldsInfo)
+    TR_ALLOC(TR_Memory::VMFieldsInfo)
 
-   TR_VMFieldsInfo( TR::Compilation *, J9Class *aClazz, int buildFields, TR_AllocationKind alloc=heapAlloc);
+    TR_VMFieldsInfo(TR::Compilation *, J9Class *aClazz, int buildFields, TR_AllocationKind alloc = heapAlloc);
 
-   List<TR_VMField>*   getFields() { return _fields; }
-   List<TR_VMField>*   getStatics() { return _statics; }
-   int32_t *           getGCDescriptor() { return &_gcDescriptor[0]; }
+    List<TR_VMField> *getFields() { return _fields; }
+
+    List<TR_VMField> *getStatics() { return _statics; }
+
+    int32_t *getGCDescriptor() { return &_gcDescriptor[0]; }
 
 private:
-   void                collectFieldInfo(J9Class *aClazz);
-   void                buildField(J9Class *aClazz, J9ROMFieldShape *fieldShape);
-   TR_J9VMBase *       _fe;
-   TR::Compilation *   _comp;
-   TR::vector<int32_t, TR::Region&> _gcDescriptor;
-   List<TR_VMField>*  _fields;
-   List<TR_VMField>*  _statics;
-   TR_AllocationKind  _allocKind;
-   };
+    void collectFieldInfo(J9Class *aClazz);
+    void buildField(J9Class *aClazz, J9ROMFieldShape *fieldShape);
+    TR_J9VMBase *_fe;
+    TR::Compilation *_comp;
+    TR::vector<int32_t, TR::Region &> _gcDescriptor;
+    List<TR_VMField> *_fields;
+    List<TR_VMField> *_statics;
+    TR_AllocationKind _allocKind;
+};
 #endif
 

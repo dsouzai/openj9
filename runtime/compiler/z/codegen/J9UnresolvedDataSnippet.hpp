@@ -28,10 +28,14 @@
  */
 #ifndef J9_UNRESOLVEDDATASNIPPET_CONNECTOR
 #define J9_UNRESOLVEDDATASNIPPET_CONNECTOR
+
 namespace J9 {
-namespace Z { class UnresolvedDataSnippet; }
-typedef J9::Z::UnresolvedDataSnippet UnresolvedDataSnippetConnector;
+namespace Z {
+class UnresolvedDataSnippet;
 }
+
+typedef J9::Z::UnresolvedDataSnippet UnresolvedDataSnippetConnector;
+} // namespace J9
 #else
 #error J9::Z::UnresolvedDataSnippet expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -49,90 +53,77 @@ class Instruction;
 class MemoryReference;
 class Node;
 class Symbol;
-}
+} // namespace TR
 
-namespace J9
-{
+namespace J9 { namespace Z {
 
-namespace Z
-{
+class UnresolvedDataSnippet : public J9::UnresolvedDataSnippet {
+    /** _branchInstruction is actually the instruction which branch to the UDS. */
+    TR::Instruction *_branchInstruction;
+    TR::SymbolReference *_dataSymbolReference;
+    TR::MemoryReference *_memoryReference;
+    bool _isStore;
 
-class UnresolvedDataSnippet : public J9::UnresolvedDataSnippet
-   {
-   /** _branchInstruction is actually the instruction which branch to the UDS. */
-   TR::Instruction         *_branchInstruction;
-   TR::SymbolReference     *_dataSymbolReference;
-   TR::MemoryReference     *_memoryReference;
-   bool                    _isStore;
+    /**
+     *_dataReferenceInstruction is the instruction
+     * that references it. The address of this will be resolved
+     * when emitting the snippet code.
+     */
+    TR::Instruction *_dataReferenceInstruction;
+    TR::S390WritableDataSnippet *_unresolvedData;
+    uint8_t *_literalPoolPatchAddress;
+    uint8_t *_literalPoolSlot; ///< For trace file generation
+    TR::Instruction *_fenceNOPInst;
 
-   /**
-    *_dataReferenceInstruction is the instruction
-    * that references it. The address of this will be resolved
-    * when emitting the snippet code.
-    */
-   TR::Instruction               *_dataReferenceInstruction;
-   TR::S390WritableDataSnippet   *_unresolvedData;
-   uint8_t                       *_literalPoolPatchAddress;
-   uint8_t                       *_literalPoolSlot;         ///< For trace file generation
-   TR::Instruction               *_fenceNOPInst;
+public:
+    UnresolvedDataSnippet(TR::CodeGenerator *, TR::Node *, TR::SymbolReference *s, bool isStore, bool canCauseGC);
 
-   public:
+    virtual Kind getKind() { return IsUnresolvedData; }
 
-   UnresolvedDataSnippet(TR::CodeGenerator *, TR::Node *, TR::SymbolReference *s, bool isStore, bool canCauseGC);
+    TR::Instruction *getBranchInstruction() { return _branchInstruction; }
 
-   virtual Kind getKind() { return IsUnresolvedData; }
+    TR::Instruction *setBranchInstruction(TR::Instruction *i) { return _branchInstruction = i; }
 
-   TR::Instruction *getBranchInstruction() {return _branchInstruction;}
-   TR::Instruction *setBranchInstruction(TR::Instruction *i)
-      {
-      return _branchInstruction = i;
-      }
+    TR::Instruction *getDataReferenceInstruction() { return _dataReferenceInstruction; }
 
-   TR::Instruction *getDataReferenceInstruction() {return _dataReferenceInstruction;}
+    TR::Instruction *setDataReferenceInstruction(TR::Instruction *i);
 
-   TR::Instruction *setDataReferenceInstruction(TR::Instruction *i);
+    TR::SymbolReference *getDataSymbolReference() { return _dataSymbolReference; }
 
-   TR::SymbolReference *getDataSymbolReference() {return _dataSymbolReference;}
+    /** Create Unresolved Data in writable data area */
+    TR::S390WritableDataSnippet *createUnresolvedData(TR::CodeGenerator *cg, TR::Node *n);
 
-   /** Create Unresolved Data in writable data area */
-   TR::S390WritableDataSnippet *createUnresolvedData(TR::CodeGenerator *cg, TR::Node * n);
+    TR::S390WritableDataSnippet *getUnresolvedData() { return _unresolvedData; }
 
-   TR::S390WritableDataSnippet *getUnresolvedData()
-      {
-      return _unresolvedData;
-      }
+    uint8_t *getLiteralPoolPatchAddress() { return _literalPoolPatchAddress; }
 
-   uint8_t *getLiteralPoolPatchAddress() { return _literalPoolPatchAddress;}
-   uint8_t *setLiteralPoolPatchAddress(uint8_t *cursor)
-      {
-      return _literalPoolPatchAddress = cursor;
-      }
-   uint8_t *getLiteralPoolSlot() { return _literalPoolSlot;}
-   uint8_t *setLiteralPoolSlot(uint8_t *cursor)
-      {
-      return _literalPoolSlot = cursor;
-      }
+    uint8_t *setLiteralPoolPatchAddress(uint8_t *cursor) { return _literalPoolPatchAddress = cursor; }
 
-   TR::Symbol *getDataSymbol() {return _dataSymbolReference->getSymbol();}
-   TR::MemoryReference *getMemoryReference() {return _memoryReference;}
-   TR::MemoryReference *setMemoryReference(TR::MemoryReference *mr)
-      {return _memoryReference = mr;}
+    uint8_t *getLiteralPoolSlot() { return _literalPoolSlot; }
 
-   TR::Instruction *getFenceNOPInstruction() { return _fenceNOPInst; }
-   TR::Instruction *setFenceNOPInstruction(TR::Instruction *instr) { return _fenceNOPInst = instr; }
+    uint8_t *setLiteralPoolSlot(uint8_t *cursor) { return _literalPoolSlot = cursor; }
 
-   bool isInstanceData();
+    TR::Symbol *getDataSymbol() { return _dataSymbolReference->getSymbol(); }
 
-   bool    resolveForStore() {return _isStore;}
-   virtual uint8_t *getAddressOfDataReference();
+    TR::MemoryReference *getMemoryReference() { return _memoryReference; }
 
-   virtual uint8_t *emitSnippetBody();
+    TR::MemoryReference *setMemoryReference(TR::MemoryReference *mr) { return _memoryReference = mr; }
 
-   virtual uint32_t getLength(int32_t estimatedSnippetStart);
-   };
+    TR::Instruction *getFenceNOPInstruction() { return _fenceNOPInst; }
 
-}
+    TR::Instruction *setFenceNOPInstruction(TR::Instruction *instr) { return _fenceNOPInst = instr; }
 
-}
+    bool isInstanceData();
+
+    bool resolveForStore() { return _isStore; }
+
+    virtual uint8_t *getAddressOfDataReference();
+
+    virtual uint8_t *emitSnippetBody();
+
+    virtual uint32_t getLength(int32_t estimatedSnippetStart);
+};
+
+}} // namespace J9::Z
 
 #endif

@@ -30,9 +30,12 @@
 #define J9_MEMORY_REFERENCE_CONNECTOR
 
 namespace J9 {
-namespace ARM64 { class MemoryReference; }
-typedef J9::ARM64::MemoryReference MemoryReferenceConnector;
+namespace ARM64 {
+class MemoryReference;
 }
+
+typedef J9::ARM64::MemoryReference MemoryReferenceConnector;
+} // namespace J9
 #else
 #error J9::ARM64::MemoryReference expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -40,155 +43,139 @@ typedef J9::ARM64::MemoryReference MemoryReferenceConnector;
 #include "codegen/OMRMemoryReference.hpp"
 #include "infra/Flags.hpp"
 
-namespace J9
-{
+namespace J9 { namespace ARM64 {
 
-namespace ARM64
-{
-
-class OMR_EXTENSIBLE MemoryReference : public OMR::MemoryReferenceConnector
-   {
-   flags8_t _j9Flags;
+class OMR_EXTENSIBLE MemoryReference : public OMR::MemoryReferenceConnector {
+    flags8_t _j9Flags;
 
 protected:
+    /**
+     * @brief Constructor
+     * @param[in] cg : CodeGenerator object
+     */
+    MemoryReference(TR::CodeGenerator *cg)
+        : OMR::MemoryReferenceConnector(cg)
+        , _j9Flags(0)
+    {
+        setupCausesImplicitNullPointerException(cg);
+    }
 
-   /**
-    * @brief Constructor
-    * @param[in] cg : CodeGenerator object
-    */
-   MemoryReference(TR::CodeGenerator *cg)
-      : OMR::MemoryReferenceConnector(cg), _j9Flags(0)
-      {
-      setupCausesImplicitNullPointerException(cg);
-      }
+    /**
+     * @brief Constructor
+     * @param[in] br : base register
+     * @param[in] ir : index register
+     * @param[in] cg : CodeGenerator object
+     */
+    MemoryReference(TR::Register *br, TR::Register *ir, TR::CodeGenerator *cg)
+        : OMR::MemoryReferenceConnector(br, ir, cg)
+        , _j9Flags(0)
+    {
+        setupCausesImplicitNullPointerException(cg);
+    }
 
-   /**
-    * @brief Constructor
-    * @param[in] br : base register
-    * @param[in] ir : index register
-    * @param[in] cg : CodeGenerator object
-    */
-   MemoryReference(
-         TR::Register *br,
-         TR::Register *ir,
-         TR::CodeGenerator *cg)
-      : OMR::MemoryReferenceConnector(br, ir, cg), _j9Flags(0)
-      {
-      setupCausesImplicitNullPointerException(cg);
-      }
+    /**
+     * @brief Constructor
+     * @param[in] br : base register
+     * @param[in] ir : index register
+     * @param[in] scale : scale of index
+     * @param[in] cg : CodeGenerator object
+     */
+    MemoryReference(TR::Register *br, TR::Register *ir, uint8_t scale, TR::CodeGenerator *cg)
+        : OMR::MemoryReferenceConnector(br, ir, scale, cg)
+        , _j9Flags(0)
+    {
+        setupCausesImplicitNullPointerException(cg);
+    }
 
-   /**
-    * @brief Constructor
-    * @param[in] br : base register
-    * @param[in] ir : index register
-    * @param[in] scale : scale of index
-    * @param[in] cg : CodeGenerator object
-    */
-   MemoryReference(
-         TR::Register *br,
-         TR::Register *ir,
-         uint8_t scale,
-         TR::CodeGenerator *cg)
-      : OMR::MemoryReferenceConnector(br, ir, scale, cg), _j9Flags(0)
-      {
-      setupCausesImplicitNullPointerException(cg);
-      }
+    /**
+     * @brief Constructor
+     * @param[in] br : base register
+     * @param[in] disp : displacement
+     * @param[in] cg : CodeGenerator object
+     */
+    MemoryReference(TR::Register *br, int32_t disp, TR::CodeGenerator *cg)
+        : OMR::MemoryReferenceConnector(br, disp, cg)
+        , _j9Flags(0)
+    {
+        setupCausesImplicitNullPointerException(cg);
+    }
 
-   /**
-    * @brief Constructor
-    * @param[in] br : base register
-    * @param[in] disp : displacement
-    * @param[in] cg : CodeGenerator object
-    */
-   MemoryReference(
-         TR::Register *br,
-         int32_t disp,
-         TR::CodeGenerator *cg)
-      : OMR::MemoryReferenceConnector(br, disp, cg), _j9Flags(0)
-      {
-      setupCausesImplicitNullPointerException(cg);
-      }
+    /**
+     * @brief Constructor
+     * @param[in] node : load or store node
+     * @param[in] cg : CodeGenerator object
+     */
+    MemoryReference(TR::Node *node, TR::CodeGenerator *cg);
 
-   /**
-    * @brief Constructor
-    * @param[in] node : load or store node
-    * @param[in] cg : CodeGenerator object
-    */
-   MemoryReference(TR::Node *node, TR::CodeGenerator *cg);
-
-   /**
-    * @brief Constructor
-    * @param[in] node : node
-    * @param[in] symRef : symbol reference
-    * @param[in] cg : CodeGenerator object
-    */
-   MemoryReference(TR::Node *node, TR::SymbolReference *symRef, TR::CodeGenerator *cg);
+    /**
+     * @brief Constructor
+     * @param[in] node : node
+     * @param[in] symRef : symbol reference
+     * @param[in] cg : CodeGenerator object
+     */
+    MemoryReference(TR::Node *node, TR::SymbolReference *symRef, TR::CodeGenerator *cg);
 
 public:
-   TR_ALLOC(TR_Memory::MemoryReference)
+    TR_ALLOC(TR_Memory::MemoryReference)
 
-   typedef enum
-      {
-      TR_ARM64MemoryReferenceControl_ThrowsImplicitNullPointerException  = 0x01,
-      /* To be added more if necessary */
-      } TR_ARM64MemoryReferenceExtraControl;
+    typedef enum {
+        TR_ARM64MemoryReferenceControl_ThrowsImplicitNullPointerException = 0x01,
+        /* To be added more if necessary */
+    } TR_ARM64MemoryReferenceExtraControl;
 
+    /**
+     * @brief Implicit NullPointerException can be thrown or not
+     * @return true if implicit NullPointerException can be thrown
+     */
+    bool getCausesImplicitNullPointerException()
+    {
+        return _j9Flags.testAll(TR_ARM64MemoryReferenceControl_ThrowsImplicitNullPointerException);
+    }
 
-   /**
-    * @brief Implicit NullPointerException can be thrown or not
-    * @return true if implicit NullPointerException can be thrown
-    */
-   bool getCausesImplicitNullPointerException()
-      {
-      return _j9Flags.testAll(TR_ARM64MemoryReferenceControl_ThrowsImplicitNullPointerException);
-      }
+    /**
+     * @brief Sets Implicit NullPointerException flag
+     */
+    void setCausesImplicitNullPointerException()
+    {
+        _j9Flags.set(TR_ARM64MemoryReferenceControl_ThrowsImplicitNullPointerException);
+    }
 
-   /**
-    * @brief Sets Implicit NullPointerException flag
-    */
-   void setCausesImplicitNullPointerException()
-      {
-      _j9Flags.set(TR_ARM64MemoryReferenceControl_ThrowsImplicitNullPointerException);
-      }
+    /**
+     * @brief Analyzes current node and sets Implicit NullPointerException flag if necessary
+     * @param[in] cg : CodeGenerator
+     */
+    void setupCausesImplicitNullPointerException(TR::CodeGenerator *cg);
 
-   /**
-    * @brief Analyzes current node and sets Implicit NullPointerException flag if necessary
-    * @param[in] cg : CodeGenerator
-    */
-   void setupCausesImplicitNullPointerException(TR::CodeGenerator *cg);
+    /**
+     * @brief Adjustment for resolution
+     * @param[in] cg : CodeGenerator
+     */
+    void adjustForResolution(TR::CodeGenerator *cg);
 
-   /**
-    * @brief Adjustment for resolution
-    * @param[in] cg : CodeGenerator
-    */
-   void adjustForResolution(TR::CodeGenerator *cg);
+    /**
+     * @brief Assigns registers
+     * @param[in] currentInstruction : current instruction
+     * @param[in] cg : CodeGenerator
+     */
+    void assignRegisters(TR::Instruction *currentInstruction, TR::CodeGenerator *cg);
 
-   /**
-    * @brief Assigns registers
-    * @param[in] currentInstruction : current instruction
-    * @param[in] cg : CodeGenerator
-    */
-   void assignRegisters(TR::Instruction *currentInstruction, TR::CodeGenerator *cg);
+    /**
+     * @brief Estimates the length of generated binary
+     * @param[in] op : opcode of the instruction to attach this memory reference to
+     * @return estimated binary length
+     */
+    uint32_t estimateBinaryLength(TR::InstOpCode op);
 
-   /**
-    * @brief Estimates the length of generated binary
-    * @param[in] op : opcode of the instruction to attach this memory reference to
-    * @return estimated binary length
-    */
-   uint32_t estimateBinaryLength(TR::InstOpCode op);
+    /**
+     * @brief Generates binary encoding
+     * @param[in] ci : current instruction
+     * @param[in] cursor : instruction cursor
+     * @param[in] cg : CodeGenerator
+     * @return instruction cursor after encoding
+     */
+    uint8_t *generateBinaryEncoding(TR::Instruction *ci, uint8_t *cursor, TR::CodeGenerator *cg);
+};
 
-   /**
-    * @brief Generates binary encoding
-    * @param[in] ci : current instruction
-    * @param[in] cursor : instruction cursor
-    * @param[in] cg : CodeGenerator
-    * @return instruction cursor after encoding
-    */
-   uint8_t *generateBinaryEncoding(TR::Instruction *ci, uint8_t *cursor, TR::CodeGenerator *cg);
-   };
-
-} // ARM64
-
-} // J9
+}} // namespace J9::ARM64
 
 #endif

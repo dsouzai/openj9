@@ -28,37 +28,34 @@
 struct J9ThreadMonitor;
 struct RWMutex;
 
-namespace J9
-{
+namespace J9 {
 
 class MonitorTable;
 
 // This is not going to be linked to other monitors for now
 
-class RWMonitor
-   {
-   public:
+class RWMonitor {
+public:
+    void enter_read();
+    void enter_write();
+    void exit_read();
+    void exit_write();
+    void destroy();
 
-   void enter_read();
-   void enter_write();
-   void exit_read();
-   void exit_write();
-   void destroy();
-   void *getVMMonitor() {return (void*)_monitor;}
+    void *getVMMonitor() { return (void *)_monitor; }
 
-   private:
-
-   friend class J9::MonitorTable;
-   bool init(const char *name);
-   bool initFromVMMutex(void *mutex);
+private:
+    friend class J9::MonitorTable;
+    bool init(const char *name);
+    bool initFromVMMutex(void *mutex);
 
 #ifdef J9VM_JIT_CLASS_UNLOAD_RWMONITOR
-   RWMutex *_monitor;
+    RWMutex *_monitor;
 #else
-   J9ThreadMonitor *_monitor;
+    J9ThreadMonitor *_monitor;
 #endif
-   };
+};
 
-}
+} // namespace J9
 
 #endif

@@ -22,14 +22,9 @@
 
 #include "optimizer/HandleRecompilationOps.hpp"
 
-int32_t
-TR_HandleRecompilationOps::perform()
-   {
-   return 0;
-   }
+int32_t TR_HandleRecompilationOps::perform() { return 0; }
 
-const char *
-TR_HandleRecompilationOps::optDetailString() const throw()
-   {
-   return "O^O HANDLE RECOMPILATION OPERATIONS:";
-   }
+const char *TR_HandleRecompilationOps::optDetailString() const throw()
+{
+    return "O^O HANDLE RECOMPILATION OPERATIONS:";
+}

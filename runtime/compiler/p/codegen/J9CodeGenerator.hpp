@@ -28,10 +28,14 @@
  */
 #ifndef J9_CODEGENERATOR_CONNECTOR
 #define J9_CODEGENERATOR_CONNECTOR
+
 namespace J9 {
-namespace Power { class CodeGenerator; }
-typedef J9::Power::CodeGenerator CodeGeneratorConnector;
+namespace Power {
+class CodeGenerator;
 }
+
+typedef J9::Power::CodeGenerator CodeGeneratorConnector;
+} // namespace J9
 #else
 #error J9::Power::CodeGenerator expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -47,82 +51,63 @@ namespace TR {
 class Recompilation;
 }
 
-extern TR::Instruction *loadAddressRAM32(TR::CodeGenerator *cg,
-                                    TR::Node * node,
-                                    int32_t value,
-                                    TR::Register *trgReg);
+extern TR::Instruction *loadAddressRAM32(TR::CodeGenerator *cg, TR::Node *node, int32_t value, TR::Register *trgReg);
 
-extern TR::Instruction *loadAddressRAM(TR::CodeGenerator *cg,
-                                    TR::Node        *node,
-                                    intptr_t         value,
-                                    TR::Register    *targetRegister);
+extern TR::Instruction *loadAddressRAM(TR::CodeGenerator *cg, TR::Node *node, intptr_t value,
+    TR::Register *targetRegister);
 
-extern TR::Instruction *loadAddressJNI32(TR::CodeGenerator *cg,
-                                    TR::Node * node,
-                                    int32_t value,
-                                    TR::Register *trgReg);
+extern TR::Instruction *loadAddressJNI32(TR::CodeGenerator *cg, TR::Node *node, int32_t value, TR::Register *trgReg);
 
-extern TR::Instruction *loadAddressJNI(TR::CodeGenerator *cg,
-                                    TR::Node        *node,
-                                    intptr_t         value,
-                                    TR::Register    *targetRegister);
+extern TR::Instruction *loadAddressJNI(TR::CodeGenerator *cg, TR::Node *node, intptr_t value,
+    TR::Register *targetRegister);
 
-namespace J9
-{
+namespace J9 { namespace Power {
 
-namespace Power
-{
-
-class OMR_EXTENSIBLE CodeGenerator : public J9::CodeGenerator
-   {
-
+class OMR_EXTENSIBLE CodeGenerator : public J9::CodeGenerator {
 protected:
-
-   CodeGenerator(TR::Compilation *comp);
+    CodeGenerator(TR::Compilation *comp);
 
 public:
+    void initialize();
 
-   void initialize();
+    TR::Recompilation *allocateRecompilationInfo();
 
-   TR::Recompilation *allocateRecompilationInfo();
+    TR::Linkage *createLinkage(TR_LinkageConventions lc);
 
-   TR::Linkage *createLinkage(TR_LinkageConventions lc);
+    void generateBinaryEncodingPrologue(TR_PPCBinaryEncodingData *data);
 
-   void generateBinaryEncodingPrologue(TR_PPCBinaryEncodingData *data);
+    void lowerTreeIfNeeded(TR::Node *node, int32_t childNumber, TR::Node *parent, TR::TreeTop *tt);
 
-   void lowerTreeIfNeeded(TR::Node *node, int32_t childNumber, TR::Node *parent, TR::TreeTop *tt);
+    bool inlineDirectCall(TR::Node *node, TR::Register *&resultReg);
 
-   bool inlineDirectCall(TR::Node *node, TR::Register *&resultReg);
+    TR::Linkage *deriveCallingLinkage(TR::Node *node, bool isIndirect);
 
-   TR::Linkage *deriveCallingLinkage(TR::Node *node, bool isIndirect);
+    bool suppressInliningOfRecognizedMethod(TR::RecognizedMethod method);
 
-   bool suppressInliningOfRecognizedMethod(TR::RecognizedMethod method);
+    bool enableAESInHardwareTransformations();
 
-   bool enableAESInHardwareTransformations();
+    void insertPrefetchIfNecessary(TR::Node *node, TR::Register *targetRegister);
 
-   void insertPrefetchIfNecessary(TR::Node *node, TR::Register *targetRegister);
+    int32_t getInternalPtrMapBit() { return 18; }
 
-   int32_t getInternalPtrMapBit() { return 18;}
-
-   bool canEmitDataForExternallyRelocatableInstructions();
+    bool canEmitDataForExternallyRelocatableInstructions();
 
 #ifdef J9VM_OPT_JAVA_CRYPTO_ACCELERATION
-   bool suppressInliningOfCryptoMethod(TR::RecognizedMethod method);
-   bool inlineCryptoMethod(TR::Node *node, TR::Register *&resultReg);
+    bool suppressInliningOfCryptoMethod(TR::RecognizedMethod method);
+    bool inlineCryptoMethod(TR::Node *node, TR::Register *&resultReg);
 #endif
 
-   /**
-    * \brief Determines whether the code generator supports stack allocations
-    */
-   bool supportsStackAllocations() { return true; }
-   bool supportsDirectJNICallsForAOT() { return true; }
+    /**
+     * \brief Determines whether the code generator supports stack allocations
+     */
+    bool supportsStackAllocations() { return true; }
 
-   // See J9::CodeGenerator::guaranteesResolvedDirectDispatchForSVM
-   bool guaranteesResolvedDirectDispatchForSVM() { return true; }
-   };
+    bool supportsDirectJNICallsForAOT() { return true; }
 
-}
+    // See J9::CodeGenerator::guaranteesResolvedDirectDispatchForSVM
+    bool guaranteesResolvedDirectDispatchForSVM() { return true; }
+};
 
-}
+}} // namespace J9::Power
 
 #endif

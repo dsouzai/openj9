@@ -27,15 +27,13 @@
 
 namespace TR {
 
-class OMR_EXTENSIBLE CodeCacheManager : public J9::CodeCacheManagerConnector
-    {
-    public:
-    CodeCacheManager(TR_FrontEnd *fe, TR::RawAllocator rawAllocator) :
-       J9::CodeCacheManagerConnector(fe, rawAllocator)
-       {
-       }
-    };
+class OMR_EXTENSIBLE CodeCacheManager : public J9::CodeCacheManagerConnector {
+public:
+    CodeCacheManager(TR_FrontEnd *fe, TR::RawAllocator rawAllocator)
+        : J9::CodeCacheManagerConnector(fe, rawAllocator)
+    {}
+};
 
-}
+} // namespace TR
 
 #endif // TR_CODECACHEMANAGER_INCL
