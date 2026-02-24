@@ -28,7 +28,9 @@
 #include "infra/List.hpp"
 #include "env/VMJ9.h"
 
-namespace TR { class CompilationInfo; }
+namespace TR {
+class CompilationInfo;
+}
 
 class TR_AnnotationBase{
 

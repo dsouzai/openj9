@@ -56,8 +56,10 @@ struct J9SharedClassJavacoreDataDescriptor;
 }
 
 class CpuUtilization;
-namespace TR { class CompilationInfoPerThread; }
-namespace TR { class CompilationInfoPerThreadBase; }
+namespace TR {
+class CompilationInfoPerThread;
+class CompilationInfoPerThreadBase;
+}
 class TR_FilterBST;
 class TR_FrontEnd;
 class TR_HWProfiler;
@@ -67,10 +69,14 @@ class TR_OptimizationPlan;
 class TR_PersistentMethodInfo;
 class TR_RelocationRuntime;
 class TR_ResolvedMethod;
-namespace TR { class MonitorTable; }
-namespace TR { class IlGeneratorMethodDetails; }
-namespace TR { class Options; }
-namespace J9 { class RWMonitor; }
+namespace TR {
+class MonitorTable;
+class IlGeneratorMethodDetails;
+class Options;
+}
+namespace J9 {
+class RWMonitor;
+}
 struct TR_JitPrivateConfig;
 struct TR_MethodToBeCompiled;
 template <typename T> class TR_PersistentArray;
@@ -82,7 +88,9 @@ class JITServerAOTDeserializer;
 class JITServerSharedROMClassCache;
 #endif /* defined(J9VM_OPT_JITSERVER) */
 #if defined(J9VM_OPT_CRIU_SUPPORT)
-namespace TR { class CRRuntime; }
+namespace TR {
+class CRRuntime;
+}
 #endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
 
 struct TR_SignatureCountPair

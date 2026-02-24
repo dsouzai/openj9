@@ -28,8 +28,10 @@
  */
 #ifndef J9_KNOWN_OBJECT_TABLE_CONNECTOR
 #define J9_KNOWN_OBJECT_TABLE_CONNECTOR
-namespace J9 { class KnownObjectTable; }
-namespace J9 { typedef J9::KnownObjectTable KnownObjectTableConnector; }
+namespace J9 {
+class KnownObjectTable;
+typedef J9::KnownObjectTable KnownObjectTableConnector;
+}
 #endif
 
 #include "env/OMRKnownObjectTable.hpp"
@@ -42,11 +44,17 @@ namespace J9 { typedef J9::KnownObjectTable KnownObjectTableConnector; }
 #include <vector>
 #endif /* defined(J9VM_OPT_JITSERVER) */
 
-namespace J9 { class Compilation; }
+namespace J9 {
+class Compilation;
+}
 namespace OMR { class Logger; }
-namespace TR { class Compilation; }
+namespace TR {
+class Compilation;
+}
 class TR_J9VMBase;
-namespace J9 { class ObjectModel; }
+namespace J9 {
+class ObjectModel;
+}
 class TR_VMFieldsInfo;
 class TR_BitVector;
 

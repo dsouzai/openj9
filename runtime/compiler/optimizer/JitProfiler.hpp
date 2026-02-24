@@ -29,10 +29,12 @@
 #include "il/Node.hpp"
 #include "infra/Checklist.hpp"
 
-namespace TR { class Block; }
-namespace TR { class CFG; }
-namespace TR { class SymbolReference; }
-namespace TR { class TreeTop; }
+namespace TR {
+class Block;
+class CFG;
+class SymbolReference;
+class TreeTop;
+}
 
 /*
  * Prototype of profiling in the jit during cold compiles

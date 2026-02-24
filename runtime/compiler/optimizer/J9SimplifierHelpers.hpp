@@ -28,9 +28,11 @@
 #include "il/DataTypes.hpp"
 #include "il/ILOps.hpp"
 
-namespace TR { class Block; }
-namespace TR { class Node; }
-namespace TR { class Simplifier; }
+namespace TR {
+class Block;
+class Node;
+class Simplifier;
+}
 
 bool propagateSignState(TR::Node *node, TR::Node *child, int32_t shiftAmount, TR::Block *block, TR::Simplifier *s);
 bool propagateSignStateUnaryConversion(TR::Node *node, TR::Block *block, TR::Simplifier *s);

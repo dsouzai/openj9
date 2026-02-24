@@ -28,8 +28,10 @@
  */
 #ifndef J9_IL_CONNECTOR
 #define J9_IL_CONNECTOR
-namespace J9 { class IL; }
-namespace J9 { typedef J9::IL ILConnector; }
+namespace J9 {
+class IL;
+typedef J9::IL ILConnector;
+}
 #endif
 
 #include "il/OMRIL.hpp"

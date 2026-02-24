@@ -28,15 +28,19 @@
  */
 #ifndef J9_SNIPPET_CONNECTOR
 #define J9_SNIPPET_CONNECTOR
-namespace J9 { class Snippet; }
-namespace J9 { typedef J9::Snippet SnippetConnector; }
+namespace J9 {
+class Snippet;
+typedef J9::Snippet SnippetConnector;
+}
 #endif
 
 #include "codegen/OMRSnippet.hpp"
 
-namespace TR { class CodeGenerator; }
-namespace TR { class LabelSymbol; }
-namespace TR { class Node; }
+namespace TR {
+class CodeGenerator;
+class LabelSymbol;
+class Node;
+}
 
 namespace J9
 {

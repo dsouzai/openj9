@@ -36,7 +36,9 @@
 #include "control/CompilationThread.hpp"
 #include "env/VMJ9.h"
 
-namespace TR { class Monitor; }
+namespace TR {
+class Monitor;
+}
 
 extern "C" void _patchJNICallSite(J9Method *method, uint8_t *pc, uint8_t *newAddress, TR_FrontEnd *fe, int32_t smpFlag);
 

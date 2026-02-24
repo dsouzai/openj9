@@ -28,8 +28,10 @@
  */
 #ifndef J9_COMPILER_ENV_CONNECTOR
 #define J9_COMPILER_ENV_CONNECTOR
-   namespace J9 { class CompilerEnv; }
-   namespace J9 { typedef J9::CompilerEnv CompilerEnvConnector; }
+namespace J9 {
+   class CompilerEnv;
+   typedef J9::CompilerEnv CompilerEnvConnector;
+}
 #endif
 
 #include "env/OMRCompilerEnv.hpp"

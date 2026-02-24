@@ -26,7 +26,9 @@
 #include "codegen/X86PrivateLinkage.hpp"
 #include "env/jittypes.h"
 
-namespace TR { class UnresolvedDataSnippet; }
+namespace TR {
+class UnresolvedDataSnippet;
+}
 
 namespace J9
 {

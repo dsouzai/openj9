@@ -25,7 +25,9 @@
 
 #include "optimizer/J9Simplifier.hpp"
 
-namespace TR { class OptimizationManager; }
+namespace TR {
+class OptimizationManager;
+}
 
 namespace TR
 {

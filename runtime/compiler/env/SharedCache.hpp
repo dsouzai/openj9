@@ -28,7 +28,9 @@
 
 class TR_PersistentClassLoaderTable;
 class TR_ResolvedMethod;
-namespace TR { class ResolvedMethodSymbol; }
+namespace TR {
+class ResolvedMethodSymbol;
+}
 class AOTCacheClassChainRecord;
 
 

@@ -25,7 +25,9 @@
 
 #include "codegen/J9CodeGenerator.hpp"
 
-namespace TR { class Compilation; }
+namespace TR {
+class Compilation;
+}
 
 namespace TR
 {

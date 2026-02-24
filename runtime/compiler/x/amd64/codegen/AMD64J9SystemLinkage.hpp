@@ -28,7 +28,9 @@
 #include "x/amd64/codegen/AMD64SystemLinkage.hpp"
 #include "codegen/X86Instruction.hpp"
 
-namespace TR { class CodeGenerator; }
+namespace TR {
+class CodeGenerator;
+}
 
 #define INCOMPLETELINKAGE  "This class is only used to generate call-out sequence but no call-in sequence, so it is not used as a complete linkage."
 

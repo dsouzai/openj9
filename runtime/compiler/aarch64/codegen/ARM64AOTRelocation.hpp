@@ -26,8 +26,10 @@
 #include <stdint.h>
 #include "codegen/Relocation.hpp"
 
-namespace TR { class CodeGenerator; }
-namespace TR { class Instruction; }
+namespace TR {
+class CodeGenerator;
+class Instruction;
+}
 
 namespace TR {
 

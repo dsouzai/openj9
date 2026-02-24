@@ -25,9 +25,11 @@
 
 #include "codegen/Snippet.hpp"
 
-namespace TR { class CodeGenerator; }
-namespace TR { class PPCConditionalBranchInstruction; }
-namespace TR { class LabelSymbol; }
+namespace TR {
+class CodeGenerator;
+class PPCConditionalBranchInstruction;
+class LabelSymbol;
+}
 
 namespace TR {
 

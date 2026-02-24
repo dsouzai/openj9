@@ -36,10 +36,12 @@ class TR_OpaqueClassBlock;
 class TR_OpaqueMethodBlock;
 class TR_ResolvedMethod;
 namespace OMR { class RuntimeAssumption; }
-namespace TR { class ResolvedMethodSymbol; }
-namespace TR { class SymbolReference; }
-namespace TR { class SymbolReferenceTable; }
-namespace TR { class Compilation; }
+namespace TR {
+class ResolvedMethodSymbol;
+class SymbolReference;
+class SymbolReferenceTable;
+class Compilation;
+}
 
 namespace TR {
 

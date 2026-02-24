@@ -28,8 +28,10 @@
  */
 #ifndef J9_UNRESOLVEDDATASNIPPET_CONNECTOR
 #define J9_UNRESOLVEDDATASNIPPET_CONNECTOR
-namespace J9 { namespace X86 { class UnresolvedDataSnippet; } }
-namespace J9 { typedef J9::X86::UnresolvedDataSnippet UnresolvedDataSnippetConnector; }
+namespace J9 {
+namespace X86 { class UnresolvedDataSnippet; }
+typedef J9::X86::UnresolvedDataSnippet UnresolvedDataSnippetConnector;
+}
 #else
 #error J9::X86::UnresolvedDataSnippet expected to be a primary connector, but a J9 connector is already defined
 #endif
@@ -45,7 +47,9 @@ namespace J9 { typedef J9::X86::UnresolvedDataSnippet UnresolvedDataSnippetConne
 #include "infra/Flags.hpp"
 #include "env/CompilerEnv.hpp"
 
-namespace TR { class Node; }
+namespace TR {
+class Node;
+}
 
 
 namespace J9

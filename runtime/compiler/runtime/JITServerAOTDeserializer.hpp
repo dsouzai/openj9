@@ -29,8 +29,10 @@
 #include "runtime/JITServerAOTSerializationRecords.hpp"
 
 class TR_PersistentClassLoaderTable;
-namespace TR { class Compilation; }
-namespace TR { class Monitor; }
+namespace TR {
+class Compilation;
+class Monitor;
+}
 
 struct DeserializerContext
    {

@@ -29,8 +29,10 @@
 #ifndef J9_MEMORY_REFERENCE_CONNECTOR
 #define J9_MEMORY_REFERENCE_CONNECTOR
 
-namespace J9 { namespace ARM64 { class MemoryReference; } }
-namespace J9 { typedef J9::ARM64::MemoryReference MemoryReferenceConnector; }
+namespace J9 {
+namespace ARM64 { class MemoryReference; }
+typedef J9::ARM64::MemoryReference MemoryReferenceConnector;
+}
 #else
 #error J9::ARM64::MemoryReference expected to be a primary connector, but a J9 connector is already defined
 #endif

@@ -28,8 +28,10 @@
  */
 #ifndef J9_VMACCESSCRITICALSECTION_CONNECTOR
 #define J9_VMACCESSCRITICALSECTION_CONNECTOR
-namespace J9 { class VMAccessCriticalSection; }
-namespace J9 { typedef J9::VMAccessCriticalSection VMAccessCriticalSectionConnector; }
+namespace J9 {
+class VMAccessCriticalSection;
+typedef J9::VMAccessCriticalSection VMAccessCriticalSectionConnector;
+}
 #endif
 
 #include "env/OMRVMAccessCriticalSection.hpp"
@@ -39,7 +41,9 @@ namespace J9 { typedef J9::VMAccessCriticalSection VMAccessCriticalSectionConnec
 #include "env/VMJ9.h"
 #include "j9.h"
 
-namespace TR { class Compilation; }
+namespace TR {
+class Compilation;
+}
 
 namespace J9
 {

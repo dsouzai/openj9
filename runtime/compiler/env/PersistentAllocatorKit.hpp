@@ -25,8 +25,12 @@
 
 #pragma once
 
-namespace J9 { struct PersistentAllocatorKit; }
-namespace TR { using J9::PersistentAllocatorKit; }
+namespace J9 {
+struct PersistentAllocatorKit;
+}
+namespace TR {
+using J9::PersistentAllocatorKit;
+}
 
 #include <stddef.h>
 

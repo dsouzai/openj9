@@ -25,8 +25,10 @@
 
 #ifndef J9_PERSISTENTINFO_CONNECTOR
 #define J9_PERSISTENTINFO_CONNECTOR
-namespace J9 { class PersistentInfo; }
-namespace J9 { typedef J9::PersistentInfo PersistentInfoConnector; }
+namespace J9 {
+class PersistentInfo;
+typedef J9::PersistentInfo PersistentInfoConnector;
+}
 #endif
 
 #include "env/OMRPersistentInfo.hpp"
@@ -44,7 +46,9 @@ class TR_PersistentCHTable;
 class TR_PersistentClassLoaderTable;
 class TR_AOTDependencyTable;
 class TR_MHJ2IThunkTable;
-namespace J9 { class Options; }
+namespace J9 {
+class Options;
+}
 
 enum JitStates {
    UNDEFINED_STATE = 0,

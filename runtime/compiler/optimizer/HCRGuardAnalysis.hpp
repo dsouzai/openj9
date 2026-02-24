@@ -21,7 +21,9 @@
  *******************************************************************************/
 #include "optimizer/DataFlowAnalysis.hpp"
 
-namespace TR { class NodeChecklist; }
+namespace TR {
+class NodeChecklist;
+}
 
 class TR_HCRGuardAnalysis : public TR_UnionSingleBitContainerAnalysis
    {

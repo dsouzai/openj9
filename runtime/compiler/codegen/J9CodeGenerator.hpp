@@ -29,8 +29,10 @@
 #ifndef J9_CODEGENERATOR_CONNECTOR
 #define J9_CODEGENERATOR_CONNECTOR
 
-namespace J9 { class CodeGenerator; }
-namespace J9 { typedef J9::CodeGenerator CodeGeneratorConnector; }
+namespace J9 {
+class CodeGenerator;
+typedef J9::CodeGenerator CodeGeneratorConnector;
+}
 #endif
 
 #include "codegen/OMRCodeGenerator.hpp"
@@ -54,10 +56,12 @@ class NVVMIRBuffer;
 class TR_BitVector;
 class TR_SharedMemoryAnnotations;
 class TR_J9VMBase;
-namespace TR { class Block; }
-namespace TR { class Node; }
-namespace TR { class SymbolReference; }
-namespace TR { class TreeTop; }
+namespace TR {
+class Block;
+class Node;
+class SymbolReference;
+class TreeTop;
+}
 
 namespace J9
 {

@@ -25,8 +25,10 @@
 
 #ifndef J9_AHEADOFTIMECOMPILE_CONNECTOR
 #define J9_AHEADOFTIMECOMPILE_CONNECTOR
-namespace J9 { namespace X86 { class AheadOfTimeCompile; } }
-namespace J9 { typedef J9::X86::AheadOfTimeCompile AheadOfTimeCompileConnector; }
+namespace J9 {
+namespace X86 { class AheadOfTimeCompile; }
+typedef J9::X86::AheadOfTimeCompile AheadOfTimeCompileConnector;
+}
 #endif // J9_AHEADOFTIMECOMPILE_CONNECTOR
 
 #include "compiler/codegen/J9AheadOfTimeCompile.hpp"

@@ -31,7 +31,9 @@
 #include "il/SymbolReference.hpp"
 #include "infra/Assert.hpp"
 
-namespace TR { class Block; }
+namespace TR {
+class Block;
+}
 
 
 /** \brief

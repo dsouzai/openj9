@@ -30,7 +30,9 @@
 
 class TR_MHJ2IThunk;
 class TR_ResolvedMethod;
-namespace TR { class Instruction; }
+namespace TR {
+class Instruction;
+}
 
 //
 // Hack markers

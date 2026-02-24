@@ -28,12 +28,14 @@
 #include <stdint.h>
 #include "il/SymbolReference.hpp"
 
-namespace TR { class Block; }
-namespace TR { class CodeGenerator; }
-namespace TR { class LabelSymbol; }
-namespace TR { class MethodSymbol; }
-namespace TR { class Node; }
-namespace TR { class Register; }
+namespace TR {
+class Block;
+class CodeGenerator;
+class LabelSymbol;
+class MethodSymbol;
+class Node;
+class Register;
+}
 
 namespace TR {
 

@@ -28,8 +28,10 @@
  */
 #ifndef J9_CPU_CONNECTOR
 #define J9_CPU_CONNECTOR
-namespace J9 { class CPU; }
-namespace J9 { typedef CPU CPUConnector; }
+namespace J9 {
+class CPU;
+typedef CPU CPUConnector;
+}
 #endif
 
 #include "env/OMRCPU.hpp"

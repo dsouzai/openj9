@@ -45,7 +45,9 @@ class TR_MethodToBeCompiled;
 class TR_AddressRange;
 class TR_PersistentCHTable;
 class JITServerPersistentCHTable;
-namespace TR { class CompilationInfoPerThreadBase; }
+namespace TR {
+class CompilationInfoPerThreadBase;
+}
 namespace JITServer { class ServerStream; }
 class JITServerSharedProfileCache;
 class ProfiledMethodEntry;

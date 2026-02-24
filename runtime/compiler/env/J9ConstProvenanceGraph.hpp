@@ -32,7 +32,9 @@
 #include <vector>
 #endif
 
-namespace TR { class Compilation; }
+namespace TR {
+class Compilation;
+}
 class TR_ResolvedMethod;
 
 namespace J9 {

@@ -28,8 +28,10 @@
  */
 #ifndef J9_NODE_CONNECTOR
 #define J9_NODE_CONNECTOR
-namespace J9 { class Node; }
-namespace J9 { typedef J9::Node NodeConnector; }
+namespace J9 {
+class Node;
+typedef J9::Node NodeConnector;
+}
 #endif
 
 #include "j9cfg.h"
@@ -38,10 +40,12 @@ namespace J9 { typedef J9::Node NodeConnector; }
 class TR_OpaquePseudoRegister;
 class TR_StorageReference;
 class TR_PseudoRegister;
-namespace TR { class Compilation; }
-namespace TR { class Node; }
-namespace TR { class ResolvedMethodSymbol; }
-namespace TR { class TreeTop; }
+namespace TR {
+class Compilation;
+class Node;
+class ResolvedMethodSymbol;
+class TreeTop;
+}
 
 namespace J9 {
 

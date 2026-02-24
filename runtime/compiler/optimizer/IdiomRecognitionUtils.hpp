@@ -33,10 +33,12 @@ class TR_CISCNode;
 class TR_CISCTransformer;
 class TR_PCISCGraph;
 class TR_PCISCNode;
-namespace TR { class SymbolReference; }
-namespace TR { class Block; }
-namespace TR { class Compilation; }
-namespace TR { class Node; }
+namespace TR {
+class SymbolReference;
+class Block;
+class Compilation;
+class Node;
+}
 template <class T> class List;
 
 enum

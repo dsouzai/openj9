@@ -28,15 +28,19 @@
  */
 #ifndef J9_DATATYPE_CONNECTOR
 #define J9_DATATYPE_CONNECTOR
-namespace J9 { class DataType; }
-namespace J9 { typedef J9::DataType DataTypeConnector; }
+namespace J9 {
+class DataType;
+typedef J9::DataType DataTypeConnector;
+}
 #endif
 
 #include "il/OMRDataTypes.hpp"
 
 #include <stdint.h>
 
-namespace TR { class DataType; }
+namespace TR {
+class DataType;
+}
 
 // NOTE : update these tables when adding/modifying enum TR_BCDSignCode
 // OMRDataTypes.hpp

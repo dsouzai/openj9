@@ -65,7 +65,9 @@
 #include "ras/Logger.hpp"
 
 class TR_OpaqueClassBlock;
-namespace TR { class MethodSymbol; }
+namespace TR {
+class MethodSymbol;
+}
 
 #define OPT_DETAILS "O^O EXPLICIT NEW INITIALIZATION: "
 

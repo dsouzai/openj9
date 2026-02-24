@@ -25,8 +25,10 @@
 
 #ifndef J9_AHEADOFTIMECOMPILE_CONNECTOR
 #define J9_AHEADOFTIMECOMPILE_CONNECTOR
-namespace J9 { class AheadOfTimeCompile; }
-namespace J9 { typedef J9::AheadOfTimeCompile AheadOfTimeCompileConnector; }
+namespace J9 {
+class AheadOfTimeCompile;
+typedef J9::AheadOfTimeCompile AheadOfTimeCompileConnector;
+}
 #endif // J9_AHEADOFTIMECOMPILE_CONNECTOR
 
 #include "codegen/OMRAheadOfTimeCompile.hpp"
@@ -35,7 +37,9 @@ namespace J9 { typedef J9::AheadOfTimeCompile AheadOfTimeCompileConnector; }
 #include <stdint.h>
 #include "env/jittypes.h"
 
-namespace TR { class Compilation; }
+namespace TR {
+class Compilation;
+}
 class AOTCacheRecord;
 class AOTCacheClassChainRecord;
 class AOTCacheWellKnownClassesRecord;

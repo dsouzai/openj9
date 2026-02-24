@@ -28,7 +28,9 @@
 #include "infra/Assert.hpp"
 #include "runtime/OMRRSSReport.hpp"
 
-namespace TR { class Monitor; }
+namespace TR {
+class Monitor;
+}
 struct J9JITDataCacheHeader;
 
 //#undef DATA_CACHE_DEBUG

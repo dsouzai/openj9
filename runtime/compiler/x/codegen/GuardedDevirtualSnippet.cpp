@@ -43,9 +43,11 @@
 #include "ras/Logger.hpp"
 #include "x/codegen/RestartSnippet.hpp"
 
-namespace TR { class Block; }
-namespace TR { class MethodSymbol; }
-namespace TR { class Register; }
+namespace TR {
+class Block;
+class MethodSymbol;
+class Register;
+}
 
 TR::X86GuardedDevirtualSnippet::X86GuardedDevirtualSnippet(TR::CodeGenerator * cg,
                                                                TR::Node          * node,

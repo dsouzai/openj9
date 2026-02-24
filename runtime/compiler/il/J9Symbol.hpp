@@ -28,8 +28,10 @@
  */
 #ifndef J9_SYMBOL_CONNECTOR
 #define J9_SYMBOL_CONNECTOR
-namespace J9 { class Symbol; }
-namespace J9 { typedef J9::Symbol SymbolConnector; }
+namespace J9 {
+class Symbol;
+typedef J9::Symbol SymbolConnector;
+}
 #endif
 
 #include "il/OMRSymbol.hpp"
@@ -43,15 +45,17 @@ namespace J9 { typedef J9::Symbol SymbolConnector; }
 
 class TR_FrontEnd;
 class TR_ResolvedMethod;
-namespace TR { class AutomaticSymbol; }
-namespace TR { class Compilation; }
-namespace TR { class LabelSymbol; }
-namespace TR { class MethodSymbol; }
-namespace TR { class ParameterSymbol; }
-namespace TR { class RegisterMappedSymbol; }
-namespace TR { class ResolvedMethodSymbol; }
-namespace TR { class StaticSymbol; }
-namespace TR { class Symbol; }
+namespace TR {
+class AutomaticSymbol;
+class Compilation;
+class LabelSymbol;
+class MethodSymbol;
+class ParameterSymbol;
+class RegisterMappedSymbol;
+class ResolvedMethodSymbol;
+class StaticSymbol;
+class Symbol;
+}
 
 namespace J9 {
 

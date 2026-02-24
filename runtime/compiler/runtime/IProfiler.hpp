@@ -73,8 +73,10 @@
 #undef EXPERIMENTAL_IPROFILER
 
 class TR_BlockFrequencyInfo;
-namespace TR { class CompilationInfo; }
-namespace TR { class Options; }
+namespace TR {
+class CompilationInfo;
+class Options;
+}
 class TR_FrontEnd;
 class TR_IPBCDataPointer;
 class TR_IPBCDataCallGraph;
@@ -86,11 +88,15 @@ class TR_IPByteVector;
 class TR_J9ByteCodeIterator;
 class TR_ExternalValueProfileInfo;
 class TR_OpaqueMethodBlock;
-namespace TR { class PersistentInfo; }
-namespace TR { class Monitor; }
+namespace TR {
+class PersistentInfo;
+class Monitor;
+}
 struct J9Class;
 struct J9PortLibrary;
-namespace TR { class ResolvedMethodSymbol; }
+namespace TR {
+class ResolvedMethodSymbol;
+}
 class TR_ResolvedMethod;
 class TR_AbstractInfo;
 class TR_BitVector;

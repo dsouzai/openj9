@@ -28,8 +28,10 @@
  */
 #ifndef J9_LINKAGE_CONNECTOR
 #define J9_LINKAGE_CONNECTOR
-namespace J9 { namespace Z { class Linkage; } }
-namespace J9 { typedef J9::Z::Linkage LinkageConnector; }
+namespace J9 {
+namespace Z { class Linkage; }
+typedef J9::Z::Linkage LinkageConnector;
+}
 #endif
 
 #include "codegen/OMRLinkage.hpp"

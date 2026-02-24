@@ -28,8 +28,10 @@
  */
 #ifndef J9_TREE_EVALUATOR_CONNECTOR
 #define J9_TREE_EVALUATOR_CONNECTOR
-namespace J9 { namespace X86 { namespace I386 { class TreeEvaluator; } } }
-namespace J9 { typedef J9::X86::I386::TreeEvaluator TreeEvaluatorConnector; }
+namespace J9 {
+namespace X86 { namespace I386 { class TreeEvaluator; } }
+typedef J9::X86::I386::TreeEvaluator TreeEvaluatorConnector;
+}
 #else
 #error J9::X86::I386::TreeEvaluator expected to be a primary connector, but a J9 connector is already defined
 #endif

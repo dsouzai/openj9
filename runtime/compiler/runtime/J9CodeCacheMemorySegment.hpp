@@ -26,8 +26,10 @@
 
 #ifndef J9_CODECACHEMEMORYSEGMENT_COMPOSED
 #define J9_CODECACHEMEMORYSEGMENT_COMPOSED
-namespace J9 { class CodeCacheMemorySegment; }
-namespace J9 { typedef CodeCacheMemorySegment CodeCacheMemorySegmentConnector; }
+namespace J9 {
+class CodeCacheMemorySegment;
+typedef CodeCacheMemorySegment CodeCacheMemorySegmentConnector;
+}
 #endif
 
 #include "env/jittypes.h"

@@ -29,8 +29,10 @@
 #include "env/TRMemory.hpp"
 #include "infra/CriticalSection.hpp"
 
-namespace TR { class CodeCache; }
-namespace TR { class Monitor; }
+namespace TR {
+class CodeCache;
+class Monitor;
+}
 struct J9JavaVM;
 struct J9VMThread;
 struct J9JITExceptionTable;

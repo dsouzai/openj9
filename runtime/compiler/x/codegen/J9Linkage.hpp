@@ -28,8 +28,10 @@
  */
 #ifndef J9_LINKAGE_CONNECTOR
 #define J9_LINKAGE_CONNECTOR
-namespace J9 { namespace X86 { class Linkage; } }
-namespace J9 { typedef J9::X86::Linkage LinkageConnector; }
+namespace J9 {
+namespace X86 { class Linkage; }
+typedef J9::X86::Linkage LinkageConnector;
+}
 #endif
 
 #include "codegen/OMRLinkage.hpp"

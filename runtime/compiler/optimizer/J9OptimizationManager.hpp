@@ -28,8 +28,10 @@
  */
 #ifndef J9_OPTIMIZATIONMANAGER_CONNECTOR
 #define J9_OPTIMIZATIONMANAGER_CONNECTOR
-namespace J9 { class OptimizationManager; }
-namespace J9 { typedef J9::OptimizationManager OptimizationManagerConnector; }
+namespace J9 {
+class OptimizationManager;
+typedef J9::OptimizationManager OptimizationManagerConnector;
+}
 #endif
 
 #include "optimizer/OMROptimizationManager.hpp"
@@ -37,8 +39,10 @@ namespace J9 { typedef J9::OptimizationManager OptimizationManagerConnector; }
 #include <stddef.h>
 #include "optimizer/Optimizations.hpp"
 
-namespace TR { class OptimizationManager; }
-namespace TR { class Optimizer; }
+namespace TR {
+class OptimizationManager;
+class Optimizer;
+}
 struct OptimizationStrategy;
 
 namespace J9

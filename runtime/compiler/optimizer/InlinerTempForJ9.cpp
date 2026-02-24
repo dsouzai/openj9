@@ -67,7 +67,9 @@
 #include "optimizer/TransformUtil.hpp"
 #include "ras/Logger.hpp"
 
-namespace TR { class SimpleRegex; }
+namespace TR {
+class SimpleRegex;
+}
 
 #define OPT_DETAILS "O^O INLINER: "
 

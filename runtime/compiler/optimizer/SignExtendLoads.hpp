@@ -32,7 +32,9 @@
 #include "env/jittypes.h"
 #include "optimizer/OptimizationManager.hpp"
 
-namespace TR { class Node; }
+namespace TR {
+class Node;
+}
 template <class T> class TR_ScratchList;
 
 class TR_SignExtendLoads : public TR::Optimization

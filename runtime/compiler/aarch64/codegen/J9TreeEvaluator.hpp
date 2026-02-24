@@ -28,8 +28,10 @@
  */
 #ifndef J9_TREE_EVALUATOR_CONNECTOR
 #define J9_TREE_EVALUATOR_CONNECTOR
-namespace J9 { namespace ARM64 { class TreeEvaluator; } }
-namespace J9 { typedef J9::ARM64::TreeEvaluator TreeEvaluatorConnector; }
+namespace J9 {
+namespace ARM64 { class TreeEvaluator; }
+typedef J9::ARM64::TreeEvaluator TreeEvaluatorConnector;
+}
 #else
 #error J9::ARM64::TreeEvaluator expected to be a primary connector, but a J9 connector is already defined
 #endif

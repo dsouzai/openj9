@@ -41,12 +41,16 @@
 #define ENTRY_IN_POOL_FREE     0x8
 #define ENTRY_DEALLOCATED      0x10
 
-namespace TR { class CompilationInfoPerThreadBase; }
+namespace TR {
+class CompilationInfoPerThreadBase;
+}
 class TR_OptimizationPlan;
 #if defined(J9VM_OPT_JITSERVER)
 namespace JITServer { class ServerStream; }
 #endif /* defined(J9VM_OPT_JITSERVER) */
-namespace TR { class Monitor; }
+namespace TR {
+class Monitor;
+}
 struct J9JITConfig;
 struct J9VMThread;
 

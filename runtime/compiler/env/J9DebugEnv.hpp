@@ -28,8 +28,10 @@
  */
 #ifndef J9_DEBUGENV_CONNECTOR
 #define J9_DEBUGENV_CONNECTOR
-namespace J9 { class DebugEnv; }
-namespace J9 { typedef J9::DebugEnv DebugEnvConnector; }
+namespace J9 {
+class DebugEnv;
+typedef J9::DebugEnv DebugEnvConnector;
+}
 #endif
 
 #include "env/OMRDebugEnv.hpp"

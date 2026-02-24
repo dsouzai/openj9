@@ -25,8 +25,12 @@
 
 #pragma once
 
-namespace J9 { class PersistentAllocator; }
-namespace TR { using J9::PersistentAllocator; }
+namespace J9 {
+class PersistentAllocator;
+}
+namespace TR {
+using J9::PersistentAllocator;
+}
 
 #include <new>
 #include "j9cfg.h"

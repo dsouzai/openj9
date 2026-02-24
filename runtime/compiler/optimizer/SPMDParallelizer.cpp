@@ -85,8 +85,10 @@
 #define VECTOR_LENGTH TR::VectorLength128
 #define INVALID_ADDR  (TR::Node *)-1
 
-namespace TR { class OptimizationManager; }
-namespace TR { class ParameterSymbol; }
+namespace TR {
+class OptimizationManager;
+class ParameterSymbol;
+}
 
 typedef TR::CodeGenerator::gpuMapElement gpuMapElement;
 

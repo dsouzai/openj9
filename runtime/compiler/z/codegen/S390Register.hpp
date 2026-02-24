@@ -35,10 +35,12 @@
 
 class TR_OpaquePseudoRegister;
 class TR_PseudoRegister;
-namespace TR { class AutomaticSymbol; }
-namespace TR { class Compilation; }
-namespace TR { class Symbol; }
-namespace TR { class SymbolReference; }
+namespace TR {
+class AutomaticSymbol;
+class Compilation;
+class Symbol;
+class SymbolReference;
+}
 template <typename ListKind> class List;
 
 class TR_StorageReference

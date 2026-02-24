@@ -25,8 +25,10 @@
 
 #ifndef J9_AHEADOFTIMECOMPILE_CONNECTOR
 #define J9_AHEADOFTIMECOMPILE_CONNECTOR
-namespace J9 { namespace ARM { class AheadOfTimeCompile; } }
-namespace J9 { typedef J9::ARM::AheadOfTimeCompile AheadOfTimeCompileConnector; }
+namespace J9 {
+namespace ARM { class AheadOfTimeCompile; }
+typedef J9::ARM::AheadOfTimeCompile AheadOfTimeCompileConnector;
+}
 #endif // J9_AHEADOFTIMECOMPILE_CONNECTOR
 
 #include "compiler/codegen/J9AheadOfTimeCompile.hpp"
@@ -35,7 +37,9 @@ namespace J9 { typedef J9::ARM::AheadOfTimeCompile AheadOfTimeCompileConnector; 
 #include "codegen/CodeGenerator.hpp"
 #include "compile/SymbolReferenceTable.hpp"
 
-namespace TR { class ARMRelocation; }
+namespace TR {
+class ARMRelocation;
+}
 
 /*************************************************************************
  *  Change on this numbering scheme (even only value change) has to be   *

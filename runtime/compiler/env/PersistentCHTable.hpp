@@ -41,9 +41,11 @@ class TR_PersistentClassInfo;
 class TR_ResolvedMethod;
 namespace OMR { class RuntimeAssumption; }
 class TR_RuntimeAssumptionTable;
-namespace TR { class Compilation; }
-namespace TR { class ResolvedMethodSymbol; }
-namespace TR { class CompilationInfo; }
+namespace TR {
+class Compilation;
+class ResolvedMethodSymbol;
+class CompilationInfo;
+}
 
 class TR_PersistentCHTable
    {

@@ -28,8 +28,10 @@
  */
 #ifndef J9_ARITHENV_CONNECTOR
 #define J9_ARITHENV_CONNECTOR
-namespace J9 { class ArithEnv; }
-namespace J9 { typedef J9::ArithEnv ArithEnvConnector; }
+namespace J9 {
+class ArithEnv;
+typedef J9::ArithEnv ArithEnvConnector;
+}
 #endif
 
 #include "env/OMRArithEnv.hpp"
