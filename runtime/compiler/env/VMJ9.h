@@ -450,14 +450,15 @@ protected:
     bool isAotResolvedVirtualDispatchGuaranteed(TR::Compilation *comp);
 
     bool matchedMethod(TR_OpaqueMethodBlock *method, J9ROMMethod *romMethod, TR_OpaqueClassBlock *classPointer,
-        uint32_t methodIndex, const char *methodName, size_t nameLength, const char *signature, size_t sigLength);
+        uint32_t methodIndex, const char *methodName, size_t nameLength, const char *signature, size_t sigLength,
+        bool ignoreSig = false);
 
 public:
     virtual TR_OpaqueMethodBlock *getMethodFromClass(TR_OpaqueClassBlock *, const char *, const char *,
         TR_OpaqueClassBlock * = NULL);
 
     TR_OpaqueMethodBlock *getMatchingMethodFromNameAndSignature(TR_OpaqueClassBlock *classPointer,
-        const char *methodName, const char *signature);
+        const char *methodName, const char *signature, bool ignoreSig = false);
 
     virtual void getResolvedMethods(TR_Memory *, TR_OpaqueClassBlock *, List<TR_ResolvedMethod> *);
     /**
@@ -474,6 +475,13 @@ public:
      */
     virtual TR_ResolvedMethod *getResolvedMethodForNameAndSignature(TR_Memory *trMemory,
         TR_OpaqueClassBlock *classPointer, const char *methodName, const char *signature);
+
+    virtual TR_ResolvedMethod *getResolvedMethodForNameOnly(TR_Memory *trMemory, TR_OpaqueClassBlock *classPointer,
+        const char *methodName);
+
+    virtual TR_ResolvedMethod *getResolvedMethodForConstructorWithSig(TR_Memory *trMemory,
+        TR_OpaqueClassBlock *classPointer, const char *signature);
+
     virtual TR_OpaqueMethodBlock *getResolvedVirtualMethod(TR_OpaqueClassBlock *classObject, int32_t cpIndex,
         bool ignoreReResolve = true);
     virtual TR_OpaqueMethodBlock *getResolvedInterfaceMethod(TR_OpaqueMethodBlock *ownerMethod,

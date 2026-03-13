@@ -6123,20 +6123,26 @@ void TR_J9VMBase::getResolvedMethods(TR_Memory *trMemory, TR_OpaqueClassBlock *c
  * Should be called with VMAccess
  */
 bool TR_J9VMBase::matchedMethod(TR_OpaqueMethodBlock *method, J9ROMMethod *romMethod, TR_OpaqueClassBlock *classPointer,
-    uint32_t methodIndex, const char *methodName, size_t nameLength, const char *signature, size_t sigLength)
+    uint32_t methodIndex, const char *methodName, size_t nameLength, const char *signature, size_t sigLength,
+    bool ignoreSig)
 {
     bool matched = false;
 
     J9UTF8 *mName = J9ROMMETHOD_NAME(romMethod);
-    J9UTF8 *mSig = J9ROMMETHOD_SIGNATURE(romMethod);
-    if (J9UTF8_LENGTH(mName) == nameLength && J9UTF8_LENGTH(mSig) == sigLength
-        && memcmp(utf8Data(mName), methodName, nameLength) == 0 && memcmp(utf8Data(mSig), signature, sigLength) == 0) {
-        TR::Compilation *comp = _compInfoPT ? _compInfoPT->getCompilation() : NULL;
-        if (comp && comp->getOption(TR_UseSymbolValidationManager)) {
-            comp->getSymbolValidationManager()->addMethodFromClassRecord(method, classPointer, methodIndex);
+    if ((J9UTF8_LENGTH(mName) == nameLength) && (memcmp(utf8Data(mName), methodName, nameLength) == 0)) {
+        if (!ignoreSig) {
+            J9UTF8 *mSig = J9ROMMETHOD_SIGNATURE(romMethod);
+            matched = (J9UTF8_LENGTH(mSig) == sigLength) && (memcmp(utf8Data(mSig), signature, sigLength) == 0);
+        } else {
+            matched = true;
         }
 
-        matched = true;
+        if (matched) {
+            TR::Compilation *comp = _compInfoPT ? _compInfoPT->getCompilation() : NULL;
+            if (comp && comp->getOption(TR_UseSymbolValidationManager)) {
+                comp->getSymbolValidationManager()->addMethodFromClassRecord(method, classPointer, methodIndex);
+            }
+        }
     }
 
     return matched;
@@ -6146,10 +6152,10 @@ bool TR_J9VMBase::matchedMethod(TR_OpaqueMethodBlock *method, J9ROMMethod *romMe
  * Should be called with VMAccess
  */
 TR_OpaqueMethodBlock *TR_J9VMBase::getMatchingMethodFromNameAndSignature(TR_OpaqueClassBlock *classPointer,
-    const char *methodName, const char *signature)
+    const char *methodName, const char *signature, bool ignoreSig)
 {
-    size_t nameLength = strlen(methodName);
-    size_t sigLength = strlen(signature);
+    size_t nameLength = methodName ? strlen(methodName) : 0;
+    size_t sigLength = signature ? strlen(signature) : 0;
 
     J9ROMClass *romClass = TR::Compiler->cls.romClassOf(classPointer);
     J9Method *j9Methods = (J9Method *)getMethods(classPointer);
@@ -6163,7 +6169,8 @@ TR_OpaqueMethodBlock *TR_J9VMBase::getMatchingMethodFromNameAndSignature(TR_Opaq
     for (uint32_t i = 0; i < numMethods; i++) {
         TR_OpaqueMethodBlock *methodToCheck = (TR_OpaqueMethodBlock *)(j9Methods + i);
 
-        if (matchedMethod(methodToCheck, romMethod, classPointer, i, methodName, nameLength, signature, sigLength)) {
+        if (matchedMethod(methodToCheck, romMethod, classPointer, i, methodName, nameLength, signature, sigLength,
+                ignoreSig)) {
             method = methodToCheck;
             break;
         }
@@ -6185,6 +6192,26 @@ TR_ResolvedMethod *TR_J9VMBase::getResolvedMethodForNameAndSignature(TR_Memory *
         rm = createResolvedMethod(trMemory, method, 0);
 
     return rm;
+}
+
+TR_ResolvedMethod *TR_J9VMBase::getResolvedMethodForNameOnly(TR_Memory *trMemory, TR_OpaqueClassBlock *classPointer,
+    const char *methodName)
+{
+    TR::VMAccessCriticalSection vmCS(this); // Prevent HCR
+    TR_ResolvedMethod *rm = NULL;
+
+    bool ignoreSig = true;
+    TR_OpaqueMethodBlock *method = getMatchingMethodFromNameAndSignature(classPointer, methodName, NULL, ignoreSig);
+    if (method)
+        rm = createResolvedMethod(trMemory, method, 0);
+
+    return rm;
+}
+
+TR_ResolvedMethod *TR_J9VMBase::getResolvedMethodForConstructorWithSig(TR_Memory *trMemory,
+    TR_OpaqueClassBlock *classPointer, const char *signature)
+{
+    return getResolvedMethodForNameAndSignature(trMemory, classPointer, "<init>", signature);
 }
 
 void *TR_J9VMBase::getMethods(TR_OpaqueClassBlock *classPointer)
