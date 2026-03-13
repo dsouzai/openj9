@@ -3602,30 +3602,25 @@ static void getHelperSymRefs(OMR::ValuePropagation *vp, TR::Node *curCallNode, T
     if (!jitHelpersClass || !TR::Compiler->cls.isClassInitialized(vp->comp(), jitHelpersClass))
         return;
 
-    TR_ScratchList<TR_ResolvedMethod> helperMethods(vp->trMemory());
-    vp->comp()->fej9()->getResolvedMethods(vp->trMemory(), jitHelpersClass, &helperMethods);
-    ListIterator<TR_ResolvedMethod> it(&helperMethods);
-
-    // Find the symRefs
-    //
-    for (TR_ResolvedMethod *m = it.getCurrent(); m; m = it.getNext()) {
-        char *sig = m->nameChars();
-        if (!strncmp(sig, helperSig, helperSigLen)) {
-            if (TR::MethodSymbol::Virtual == helperCallKind) {
-                // REVISIT FOR IMPL HASH CODE***
-                //
-                helperSymRef = vp->comp()->getSymRefTab()->findOrCreateMethodSymbol(JITTED_METHOD_INDEX, -1, m,
-                    TR::MethodSymbol::Virtual);
-                helperSymRef->setOffset(
-                    TR::Compiler->cls.vTableSlot(vp->comp(), m->getPersistentIdentifier(), jitHelpersClass));
-            } else {
-                helperSymRef = vp->comp()->getSymRefTab()->findOrCreateMethodSymbol(
-                    curCallNode->getSymbolReference()->getOwningMethodIndex(), -1, m, helperCallKind);
-            }
-        } else if (!strncmp(sig, "jitHelpers", 10)) {
-            getHelpersSymRef = vp->comp()->getSymRefTab()->findOrCreateMethodSymbol(JITTED_METHOD_INDEX, -1, m,
-                TR::MethodSymbol::Static);
+    TR_ResolvedMethod *m = vp->comp()->fej9()->getResolvedMethodForNameOnly(vp->trMemory(), jitHelpersClass, helperSig);
+    if (m) {
+        if (TR::MethodSymbol::Virtual == helperCallKind) {
+            // REVISIT FOR IMPL HASH CODE***
+            //
+            helperSymRef = vp->comp()->getSymRefTab()->findOrCreateMethodSymbol(JITTED_METHOD_INDEX, -1, m,
+                TR::MethodSymbol::Virtual);
+            helperSymRef->setOffset(
+                TR::Compiler->cls.vTableSlot(vp->comp(), m->getPersistentIdentifier(), jitHelpersClass));
+        } else {
+            helperSymRef = vp->comp()->getSymRefTab()->findOrCreateMethodSymbol(
+                curCallNode->getSymbolReference()->getOwningMethodIndex(), -1, m, helperCallKind);
         }
+    }
+
+    m = vp->comp()->fej9()->getResolvedMethodForNameOnly(vp->trMemory(), jitHelpersClass, "jitHelpers");
+    if (m) {
+        getHelpersSymRef = vp->comp()->getSymRefTab()->findOrCreateMethodSymbol(JITTED_METHOD_INDEX, -1, m,
+            TR::MethodSymbol::Static);
     }
 }
 

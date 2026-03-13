@@ -2152,15 +2152,7 @@ TR_Debug *TR_J9VMBase::createDebug(TR::Compilation *comp)
 
 TR_ResolvedMethod *TR_J9VMBase::getDefaultConstructor(TR_Memory *trMemory, TR_OpaqueClassBlock *classPointer)
 {
-    TR::VMAccessCriticalSection getDefaultConstructor(this);
-    List<TR_ResolvedMethod> list(trMemory);
-    getResolvedMethods(trMemory, classPointer, &list);
-    ListIterator<TR_ResolvedMethod> methods(&list);
-    TR_ResolvedMethod *m = methods.getFirst();
-    for (; m; m = methods.getNext())
-        if (m->isConstructor() && m->signatureLength() == 3 && !strncmp(m->signatureChars(), "()V", 3))
-            break;
-    return m;
+    return getResolvedMethodForConstructorWithSig(trMemory, classPointer, "()V");
 }
 
 extern "C" J9NameAndSignature newInstancePrototypeNameAndSig;
@@ -7462,20 +7454,13 @@ TR::Node *TR_J9VM::inlineNativeCall(TR::Compilation *comp, TR::TreeTop *callNode
         }
         case TR::java_lang_J9VMInternals_defaultClone: {
             TR_OpaqueClassBlock *bdClass = getClassFromSignature("java/lang/Object", 16, comp->getCurrentMethod());
-            TR_ScratchList<TR_ResolvedMethod> bdMethods(comp->trMemory());
-            getResolvedMethods(comp->trMemory(), bdClass, &bdMethods);
-            ListIterator<TR_ResolvedMethod> bdit(&bdMethods);
-
-            TR_ResolvedMethod *method = NULL;
-            for (method = bdit.getCurrent(); method; method = bdit.getNext()) {
-                const char *sig = method->signature(comp->trMemory());
-                int32_t len = strlen(sig);
-                if (!strncmp(sig, "java/lang/Object.clone()Ljava/lang/Object;", len)) {
-                    callNode->setSymbolReference(comp->getSymRefTab()->findOrCreateMethodSymbol(
-                        callNode->getSymbolReference()->getOwningMethodIndex(), -1, method, TR::MethodSymbol::Special));
-                    break;
-                }
+            TR_ResolvedMethod *method
+                = getResolvedMethodForNameAndSignature(comp->trMemory(), bdClass, "clone", "()Ljava/lang/Object;");
+            if (method) {
+                callNode->setSymbolReference(comp->getSymRefTab()->findOrCreateMethodSymbol(
+                    callNode->getSymbolReference()->getOwningMethodIndex(), -1, method, TR::MethodSymbol::Special));
             }
+
             return callNode;
         }
         case TR::java_lang_J9VMInternals_isClassModifierPublic: {
@@ -7608,25 +7593,21 @@ TR::Node *TR_J9VM::inlineNativeCall(TR::Compilation *comp, TR::TreeTop *callNode
             if (jitHelpersClass && isClassInitialized(jitHelpersClass)) {
                 // fish for the getSuperclass method in JITHelpers
                 //
-                const char *callerSig = comp->signature();
                 const char *getHelpersSig = "jitHelpers";
-                int32_t getHelpersSigLength = 10;
                 TR::SymbolReference *getSuperclassSymRef = NULL;
                 TR::SymbolReference *getHelpersSymRef = NULL;
-                TR_ScratchList<TR_ResolvedMethod> helperMethods(comp->trMemory());
-                getResolvedMethods(comp->trMemory(), jitHelpersClass, &helperMethods);
-                ListIterator<TR_ResolvedMethod> it(&helperMethods);
-                for (TR_ResolvedMethod *m = it.getCurrent(); m; m = it.getNext()) {
-                    char *sig = m->nameChars();
-                    if (!strncmp(sig, "getSuperclass", 13)) {
-                        getSuperclassSymRef = comp->getSymRefTab()->findOrCreateMethodSymbol(
-                            callNode->getSymbolReference()->getOwningMethodIndex(), -1, m, TR::MethodSymbol::Virtual);
-                        getSuperclassSymRef->setOffset(getVTableSlot(m->getPersistentIdentifier(), jitHelpersClass));
-                        /// break;
-                    } else if (!strncmp(sig, getHelpersSig, getHelpersSigLength)) {
-                        getHelpersSymRef = comp->getSymRefTab()->findOrCreateMethodSymbol(
-                            callNode->getSymbolReference()->getOwningMethodIndex(), -1, m, TR::MethodSymbol::Static);
-                    }
+
+                TR_ResolvedMethod *m = getResolvedMethodForNameOnly(comp->trMemory(), jitHelpersClass, "getSuperclass");
+                if (m) {
+                    getSuperclassSymRef = comp->getSymRefTab()->findOrCreateMethodSymbol(
+                        callNode->getSymbolReference()->getOwningMethodIndex(), -1, m, TR::MethodSymbol::Virtual);
+                    getSuperclassSymRef->setOffset(getVTableSlot(m->getPersistentIdentifier(), jitHelpersClass));
+                }
+
+                m = getResolvedMethodForNameOnly(comp->trMemory(), jitHelpersClass, getHelpersSig);
+                if (m) {
+                    getHelpersSymRef = comp->getSymRefTab()->findOrCreateMethodSymbol(
+                        callNode->getSymbolReference()->getOwningMethodIndex(), -1, m, TR::MethodSymbol::Static);
                 }
 
                 // redirect the call to the new Java implementation
