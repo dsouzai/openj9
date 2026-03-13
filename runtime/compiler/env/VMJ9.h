@@ -445,14 +445,19 @@ protected:
     bool isAotResolvedDirectDispatchGuaranteed(TR::Compilation *comp);
     bool isAotResolvedVirtualDispatchGuaranteed(TR::Compilation *comp);
 
+    bool matchedMethod(TR_OpaqueMethodBlock *method, J9ROMMethod *romMethod, TR_OpaqueClassBlock *classPointer,
+        uint32_t methodIndex, const char *methodName, size_t nameLength, const char *signature, size_t sigLength,
+        bool ignoreSig = false);
+
+    TR_OpaqueMethodBlock *getMatchingMethodFromNameAndSignature(TR_OpaqueClassBlock *classPointer,
+        const char *methodName, const char *signature);
+
 public:
     virtual TR_OpaqueMethodBlock *getMethodFromClass(TR_OpaqueClassBlock *, const char *, const char *,
         TR_OpaqueClassBlock * = NULL);
 
-    TR_OpaqueMethodBlock *getMatchingMethodFromNameAndSignature(TR_OpaqueClassBlock *classPointer,
-        const char *methodName, const char *signature, bool validate = true);
-
-    virtual void getResolvedMethods(TR_Memory *, TR_OpaqueClassBlock *, List<TR_ResolvedMethod> *);
+    virtual void getResolvedMethods(TR_Memory *, TR_OpaqueClassBlock *, List<TR_ResolvedMethod> *,
+        const char *methodName = NULL);
     /**
      * @brief Create a TR_ResolvedMethod given a class, method name and signature
      *
@@ -467,6 +472,10 @@ public:
      */
     virtual TR_ResolvedMethod *getResolvedMethodForNameAndSignature(TR_Memory *trMemory,
         TR_OpaqueClassBlock *classPointer, const char *methodName, const char *signature);
+
+    virtual TR_ResolvedMethod *getResolvedMethodForConstructorWithSig(TR_Memory *trMemory,
+        TR_OpaqueClassBlock *classPointer, const char *signature);
+
     virtual TR_OpaqueMethodBlock *getResolvedVirtualMethod(TR_OpaqueClassBlock *classObject, int32_t cpIndex,
         bool ignoreReResolve = true);
     virtual TR_OpaqueMethodBlock *getResolvedInterfaceMethod(TR_OpaqueMethodBlock *ownerMethod,
@@ -1907,7 +1916,8 @@ public:
     virtual bool canMethodExitEventBeHooked();
     virtual bool methodsCanBeInlinedEvenIfEventHooksEnabled(TR::Compilation *comp);
     virtual TR_OpaqueClassBlock *getClassOfMethod(TR_OpaqueMethodBlock *method);
-    virtual void getResolvedMethods(TR_Memory *, TR_OpaqueClassBlock *, List<TR_ResolvedMethod> *);
+    virtual void getResolvedMethods(TR_Memory *, TR_OpaqueClassBlock *, List<TR_ResolvedMethod> *,
+        const char *methodName = NULL);
     virtual TR_ResolvedMethod *getResolvedMethodForNameAndSignature(TR_Memory *trMemory,
         TR_OpaqueClassBlock *classPointer, const char *methodName, const char *signature);
     virtual uint32_t getInstanceFieldOffset(TR_OpaqueClassBlock *classPointer, const char *fieldName, uint32_t fieldLen,
