@@ -453,12 +453,12 @@ protected:
         uint32_t methodIndex, const char *methodName, size_t nameLength, const char *signature, size_t sigLength,
         bool ignoreSig = false);
 
+    TR_OpaqueMethodBlock *getMatchingMethodFromNameAndSignature(TR_OpaqueClassBlock *classPointer,
+        const char *methodName, const char *signature, bool ignoreSig = false);
+
 public:
     virtual TR_OpaqueMethodBlock *getMethodFromClass(TR_OpaqueClassBlock *, const char *, const char *,
         TR_OpaqueClassBlock * = NULL);
-
-    TR_OpaqueMethodBlock *getMatchingMethodFromNameAndSignature(TR_OpaqueClassBlock *classPointer,
-        const char *methodName, const char *signature, bool ignoreSig = false);
 
     virtual void getResolvedMethods(TR_Memory *, TR_OpaqueClassBlock *, List<TR_ResolvedMethod> *);
     /**
