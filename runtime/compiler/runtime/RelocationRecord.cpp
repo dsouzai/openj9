@@ -346,6 +346,11 @@ struct TR_RelocationRecordValidateClassInfoIsInitializedBinaryTemplate : public 
     uint8_t _isInitialized;
 };
 
+struct TR_RelocationRecordValidateMethodsFromClassBinaryTemplate : public TR_RelocationRecordBinaryTemplate {
+    uint16_t _classID;
+    uint16_t _startingSymbolID;
+};
+
 struct TR_RelocationRecordSymbolFromManagerBinaryTemplate : public TR_RelocationRecordBinaryTemplate {
     uint16_t _symbolID;
     uint16_t _symbolType;
@@ -885,6 +890,9 @@ TR_RelocationRecord *TR_RelocationRecord::create(TR_RelocationRecord *storage, T
             break;
         case TR_MethodTypeTableEntryAddress:
             reloRecord = new (storage) TR_RelocationRecordMethodTypeTableEntryAddress(reloRuntime, record);
+            break;
+        case TR_ValidateMethodsFromClass:
+            reloRecord = new (storage) TR_RelocationRecordValidateMethodsFromClass(reloRuntime, record);
             break;
         default:
             // TODO: error condition
@@ -5332,6 +5340,52 @@ uint16_t TR_RelocationRecordValidateMethodFromSingleAbstractImpl::callerMethodID
             ->_callerMethodID);
 }
 
+TR_RelocationErrorCode TR_RelocationRecordValidateMethodsFromClass::applyRelocation(TR_RelocationRuntime *reloRuntime,
+    TR_RelocationTarget *reloTarget, uint8_t *reloLocation)
+{
+    uint16_t classID = this->classID(reloTarget);
+    uint16_t startingSymbolID = this->startingSymbolID(reloTarget);
+
+    if (reloRuntime->comp()->getSymbolValidationManager()->validateMethodsFromClassRecord(classID, startingSymbolID))
+        return TR_RelocationErrorCode::relocationOK;
+    else
+        return TR_RelocationErrorCode::methodFromClassValidationFailure;
+}
+
+void TR_RelocationRecordValidateMethodsFromClass::print(TR_RelocationRuntime *reloRuntime)
+{
+    TR_RelocationTarget *reloTarget = reloRuntime->reloTarget();
+    TR_RelocationRuntimeLogger *reloLogger = reloRuntime->reloLogger();
+    TR_RelocationRecord::print(reloRuntime);
+    reloLogger->printf("\tclassID %d\n", classID(reloTarget));
+    reloLogger->printf("\tstartingSymbolID %d\n", startingSymbolID(reloTarget));
+}
+
+void TR_RelocationRecordValidateMethodsFromClass::setClassID(TR_RelocationTarget *reloTarget, uint16_t classID)
+{
+    reloTarget->storeUnsigned16b(classID,
+        (uint8_t *)&((TR_RelocationRecordValidateMethodsFromClassBinaryTemplate *)_record)->_classID);
+}
+
+uint16_t TR_RelocationRecordValidateMethodsFromClass::classID(TR_RelocationTarget *reloTarget)
+{
+    return reloTarget->loadUnsigned16b(
+        (uint8_t *)&((TR_RelocationRecordValidateMethodsFromClassBinaryTemplate *)_record)->_classID);
+}
+
+void TR_RelocationRecordValidateMethodsFromClass::setStartingSymbolID(TR_RelocationTarget *reloTarget,
+    uint16_t startingSymbolID)
+{
+    reloTarget->storeUnsigned16b(startingSymbolID,
+        (uint8_t *)&((TR_RelocationRecordValidateMethodsFromClassBinaryTemplate *)_record)->_startingSymbolID);
+}
+
+uint16_t TR_RelocationRecordValidateMethodsFromClass::startingSymbolID(TR_RelocationTarget *reloTarget)
+{
+    return reloTarget->loadUnsigned16b(
+        (uint8_t *)&((TR_RelocationRecordValidateMethodsFromClassBinaryTemplate *)_record)->_startingSymbolID);
+}
+
 void TR_RelocationRecordSymbolFromManager::print(TR_RelocationRuntime *reloRuntime)
 {
     TR_RelocationTarget *reloTarget = reloRuntime->reloTarget();
@@ -6713,6 +6767,7 @@ uint32_t TR_RelocationRecord::_relocationRecordHeaderSizeTable[TR_NumExternalRel
     sizeof(TR_RelocationRecordValidateHandleMethodFromCPIndexBinaryTemplate),        // TR_ValidateHandleMethodFromCPIndex              = 116
     sizeof(TR_RelocationRecordCallsiteTableEntryAddressBinaryTemplate),              // TR_CallsiteTableEntryAddress                    = 117
     sizeof(TR_RelocationRecordMethodTypeTableEntryAddressBinaryTemplate),            // TR_MethodTypeTableEntryAddress                  = 118
+    sizeof(TR_RelocationRecordValidateMethodsFromClassBinaryTemplate),               // TR_ValidateMethodsFromClass                     = 119
 
     // clang-format on
 };

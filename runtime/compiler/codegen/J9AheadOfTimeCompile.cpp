@@ -1333,6 +1333,15 @@ void J9::AheadOfTimeCompile::initializeCommonAOTRelocationHeader(TR::IteratedExt
             mteaRecord->setCpIndex(reloTarget, symRef->getSymbol()->getStaticSymbol()->getMethodTypeIndex());
         } break;
 
+        case TR_ValidateMethodsFromClass: {
+            auto *mfcRecord = reinterpret_cast<TR_RelocationRecordValidateMethodsFromClass *>(reloRecord);
+
+            TR::MethodsFromClass *svmRecord = reinterpret_cast<TR::MethodsFromClass *>(relocation->getTargetAddress());
+
+            mfcRecord->setClassID(reloTarget, symValManager->getSymbolIDFromValue(svmRecord->_clazz));
+            mfcRecord->setStartingSymbolID(reloTarget, svmRecord->_startingSymbolID);
+        } break;
+
         default:
             TR_ASSERT(false, "Unknown relo type %d!\n", kind);
             comp->failCompilation<J9::AOTRelocationRecordGenerationFailure>("Unknown relo type %d!\n", kind);
@@ -2085,6 +2094,14 @@ uint8_t *J9::AheadOfTimeCompile::dumpRelocationHeaderData(uint8_t *cursor, bool 
             self()->traceRelocationOffsets(startOfOffsets, offsetSize, endOfCurrentRecord, orderedPair);
             logprintf(isVerbose, log, "\n Method Type Table Entry Address: methodID=%d, cpIndex=%d ",
                 (uint32_t)mteaRecord->methodID(reloTarget), mteaRecord->cpIndex(reloTarget));
+        } break;
+
+        case TR_ValidateMethodsFromClass: {
+            auto *mfcRecord = reinterpret_cast<TR_RelocationRecordValidateMethodsFromClass *>(reloRecord);
+
+            self()->traceRelocationOffsets(startOfOffsets, offsetSize, endOfCurrentRecord, orderedPair);
+            logprintf(isVerbose, log, "\n Validate Methods From Class: classID=%d, startingSymbolID=%d",
+                mfcRecord->classID(reloTarget), mfcRecord->startingSymbolID(reloTarget));
         } break;
 
         default:

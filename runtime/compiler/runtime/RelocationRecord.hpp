@@ -2223,6 +2223,33 @@ public:
     uint16_t callerMethodID(TR_RelocationTarget *reloTarget);
 };
 
+class TR_RelocationRecordValidateMethodsFromClass : public TR_RelocationRecord {
+public:
+    TR_RelocationRecordValidateMethodsFromClass() {}
+
+    TR_RelocationRecordValidateMethodsFromClass(TR_RelocationRuntime *reloRuntime,
+        TR_RelocationRecordBinaryTemplate *record)
+        : TR_RelocationRecord(reloRuntime, record)
+    {}
+
+    virtual bool isValidationRecord() { return true; }
+
+    virtual const char *name() { return "TR_RelocationRecordValidateMethodsFromClass"; }
+
+    virtual void preparePrivateData(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget) {}
+
+    virtual TR_RelocationErrorCode applyRelocation(TR_RelocationRuntime *reloRuntime, TR_RelocationTarget *reloTarget,
+        uint8_t *reloLocation);
+
+    virtual void print(TR_RelocationRuntime *reloRuntime);
+
+    void setClassID(TR_RelocationTarget *reloTarget, uint16_t classID);
+    uint16_t classID(TR_RelocationTarget *reloTarget);
+
+    void setStartingSymbolID(TR_RelocationTarget *reloTarget, uint16_t startingSymbolID);
+    uint16_t startingSymbolID(TR_RelocationTarget *reloTarget);
+};
+
 class TR_RelocationRecordSymbolFromManager : public TR_RelocationRecord {
 public:
     TR_RelocationRecordSymbolFromManager() {}
