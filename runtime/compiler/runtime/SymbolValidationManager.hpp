@@ -1507,6 +1507,43 @@ struct HandleMethodFromCPIndex : public MethodValidationRecord {
 };
 
 /**
+ * @struct MethodsFromClass
+ * @brief Validation record to generate IDs for methods in a class; this
+ *        prevents the need for explicit MethodFromClass validation records
+ *        when calling the getResolvedMethods frontend query
+ */
+struct MethodsFromClass : public SymbolValidationRecord {
+    /**
+     * @brief Constructor
+     * @param clazz The class whose methods need IDs associated with them
+     * @param startingSymbolID the initial ID that will be used as a starting
+     *                         point to associate IDs to methods
+     */
+    MethodsFromClass(TR_OpaqueClassBlock *clazz, uint16_t startingSymbolID)
+        : SymbolValidationRecord(TR_ValidateMethodsFromClass)
+        , _startingSymbolID(startingSymbolID)
+        , _clazz(clazz)
+    {}
+
+    /**
+     * @brief Compare this record with another of the same kind
+     * @param other The other MethodsFromClass to compare with
+     * @return true if this record is less than other, false otherwise
+     */
+    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
+
+    /**
+     * @brief Print the fields of this record for debugging
+     */
+    virtual void printFields();
+
+    /** The starting symbol ID */
+    uint16_t _startingSymbolID;
+    /** The class whose methods will be associated with IDs */
+    TR_OpaqueClassBlock *_clazz;
+};
+
+/**
  * @class SymbolValidationManager
  * @brief Manages symbol validation for AOT compilation and loading
  *
@@ -1591,6 +1628,12 @@ public:
         SymRequired, /**< Symbol must be present */
         SymOptional /**< Symbol is optional */
     };
+
+    /**
+     * @brief Check whether a value has been seen already
+     * @return true if the value has been seen, false otherwise
+     */
+    bool valueHasBeenSeen(void *value);
 
     /**
      * @brief Get a value from a symbol ID
@@ -1931,6 +1974,14 @@ public:
      */
     bool addIsClassVisibleRecord(TR_OpaqueClassBlock *sourceClass, TR_OpaqueClassBlock *destClass, bool isVisible);
 
+    /**
+     * @brief Add a methods-from-class validation record
+     * @param clazz The class whose methods need IDs associated with them
+     * @return true if IDs were successfully associated to the methods of
+     *         clazz, false otherwise
+     */
+    bool addMethodsFromClassRecord(TR_OpaqueClassBlock *clazz);
+
     // Methods to validate records during AOT load
 
     /**
@@ -2242,6 +2293,16 @@ public:
     bool validateIsClassVisibleRecord(uint16_t sourceClassID, uint16_t destClassID, bool wasVisible);
 
     /**
+     * @brief Validate a methods-from-class record
+     * @param classID The symbol ID for the class whose methods need IDs
+     *                associated with them
+     * @param startingSymbolID The starting ID used to generate IDs for the
+     *                         methods of the class associated with classID
+     * @return true if validation succeeds, false otherwise
+     */
+    bool validateMethodsFromClassRecord(uint16_t classID, uint16_t startingSymbolID);
+
+    /**
      * @brief Get the base component class of an array class
      * @param clazz The array class
      * @param numDims Output parameter for the number of dimensions
@@ -2309,6 +2370,12 @@ private:
     static const uint16_t NO_ID = 0;
     /** First valid symbol ID */
     static const uint16_t FIRST_ID = 1;
+
+    /**
+     * @brief Return the current symbol ID
+     * @return The current symbol ID
+     */
+    uint16_t getCurrentSymbolID() { return _symbolID; }
 
     /**
      * @brief Get a new unique symbol ID
