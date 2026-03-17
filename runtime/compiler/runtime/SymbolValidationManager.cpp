@@ -1049,6 +1049,26 @@ bool TR::SymbolValidationManager::addIsClassVisibleRecord(TR_OpaqueClassBlock *s
     return addVanillaRecord(sourceClass, new (_region) IsClassVisibleRecord(sourceClass, destClass, isVisible));
 }
 
+bool TR::SymbolValidationManager::addMethodsFromClassRecord(TR_OpaqueClassBlock *clazz)
+{
+    SVM_ASSERT_ALREADY_VALIDATED(this, clazz);
+
+    {
+        TR::VMAccessCriticalSection getResolvedMethods(_fej9); // Prevent HCR
+        J9Method *methods = static_cast<J9Method *>(_fej9->getMethods(clazz));
+        uint32_t numMethods = _fej9->getNumMethods(clazz);
+
+        for (auto i = 0; i < numMethods; i++) {
+            TR_OpaqueMethodBlock *method = reinterpret_cast<TR_OpaqueMethodBlock *>(&(methods[i]));
+            if (!isAlreadyValidated(method)) {
+                defineGuaranteedID(method, TR::SymbolType::typeMethod);
+            }
+        }
+    }
+
+    return addVanillaRecord(clazz, new (_region) MethodsFromClass(clazz));
+}
+
 bool TR::SymbolValidationManager::validateSymbol(uint16_t idToBeValidated, void *validValue, TR::SymbolType type)
 {
     bool valid = false;
@@ -1574,6 +1594,26 @@ bool TR::SymbolValidationManager::validateIsClassVisibleRecord(uint16_t sourceCl
     bool isVisible = _fej9->isClassVisible(sourceClass, destClass);
 
     return (isVisible == wasVisible);
+}
+
+bool TR::SymbolValidationManager::validateMethodsFromClassRecord(uint16_t classID)
+{
+    TR_OpaqueClassBlock *clazz = getClassFromID(classID);
+
+    {
+        TR::VMAccessCriticalSection getResolvedMethods(_fej9); // Prevent HCR
+        J9Method *methods = static_cast<J9Method *>(_fej9->getMethods(clazz));
+        uint32_t numMethods = _fej9->getNumMethods(clazz);
+
+        for (auto i = 0; i < numMethods; i++) {
+            TR_OpaqueMethodBlock *method = reinterpret_cast<TR_OpaqueMethodBlock *>(&(methods[i]));
+            if (!isAlreadyValidated(method)) {
+                defineGuaranteedID(method, TR::SymbolType::typeMethod);
+            }
+        }
+    }
+
+    return true;
 }
 
 bool TR::SymbolValidationManager::assertionsAreFatal()
@@ -2211,4 +2251,17 @@ void TR::HandleMethodFromCPIndex::printFields()
     log->printf("\t_caller=0x%p\n", _caller);
     log->printf("\t_cpIndex=%d\n", _cpIndex);
     log->printf("\t_appendixObjectNull=%s\n", _appendixObjectNull ? "true" : "false");
+}
+
+bool TR::MethodsFromClass::isLessThanWithinKind(SymbolValidationRecord *other)
+{
+    TR::MethodsFromClass *rhs = downcast(this, other);
+    return LexicalOrder::by(_clazz, rhs->_clazz).less();
+}
+
+void TR::MethodsFromClass::printFields()
+{
+    OMR::Logger *log = TR::comp()->log();
+    log->printf("\t_clazz=0x%p\n", _clazz);
+    printClass(_clazz);
 }

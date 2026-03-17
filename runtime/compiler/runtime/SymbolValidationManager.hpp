@@ -1506,6 +1506,30 @@ struct HandleMethodFromCPIndex : public MethodValidationRecord {
     bool _appendixObjectNull;
 };
 
+struct MethodsFromClass : public SymbolValidationRecord {
+    /**
+     * @brief Constructor
+     */
+    MethodsFromClass(TR_OpaqueClassBlock *clazz)
+        : SymbolValidationRecord(TR_ValidateMethodsFromClass)
+        , _clazz(clazz)
+    {}
+
+    /**
+     * @brief Compare this record with another of the same kind
+     * @param other The other MethodsFromClass to compare with
+     * @return true if this record is less than other, false otherwise
+     */
+    virtual bool isLessThanWithinKind(SymbolValidationRecord *other);
+
+    /**
+     * @brief Print the fields of this record for debugging
+     */
+    virtual void printFields();
+
+    TR_OpaqueClassBlock *_clazz;
+};
+
 /**
  * @class SymbolValidationManager
  * @brief Manages symbol validation for AOT compilation and loading
@@ -1931,6 +1955,8 @@ public:
      */
     bool addIsClassVisibleRecord(TR_OpaqueClassBlock *sourceClass, TR_OpaqueClassBlock *destClass, bool isVisible);
 
+    bool addMethodsFromClassRecord(TR_OpaqueClassBlock *clazz);
+
     // Methods to validate records during AOT load
 
     /**
@@ -2240,6 +2266,8 @@ public:
      * @return true if validation succeeds, false otherwise
      */
     bool validateIsClassVisibleRecord(uint16_t sourceClassID, uint16_t destClassID, bool wasVisible);
+
+    bool validateMethodsFromClassRecord(uint16_t classID);
 
     /**
      * @brief Get the base component class of an array class
