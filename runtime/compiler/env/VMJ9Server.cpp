@@ -811,7 +811,7 @@ void *TR_J9ServerVM::getMethods(TR_OpaqueClassBlock *clazz)
 }
 
 void TR_J9ServerVM::getResolvedMethods(TR_Memory *trMemory, TR_OpaqueClassBlock *classPointer,
-    List<TR_ResolvedMethod> *resolvedMethodsInClass)
+    List<TR_ResolvedMethod> *resolvedMethodsInClass, const char *methodName)
 {
     getResolvedMethodsAndMethods(trMemory, classPointer, resolvedMethodsInClass, NULL, NULL);
 }
@@ -2918,7 +2918,7 @@ TR_OpaqueClassBlock *TR_J9SharedCacheServerVM::getSuperClass(TR_OpaqueClassBlock
 }
 
 void TR_J9SharedCacheServerVM::getResolvedMethods(TR_Memory *trMemory, TR_OpaqueClassBlock *classPointer,
-    List<TR_ResolvedMethod> *resolvedMethodsInClass)
+    List<TR_ResolvedMethod> *resolvedMethodsInClass, const char *methodName)
 {
     TR::Compilation *comp = _compInfoPT->getCompilation();
     TR_ASSERT(comp, "Should be called only within a compilation");
