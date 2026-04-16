@@ -67,7 +67,8 @@ void TR_J9ServerVM::getResolvedMethodsAndMethodsForName(TR_Memory *trMemory, TR_
 {
     TR_MethodToBeCompiled *entry = _compInfoPT->getMethodBeingCompiled();
     JITServer::ServerStream *stream = entry->_stream;
-    stream->write(JITServer::MessageType::VM_getResolvedMethodsForNameAndMirror, classPointer, methodName);
+    std::string methodNameString(methodName);
+    stream->write(JITServer::MessageType::VM_getResolvedMethodsForNameAndMirror, classPointer, methodNameString);
     auto recv = stream->read<std::vector<J9Method *>, std::vector<TR_ResolvedJ9JITServerMethodInfo> >();
     auto &methodsInClass = std::get<0>(recv);
     auto &methodsInfo = std::get<1>(recv);

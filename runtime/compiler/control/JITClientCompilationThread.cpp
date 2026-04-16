@@ -382,10 +382,11 @@ static bool handleResponse(JITServer::MessageType response, JITServer::ClientStr
             client->write(response, methods, methodsInfo);
         } break;
         case MessageType::VM_getResolvedMethodsForNameAndMirror: {
-            auto recv = client->getRecvData<TR_OpaqueClassBlock *, const char *>();
+            auto recv = client->getRecvData<TR_OpaqueClassBlock *, std::string>();
             TR_OpaqueClassBlock *clazz = std::get<0>(recv);
-            const char *methodName = std::get<1>(recv);
+            auto &methodNameString = std::get<1>(recv);
 
+            const char *methodName = methodNameString.c_str();
             auto nameLength = strlen(methodName);
             J9Method *j9methods = (J9Method *)fe->getMethods(clazz);
             uint32_t numMethods = fe->getNumMethods(clazz);
