@@ -8100,10 +8100,15 @@ void TR_J9SharedCacheVM::getResolvedMethods(TR_Memory *trMemory, TR_OpaqueClassB
     }
 
     if (validated) {
-        TR::VMAccessCriticalSection getResolvedMethods(this); // Prevent HCR
-
         if (comp->getOption(TR_UseSymbolValidationManager)) {
-            comp->getSymbolValidationManager()->addMethodsFromClassRecord(classPointer);
+            TR::VMAccessCriticalSection getResolvedMethods(this); // Prevent HCR
+            J9Method *resolvedMethods = (J9Method *)getMethods(classPointer);
+            uint32_t indexIntoArray;
+            uint32_t numMethods = getNumMethods(classPointer);
+            for (indexIntoArray = 0; indexIntoArray < numMethods; indexIntoArray++) {
+                comp->getSymbolValidationManager()->addMethodFromClassRecord(
+                    (TR_OpaqueMethodBlock *)&(resolvedMethods[indexIntoArray]), classPointer, indexIntoArray);
+            }
         }
 
         TR_J9VM::getResolvedMethods(trMemory, classPointer, resolvedMethodsInClass);
